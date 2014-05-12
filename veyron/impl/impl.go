@@ -81,11 +81,21 @@ func runSetup(cmd *cmdline.Command, args []string) error {
 	root := os.Getenv("VEYRON_ROOT")
 	script := path.Join(root, "environment/scripts/setup/machine/init.sh")
 	for _, arg := range args {
+		checkpoints := path.Join(root, ".checkpoints", arg)
+		if err := os.Setenv("CHECKPOINT_DIR", checkpoints); err != nil {
+			return errors.New("checkpoint setup failed")
+		}
+		if err := os.MkdirAll(checkpoints, 0777); err != nil {
+			return errors.New("checkpoint setup failed")
+		}
 		cmd := exec.Command(script, "-p", arg)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return errors.New("profile setup failed")
+		}
+		if err := os.RemoveAll(checkpoints); err != nil {
+			return errors.New("checkpoint setup failed")
 		}
 	}
 	return nil
