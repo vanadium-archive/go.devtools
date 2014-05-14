@@ -92,6 +92,14 @@ func CommitFile(fileName, message string) error {
 	return CommitWithMessage(message)
 }
 
+func CommitMessages(branch, baseBranch string) (string, error) {
+	messages, err := runOutput("git", "log", "--no-merges", baseBranch+".."+branch)
+	if err != nil {
+		return "", err
+	}
+	return messages, nil
+}
+
 func CountCommits(branch, baseBranch string) (int, error) {
 	countString, err := runOutput("git", "rev-list", "--count", branch, "^"+baseBranch)
 	if err != nil {

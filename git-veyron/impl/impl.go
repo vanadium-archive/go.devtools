@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"tools/git"
 	"veyron/lib/cmdline"
@@ -117,6 +119,30 @@ them before running 'git veyron review' again.
 ######################################################################
 `
 
+var defaultMessageHeader = `
+PLEASE EDIT THIS MESSAGE!
+
+# You are about to submit the following commits for review:
+#
+`
+
+// defaultCommitMessage creates the default commit message from the list of
+// commits on the branch.
+func (r *review) defaultCommitMessage() (string, error) {
+	commitMessages, err := git.CommitMessages(r.branch, r.reviewBranch)
+	if err != nil {
+		return "", fmt.Errorf("git.CommitMessages(%v, %v) failed: %v", r.branch, r.reviewBranch, err)
+	}
+	// Strip "Change-Id: ..." from the commit messages.
+	// Change-Id's start with 'I' and are followed by 40 characters of hex.
+	reChangeId := regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
+	strippedMessages := reChangeId.ReplaceAllLiteralString(commitMessages, "")
+	// Add comment markers (#) to every line.
+	commentedMessages := "# " + strings.Replace(strippedMessages, "\n", "\n# ", -1)
+	message := defaultMessageHeader + commentedMessages
+	return message, nil
+}
+
 // createReviewBranch creates a clean review branch from master and
 // squashes the commits into one, with the supplied message.
 func (r *review) createReviewBranch(message string) error {
@@ -137,6 +163,14 @@ func (r *review) createReviewBranch(message string) error {
 		if !hasDiff {
 			fmt.Printf("%s", noCommitsMessage)
 			return EmptyChangeError(r.branch)
+		}
+	}
+	// If message is empty, replace it with the list of commit messages on the branch.
+	if len(message) == 0 {
+		var err error
+		message, err = r.defaultCommitMessage()
+		if err != nil {
+			return fmt.Errorf("defaultCommitMessage() failed: %v", err)
 		}
 	}
 	fmt.Printf("### Squashing commits into the review branch. ###\n")
