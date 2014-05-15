@@ -57,7 +57,13 @@ var errOperationFailed = errors.New("operation failed")
 type EmptyChangeError string
 
 func (s EmptyChangeError) Error() string {
-	return fmt.Sprintf("No commits on branch %s. Cannot squash.", string(s))
+	return fmt.Sprintf("No commits on branch %s.", string(s))
+}
+
+type NoChangeIdError string
+
+func (s NoChangeIdError) Error() string {
+	return fmt.Sprintf("No Change-Id in commit %s.", string(s))
 }
 
 // runReview is a wrapper that sets up and runs a review instance.
@@ -119,12 +125,22 @@ them before running 'git veyron review' again.
 ######################################################################
 `
 
+var noChangeIdMessage = `
+######################################################################
+Missing Change-Id.  Please run ./scripts/setup/repo/init.sh and then
+run 'git veyron review' again.
+######################################################################
+`
+
 var defaultMessageHeader = `
 PLEASE EDIT THIS MESSAGE!
 
 # You are about to submit the following commits for review:
 #
 `
+
+// Change-Ids start with 'I' and are followed by 40 characters of hex.
+var reChangeId *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 
 // defaultCommitMessage creates the default commit message from the list of
 // commits on the branch.
@@ -134,8 +150,6 @@ func (r *review) defaultCommitMessage() (string, error) {
 		return "", fmt.Errorf("git.CommitMessages(%v, %v) failed: %v", r.branch, r.reviewBranch, err)
 	}
 	// Strip "Change-Id: ..." from the commit messages.
-	// Change-Id's start with 'I' and are followed by 40 characters of hex.
-	reChangeId := regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 	strippedMessages := reChangeId.ReplaceAllLiteralString(commitMessages, "")
 	// Add comment markers (#) to every line.
 	commentedMessages := "# " + strings.Replace(strippedMessages, "\n", "\n# ", -1)
@@ -165,7 +179,7 @@ func (r *review) createReviewBranch(message string) error {
 			return EmptyChangeError(r.branch)
 		}
 	}
-	// If message is empty, replace it with the list of commit messages on the branch.
+	// If message is empty, replace it with the default.
 	if len(message) == 0 {
 		var err error
 		message, err = r.defaultCommitMessage()
@@ -178,6 +192,21 @@ func (r *review) createReviewBranch(message string) error {
 	if err := s.Squash(r.branch, r.reviewBranch, message); err != nil {
 		fmt.Printf("%s", conflictMessage)
 		return fmt.Errorf("git.SquashInto(%v,%v,%v) failed: %v", r.branch, r.reviewBranch, message, err)
+	}
+	return nil
+}
+
+// ensureChangeId makes sure that the last commit contains a Change-Id, and
+// returns an error if it does not.
+func (r *review) ensureChangeId() error {
+	latestCommitMessage, err := git.LatestCommitMessage()
+	if err != nil {
+		return fmt.Errorf("git.LatestCommitMessage() failed: %v", err)
+	}
+	changeId := reChangeId.FindString(latestCommitMessage)
+	if changeId == "" {
+		fmt.Printf("%s", noChangeIdMessage)
+		return NoChangeIdError(latestCommitMessage)
 	}
 	return nil
 }
@@ -232,6 +261,9 @@ func (r *review) run() error {
 
 // send sends the current branch out for review.
 func (r *review) send() error {
+	if err := r.ensureChangeId(); err != nil {
+		return err
+	}
 	fmt.Println("### Sending review to Gerrit. ###")
 	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs); err != nil {
 		fmt.Printf("%s", conflictMessage)
@@ -325,4 +357,9 @@ func stashUncommittedChanges() (bool, error) {
 // writeFile writes the message string to the file.
 func writeFile(filename, message string) error {
 	return ioutil.WriteFile(filename, []byte(message), 0644)
+}
+
+// writeFileExecutable writes the message string to the file and makes it executable.
+func writeFileExecutable(filename, message string) error {
+	return ioutil.WriteFile(filename, []byte(message), 0777)
 }

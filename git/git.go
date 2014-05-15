@@ -69,20 +69,12 @@ func Commit() error {
 	return run("git", "commit", "--allow-empty", "--allow-empty-message", "--no-edit")
 }
 
-func CommitAndEdit() error {
-	return run("git", "commit", "--allow-empty")
-}
-
-func CommitWithMessage(message string) error {
-	return run("git", "commit", "--allow-empty", "--allow-empty-message", "-m", message)
-}
-
-func CommitWithMessageAndEdit(message string) error {
-	return run("git", "commit", "--allow-empty", "-e", "-m", message)
-}
-
 func CommitAmend(message string) error {
 	return run("git", "commit", "--amend", "-m", message)
+}
+
+func CommitAndEdit() error {
+	return run("git", "commit", "--allow-empty")
 }
 
 func CommitFile(fileName, message string) error {
@@ -98,6 +90,14 @@ func CommitMessages(branch, baseBranch string) (string, error) {
 		return "", err
 	}
 	return messages, nil
+}
+
+func CommitWithMessage(message string) error {
+	return run("git", "commit", "--allow-empty", "--allow-empty-message", "-m", message)
+}
+
+func CommitWithMessageAndEdit(message string) error {
+	return run("git", "commit", "--allow-empty", "-e", "-m", message)
 }
 
 func CountCommits(branch, baseBranch string) (int, error) {
@@ -222,6 +222,9 @@ func GerritReview(repoPathArg string, draft bool, reviewers, ccs string) error {
 	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs)
 	out, err := runOutput("git", "push", repoPath, refspec)
 	fmt.Println(out)
+	if err != nil {
+		fmt.Println(err)
+	}
 	return err
 }
 

@@ -3,6 +3,7 @@ package impl
 import (
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"tools/gerrit"
@@ -116,6 +117,19 @@ func createRepo(workingDir, prefix string) (string, error) {
 	return repoPath, nil
 }
 
+// Simple commit-msg hook that adds a fake Change Id.
+var commitMsgHook string = `
+#!/bin/sh
+MSG="$1"
+echo "Change-Id: I0000000000000000000000000000000000000000" >> $MSG
+`
+
+// installCommitMsgHook links the gerrit commit-msg hook into a different repo.
+func installCommitMsgHook(repoPath string) error {
+	hookLocation := path.Join(repoPath, ".git/hooks/commit-msg")
+	return writeFileExecutable(hookLocation, commitMsgHook)
+}
+
 // createTestRepos sets up three local repositories: origin, gerrit,
 // and the main test repository which pulls from origin and can push
 // to gerrit.
@@ -167,7 +181,7 @@ func createTestRepos(workingDir string) (string, string, string, error) {
 }
 
 // setup creates a set up for testing the review tool.
-func setup(t *testing.T) (string, string, string, string) {
+func setup(t *testing.T, installHook bool) (string, string, string, string) {
 	workingDir, err := ioutil.TempDir("", "test-git-veyron-review")
 	if err != nil {
 		t.Fatalf("Error creating working directory: ", err)
@@ -175,6 +189,13 @@ func setup(t *testing.T) (string, string, string, string) {
 	repoPath, originPath, gerritPath, err := createTestRepos(workingDir)
 	if err != nil {
 		t.Fatalf("Error creating repo: ", err)
+	}
+	if installHook == true {
+		for _, path := range []string{repoPath, originPath, gerritPath} {
+			if err := installCommitMsgHook(path); err != nil {
+				t.Fatalf("Error installing commit-msg hook: %v", err)
+			}
+		}
 	}
 	if err := os.Chdir(repoPath); err != nil {
 		t.Fatalf("os.Chdir(%v) failed: %v", repoPath, err)
@@ -192,7 +213,7 @@ func teardown(t *testing.T, workingDir string) {
 // TestCreateReviewBranch checks that the temporary review branch is
 // created correctly.
 func TestCreateReviewBranch(t *testing.T) {
-	workingDir, _, _, _ := setup(t)
+	workingDir, _, _, _ := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
@@ -225,7 +246,7 @@ func TestCreateReviewBranch(t *testing.T) {
 // createReviewBranch() on a branch with no changes will result in an
 // EmptyChangeError.
 func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
-	workingDir, _, _, _ := setup(t)
+	workingDir, _, _, _ := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
@@ -245,7 +266,7 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 
 // TestSendReview checks the various options for sending a review.
 func TestSendReview(t *testing.T) {
-	workingDir, repoPath, _, gerritPath := setup(t)
+	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
@@ -297,9 +318,35 @@ func TestSendReview(t *testing.T) {
 	}
 }
 
+// TestSendReviewNoChangeId checks that review.send() correctly errors when
+// not run with a commit hook that adds a Change-Id.
+func TestSendReviewNoChangeId(t *testing.T) {
+	// Pass 'false' to setup so it doesn't install the commit-msg hook.
+	workingDir, _, _, gerritPath := setup(t, false)
+	defer teardown(t, workingDir)
+	branch := "my-branch"
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("git.CreateAndCheckoutBranch(%v) failed: %v", branch, err)
+	}
+	files := []string{"file1"}
+	if err := commitFiles(files); err != nil {
+		t.Fatalf("commitFiles(%v) failed: %v", files, err)
+	}
+	// Test with draft = false, no reviewiers, no ccs.
+	draft, edit, reviewers, ccs := false, false, "", ""
+	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
+	err := review.send()
+	if err == nil {
+		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail but it did not.")
+	}
+	if _, ok := err.(NoChangeIdError); !ok {
+		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail with NoChangeIdError but instead got %v", err)
+	}
+}
+
 // TestEndToEnd checks the end-to-end functionality of the review tool.
 func TestEndToEnd(t *testing.T) {
-	workingDir, repoPath, _, gerritPath := setup(t)
+	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
@@ -319,7 +366,7 @@ func TestEndToEnd(t *testing.T) {
 // TestDirtyBranch checks that the tool correctly handles unstaged and
 // untracked changes in a working branch with stashed changes.
 func TestDirtyBranch(t *testing.T) {
-	workingDir, repoPath, _, gerritPath := setup(t)
+	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
