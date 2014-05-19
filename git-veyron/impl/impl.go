@@ -234,26 +234,31 @@ func (r *review) run() error {
 	}
 	filename, err := getCommitMessageFilename()
 	if err != nil {
-		fmt.Errorf("%v", err)
-		return errOperationFailed
+		return err
 	}
 	stash, err := stashUncommittedChanges()
 	if err != nil {
-		fmt.Errorf("%v", err)
-		return errOperationFailed
+		return err
 	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(wd)
+	topLevel, err := git.TopLevel()
+	if err != nil {
+		return err
+	}
+	os.Chdir(topLevel)
 	defer r.cleanup(stash)
 	if err := r.createReviewBranch(readFile(filename)); err != nil {
-		fmt.Errorf("%v", err)
-		return errOperationFailed
+		return err
 	}
 	if err := r.updateReviewMessage(filename); err != nil {
-		fmt.Errorf("%v", err)
-		return errOperationFailed
+		return err
 	}
 	if err := r.send(); err != nil {
-		fmt.Errorf("%v", err)
-		return errOperationFailed
+		return err
 	}
 	fmt.Println("### Success. ###")
 	return nil

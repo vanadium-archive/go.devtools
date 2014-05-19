@@ -421,3 +421,40 @@ func TestDirtyBranch(t *testing.T) {
 	assertFilesNotCommitted(t, []string{stashedFile})
 	assertFileContent(t, stashedFile, stashedFileContent)
 }
+
+// TestRunInSubdirectory checks that the command will succeed when run from
+// within a subdirectory of a branch that does not exist on master branch, and
+// will return the user to the subdirectory after completion.
+func TestRunInSubdirectory(t *testing.T) {
+	workingDir, repoPath, _, gerritPath := setup(t, true)
+	defer teardown(t, workingDir)
+	branch := "my-branch"
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("git.CreateAndCheckoutBranch(%v) failed: %v", branch, err)
+	}
+	subdir := "sub/directory"
+	subdirPerms := os.FileMode(0744)
+	if err := os.MkdirAll(subdir, subdirPerms); err != nil {
+		t.Fatalf("os.MkdirAll(%v, %v) failed: %v", subdir, subdirPerms, err)
+	}
+	files := []string{path.Join(subdir, "file1")}
+	if err := commitFiles(files); err != nil {
+		t.Fatalf("commitFiles(%v) failed: %v", files, err)
+	}
+	if err := os.Chdir(subdir); err != nil {
+		t.Fatalf("os.Chdir(%v) failed: %v", subdir, err)
+	}
+	draft, edit, reviewers, ccs := false, false, "", ""
+	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
+	review.run()
+	wdEnd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd() failed: %v", err)
+	}
+	subdirFullPath := path.Join(repoPath, subdir)
+	if subdirFullPath != wdEnd {
+		t.Fatalf("Expected working directory to be %v, actual working directory is %v", subdirFullPath, wdEnd)
+	}
+	expectedRef := gerrit.Reference(draft, reviewers, ccs)
+	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
+}
