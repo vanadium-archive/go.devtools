@@ -30,21 +30,40 @@ func init() {
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "veyron",
-		Short: "Command-line tool for interacting with the Veyron Gerrit server",
+		Short: "Command-line tool for interacting with the Veyron Gerrit server.",
 		Long: `
 The veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changes from a local branch
 to the Gerrit server.
 `,
-		Children: []*cmdline.Command{cmdReview},
+		Children: []*cmdline.Command{cmdReview, cmdVersion},
 	}
+}
+
+// cmdVersion represent the 'version' command of the review tool.
+var cmdVersion = &cmdline.Command{
+	Run:   runVersion,
+	Name:  "version",
+	Short: "Print version.",
+	Long:  "Print version and commit hash used to build git veyron tool.",
+}
+
+const version string = "1.0.0"
+
+// commitId should be over-written during build:
+// go build -ldflags "-X tools/git-veyron/impl.commitId <commitId>" tools/git-veyron
+var commitId string = "test-build"
+
+func runVersion(cmd *cmdline.Command, args []string) error {
+	fmt.Printf("%v (%v)\n", version, commitId)
+	return nil
 }
 
 // cmdReview represent the 'review' command of the review tool.
 var cmdReview = &cmdline.Command{
 	Run:   runReview,
 	Name:  "review",
-	Short: "Send changes from a local branch to Gerrit for review",
+	Short: "Send changes from a local branch to Gerrit for review.",
 	Long: `
 Squashes all commits of a local branch into a single commit and
 submits that commit to Gerrit as a single change list.  You can run
@@ -271,7 +290,6 @@ func (r *review) send() error {
 	}
 	fmt.Println("### Sending review to Gerrit. ###")
 	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs); err != nil {
-		fmt.Printf("%s", conflictMessage)
 		return fmt.Errorf("git.GerritReview(%v, %v, %v, %v) failed: %v",
 			r.repo, r.draft, r.reviewers, r.ccs, err)
 	}
