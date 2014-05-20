@@ -20,7 +20,7 @@ func Root() *cmdline.Command {
 The veyron tool facilitates interaction with the veyron project.
 In particular, it can be used to install different veyron profiles.
 `,
-		Children: []*cmdline.Command{cmdSetup},
+		Children: []*cmdline.Command{cmdSetup, cmdVersion},
 	}
 }
 
@@ -50,6 +50,25 @@ supports the following profiles:
 		result += fmt.Sprintf("  %*s: %s\n", maxLength, profile, profiles[profile])
 	}
 	return result
+}
+
+// cmdVersion represent the 'version' command of the veyron tool.
+var cmdVersion = &cmdline.Command{
+	Run:   runVersion,
+	Name:  "version",
+	Short: "Print version.",
+	Long:  "Print version and commit hash used to build the veyron tool.",
+}
+
+const version string = "0.1.0"
+
+// commitId should be over-written during build:
+// go build -ldflags "-X tools/veyron/impl.commitId <commitId>" tools/veyron
+var commitId string = "test-build"
+
+func runVersion(cmd *cmdline.Command, args []string) error {
+	fmt.Printf("%v (%v)\n", version, commitId)
+	return nil
 }
 
 // cmdSetup represents the 'setup' command of the veyron tool.
