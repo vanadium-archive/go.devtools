@@ -3,10 +3,11 @@ package impl
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"sort"
+	"runtime"
 
 	"veyron/lib/cmdline"
 )
@@ -24,30 +25,24 @@ In particular, it can be used to install different veyron profiles.
 	}
 }
 
-var (
-	profiles = map[string]string{
-		"android":           "Android veyron development",
-		"cross-compilation": "cross-compilation for Linux/ARM",
-		"developer":         "core veyron development",
-	}
-)
-
 func profilesDescription() string {
-	result := `
-<profiles> is a list of profiles to set up. Currently, the veyron tool
-supports the following profiles:
-`
-	sortedProfiles := make([]string, 0)
-	maxLength := 0
-	for profile, _ := range profiles {
-		sortedProfiles = append(sortedProfiles, profile)
-		if len(profile) > maxLength {
-			maxLength = len(profile)
-		}
+	result := "<profiles> is a list of profiles to set up. Supported profiles are:\n"
+	root := os.Getenv("VEYRON_ROOT")
+	if root == "" {
+		panic("VEYRON_ROOT is not set.")
 	}
-	sort.Strings(sortedProfiles)
-	for _, profile := range sortedProfiles {
-		result += fmt.Sprintf("  %*s: %s\n", maxLength, profile, profiles[profile])
+	dir := path.Join(root, "environment/scripts/setup", runtime.GOOS)
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		panic(fmt.Sprintf("Could not read %s.", dir))
+	}
+	for _, entry := range entries {
+		file := path.Join(dir, entry.Name(), "DESCRIPTION")
+		description, err := ioutil.ReadFile(file)
+		if err != nil {
+			panic(fmt.Sprintf("Could not read %s.", file))
+		}
+		result += fmt.Sprintf("  %s: %s", entry.Name(), string(description))
 	}
 	return result
 }
@@ -89,35 +84,26 @@ the host platform.
 }
 
 func runSetup(cmd *cmdline.Command, args []string) error {
+	root := os.Getenv("VEYRON_ROOT")
+	if root == "" {
+		cmd.Errorf("VEYRON_ROOT is not set.")
+	}
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
-		if _, ok := profiles[arg]; !ok {
+		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
+		if _, err := os.Lstat(script); err != nil {
 			cmd.Errorf("Unknown profile '%s'", arg)
 			return cmdline.ErrUsage
 		}
 	}
 	// Setup the profiles.
-	root := os.Getenv("VEYRON_ROOT")
-	script := path.Join(root, "environment/scripts/setup/machine/init.sh")
 	for _, arg := range args {
-		checkpoints := os.Getenv("VEYRON_CHK")
-		if err := os.MkdirAll(checkpoints, 0777); err != nil {
-			return errors.New("checkpoint setup failed")
-		}
-		if err := os.Setenv("CHK_PREFIX", arg); err != nil {
-			return errors.New("checkpoint setup failed")
-		}
-		if err := os.Setenv("CHK_COUNTER", "0"); err != nil {
-			return errors.New("checkpoint setup failed")
-		}
-		cmd := exec.Command(script, "-p", arg)
+		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
+		cmd := exec.Command(script)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return errors.New("profile setup failed")
-		}
-		if err := os.RemoveAll(checkpoints); err != nil {
-			return errors.New("checkpoint setup failed")
 		}
 	}
 	return nil
