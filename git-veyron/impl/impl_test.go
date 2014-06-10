@@ -264,6 +264,56 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 	}
 }
 
+func TestGoFormatError(t *testing.T) {
+	workingDir, _, _, gerritPath := setup(t, true)
+	defer teardown(t, workingDir)
+	branch := "my-branch"
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("git.CreateAndCheckoutBranch(%v) failed: %v", branch, err)
+	}
+	file, fileContent := "file.go", ` package main
+
+func main() {}
+`
+	if err := writeFile(file, fileContent); err != nil {
+		t.Fatalf("writeFile(%v, %v) failed: %v", file, fileContent, err)
+	}
+	commitMessage := "Commit " + file
+	if err := git.CommitFile(file, commitMessage); err != nil {
+		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
+	}
+	draft, edit, reviewers, ccs := false, false, "", ""
+	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
+	if err := review.checkGoFormat(); err == nil {
+		t.Fatalf("checkGoFormat() did not fail")
+	}
+}
+
+func TestGoFormatOK(t *testing.T) {
+	workingDir, _, _, gerritPath := setup(t, true)
+	defer teardown(t, workingDir)
+	branch := "my-branch"
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("git.CreateAndCheckoutBranch(%v) failed: %v", branch, err)
+	}
+	file, fileContent := "file.go", `package main
+
+func main() {}
+`
+	if err := writeFile(file, fileContent); err != nil {
+		t.Fatalf("writeFile(%v, %v) failed: %v", file, fileContent, err)
+	}
+	commitMessage := "Commit " + file
+	if err := git.CommitFile(file, commitMessage); err != nil {
+		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
+	}
+	draft, edit, reviewers, ccs := false, false, "", ""
+	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
+	if err := review.checkGoFormat(); err != nil {
+		t.Fatalf("checkGoFormat() failed: %v", err)
+	}
+}
+
 // TestSendReview checks the various options for sending a review.
 func TestSendReview(t *testing.T) {
 	workingDir, repoPath, _, gerritPath := setup(t, true)

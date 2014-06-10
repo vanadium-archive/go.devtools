@@ -29,8 +29,10 @@ func run(command string, args ...string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	return err
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Run() failed with: %v", err)
+	}
+	return nil
 }
 
 func Add(fileName string) error {
@@ -153,6 +155,15 @@ func IsFileCommitted(file string) bool {
 
 func LatestCommitMessage() (string, error) {
 	return runOutput("git", "log", "-n", "1", "--format=format:%B")
+}
+
+func ModifiedFiles(baseBranch, currentBranch string) ([]string, error) {
+	output, err := runOutput("git", "diff", "--name-only", baseBranch+".."+currentBranch)
+	if err != nil {
+		return nil, err
+	}
+	files := strings.Split(string(output), "\n")
+	return files, nil
 }
 
 func Pull(remote, branch string) error {

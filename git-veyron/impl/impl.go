@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -85,6 +86,17 @@ func (s NoChangeIdError) Error() string {
 	return fmt.Sprintf("No Change-Id in commit %s.", string(s))
 }
 
+type GoFormatError []string
+
+func (s GoFormatError) Error() string {
+	result := "Your change does not adhere to the Go formatting conventions.\n"
+	result += "To resolve this problem, run 'go fmt' for the following file(s):"
+	for _, file := range []string(s) {
+		result += "\n  " + file
+	}
+	return result
+}
+
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(cmd *cmdline.Command, args []string) error {
 	branch, err := git.CurrentBranchName()
@@ -161,19 +173,65 @@ PLEASE EDIT THIS MESSAGE!
 // Change-Ids start with 'I' and are followed by 40 characters of hex.
 var reChangeId *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 
-// defaultCommitMessage creates the default commit message from the list of
-// commits on the branch.
-func (r *review) defaultCommitMessage() (string, error) {
-	commitMessages, err := git.CommitMessages(r.branch, r.reviewBranch)
-	if err != nil {
-		return "", fmt.Errorf("git.CommitMessages(%v, %v) failed: %v", r.branch, r.reviewBranch, err)
+// checkGoFormat checks if the code to be submitted needs to be
+// formatted with "go fmt".
+func (r *review) checkGoFormat() error {
+	fmt.Println("### Checking Go format. ###")
+	if err := git.Fetch(); err != nil {
+		return fmt.Errorf("git.Fetch() failed: %v", err)
 	}
-	// Strip "Change-Id: ..." from the commit messages.
-	strippedMessages := reChangeId.ReplaceAllLiteralString(commitMessages, "")
-	// Add comment markers (#) to every line.
-	commentedMessages := "# " + strings.Replace(strippedMessages, "\n", "\n# ", -1)
-	message := defaultMessageHeader + commentedMessages
-	return message, nil
+	files, err := git.ModifiedFiles("FETCH_HEAD", r.branch)
+	if err != nil {
+		return err
+	}
+	root := os.Getenv("VEYRON_ROOT")
+	if root == "" {
+		return fmt.Errorf("VEYRON_ROOT is not set")
+	}
+	gofmt := filepath.Join(root, "environment/go/bin/gofmt")
+	if _, err := os.Stat(gofmt); err != nil {
+		return fmt.Errorf("Stat(%v) failed: %v", gofmt, err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(wd)
+	topLevel, err := git.TopLevel()
+	if err != nil {
+		return err
+	}
+	os.Chdir(topLevel)
+	ill := make([]string, 0)
+	for _, file := range files {
+		if strings.HasSuffix(file, ".go") {
+			path := filepath.Join(topLevel, file)
+			cmd := exec.Command(gofmt, "-l", path)
+			output, err := cmd.CombinedOutput()
+			if err != nil || len(output) != 0 {
+				fmt.Printf("%s", string(output))
+				ill = append(ill, file)
+			}
+		}
+	}
+	if len(ill) != 0 {
+		return GoFormatError(ill)
+	}
+	return nil
+}
+
+// cleanup cleans up after the review.
+func (r *review) cleanup(stash bool) {
+	fmt.Println("### Cleaning up. ###")
+	if err := git.CheckoutBranch(r.branch); err != nil {
+		fmt.Println("git.CheckoutBranch(%v) failed: %v", r.branch, err)
+	}
+	_ = git.ForceDeleteBranch(r.reviewBranch)
+	if stash {
+		if err := git.StashPop(); err != nil {
+			fmt.Println("git.StashPop() failed: %v", err)
+		}
+	}
 }
 
 // createReviewBranch creates a clean review branch from master and
@@ -215,6 +273,21 @@ func (r *review) createReviewBranch(message string) error {
 	return nil
 }
 
+// defaultCommitMessage creates the default commit message from the list of
+// commits on the branch.
+func (r *review) defaultCommitMessage() (string, error) {
+	commitMessages, err := git.CommitMessages(r.branch, r.reviewBranch)
+	if err != nil {
+		return "", fmt.Errorf("git.CommitMessages(%v, %v) failed: %v", r.branch, r.reviewBranch, err)
+	}
+	// Strip "Change-Id: ..." from the commit messages.
+	strippedMessages := reChangeId.ReplaceAllLiteralString(commitMessages, "")
+	// Add comment markers (#) to every line.
+	commentedMessages := "# " + strings.Replace(strippedMessages, "\n", "\n# ", -1)
+	message := defaultMessageHeader + commentedMessages
+	return message, nil
+}
+
 // ensureChangeId makes sure that the last commit contains a Change-Id, and
 // returns an error if it does not.
 func (r *review) ensureChangeId() error {
@@ -230,22 +303,11 @@ func (r *review) ensureChangeId() error {
 	return nil
 }
 
-// cleanup cleans up after the review.
-func (r *review) cleanup(stash bool) {
-	fmt.Println("### Cleaning up. ###")
-	if err := git.CheckoutBranch(r.branch); err != nil {
-		fmt.Println("git.CheckoutBranch(%v) failed: %v", r.branch, err)
-	}
-	_ = git.ForceDeleteBranch(r.reviewBranch)
-	if stash {
-		if err := git.StashPop(); err != nil {
-			fmt.Println("git.StashPop() failed: %v", err)
-		}
-	}
-}
-
 // run implements the end-to-end functionality of the review command.
 func (r *review) run() error {
+	if err := r.checkGoFormat(); err != nil {
+		return err
+	}
 	fmt.Printf("Branch name: %s\n", r.branch)
 	if r.branch == "master" {
 		fmt.Errorf("Cannot do a review from the 'master' branch.")
