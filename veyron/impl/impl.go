@@ -1,15 +1,21 @@
 package impl
 
 import (
-	"errors"
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"runtime"
 
+	"tools/cmd"
+	"tools/git"
+
 	"veyron/lib/cmdline"
+)
+
+var (
+	root_env = "VEYRON_ROOT"
 )
 
 // Root returns a command that represents the root of the veyron tool.
@@ -21,49 +27,8 @@ func Root() *cmdline.Command {
 The veyron tool facilitates interaction with the veyron project.
 In particular, it can be used to install different veyron profiles.
 `,
-		Children: []*cmdline.Command{cmdSetup, cmdVersion},
+		Children: []*cmdline.Command{cmdSetup, cmdSync, cmdVersion},
 	}
-}
-
-func profilesDescription() string {
-	result := "<profiles> is a list of profiles to set up. Supported profiles are:\n"
-	root := os.Getenv("VEYRON_ROOT")
-	if root == "" {
-		panic("VEYRON_ROOT is not set.")
-	}
-	dir := path.Join(root, "environment/scripts/setup", runtime.GOOS)
-	entries, err := ioutil.ReadDir(dir)
-	if err != nil {
-		panic(fmt.Sprintf("Could not read %s.", dir))
-	}
-	for _, entry := range entries {
-		file := path.Join(dir, entry.Name(), "DESCRIPTION")
-		description, err := ioutil.ReadFile(file)
-		if err != nil {
-			panic(fmt.Sprintf("Could not read %s.", file))
-		}
-		result += fmt.Sprintf("  %s: %s", entry.Name(), string(description))
-	}
-	return result
-}
-
-// cmdVersion represent the 'version' command of the veyron tool.
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version.",
-	Long:  "Print version and commit hash used to build the veyron tool.",
-}
-
-const version string = "0.1.0"
-
-// commitId should be over-written during build:
-// go build -ldflags "-X tools/veyron/impl.commitId <commitId>" tools/veyron
-var commitId string = "test-build"
-
-func runVersion(cmd *cmdline.Command, args []string) error {
-	fmt.Printf("%v (%v)\n", version, commitId)
-	return nil
 }
 
 // cmdSetup represents the 'setup' command of the veyron tool.
@@ -83,28 +48,164 @@ the host platform.
 	ArgsLong: profilesDescription(),
 }
 
-func runSetup(cmd *cmdline.Command, args []string) error {
-	root := os.Getenv("VEYRON_ROOT")
+func profilesDescription() string {
+	result := "<profiles> is a list of profiles to set up. Supported profiles are:\n"
+	root := os.Getenv(root_env)
 	if root == "" {
-		cmd.Errorf("VEYRON_ROOT is not set.")
+		panic(fmt.Sprintf("%v is not set", root_env))
+	}
+	dir := path.Join(root, "environment/scripts/setup", runtime.GOOS)
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		panic(fmt.Sprintf("could not read %s", dir))
+	}
+	for _, entry := range entries {
+		file := path.Join(dir, entry.Name(), "DESCRIPTION")
+		description, err := ioutil.ReadFile(file)
+		if err != nil {
+			panic(fmt.Sprintf("could not read %s", file))
+		}
+		result += fmt.Sprintf("  %s: %s", entry.Name(), string(description))
+	}
+	return result
+}
+
+func runSetup(command *cmdline.Command, args []string) error {
+	root := os.Getenv(root_env)
+	if root == "" {
+		return fmt.Errorf("%v is not set", root_env)
 	}
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
 		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
 		if _, err := os.Lstat(script); err != nil {
-			cmd.Errorf("Unknown profile '%s'", arg)
-			return cmdline.ErrUsage
+			return command.Errorf("profile %v does not exist", arg)
 		}
 	}
 	// Setup the profiles.
 	for _, arg := range args {
 		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
-		cmd := exec.Command(script)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return errors.New("profile setup failed")
+		if err := cmd.Run(script); err != nil {
+			return fmt.Errorf("profile %v setup failed", arg)
 		}
 	}
+	return nil
+}
+
+// cmdSync represents the 'sync' command of the veyron tool.
+var cmdSync = &cmdline.Command{
+	Run:   runSync,
+	Name:  "sync",
+	Short: "Update local veyron repositories",
+	Long: `
+Update the local master branch of veyron git repositories by pulling
+from the remote master. The repositories to be updated are specified
+as a list of arguments. If no repositories are specified, the default
+behavior is to update all repositories.
+`,
+	ArgsName: "<repos>",
+	ArgsLong: reposDescription(),
+}
+
+func reposDescription() string {
+	result := "<repos> is a list of repositories to update. Existing repositories are:\n"
+	root := os.Getenv(root_env)
+	if root == "" {
+		panic(fmt.Sprintf("%v is not set", root_env))
+	}
+	list := path.Join(root, ".repo", "project.list")
+	file, err := os.Open(list)
+	if err != nil {
+		panic(fmt.Sprintf("Open(%v) failed: %v", list, err))
+	}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		result += fmt.Sprintf("  %s\n", scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		panic(fmt.Sprintf("Scan() failed: %v", err))
+	}
+	return result
+}
+
+func runSync(cmd *cmdline.Command, args []string) error {
+	root := os.Getenv(root_env)
+	if root == "" {
+		return fmt.Errorf("%v is not set", root_env)
+	}
+	if len(args) == 0 {
+		// The default behavior is to update all repositories.
+		list := path.Join(root, ".repo", "project.list")
+		file, err := os.Open(list)
+		if err != nil {
+			return fmt.Errorf("Open(%v) failed: %v", list, err)
+		}
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			args = append(args, scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("Scan() failed: %v", err)
+		}
+	}
+	// Check that the repositories to be updated exist.
+	for _, arg := range args {
+		repo := path.Join(root, arg)
+		if _, err := os.Lstat(repo); err != nil {
+			cmd.Errorf("repository %v does not exist", arg)
+			return cmdline.ErrUsage
+		}
+	}
+	// Update the repositories.
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer os.Chdir(wd)
+	for _, arg := range args {
+		repo := path.Join(root, arg)
+		if err := updateRepository(repo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateRepository(repo string) error {
+	os.Chdir(repo)
+	branch, err := git.CurrentBranchName()
+	if err != nil {
+		return err
+	}
+	if err := git.Stash(); err != nil {
+		return err
+	}
+	defer git.StashPop()
+	if err := git.CheckoutBranch("master"); err != nil {
+		return err
+	}
+	defer git.CheckoutBranch(branch)
+	if err := git.Pull("origin", "master"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// cmdVersion represent the 'version' command of the veyron tool.
+var cmdVersion = &cmdline.Command{
+	Run:   runVersion,
+	Name:  "version",
+	Short: "Print version.",
+	Long:  "Print version and commit hash used to build the veyron tool.",
+}
+
+const version string = "0.2.0"
+
+// commitId should be over-written during build:
+// go build -ldflags "-X tools/veyron/impl.commitId <commitId>" tools/veyron
+var commitId string = "test-build"
+
+func runVersion(cmd *cmdline.Command, args []string) error {
+	fmt.Printf("%v (%v)\n", version, commitId)
 	return nil
 }

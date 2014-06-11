@@ -5,23 +5,26 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"tools/cmd"
 	"tools/git"
+
 	"veyron/lib/cmdline"
 )
 
 var (
+	ccs       string
 	draft     bool
 	reviewers string
-	ccs       string
+	verbose   bool
 )
 
 // init carries out the package initialization.
 func init() {
+	cmdReview.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
 	cmdReview.Flags.BoolVar(&draft, "d", false, "Send draft change list.")
 	cmdReview.Flags.StringVar(&reviewers, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccs, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
@@ -98,7 +101,8 @@ func (s GoFormatError) Error() string {
 }
 
 // runReview is a wrapper that sets up and runs a review instance.
-func runReview(cmd *cmdline.Command, args []string) error {
+func runReview(*cmdline.Command, []string) error {
+	cmd.SetVerbose(verbose)
 	branch, err := git.CurrentBranchName()
 	if err != nil {
 		fmt.Errorf("git.CurrentBranchName() failed: %v", err)
@@ -176,7 +180,6 @@ var reChangeId *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcde
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat() error {
-	fmt.Println("### Checking Go format. ###")
 	if err := git.Fetch(); err != nil {
 		return fmt.Errorf("git.Fetch() failed: %v", err)
 	}
@@ -206,10 +209,9 @@ func (r *review) checkGoFormat() error {
 	for _, file := range files {
 		if strings.HasSuffix(file, ".go") {
 			path := filepath.Join(topLevel, file)
-			cmd := exec.Command(gofmt, "-l", path)
-			output, err := cmd.CombinedOutput()
-			if err != nil || len(output) != 0 {
-				fmt.Printf("%s", string(output))
+			out, _, err := cmd.RunOutput(gofmt, "-l", path)
+			if err != nil || len(out) != 0 {
+				fmt.Printf("%s", string(out))
 				ill = append(ill, file)
 			}
 		}
@@ -222,14 +224,17 @@ func (r *review) checkGoFormat() error {
 
 // cleanup cleans up after the review.
 func (r *review) cleanup(stash bool) {
-	fmt.Println("### Cleaning up. ###")
 	if err := git.CheckoutBranch(r.branch); err != nil {
-		fmt.Println("git.CheckoutBranch(%v) failed: %v", r.branch, err)
+		fmt.Fprintf(os.Stderr, "git.CheckoutBranch(%v) failed: %v\n", r.branch, err)
 	}
-	_ = git.ForceDeleteBranch(r.reviewBranch)
+	if git.BranchExists(r.reviewBranch) {
+		if err := git.ForceDeleteBranch(r.reviewBranch); err != nil {
+			fmt.Fprintf(os.Stderr, "git.ForceDeleteBranch(%v) failed: %v", r.reviewBranch, err)
+		}
+	}
 	if stash {
 		if err := git.StashPop(); err != nil {
-			fmt.Println("git.StashPop() failed: %v", err)
+			fmt.Fprintf(os.Stderr, "git.StashPop() failed: %v\n", err)
 		}
 	}
 }
@@ -237,11 +242,14 @@ func (r *review) cleanup(stash bool) {
 // createReviewBranch creates a clean review branch from master and
 // squashes the commits into one, with the supplied message.
 func (r *review) createReviewBranch(message string) error {
-	fmt.Println("### Creating a temporary review branch. ###")
 	if err := git.Fetch(); err != nil {
 		return fmt.Errorf("git.Fetch() failed: %v", err)
 	}
-	_ = git.ForceDeleteBranch(r.reviewBranch)
+	if git.BranchExists(r.reviewBranch) {
+		if err := git.ForceDeleteBranch(r.reviewBranch); err != nil {
+			return fmt.Errorf("git.ForceDeleteBranch(%v) failed: %v", r.reviewBranch, err)
+		}
+	}
 	upstream := "origin/master"
 	if err := git.CreateBranchWithUpstream(r.reviewBranch, upstream); err != nil {
 		return fmt.Errorf("git.CreateBranch(%v, %v) failed: %v", r.reviewBranch, upstream, err)
@@ -264,7 +272,6 @@ func (r *review) createReviewBranch(message string) error {
 			return fmt.Errorf("defaultCommitMessage() failed: %v", err)
 		}
 	}
-	fmt.Printf("### Squashing commits into the review branch. ###\n")
 	s := git.NewSquasher(r.edit)
 	if err := s.Squash(r.branch, r.reviewBranch, message); err != nil {
 		fmt.Printf("%s", conflictMessage)
@@ -308,7 +315,6 @@ func (r *review) run() error {
 	if err := r.checkGoFormat(); err != nil {
 		return err
 	}
-	fmt.Printf("Branch name: %s\n", r.branch)
 	if r.branch == "master" {
 		fmt.Errorf("Cannot do a review from the 'master' branch.")
 		return errOperationFailed
@@ -341,7 +347,6 @@ func (r *review) run() error {
 	if err := r.send(); err != nil {
 		return err
 	}
-	fmt.Println("### Success. ###")
 	return nil
 }
 
@@ -350,10 +355,8 @@ func (r *review) send() error {
 	if err := r.ensureChangeId(); err != nil {
 		return err
 	}
-	fmt.Println("### Sending review to Gerrit. ###")
 	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs); err != nil {
-		return fmt.Errorf("git.GerritReview(%v, %v, %v, %v) failed: %v",
-			r.repo, r.draft, r.reviewers, r.ccs, err)
+		return fmt.Errorf("sending code review failed\n%v", err)
 	}
 	return nil
 }
@@ -362,7 +365,6 @@ func (r *review) send() error {
 // file. It then adds that file to the original branch, and makes sure
 // it is not on the review branch.
 func (r *review) updateReviewMessage(filename string) error {
-	fmt.Printf("### Updating review commit message. ###\n")
 	if err := git.CheckoutBranch(r.reviewBranch); err != nil {
 		return fmt.Errorf("git.CheckoutBranch(%v) failed: %v", r.reviewBranch, err)
 	}
