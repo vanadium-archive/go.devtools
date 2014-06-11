@@ -368,9 +368,9 @@ func TestSendReview(t *testing.T) {
 	}
 }
 
-// TestSendReviewNoChangeId checks that review.send() correctly errors when
+// TestSendReviewNoChangeID checks that review.send() correctly errors when
 // not run with a commit hook that adds a Change-Id.
-func TestSendReviewNoChangeId(t *testing.T) {
+func TestSendReviewNoChangeID(t *testing.T) {
 	// Pass 'false' to setup so it doesn't install the commit-msg hook.
 	workingDir, _, _, gerritPath := setup(t, false)
 	defer teardown(t, workingDir)
@@ -389,8 +389,8 @@ func TestSendReviewNoChangeId(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail but it did not.")
 	}
-	if _, ok := err.(NoChangeIdError); !ok {
-		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail with NoChangeIdError but instead got %v", err)
+	if _, ok := err.(NoChangeIDError); !ok {
+		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail with NoChangeIDError but instead got %v", err)
 	}
 }
 

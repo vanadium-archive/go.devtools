@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -70,43 +69,76 @@ var cmdReview = &cmdline.Command{
 	Short: "Send changes from a local branch to Gerrit for review.",
 	Long: `
 Squashes all commits of a local branch into a single commit and
-submits that commit to Gerrit as a single change list.  You can run
+submits that commit to Gerrit as a single change list. You can run
 it multiple times to send more patch sets to the change list.
 `,
 }
 
-var errOperationFailed = errors.New("operation failed")
+type ChangeConflictError string
 
-type EmptyChangeError string
-
-func (s EmptyChangeError) Error() string {
-	return fmt.Sprintf("No commits on branch %s.", string(s))
+func (s ChangeConflictError) Error() string {
+	result := "change conflicts with the remote master branch\n\n"
+	result += "To resolve this problem, run 'git pull origin master',\n"
+	result += "resolve the conflicts identified below, and then try again.\n"
+	result += string(s)
+	return result
 }
 
-type NoChangeIdError string
+type EmptyChangeError struct{}
 
-func (s NoChangeIdError) Error() string {
-	return fmt.Sprintf("No Change-Id in commit %s.", string(s))
+func (_ EmptyChangeError) Error() string {
+	return "current branch has no commits"
+}
+
+type GerritError string
+
+func (s GerritError) Error() string {
+	result := "sending code review failed\n\n"
+	result += string(s)
+	return result
 }
 
 type GoFormatError []string
 
 func (s GoFormatError) Error() string {
-	result := "Your change does not adhere to the Go formatting conventions.\n"
-	result += "To resolve this problem, run 'go fmt' for the following file(s):"
-	for _, file := range []string(s) {
-		result += "\n  " + file
-	}
+	result := "change does not adhere to the Go formatting conventions\n\n"
+	result += "To resolve this problem, run 'go fmt' for the following file(s):\n"
+	result += "  " + strings.Join(s, "\n  ")
 	return result
 }
+
+type NoChangeIDError struct{}
+
+func (_ NoChangeIDError) Error() string {
+	result := "change is missing a Change-ID\n\n"
+	result += "To resolve this problem, run './scripts/setup/repo/init.sh'\n"
+	result += "from the root of your repository and then try again."
+	return result
+}
+
+var defaultMessageHeader = `
+# Describe your change, specifying what package(s) your change pertains to,
+# followed by a short summary and, in case of non-trivial changes, a detailed
+# description.
+#
+# For example:
+#
+# veyron/runtimes/google/ipc/stream/proxy: add publish address
+#
+# The listen address is not always the same at the address that external
+# users need to connect to. This change adds a new argument to proxy.New()
+# to specify the published address that clients should connect to.
+
+# FYI, you are about to submit the following local commits for review:
+#
+`
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(*cmdline.Command, []string) error {
 	cmd.SetVerbose(verbose)
 	branch, err := git.CurrentBranchName()
 	if err != nil {
-		fmt.Errorf("git.CurrentBranchName() failed: %v", err)
-		return errOperationFailed
+		return err
 	}
 	edit, repo := true, ""
 	r := NewReview(draft, edit, branch, repo, reviewers, ccs)
@@ -145,43 +177,14 @@ func NewReview(draft, edit bool, branch, repo, reviewers, ccs string) *review {
 	}
 }
 
-var conflictMessage = `
-######################################################################
-Your branch and the project master branch contain conflicting changes.
-Please run 'git pull origin master', resolve all conflicts, and then
-run 'git veyron review' again.
-######################################################################
-`
-
-var noCommitsMessage = `
-######################################################################
-Your branch has no new changes. Please make some changes and commit
-them before running 'git veyron review' again.
-######################################################################
-`
-
-var noChangeIdMessage = `
-######################################################################
-Missing Change-Id.  Please run ./scripts/setup/repo/init.sh and then
-run 'git veyron review' again.
-######################################################################
-`
-
-var defaultMessageHeader = `
-PLEASE EDIT THIS MESSAGE!
-
-# You are about to submit the following commits for review:
-#
-`
-
 // Change-Ids start with 'I' and are followed by 40 characters of hex.
-var reChangeId *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
+var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat() error {
 	if err := git.Fetch(); err != nil {
-		return fmt.Errorf("git.Fetch() failed: %v", err)
+		return err
 	}
 	files, err := git.ModifiedFiles("FETCH_HEAD", r.branch)
 	if err != nil {
@@ -197,7 +200,7 @@ func (r *review) checkGoFormat() error {
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		return err
+		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
 	topLevel, err := git.TopLevel()
@@ -211,7 +214,6 @@ func (r *review) checkGoFormat() error {
 			path := filepath.Join(topLevel, file)
 			out, _, err := cmd.RunOutput(gofmt, "-l", path)
 			if err != nil || len(out) != 0 {
-				fmt.Printf("%s", string(out))
 				ill = append(ill, file)
 			}
 		}
@@ -225,16 +227,16 @@ func (r *review) checkGoFormat() error {
 // cleanup cleans up after the review.
 func (r *review) cleanup(stash bool) {
 	if err := git.CheckoutBranch(r.branch); err != nil {
-		fmt.Fprintf(os.Stderr, "git.CheckoutBranch(%v) failed: %v\n", r.branch, err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 	}
 	if git.BranchExists(r.reviewBranch) {
 		if err := git.ForceDeleteBranch(r.reviewBranch); err != nil {
-			fmt.Fprintf(os.Stderr, "git.ForceDeleteBranch(%v) failed: %v", r.reviewBranch, err)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
 	if stash {
 		if err := git.StashPop(); err != nil {
-			fmt.Fprintf(os.Stderr, "git.StashPop() failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
 }
@@ -243,25 +245,24 @@ func (r *review) cleanup(stash bool) {
 // squashes the commits into one, with the supplied message.
 func (r *review) createReviewBranch(message string) error {
 	if err := git.Fetch(); err != nil {
-		return fmt.Errorf("git.Fetch() failed: %v", err)
+		return err
 	}
 	if git.BranchExists(r.reviewBranch) {
 		if err := git.ForceDeleteBranch(r.reviewBranch); err != nil {
-			return fmt.Errorf("git.ForceDeleteBranch(%v) failed: %v", r.reviewBranch, err)
+			return err
 		}
 	}
 	upstream := "origin/master"
 	if err := git.CreateBranchWithUpstream(r.reviewBranch, upstream); err != nil {
-		return fmt.Errorf("git.CreateBranch(%v, %v) failed: %v", r.reviewBranch, upstream, err)
+		return err
 	}
 	{
 		hasDiff, err := git.BranchesDiffer(r.branch, r.reviewBranch)
 		if err != nil {
-			return fmt.Errorf("git.BranchesDiffer(%v, %v) failed: %v", r.branch, r.reviewBranch, err)
+			return err
 		}
 		if !hasDiff {
-			fmt.Printf("%s", noCommitsMessage)
-			return EmptyChangeError(r.branch)
+			return EmptyChangeError(struct{}{})
 		}
 	}
 	// If message is empty, replace it with the default.
@@ -269,13 +270,18 @@ func (r *review) createReviewBranch(message string) error {
 		var err error
 		message, err = r.defaultCommitMessage()
 		if err != nil {
-			return fmt.Errorf("defaultCommitMessage() failed: %v", err)
+			return err
 		}
 	}
-	s := git.NewSquasher(r.edit)
-	if err := s.Squash(r.branch, r.reviewBranch, message); err != nil {
-		fmt.Printf("%s", conflictMessage)
-		return fmt.Errorf("git.SquashInto(%v,%v,%v) failed: %v", r.branch, r.reviewBranch, message, err)
+	if err := git.CheckoutBranch(r.reviewBranch); err != nil {
+		return err
+	}
+	if err := git.Squash(r.branch); err != nil {
+		return ChangeConflictError(err.Error())
+	}
+	c := git.NewCommitter(r.edit)
+	if err := c.Commit(message); err != nil {
+		return err
 	}
 	return nil
 }
@@ -285,27 +291,26 @@ func (r *review) createReviewBranch(message string) error {
 func (r *review) defaultCommitMessage() (string, error) {
 	commitMessages, err := git.CommitMessages(r.branch, r.reviewBranch)
 	if err != nil {
-		return "", fmt.Errorf("git.CommitMessages(%v, %v) failed: %v", r.branch, r.reviewBranch, err)
+		return "", err
 	}
 	// Strip "Change-Id: ..." from the commit messages.
-	strippedMessages := reChangeId.ReplaceAllLiteralString(commitMessages, "")
+	strippedMessages := reChangeID.ReplaceAllLiteralString(commitMessages, "")
 	// Add comment markers (#) to every line.
 	commentedMessages := "# " + strings.Replace(strippedMessages, "\n", "\n# ", -1)
 	message := defaultMessageHeader + commentedMessages
 	return message, nil
 }
 
-// ensureChangeId makes sure that the last commit contains a Change-Id, and
+// ensureChangeID makes sure that the last commit contains a Change-Id, and
 // returns an error if it does not.
-func (r *review) ensureChangeId() error {
+func (r *review) ensureChangeID() error {
 	latestCommitMessage, err := git.LatestCommitMessage()
 	if err != nil {
-		return fmt.Errorf("git.LatestCommitMessage() failed: %v", err)
+		return err
 	}
-	changeId := reChangeId.FindString(latestCommitMessage)
-	if changeId == "" {
-		fmt.Printf("%s", noChangeIdMessage)
-		return NoChangeIdError(latestCommitMessage)
+	changeID := reChangeID.FindString(latestCommitMessage)
+	if changeID == "" {
+		return NoChangeIDError(struct{}{})
 	}
 	return nil
 }
@@ -316,8 +321,7 @@ func (r *review) run() error {
 		return err
 	}
 	if r.branch == "master" {
-		fmt.Errorf("Cannot do a review from the 'master' branch.")
-		return errOperationFailed
+		return fmt.Errorf("cannot do a review from the 'master' branch.")
 	}
 	filename, err := getCommitMessageFilename()
 	if err != nil {
@@ -329,7 +333,7 @@ func (r *review) run() error {
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		return err
+		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
 	topLevel, err := git.TopLevel()
@@ -352,11 +356,11 @@ func (r *review) run() error {
 
 // send sends the current branch out for review.
 func (r *review) send() error {
-	if err := r.ensureChangeId(); err != nil {
+	if err := r.ensureChangeID(); err != nil {
 		return err
 	}
 	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs); err != nil {
-		return fmt.Errorf("sending code review failed\n%v", err)
+		return GerritError(err.Error())
 	}
 	return nil
 }
@@ -366,31 +370,31 @@ func (r *review) send() error {
 // it is not on the review branch.
 func (r *review) updateReviewMessage(filename string) error {
 	if err := git.CheckoutBranch(r.reviewBranch); err != nil {
-		return fmt.Errorf("git.CheckoutBranch(%v) failed: %v", r.reviewBranch, err)
+		return err
 	}
 	newMessage, err := git.LatestCommitMessage()
 	if err != nil {
-		return fmt.Errorf("git.LatestCommitMessage() failed: %v", err)
+		return err
 	}
 	if err := git.CheckoutBranch(r.branch); err != nil {
-		return fmt.Errorf("git.CheckoutBranch(%v) failed: %v", r.branch, err)
+		return err
 	}
 	if err := writeFile(filename, newMessage); err != nil {
 		return fmt.Errorf("writeFile(%v, %v) failed: %v", filename, newMessage, err)
 	}
 	if err := git.CommitFile(filename, "Update gerrit commit message."); err != nil {
-		return fmt.Errorf("git.CommitFile(%v) failed: %v", filename, err)
+		return err
 	}
 	// Delete the commit message from review branch.
 	if err := git.CheckoutBranch(r.reviewBranch); err != nil {
-		return fmt.Errorf("git.CheckoutBranch(%v) failed: %v", r.reviewBranch, err)
+		return err
 	}
 	if fileExists(filename) {
 		if err := git.Remove(filename); err != nil {
-			return fmt.Errorf("git.Remove(%v) failed: %v", filename, err)
+			return err
 		}
 		if err := git.CommitAmend(newMessage); err != nil {
-			return fmt.Errorf("git.CommitAmend(%v) failed: %v", newMessage, err)
+			return err
 		}
 	}
 	return nil
@@ -409,7 +413,7 @@ func fileExists(filename string) bool {
 func getCommitMessageFilename() (string, error) {
 	topLevel, err := git.TopLevel()
 	if err != nil {
-		return "", fmt.Errorf("git.TopLevel() failed: %v", err)
+		return "", err
 	}
 	return filepath.Join(topLevel, ".gerrit_commit_message"), nil
 }
@@ -429,14 +433,14 @@ func readFile(filename string) string {
 func stashUncommittedChanges() (bool, error) {
 	oldSize, err := git.StashSize()
 	if err != nil {
-		return false, fmt.Errorf("git.StashSize() failed: %v", err)
+		return false, err
 	}
 	if err := git.Stash(); err != nil {
-		return false, fmt.Errorf("git.Stash() failed: %v", err)
+		return false, err
 	}
 	newSize, err := git.StashSize()
 	if err != nil {
-		return false, fmt.Errorf("git.StashSize() failed: %v", err)
+		return false, err
 	}
 	return newSize > oldSize, nil
 }

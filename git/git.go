@@ -10,12 +10,35 @@ import (
 	"tools/gerrit"
 )
 
+type GitError struct {
+	command string
+	args    []string
+	out     string
+	err     string
+}
+
+func NewGitError(out, err string, args ...string) GitError {
+	return GitError{
+		args: args,
+		out:  out,
+		err:  err,
+	}
+}
+
+func (ge GitError) Error() string {
+	result := "'git "
+	result += strings.Join(ge.args, " ")
+	result += "' failed:\n"
+	result += ge.err
+	return result
+}
+
 func Add(fileName string) error {
-	return cmd.Run("git", "add", fileName)
+	return run("add", fileName)
 }
 
 func AddRemote(name, path string) error {
-	return cmd.Run("git", "remote", "add", name, path)
+	return run("remote", "add", name, path)
 }
 
 func BranchExists(branchName string) bool {
@@ -26,9 +49,10 @@ func BranchExists(branchName string) bool {
 }
 
 func BranchesDiffer(branchName1, branchName2 string) (bool, error) {
-	out, _, err := cmd.RunOutput("git", "diff", branchName1+".."+branchName2)
+	args := []string{"diff", branchName1 + ".." + branchName2}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return false, err
+		return false, NewGitError(out, errOut, args...)
 	}
 	// If output is empty, then there is no difference.
 	if len(strings.Replace(out, "\n", "", -1)) == 0 {
@@ -39,19 +63,19 @@ func BranchesDiffer(branchName1, branchName2 string) (bool, error) {
 }
 
 func CheckoutBranch(branchName string) error {
-	return cmd.Run("git", "checkout", branchName)
+	return run("checkout", branchName)
 }
 
 func Commit() error {
-	return cmd.Run("git", "commit", "--allow-empty", "--allow-empty-message", "--no-edit")
+	return run("commit", "--allow-empty", "--allow-empty-message", "--no-edit")
 }
 
 func CommitAmend(message string) error {
-	return cmd.Run("git", "commit", "--amend", "-m", message)
+	return run("commit", "--amend", "-m", message)
 }
 
 func CommitAndEdit() error {
-	return cmd.Run("git", "commit", "--allow-empty")
+	return run("commit", "--allow-empty")
 }
 
 func CommitFile(fileName, message string) error {
@@ -62,62 +86,94 @@ func CommitFile(fileName, message string) error {
 }
 
 func CommitMessages(branch, baseBranch string) (string, error) {
-	out, _, err := cmd.RunOutput("git", "log", "--no-merges", baseBranch+".."+branch)
+	args := []string{"log", "--no-merges", baseBranch + ".." + branch}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return "", err
+		return "", NewGitError(out, errOut, args...)
 	}
 	return out, nil
 }
 
 func CommitWithMessage(message string) error {
-	return cmd.Run("git", "commit", "--allow-empty", "--allow-empty-message", "-m", message)
+	return run("commit", "--allow-empty", "--allow-empty-message", "-m", message)
 }
 
 func CommitWithMessageAndEdit(message string) error {
-	return cmd.Run("git", "commit", "--allow-empty", "-e", "-m", message)
+	return run("commit", "--allow-empty", "-e", "-m", message)
 }
 
 func CountCommits(branch, baseBranch string) (int, error) {
-	out, _, err := cmd.RunOutput("git", "rev-list", "--count", branch, "^"+baseBranch)
+	args := []string{"rev-list", "--count", branch, "^" + baseBranch}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return 0, err
+		return 0, NewGitError(out, errOut, args...)
 	}
 	count, err := strconv.Atoi(out)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("Atoi(%v) failed: %v", out, err)
 	}
 	return count, nil
 }
 
 func CreateBranch(branchName string) error {
-	return cmd.Run("git", "branch", branchName)
+	return run("branch", branchName)
 }
 
 func CreateAndCheckoutBranch(branchName string) error {
-	return cmd.Run("git", "checkout", "-b", branchName)
+	return run("checkout", "-b", branchName)
 }
 func CreateBranchWithUpstream(branchName, upstream string) error {
-	return cmd.Run("git", "branch", branchName, upstream)
+	return run("branch", branchName, upstream)
 }
 
 func CurrentBranchName() (string, error) {
-	out, _, err := cmd.RunOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
+	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return "", err
+		return "", NewGitError(out, errOut, args...)
 	}
 	return out, nil
 }
 
 func Fetch() error {
-	return cmd.Run("git", "fetch")
+	return run("fetch")
 }
 
 func ForceDeleteBranch(branchName string) error {
-	return cmd.Run("git", "branch", "-D", branchName)
+	return run("branch", "-D", branchName)
+}
+
+func GerritRepoPath() (string, error) {
+	repoName, err := RepoName()
+	if err != nil {
+		return "", err
+	}
+	return "https://veyron-review.googlesource.com/" + repoName, nil
+}
+
+func GerritReview(repoPathArg string, draft bool, reviewers, ccs string) error {
+	repoPath := repoPathArg
+	if repoPathArg == "" {
+		var err error
+		repoPath, err = GerritRepoPath()
+		if err != nil {
+			return err
+		}
+	}
+	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs)
+	_, errOut, err := cmd.RunOutput("git", "push", repoPath, refspec)
+	if err != nil {
+		return fmt.Errorf("%v", errOut)
+	}
+	re := regexp.MustCompile("remote:[^\n]*")
+	for _, line := range re.FindAllString(errOut, -1) {
+		fmt.Println(line)
+	}
+	return nil
 }
 
 func Init(path string) error {
-	return cmd.Run("git", "init", path)
+	return run("init", path)
 }
 
 func IsFileCommitted(file string) bool {
@@ -133,54 +189,67 @@ func IsFileCommitted(file string) bool {
 }
 
 func LatestCommitMessage() (string, error) {
-	out, _, err := cmd.RunOutput("git", "log", "-n", "1", "--format=format:%B")
+	args := []string{"log", "-n", "1", "--format=format:%B"}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return "", err
+		return "", NewGitError(out, errOut, args...)
 	}
 	return out, nil
 }
 
 func ModifiedFiles(baseBranch, currentBranch string) ([]string, error) {
-	out, _, err := cmd.RunOutput("git", "diff", "--name-only", baseBranch+".."+currentBranch)
+	args := []string{"diff", "--name-only", baseBranch + ".." + currentBranch}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return nil, err
+		return nil, NewGitError(out, errOut, args...)
 	}
 	files := strings.Split(string(out), "\n")
 	return files, nil
 }
 
 func Pull(remote, branch string) error {
-	return cmd.Run("git", "pull", remote, branch)
+	return run("pull", remote, branch)
 }
 
 func RebaseAbort() error {
-	return cmd.Run("git", "rebase", "--abort")
+	return run("rebase", "--abort")
 }
 
 func Remove(fileName string) error {
-	return cmd.Run("git", "rm", fileName)
+	return run("rm", fileName)
 }
 
 func RepoName() (string, error) {
-	out, _, err := cmd.RunOutput("git", "config", "--get", "remote.origin.url")
+	args := []string{"config", "--get", "remote.origin.url"}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return "", err
+		return "", NewGitError(out, errOut, args...)
 	}
-	out, _, err = cmd.RunOutput("basename", out)
+	out, errOut, err = cmd.RunOutput("basename", out)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("'basename %v' failed:\n%v", out, errOut)
 	}
 	return out, nil
 }
 
+func Squash(from string) error {
+	args := []string{"merge", "--squash", from}
+	if _, errOut, err := cmd.RunOutput("git", args...); err != nil {
+		cmd.Run("git", "reset", "--merge")
+		return fmt.Errorf("%v", errOut)
+	}
+	return nil
+}
+
 func Stash() error {
-	return cmd.Run("git", "stash", "save")
+	return run("stash", "save")
 }
 
 func StashSize() (int, error) {
-	out, _, err := cmd.RunOutput("git", "stash", "list")
+	args := []string{"stash", "list"}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return 0, err
+		return 0, NewGitError(out, errOut, args...)
 	}
 	// If output is empty, then stash is empty.
 	if len(strings.Replace(out, "\n", "", -1)) == 0 {
@@ -191,79 +260,54 @@ func StashSize() (int, error) {
 }
 
 func StashPop() error {
-	return cmd.Run("git", "stash", "pop")
+	return run("stash", "pop")
 }
 
 func TopLevel() (string, error) {
-	out, _, err := cmd.RunOutput("git", "rev-parse", "--show-toplevel")
+	args := []string{"rev-parse", "--show-toplevel"}
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return "", err
+		return "", NewGitError(out, errOut, args...)
 	}
 	return out, nil
 }
 
-func GerritRepoPath() (string, error) {
-	repoName, err := RepoName()
+func run(args ...string) error {
+	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
-		return "", err
-	}
-	return "https://veyron-review.googlesource.com/" + repoName, err
-}
-
-func GerritReview(repoPathArg string, draft bool, reviewers, ccs string) error {
-	var repoPath string
-	var err error
-	if repoPathArg != "" {
-		repoPath = repoPathArg
-	} else {
-		repoPath, err = GerritRepoPath()
-		if err != nil {
-			return err
-		}
-	}
-	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs)
-	_, out, err := cmd.RunOutput("git", "push", repoPath, refspec)
-	if err != nil {
-		return fmt.Errorf("%v", out)
-	}
-	re := regexp.MustCompile("remote:[^\n]*")
-	for _, line := range re.FindAllString(out, -1) {
-		fmt.Println(line)
+		return NewGitError(out, errOut, args...)
 	}
 	return nil
 }
 
-// Squasher encapsulates the process of squashing commits of the
-// working git branch into a temporary review branch.
-type Squasher struct {
+// Committer encapsulates the process of create a commit.
+type Committer struct {
 	commit            func() error
 	commitWithMessage func(message string) error
 }
 
-// Squash squashes commits from the given branch to the given branch,
-// using the given message as a commit message.
-func (s *Squasher) Squash(from, to, message string) error {
-	CheckoutBranch(to)
-	if err := cmd.Run("git", "merge", "--squash", from); err != nil {
-		cmd.Run("git", "reset", "--merge")
-		return err
-	}
+// Commit creates a commit.
+func (c *Committer) Commit(message string) error {
 	if len(message) == 0 {
 		// No commit message supplied, let git supply one.
-		return s.commit()
+		return c.commit()
 	}
-	return s.commitWithMessage(message)
+	return c.commitWithMessage(message)
 }
 
-// NewSquasher is the Squasher factory. The boolean <edit> flag
+// NewCommitter is the Committer factory. The boolean <edit> flag
 // determines whether the commit commands should prompt users to edit
 // the commit message. This flag enables automated testing.
-func NewSquasher(edit bool) *Squasher {
+func NewCommitter(edit bool) *Committer {
 	if edit {
-		return &Squasher{commit: CommitAndEdit,
-			commitWithMessage: CommitWithMessageAndEdit}
+		return &Committer{
+			commit:            CommitAndEdit,
+			commitWithMessage: CommitWithMessageAndEdit,
+		}
 	} else {
-		return &Squasher{commit: Commit,
-			commitWithMessage: CommitWithMessage}
+		return &Committer{
+			commit:            Commit,
+			commitWithMessage: CommitWithMessage,
+		}
 	}
 }
