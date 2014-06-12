@@ -434,7 +434,7 @@ func TestDirtyBranch(t *testing.T) {
 	if err := git.Add(stashedFile); err != nil {
 		t.Fatalf("git.Add(%v) failed: %v", stashedFile, err)
 	}
-	if err := git.Stash(); err != nil {
+	if _, err := git.Stash(); err != nil {
 		t.Fatalf("git.Stash() failed: %v", err)
 	}
 	assertStashSize(t, 1)

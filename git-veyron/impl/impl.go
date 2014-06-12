@@ -225,7 +225,7 @@ func (r *review) checkGoFormat() error {
 }
 
 // cleanup cleans up after the review.
-func (r *review) cleanup(stash bool) {
+func (r *review) cleanup(stashed bool) {
 	if err := git.CheckoutBranch(r.branch); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 	}
@@ -234,7 +234,7 @@ func (r *review) cleanup(stash bool) {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
-	if stash {
+	if stashed {
 		if err := git.StashPop(); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
@@ -327,7 +327,7 @@ func (r *review) run() error {
 	if err != nil {
 		return err
 	}
-	stash, err := stashUncommittedChanges()
+	stashed, err := git.Stash()
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func (r *review) run() error {
 		return err
 	}
 	os.Chdir(topLevel)
-	defer r.cleanup(stash)
+	defer r.cleanup(stashed)
 	if err := r.createReviewBranch(readFile(filename)); err != nil {
 		return err
 	}
@@ -426,23 +426,6 @@ func readFile(filename string) string {
 		return string(contents)
 	}
 	return ""
-}
-
-// stashUncommittedChanges stashes any work in progress and returns a
-// flag that indicates whether anything has been stashed.
-func stashUncommittedChanges() (bool, error) {
-	oldSize, err := git.StashSize()
-	if err != nil {
-		return false, err
-	}
-	if err := git.Stash(); err != nil {
-		return false, err
-	}
-	newSize, err := git.StashSize()
-	if err != nil {
-		return false, err
-	}
-	return newSize > oldSize, nil
 }
 
 // writeFile writes the message string to the file.

@@ -177,10 +177,13 @@ func updateRepository(repo string) error {
 	if err != nil {
 		return err
 	}
-	if err := git.Stash(); err != nil {
+	stashed, err := git.Stash()
+	if err != nil {
 		return err
 	}
-	defer git.StashPop()
+	if stashed {
+		defer git.StashPop()
+	}
 	if err := git.CheckoutBranch("master"); err != nil {
 		return err
 	}
