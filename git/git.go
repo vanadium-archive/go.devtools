@@ -172,7 +172,7 @@ func CurrentBranchName() (string, error) {
 
 // Fetch fetches refs and tags from the remote repository.
 func Fetch() error {
-	return run("fetch")
+	return run("fetch", "origin", "master")
 }
 
 // ForeDeleteBranch deletes the given branch, even if that branch contains
@@ -228,6 +228,16 @@ func IsFileCommitted(file string) bool {
 		return false
 	}
 	return true
+}
+
+// LatestCommitID returns the latest commit identifier for the current branch.
+func LatestCommitID() (string, error) {
+	args := []string{"rev-parse", "HEAD"}
+	out, errOut, err := cmd.RunOutput("git", args...)
+	if err != nil {
+		return "", NewGitError(out, errOut, args...)
+	}
+	return out, nil
 }
 
 // LatestCommitMessage returns the latest commit message on the current branch.

@@ -14,11 +14,25 @@ import (
 	"veyron/lib/cmdline"
 )
 
+const (
+	ROOT_ENV = "VEYRON_ROOT"
+)
+
 var (
 	ccs       string
 	draft     bool
 	reviewers string
 	verbose   bool
+)
+
+var (
+	root = func() string {
+		result := os.Getenv(ROOT_ENV)
+		if result == "" {
+			panic(fmt.Sprintf("%v is not set", ROOT_ENV))
+		}
+		return result
+	}()
 )
 
 // init carries out the package initialization.
@@ -39,27 +53,8 @@ The veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changes from a local branch
 to the Gerrit server.
 `,
-		Children: []*cmdline.Command{cmdReview, cmdVersion},
+		Children: []*cmdline.Command{cmdReview, cmdSelfUpdate, cmdVersion},
 	}
-}
-
-// cmdVersion represent the 'version' command of the review tool.
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version.",
-	Long:  "Print version and commit hash used to build git veyron tool.",
-}
-
-const version string = "1.0.0"
-
-// commitId should be over-written during build:
-// go build -ldflags "-X tools/git-veyron/impl.commitId <commitId>" tools/git-veyron
-var commitId string = "test-build"
-
-func runVersion(cmd *cmdline.Command, args []string) error {
-	fmt.Printf("%v (%v)\n", version, commitId)
-	return nil
 }
 
 // cmdReview represent the 'review' command of the review tool.
@@ -189,10 +184,6 @@ func (r *review) checkGoFormat() error {
 	files, err := git.ModifiedFiles("FETCH_HEAD", r.branch)
 	if err != nil {
 		return err
-	}
-	root := os.Getenv("VEYRON_ROOT")
-	if root == "" {
-		return fmt.Errorf("VEYRON_ROOT is not set")
 	}
 	gofmt := filepath.Join(root, "environment/go/bin/gofmt")
 	if _, err := os.Stat(gofmt); err != nil {
@@ -436,4 +427,60 @@ func writeFile(filename, message string) error {
 // writeFileExecutable writes the message string to the file and makes it executable.
 func writeFileExecutable(filename, message string) error {
 	return ioutil.WriteFile(filename, []byte(message), 0777)
+}
+
+// cmdSelfUpdate represents the 'selfupdate' command of the veyron
+// tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the veyron tool",
+	Long:  "Download and install the latest version of the veyron tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, args []string) error {
+	if len(args) != 0 {
+		command.Errorf("unexpected argument(s): %v", strings.Join(args, " "))
+	}
+	if err := cmd.Run("veyron", "update", "tools"); err != nil {
+		return err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer os.Chdir(wd)
+	repo := filepath.Join(root, "tools")
+	os.Chdir(repo)
+	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
+	commitID, err := git.LatestCommitID()
+	if err != nil {
+		return err
+	}
+	output := filepath.Join(root, "bin", "git-veyron")
+	ldflags := fmt.Sprintf("-X tools/git-veyron/impl/commit.Id %s", commitID)
+	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/git-veyron"}
+	if err := cmd.Run(goScript, args...); err != nil {
+		return fmt.Errorf("git veyron tool update failed: %v", err)
+	}
+	return nil
+}
+
+// cmdVersion represent the 'version' command of the review tool.
+var cmdVersion = &cmdline.Command{
+	Run:   runVersion,
+	Name:  "version",
+	Short: "Print version",
+	Long:  "Print version and commit hash used to build git veyron tool.",
+}
+
+const version string = "1.1.0"
+
+// commitId should be over-written during build:
+// go build -ldflags "-X tools/git-veyron/impl.commitId <commitId>" tools/git-veyron
+var commitId string = "test-build"
+
+func runVersion(cmd *cmdline.Command, args []string) error {
+	fmt.Printf("git veyron tool version %v (build %v)\n", version, commitId)
+	return nil
 }

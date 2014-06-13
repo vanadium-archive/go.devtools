@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"tools/cmd"
 	"tools/git"
@@ -14,8 +16,18 @@ import (
 	"veyron/lib/cmdline"
 )
 
+const (
+	ROOT_ENV = "VEYRON_ROOT"
+)
+
 var (
-	root_env = "VEYRON_ROOT"
+	root = func() string {
+		result := os.Getenv(ROOT_ENV)
+		if result == "" {
+			panic(fmt.Sprintf("%v is not set", ROOT_ENV))
+		}
+		return result
+	}()
 )
 
 // Root returns a command that represents the root of the veyron tool.
@@ -27,8 +39,45 @@ func Root() *cmdline.Command {
 The veyron tool facilitates interaction with the veyron project.
 In particular, it can be used to install different veyron profiles.
 `,
-		Children: []*cmdline.Command{cmdSetup, cmdSync, cmdVersion},
+		Children: []*cmdline.Command{cmdSelfUpdate, cmdSetup, cmdUpdate, cmdVersion},
 	}
+}
+
+// cmdSelfUpdate represents the 'selfupdate' command of the veyron
+// tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the veyron tool",
+	Long:  "Download and install the latest version of the veyron tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, args []string) error {
+	if len(args) != 0 {
+		command.Errorf("unexpected argument(s): %v", strings.Join(args, " "))
+	}
+	if err := runUpdate(command, []string{"tools"}); err != nil {
+		return err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer os.Chdir(wd)
+	repo := filepath.Join(root, "tools")
+	os.Chdir(repo)
+	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
+	commitID, err := git.LatestCommitID()
+	if err != nil {
+		return err
+	}
+	output := filepath.Join(root, "bin", "veyron")
+	ldflags := fmt.Sprintf("-X tools/veyron/impl/commit.Id %s", commitID)
+	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/veyron"}
+	if err := cmd.Run(goScript, args...); err != nil {
+		return fmt.Errorf("veyron tool update failed: %v", err)
+	}
+	return nil
 }
 
 // cmdSetup represents the 'setup' command of the veyron tool.
@@ -50,10 +99,6 @@ the host platform.
 
 func profilesDescription() string {
 	result := "<profiles> is a list of profiles to set up. Supported profiles are:\n"
-	root := os.Getenv(root_env)
-	if root == "" {
-		panic(fmt.Sprintf("%v is not set", root_env))
-	}
 	dir := path.Join(root, "environment/scripts/setup", runtime.GOOS)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -71,10 +116,6 @@ func profilesDescription() string {
 }
 
 func runSetup(command *cmdline.Command, args []string) error {
-	root := os.Getenv(root_env)
-	if root == "" {
-		return fmt.Errorf("%v is not set", root_env)
-	}
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
 		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
@@ -86,16 +127,16 @@ func runSetup(command *cmdline.Command, args []string) error {
 	for _, arg := range args {
 		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
 		if err := cmd.Run(script); err != nil {
-			return fmt.Errorf("profile %v setup failed", arg)
+			return fmt.Errorf("profile %v setup failed: %v", arg, err)
 		}
 	}
 	return nil
 }
 
-// cmdSync represents the 'sync' command of the veyron tool.
-var cmdSync = &cmdline.Command{
-	Run:   runSync,
-	Name:  "sync",
+// cmdUpdate represents the 'update' command of the veyron tool.
+var cmdUpdate = &cmdline.Command{
+	Run:   runUpdate,
+	Name:  "update",
 	Short: "Update local veyron repositories",
 	Long: `
 Update the local master branch of veyron git repositories by pulling
@@ -109,10 +150,6 @@ behavior is to update all repositories.
 
 func reposDescription() string {
 	result := "<repos> is a list of repositories to update. Existing repositories are:\n"
-	root := os.Getenv(root_env)
-	if root == "" {
-		panic(fmt.Sprintf("%v is not set", root_env))
-	}
 	list := path.Join(root, ".repo", "project.list")
 	file, err := os.Open(list)
 	if err != nil {
@@ -128,11 +165,7 @@ func reposDescription() string {
 	return result
 }
 
-func runSync(cmd *cmdline.Command, args []string) error {
-	root := os.Getenv(root_env)
-	if root == "" {
-		return fmt.Errorf("%v is not set", root_env)
-	}
+func runUpdate(cmd *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		// The default behavior is to update all repositories.
 		list := path.Join(root, ".repo", "project.list")
@@ -198,17 +231,17 @@ func updateRepository(repo string) error {
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
-	Short: "Print version.",
+	Short: "Print version",
 	Long:  "Print version and commit hash used to build the veyron tool.",
 }
 
-const version string = "0.2.0"
+const version string = "0.3.0"
 
 // commitId should be over-written during build:
 // go build -ldflags "-X tools/veyron/impl.commitId <commitId>" tools/veyron
 var commitId string = "test-build"
 
 func runVersion(cmd *cmdline.Command, args []string) error {
-	fmt.Printf("%v (%v)\n", version, commitId)
+	fmt.Printf("veyron tool version %v (build %v)\n", version, commitId)
 	return nil
 }
