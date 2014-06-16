@@ -126,7 +126,7 @@ func runSetup(command *cmdline.Command, args []string) error {
 	// Setup the profiles.
 	for _, arg := range args {
 		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
-		if err := cmd.Run(script); err != nil {
+		if _, err := cmd.RunErrorOutput(script); err != nil {
 			return fmt.Errorf("profile %v setup failed: %v", arg, err)
 		}
 	}
