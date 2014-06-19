@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"tools/gerrit"
@@ -497,13 +498,21 @@ func TestRunInSubdirectory(t *testing.T) {
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
 	review.run()
-	wdEnd, err := os.Getwd()
+	path := path.Join(repoPath, subdir)
+	expected, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatalf("filepath.EvalSymlinks(%v) failed: %v", path, err)
+	}
+	workingDir, err = os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd() failed: %v", err)
 	}
-	subdirFullPath := path.Join(repoPath, subdir)
-	if subdirFullPath != wdEnd {
-		t.Fatalf("Expected working directory to be %v, actual working directory is %v", subdirFullPath, wdEnd)
+	got, err := filepath.EvalSymlinks(workingDir)
+	if err != nil {
+		t.Fatalf("filepath.EvalSymlinks(%v) failed: %v", workingDir, err)
+	}
+	if expected != got {
+		t.Fatalf("Unexpected working direcotry, expected %v, got %v", expected, got)
 	}
 	expectedRef := gerrit.Reference(draft, reviewers, ccs)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
