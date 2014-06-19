@@ -201,8 +201,14 @@ func (r *review) checkGoFormat() error {
 	os.Chdir(topLevel)
 	ill := make([]string, 0)
 	for _, file := range files {
+		path := filepath.Join(topLevel, file)
 		if strings.HasSuffix(file, ".go") {
-			path := filepath.Join(topLevel, file)
+			// Skip files deleted by the change.
+			if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+				continue
+			}
+			// Check if the formatting of <file> differs
+			// from gofmt.
 			out, _, err := cmd.RunOutput(gofmt, "-l", path)
 			if err != nil || len(out) != 0 {
 				ill = append(ill, file)
