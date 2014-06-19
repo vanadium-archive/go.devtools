@@ -28,19 +28,26 @@ var (
 		}
 		return result
 	}()
+	verbose bool
 )
 
-// Root returns a command that represents the root of the veyron tool.
-func Root() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "veyron",
-		Short: "Command-line tool for managing the veyron project",
-		Long: `
+func init() {
+	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
+}
+
+var cmdRoot = &cmdline.Command{
+	Name:  "veyron",
+	Short: "Command-line tool for managing the veyron project",
+	Long: `
 The veyron tool facilitates interaction with the veyron project.
 In particular, it can be used to install different veyron profiles.
 `,
-		Children: []*cmdline.Command{cmdSelfUpdate, cmdSetup, cmdUpdate, cmdVersion},
-	}
+	Children: []*cmdline.Command{cmdSelfUpdate, cmdSetup, cmdUpdate, cmdVersion},
+}
+
+// Root returns a command that represents the root of the veyron tool.
+func Root() *cmdline.Command {
+	return cmdRoot
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the veyron
@@ -53,6 +60,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
+	cmd.SetVerbose(verbose)
 	if len(args) != 0 {
 		command.Errorf("unexpected argument(s): %v", strings.Join(args, " "))
 	}
@@ -72,7 +80,7 @@ func runSelfUpdate(command *cmdline.Command, args []string) error {
 		return err
 	}
 	output := filepath.Join(root, "bin", "veyron")
-	ldflags := fmt.Sprintf("'-X tools/veyron/impl.commitId %s'", commitID)
+	ldflags := fmt.Sprintf("-X tools/veyron/impl.commitId %s", commitID)
 	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/veyron"}
 	if err := cmd.Run(goScript, args...); err != nil {
 		return fmt.Errorf("veyron tool update failed: %v", err)
@@ -116,6 +124,7 @@ func profilesDescription() string {
 }
 
 func runSetup(command *cmdline.Command, args []string) error {
+	cmd.SetVerbose(verbose)
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
 		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
@@ -165,7 +174,8 @@ func reposDescription() string {
 	return result
 }
 
-func runUpdate(cmd *cmdline.Command, args []string) error {
+func runUpdate(command *cmdline.Command, args []string) error {
+	cmd.SetVerbose(verbose)
 	if len(args) == 0 {
 		// The default behavior is to update all repositories.
 		list := path.Join(root, ".repo", "project.list")
@@ -185,7 +195,7 @@ func runUpdate(cmd *cmdline.Command, args []string) error {
 	for _, arg := range args {
 		repo := path.Join(root, arg)
 		if _, err := os.Lstat(repo); err != nil {
-			cmd.Errorf("repository %v does not exist", arg)
+			command.Errorf("repository %v does not exist", arg)
 			return cmdline.ErrUsage
 		}
 	}

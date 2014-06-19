@@ -37,24 +37,26 @@ var (
 
 // init carries out the package initialization.
 func init() {
-	cmdReview.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
+	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
 	cmdReview.Flags.BoolVar(&draft, "d", false, "Send draft change list.")
 	cmdReview.Flags.StringVar(&reviewers, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccs, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 }
 
-// Root returns a command that represents the root of the review tool.
-func Root() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "veyron",
-		Short: "Command-line tool for interacting with the Veyron Gerrit server.",
-		Long: `
+var cmdRoot = &cmdline.Command{
+	Name:  "veyron",
+	Short: "Command-line tool for interacting with the Veyron Gerrit server.",
+	Long: `
 The veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changes from a local branch
 to the Gerrit server.
 `,
-		Children: []*cmdline.Command{cmdReview, cmdSelfUpdate, cmdVersion},
-	}
+	Children: []*cmdline.Command{cmdReview, cmdSelfUpdate, cmdVersion},
+}
+
+// Root returns a command that represents the root of the review tool.
+func Root() *cmdline.Command {
+	return cmdRoot
 }
 
 // cmdReview represent the 'review' command of the review tool.
@@ -445,6 +447,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
+	cmd.SetVerbose(verbose)
 	if len(args) != 0 {
 		command.Errorf("unexpected argument(s): %v", strings.Join(args, " "))
 	}
@@ -464,7 +467,7 @@ func runSelfUpdate(command *cmdline.Command, args []string) error {
 		return err
 	}
 	output := filepath.Join(root, "bin", "git-veyron")
-	ldflags := fmt.Sprintf("'-X tools/git-veyron/impl.commitId %s'", commitID)
+	ldflags := fmt.Sprintf("-X tools/git-veyron/impl.commitId %s", commitID)
 	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/git-veyron"}
 	if err := cmd.Run(goScript, args...); err != nil {
 		return fmt.Errorf("git veyron tool update failed: %v", err)
