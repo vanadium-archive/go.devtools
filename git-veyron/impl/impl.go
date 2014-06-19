@@ -464,7 +464,7 @@ func runSelfUpdate(command *cmdline.Command, args []string) error {
 		return err
 	}
 	output := filepath.Join(root, "bin", "git-veyron")
-	ldflags := fmt.Sprintf("-X tools/git-veyron/impl/commit.Id %s", commitID)
+	ldflags := fmt.Sprintf("'-X tools/git-veyron/impl.commitId %s'", commitID)
 	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/git-veyron"}
 	if err := cmd.Run(goScript, args...); err != nil {
 		return fmt.Errorf("git veyron tool update failed: %v", err)
