@@ -462,12 +462,12 @@ func runSelfUpdate(command *cmdline.Command, args []string) error {
 	repo := filepath.Join(root, "tools")
 	os.Chdir(repo)
 	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
-	commitID, err := git.LatestCommitID()
+	count, err := git.CountCommits("HEAD", "")
 	if err != nil {
 		return err
 	}
 	output := filepath.Join(root, "bin", "git-veyron")
-	ldflags := fmt.Sprintf("-X tools/git-veyron/impl.commitId %s", commitID)
+	ldflags := fmt.Sprintf("-X tools/git-veyron/impl.commitId %d", count)
 	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/git-veyron"}
 	if err := cmd.Run(goScript, args...); err != nil {
 		return fmt.Errorf("git veyron tool update failed: %v", err)

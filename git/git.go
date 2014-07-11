@@ -129,9 +129,12 @@ func CommitWithMessageAndEdit(message string) error {
 	return nil
 }
 
-// CountCommits returns the number of commits on <branch> that are not on <baseBranch>.
-func CountCommits(branch, baseBranch string) (int, error) {
-	args := []string{"rev-list", "--count", branch, "^" + baseBranch}
+// CountCommits returns the number of commits on <branch> that are not on <base>.
+func CountCommits(branch, base string) (int, error) {
+	args := []string{"rev-list", "--count", branch}
+	if base != "" {
+		args = append(args, "^"+base)
+	}
 	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
 		return 0, NewGitError(out, errOut, args...)
