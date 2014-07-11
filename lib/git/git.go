@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"tools/cmd"
-	"tools/gerrit"
+	"tools/lib/cmd"
+	"tools/lib/gerrit"
 )
 
 type GitError struct {

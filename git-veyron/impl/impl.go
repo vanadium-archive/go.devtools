@@ -8,10 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"tools/cmd"
-	"tools/git"
-
-	"veyron/lib/cmdline"
+	"tools/lib/cmd"
+	"tools/lib/cmdline"
+	"tools/lib/git"
 )
 
 const (

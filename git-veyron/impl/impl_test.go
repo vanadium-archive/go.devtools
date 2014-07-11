@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tools/gerrit"
-	"tools/git"
+	"tools/lib/gerrit"
+	"tools/lib/git"
 )
 
 // assertCommitCount asserts that the commit count between two
