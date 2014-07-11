@@ -1,0 +1,11 @@
+{
+	"dependencies": {
+		"outgoing": [
+			{"deny": "..."}
+		]
+		"incoming": [
+			{},
+			{"deny": "..."}
+		]
+	}
+}

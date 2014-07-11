@@ -1,0 +1,9 @@
+{
+	"dependencies": {
+		"incoming": [
+			{"allow": "veyron2/rt/..."},
+			{"deny": "..."}
+		]
+	}
+}
+
