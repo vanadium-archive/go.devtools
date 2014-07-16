@@ -1,0 +1,12 @@
+{
+	"dependencies": {
+		"incoming": [
+			    {"allow": "tools/go-depcop/main"},
+			    {"deny": "..."}
+		],
+		"outgoing": [
+			    {"allow": "tools/lib/..."},
+			    {"deny": "..."}
+		]
+	}
+}

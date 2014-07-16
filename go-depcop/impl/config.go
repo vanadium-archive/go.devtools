@@ -1,4 +1,4 @@
-package main
+package impl
 
 import (
 	"encoding/json"
@@ -116,11 +116,15 @@ func (e *configFileReadError) Error() string {
 	return "invalid config file: " + e.path + ": " + e.innerError.Error()
 }
 
+const (
+	configFileName = "GO.PACKAGE"
+)
+
 func (c *configFileIterator) Advance() bool {
 	if c.depth < 0 {
 		return false
 	}
-	configFilePath := filepath.Join(c.dir, "GO.PACKAGE")
+	configFilePath := filepath.Join(c.dir, configFileName)
 	pkgConfig, err := loadPackageConfigFile(configFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {

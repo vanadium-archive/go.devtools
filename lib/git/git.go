@@ -2,12 +2,18 @@ package git
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"tools/lib/cmd"
 	"tools/lib/gerrit"
+)
+
+const (
+	ROOT_ENV = "VEYRON_ROOT"
 )
 
 type GitError struct {
@@ -292,6 +298,37 @@ func RepoName() (string, error) {
 		return "", fmt.Errorf("'basename %v' failed:\n%v", out, errOut)
 	}
 	return out, nil
+}
+
+// SelfUpdate updates the given tool to the latest version.
+func SelfUpdate(name string) error {
+	root := os.Getenv(ROOT_ENV)
+	if root == "" {
+		return fmt.Errorf("%v is not set", ROOT_ENV)
+	}
+	if err := cmd.Run("veyron", "update", "tools"); err != nil {
+		return err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer os.Chdir(wd)
+	repo := filepath.Join(root, "tools")
+	os.Chdir(repo)
+	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
+	count, err := CountCommits("HEAD", "")
+	if err != nil {
+		return err
+	}
+	output := filepath.Join(root, "bin", name)
+	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
+	pkg := fmt.Sprintf("tools/%v", name)
+	args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
+	if err := cmd.Run(goScript, args...); err != nil {
+		return fmt.Errorf("%v tool update failed: %v", name, err)
+	}
+	return nil
 }
 
 // Squash squashes all commits from <fromBranch> to the current branch.

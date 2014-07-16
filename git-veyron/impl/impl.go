@@ -447,31 +447,7 @@ var cmdSelfUpdate = &cmdline.Command{
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
 	cmd.SetVerbose(verbose)
-	if len(args) != 0 {
-		command.Errorf("unexpected argument(s): %v", strings.Join(args, " "))
-	}
-	if err := cmd.Run("veyron", "update", "tools"); err != nil {
-		return err
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer os.Chdir(wd)
-	repo := filepath.Join(root, "tools")
-	os.Chdir(repo)
-	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
-	count, err := git.CountCommits("HEAD", "")
-	if err != nil {
-		return err
-	}
-	output := filepath.Join(root, "bin", "git-veyron")
-	ldflags := fmt.Sprintf("-X tools/git-veyron/impl.commitId %d", count)
-	args = []string{"build", "-ldflags", ldflags, "-o", output, "tools/git-veyron"}
-	if err := cmd.Run(goScript, args...); err != nil {
-		return fmt.Errorf("git veyron tool update failed: %v", err)
-	}
-	return nil
+	return git.SelfUpdate("git-veyron")
 }
 
 // cmdVersion represent the 'version' command of the review tool.
@@ -479,7 +455,7 @@ var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
 	Short: "Print version",
-	Long:  "Print version and commit hash used to build git veyron tool.",
+	Long:  "Print version of the git veyron tool.",
 }
 
 const version string = "1.1.0"
