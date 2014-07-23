@@ -1,11 +1,11 @@
 package impl
 
 import (
-	"bufio"
+	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 
 	"tools/lib/cmd"
@@ -80,13 +80,13 @@ the host platform.
 
 func profilesDescription() string {
 	result := "<profiles> is a list of profiles to set up. Supported profiles are:\n"
-	dir := path.Join(root, "environment/scripts/setup", runtime.GOOS)
+	dir := filepath.Join(root, "environment/scripts/setup", runtime.GOOS)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(fmt.Sprintf("could not read %s", dir))
 	}
 	for _, entry := range entries {
-		file := path.Join(dir, entry.Name(), "DESCRIPTION")
+		file := filepath.Join(dir, entry.Name(), "DESCRIPTION")
 		description, err := ioutil.ReadFile(file)
 		if err != nil {
 			panic(fmt.Sprintf("could not read %s", file))
@@ -100,14 +100,14 @@ func runSetup(command *cmdline.Command, args []string) error {
 	cmd.SetVerbose(verbose)
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
-		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
+		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
 		if _, err := os.Lstat(script); err != nil {
 			return command.Errorf("profile %v does not exist", arg)
 		}
 	}
 	// Setup the profiles.
 	for _, arg := range args {
-		script := path.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
+		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
 		if _, err := cmd.RunErrorOutput(script); err != nil {
 			return fmt.Errorf("profile %v setup failed: %v", arg, err)
 		}
@@ -130,44 +130,56 @@ behavior is to update all repositories.
 	ArgsLong: reposDescription(),
 }
 
+type project struct {
+	Name string `xml:"name,attr"`
+	Path string `xml:"path,attr"`
+}
+
+type manifest struct {
+	Projects []project `xml:"project"`
+}
+
 func reposDescription() string {
 	result := "<repos> is a list of repositories to update. Existing repositories are:\n"
-	list := path.Join(root, ".repo", "project.list")
-	file, err := os.Open(list)
+	path := filepath.Join(root, ".repo", "manifest.xml")
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		panic(fmt.Sprintf("Open(%v) failed: %v", list, err))
+		panic(fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		result += fmt.Sprintf("  %s\n", scanner.Text())
+	var m manifest
+	if err := xml.Unmarshal(data, &m); err != nil {
+		panic(fmt.Sprintf("Unmarshal() failed: %v", err))
 	}
-	if err := scanner.Err(); err != nil {
-		panic(fmt.Sprintf("Scan() failed: %v", err))
+	for _, project := range m.Projects {
+		result += fmt.Sprintf("   %s (located in %s)\n", project.Name, filepath.Join(root, project.Path))
 	}
 	return result
 }
 
 func runUpdate(command *cmdline.Command, args []string) error {
 	cmd.SetVerbose(verbose)
+	path := filepath.Join(root, ".repo", "manifest.xml")
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
+	}
+	var m manifest
+	if err := xml.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("Unmarshal() failed: %v", err)
+	}
+	projects := make(map[string]string)
+	for _, project := range m.Projects {
+		projects[project.Name] = projects[project.Path]
+	}
 	if len(args) == 0 {
 		// The default behavior is to update all repositories.
-		list := path.Join(root, ".repo", "project.list")
-		file, err := os.Open(list)
-		if err != nil {
-			return fmt.Errorf("Open(%v) failed: %v", list, err)
-		}
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			args = append(args, scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("Scan() failed: %v", err)
+		for name, _ := range projects {
+			args = append(args, name)
 		}
 	}
 	// Check that the repositories to be updated exist.
 	for _, arg := range args {
-		repo := path.Join(root, arg)
-		if _, err := os.Lstat(repo); err != nil {
+		if _, ok := projects[arg]; !ok {
 			command.Errorf("repository %v does not exist", arg)
 			return cmdline.ErrUsage
 		}
@@ -179,8 +191,8 @@ func runUpdate(command *cmdline.Command, args []string) error {
 	}
 	defer os.Chdir(wd)
 	for _, arg := range args {
-		repo := path.Join(root, arg)
-		if err := updateRepository(repo); err != nil {
+		path := projects[arg]
+		if err := updateRepository(path); err != nil {
 			return err
 		}
 	}
