@@ -60,7 +60,7 @@ func BranchExists(branchName string) bool {
 
 // BranchesDiffer tests whether two branches have any changes between them.
 func BranchesDiffer(branchName1, branchName2 string) (bool, error) {
-	args := []string{"diff", branchName1 + ".." + branchName2}
+	args := []string{"--no-pager", "diff", branchName1 + ".." + branchName2}
 	out, errOut, err := cmd.RunOutput("git", args...)
 	if err != nil {
 		return false, NewGitError(out, errOut, args...)
