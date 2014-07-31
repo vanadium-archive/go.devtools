@@ -3,7 +3,6 @@ package impl
 import (
 	"encoding/xml"
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,9 +12,6 @@ import (
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
 	"tools/lib/git"
-
-	"veyron2/rt"
-	vbuild "veyron2/services/mgmt/build"
 )
 
 const (
@@ -35,8 +31,6 @@ var (
 )
 
 func init() {
-	cmdBuild.Flags.StringVar(&arch, "arch", runtime.GOARCH, "Target architecture.")
-	cmdBuild.Flags.StringVar(&opsys, "os", runtime.GOOS, "Target operating system.")
 	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
 }
 
@@ -47,130 +41,12 @@ var cmdRoot = &cmdline.Command{
 The veyron tool facilitates interaction with the veyron project.
 In particular, it can be used to install different veyron profiles.
 `,
-	Children: []*cmdline.Command{cmdBuild, cmdSelfUpdate, cmdSetup, cmdUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdSelfUpdate, cmdSetup, cmdUpdate, cmdVersion},
 }
 
 // Root returns a command that represents the root of the veyron tool.
 func Root() *cmdline.Command {
 	return cmdRoot
-}
-
-var cmdBuild = &cmdline.Command{
-	Run:   runBuild,
-	Name:  "build",
-	Short: "Build veyron Go packages",
-	Long: `
-Build veyron Go packages using a remote build server. The command
-collects all source code files that are not part of the Go standard
-library that the target packages depend on, sends them to a build
-server, and receives the built binaries.
-`,
-	ArgsName: "<name> <packages>",
-	ArgsLong: `
-<name> is a veyron object name of a build server
-<packages> is a list of packages to build
-`,
-}
-
-func importPackages(path string, pkgMap map[string]*build.Package) error {
-	if _, ok := pkgMap[path]; ok {
-		return nil
-	}
-	srcDir, mode := "", build.ImportMode(0)
-	pkg, err := build.Import(path, srcDir, mode)
-	if err != nil {
-		return fmt.Errorf("Import(%q,%q,%v) failed: %v", path, srcDir, mode, err)
-	}
-	if pkg.Goroot {
-		return nil
-	}
-	pkgMap[path] = pkg
-	for _, path := range pkg.Imports {
-		if err := importPackages(path, pkgMap); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// TODO(jsimsa): Avoid reading all source files into memory at the
-// same time by returning a channel that can be used to bring source
-// code files into memory one by one when streaming them to the build
-// server.
-func getSources(pkgMap map[string]*build.Package) ([]vbuild.File, error) {
-	result := []vbuild.File{}
-	for _, pkg := range pkgMap {
-		for _, files := range [][]string{pkg.GoFiles, pkg.SFiles} {
-			for _, file := range files {
-				path := filepath.Join(pkg.Dir, file)
-				bytes, err := ioutil.ReadFile(path)
-				if err != nil {
-					return nil, fmt.Errorf("ReadFile(%v) failed: %v", path, err)
-				}
-				result = append(result, vbuild.File{Contents: bytes, Name: filepath.Join(pkg.ImportPath, file)})
-			}
-		}
-	}
-	return result, nil
-}
-
-func invokeBuild(name string, files []vbuild.File) ([]byte, []vbuild.File, error) {
-	rt.Init()
-	client, err := vbuild.BindBuild(name)
-	if err != nil {
-		return nil, nil, fmt.Errorf("BindBuild(%v) failed: %v", name, err)
-	}
-	stream, err := client.Build(rt.R().NewContext(), vbuild.Architecture(arch), vbuild.OperatingSystem(opsys))
-	if err != nil {
-		return nil, nil, fmt.Errorf("Build() failed: %v", err)
-	}
-	for _, file := range files {
-		if err := stream.Send(file); err != nil {
-			stream.Cancel()
-			return nil, nil, fmt.Errorf("Send() failed: %v", err)
-		}
-	}
-	if err := stream.CloseSend(); err != nil {
-		return nil, nil, fmt.Errorf("CloseSend() failed: %v", err)
-	}
-	bins := []vbuild.File{}
-	for stream.Advance() {
-		bins = append(bins, stream.Value())
-	}
-	if err := stream.Err(); err != nil {
-		return nil, nil, fmt.Errorf("Advance() failed: %v", err)
-	}
-	output, err := stream.Finish()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Finish() failed: %v", err)
-	}
-	return output, bins, nil
-}
-
-func runBuild(command *cmdline.Command, args []string) error {
-	name, path := args[0], args[1]
-	pkgMap := map[string]*build.Package{}
-	if err := importPackages(path, pkgMap); err != nil {
-		return err
-	}
-	files, err := getSources(pkgMap)
-	if err != nil {
-		return err
-	}
-	_, bins, err := invokeBuild(name, files)
-	if err != nil {
-		return err
-	}
-	if expected, got := 1, len(bins); expected != got {
-		return fmt.Errorf("Unexpected number of binaries: expected %v, got %v", expected, got)
-	}
-	pkg, _ := pkgMap[path]
-	binPath, perm := filepath.Join(pkg.BinDir, filepath.Base(pkg.Dir)), os.FileMode(0755)
-	fmt.Printf("Generated binary %v\n", binPath)
-	if err := ioutil.WriteFile(binPath, bins[0].Contents, perm); err != nil {
-		return fmt.Errorf("WriteFile(%v, %v) failed: %v", binPath, perm, err)
-	}
-	return nil
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the veyron
