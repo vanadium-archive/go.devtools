@@ -1,65 +1,147 @@
 package cmd
 
 import (
-	"bytes"
+	"bufio"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-var verbose bool
+var (
+	depth            = 0
+	ErrCommandFailed = errors.New("command failed")
+)
 
-// Run executes the given command with the given arguments, returning
-// nil if the command succeeds, or an error otherwise.
-func Run(command string, args ...string) error {
-	_, _, err := RunOutput(command, args...)
+// Log logs the result of the given command.
+func Log(message string, fn func() error) error {
+	LogStart(message)
+	err := fn()
+	LogEnd(err == nil)
 	return err
 }
 
-// RunErrorOutput executes the given command with the given arguments, and
-// binds stdout os's.  This is necessary for spawning processes like Vim, which
-// expect stdout to be a terminal.  The function returns the error output, and
-// an error if the command fails, otherwise nil.
-func RunErrorOutput(command string, args ...string) (string, error) {
-	_, errOut, err := run(false, command, args...)
-	return errOut, err
+// LogStart logs the start of the given command.
+func LogStart(command string) {
+	increaseDepth()
+	fmt.Printf("%v %v\n", indentation(), command)
+}
+
+// LogEnd logs the outcome of a previously started command.
+func LogEnd(success bool) {
+	defer decreaseDepth()
+	if !success {
+		fmt.Printf("%v FAILED\n", indentation())
+	} else {
+		fmt.Printf("%v OK\n", indentation())
+	}
+}
+
+// Run executes the given command with the given arguments, collecting
+// no output.
+func Run(verbose bool, command string, args ...string) error {
+	_, _, err := run(verbose, true, command, args...)
+	return err
 }
 
 // RunOutput executes the given command with the given arguments,
-// returning the normal and error output and nil if the command
-// succeeds, or an error otherwise.
-func RunOutput(command string, args ...string) (string, string, error) {
-	return run(true, command, args...)
+// collecting the standard and error output.
+func RunOutput(verbose bool, command string, args ...string) ([]string, []string, error) {
+	return run(verbose, true, command, args...)
 }
 
-// SetVerbose either enables or disables verbose output.
-func SetVerbose(v bool) {
-	verbose = v
+// RunOutputError executes the given command with the given arguments,
+// collecting only the error output.
+func RunOutputError(verbose bool, command string, args ...string) ([]string, error) {
+	_, errOut, err := run(verbose, false, command, args...)
+	return errOut, err
 }
 
-func run(redirectStdout bool, command string, args ...string) (string, string, error) {
-	w := ioutil.Discard
+func collectOutput(r io.Reader) ([]string, error) {
+	if r == nil {
+		return nil, nil
+	}
+	lines := []string{}
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("Scan() failed: %v", err)
+	}
+	return lines, nil
+}
+
+func decreaseDepth() {
+	depth--
+}
+
+func increaseDepth() {
+	depth++
+}
+
+func indentation() string {
+	result := ""
+	for i := 0; i < depth; i++ {
+		result += ">>"
+	}
+	return result
+}
+
+func run(verbose, stdout bool, command string, args ...string) ([]string, []string, error) {
+	increaseDepth()
+	defer decreaseDepth()
 	if verbose {
-		w = os.Stdout
+		fmt.Printf("%v %v %v\n", indentation(), command, strings.Join(args, " "))
 	}
-	fmt.Fprintln(w, ">> "+command+" "+strings.Join(args, " "))
 	cmd := exec.Command(command, args...)
-	var output, error bytes.Buffer
 	cmd.Stdin = os.Stdin
-	cmd.Stderr = &error
-	if redirectStdout {
-		cmd.Stdout = &output
-	} else {
-		cmd.Stdout = os.Stdout
+	cmd.Env = os.Environ()
+	var outPipe io.ReadCloser
+	if stdout {
+		var err error
+		outPipe, err = cmd.StdoutPipe()
+		if err != nil {
+			return nil, nil, fmt.Errorf("StdoutPipe() failed: %v", err)
+		}
 	}
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintln(w, ">> FAILED")
-		fmt.Fprintf(w, "%v", error.String())
-		return strings.TrimSpace(output.String()), strings.TrimSpace(error.String()), fmt.Errorf("Run() failed with: %v", err)
-	} else {
-		fmt.Fprintln(w, ">> OK")
+	errPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, fmt.Errorf("StderrPipe() failed: %v", err)
 	}
-	return strings.TrimSpace(output.String()), strings.TrimSpace(error.String()), nil
+	if err := cmd.Start(); err != nil {
+		return nil, nil, fmt.Errorf("Start() failed: %v", err)
+	}
+	out, err := collectOutput(outPipe)
+	if err != nil {
+		return nil, nil, err
+	}
+	errOut, err := collectOutput(errPipe)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := cmd.Wait(); err != nil {
+		if verbose {
+			fmt.Printf("%v FAILED\n", indentation())
+		}
+		if _, ok := err.(*exec.ExitError); !ok {
+			return nil, nil, fmt.Errorf("Wait() failed: %v", err)
+		}
+		return out, errOut, ErrCommandFailed
+	}
+	if verbose {
+		for _, line := range out {
+			if strings.HasPrefix(line, ">>") {
+				fmt.Printf("%v%v\n", indentation(), line)
+			} else {
+				increaseDepth()
+				fmt.Printf("%v %v\n", indentation(), line)
+				decreaseDepth()
+			}
+		}
+		fmt.Printf("%v OK\n", indentation())
+	}
+	return out, errOut, nil
 }

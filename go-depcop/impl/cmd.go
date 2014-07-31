@@ -115,8 +115,9 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	cmd.SetVerbose(verbose)
-	return git.SelfUpdate("go-depcop")
+	git := git.New(verbose)
+	tool := "go-depcop"
+	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.

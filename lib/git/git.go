@@ -19,11 +19,11 @@ const (
 type GitError struct {
 	command string
 	args    []string
-	out     string
-	err     string
+	out     []string
+	err     []string
 }
 
-func NewGitError(out, err string, args ...string) GitError {
+func NewGitError(out, err []string, args ...string) GitError {
 	return GitError{
 		args: args,
 		out:  out,
@@ -35,38 +35,48 @@ func (ge GitError) Error() string {
 	result := "'git "
 	result += strings.Join(ge.args, " ")
 	result += "' failed:\n"
-	result += ge.err
+	result += strings.Join(ge.err, "\n")
 	return result
 }
 
+type Git struct {
+	verbose bool
+}
+
+func New(verbose bool) *Git {
+	return &Git{
+		verbose: verbose,
+	}
+}
+
 // Add adds a file to staging.
-func Add(fileName string) error {
-	return run("add", fileName)
+func (g *Git) Add(fileName string) error {
+	return g.run("add", fileName)
 }
 
 // AddRemote adds a new remote repository with the given name and path.
-func AddRemote(name, path string) error {
-	return run("remote", "add", name, path)
+func (g *Git) AddRemote(name, path string) error {
+	return g.run("remote", "add", name, path)
 }
 
 // BranchExists tests whether a branch with the given name exists in the local
 // repository.
-func BranchExists(branchName string) bool {
-	if err := cmd.Run("git", "show-branch", branchName); err != nil {
+func (g *Git) BranchExists(branchName string) bool {
+	if err := cmd.Run(g.verbose, "git", "show-branch", branchName); err != nil {
 		return false
 	}
 	return true
 }
 
 // BranchesDiffer tests whether two branches have any changes between them.
-func BranchesDiffer(branchName1, branchName2 string) (bool, error) {
+func (g *Git) BranchesDiffer(branchName1, branchName2 string) (bool, error) {
 	args := []string{"--no-pager", "diff", branchName1 + ".." + branchName2}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return false, NewGitError(out, errOut, args...)
 	}
 	// If output is empty, then there is no difference.
-	if len(strings.Replace(out, "\n", "", -1)) == 0 {
+	if len(out) == 0 {
 		return false, nil
 	}
 	// Otherwise there is a difference.
@@ -74,125 +84,131 @@ func BranchesDiffer(branchName1, branchName2 string) (bool, error) {
 }
 
 // CheckoutBranch checks out a branch.
-func CheckoutBranch(branchName string) error {
-	return run("checkout", branchName)
+func (g *Git) CheckoutBranch(branchName string) error {
+	return g.run("checkout", branchName)
 }
 
 // Commit commits all files in staging with an empty message.
-func Commit() error {
-	return run("commit", "--allow-empty", "--allow-empty-message", "--no-edit")
+func (g *Git) Commit() error {
+	return g.run("commit", "--allow-empty", "--allow-empty-message", "--no-edit")
 }
 
 // CommitAmend amends the previous commit with the currently staged changes,
 // and the given message.
-func CommitAmend(message string) error {
-	return run("commit", "--amend", "-m", message)
+func (g *Git) CommitAmend(message string) error {
+	return g.run("commit", "--amend", "-m", message)
 }
 
 // CommitAndEdit commits all files in staging and allows the user to edit the
 // commit message.
-func CommitAndEdit() error {
+func (g *Git) CommitAndEdit() error {
 	args := []string{"commit", "--allow-empty"}
-	errOut, err := cmd.RunErrorOutput("git", args...)
+	errOut, err := cmd.RunOutputError(g.verbose, "git", args...)
 	if err != nil {
-		return NewGitError("", errOut, args...)
+		return NewGitError(nil, errOut, args...)
 	}
 	return nil
 }
 
 // CommitFile commits the given file with the given commit message.
-func CommitFile(fileName, message string) error {
-	if err := Add(fileName); err != nil {
+func (g *Git) CommitFile(fileName, message string) error {
+	if err := g.Add(fileName); err != nil {
 		return err
 	}
-	return CommitWithMessage(message)
+	return g.CommitWithMessage(message)
 }
 
 // CommitMessages returns the concatenation of all commit messages on <branch>
 // that are not also on <baseBranch>.
-func CommitMessages(branch, baseBranch string) (string, error) {
+func (g *Git) CommitMessages(branch, baseBranch string) (string, error) {
 	args := []string{"log", "--no-merges", baseBranch + ".." + branch}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return "", NewGitError(out, errOut, args...)
 	}
-	return out, nil
+	return strings.Join(out, "\n"), nil
 }
 
 // CommitWithMessage commits all files in staging with the given message.
-func CommitWithMessage(message string) error {
-	return run("commit", "--allow-empty", "--allow-empty-message", "-m", message)
+func (g *Git) CommitWithMessage(message string) error {
+	return g.run("commit", "--allow-empty", "--allow-empty-message", "-m", message)
 }
 
 // CommitWithMessage commits all files in staging and allows the user to edit
 // the commit message. The given message will be used as the default.
-func CommitWithMessageAndEdit(message string) error {
+func (g *Git) CommitWithMessageAndEdit(message string) error {
 	args := []string{"commit", "--allow-empty", "-e", "-m", message}
-	errOut, err := cmd.RunErrorOutput("git", args...)
+	errOut, err := cmd.RunOutputError(g.verbose, "git", args...)
 	if err != nil {
-		return NewGitError("", errOut, args...)
+		return NewGitError(nil, errOut, args...)
 	}
 	return nil
 }
 
 // CountCommits returns the number of commits on <branch> that are not on <base>.
-func CountCommits(branch, base string) (int, error) {
+func (g *Git) CountCommits(branch, base string) (int, error) {
 	args := []string{"rev-list", "--count", branch}
 	if base != "" {
 		args = append(args, "^"+base)
 	}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return 0, NewGitError(out, errOut, args...)
 	}
-	count, err := strconv.Atoi(out)
+	if expected, got := 1, len(out); expected != got {
+		return 0, NewGitError(out, errOut, args...)
+	}
+	count, err := strconv.Atoi(out[0])
 	if err != nil {
-		return 0, fmt.Errorf("Atoi(%v) failed: %v", out, err)
+		return 0, fmt.Errorf("Atoi(%v) failed: %v", out[0], err)
 	}
 	return count, nil
 }
 
 // CreateBranch creates a new branch with the given name.
-func CreateBranch(branchName string) error {
-	return run("branch", branchName)
+func (g *Git) CreateBranch(branchName string) error {
+	return g.run("branch", branchName)
 }
 
 // CreateAndCheckoutBranch creates a branch with the given name and checks it
 // out.
-func CreateAndCheckoutBranch(branchName string) error {
-	return run("checkout", "-b", branchName)
+func (g *Git) CreateAndCheckoutBranch(branchName string) error {
+	return g.run("checkout", "-b", branchName)
 }
 
 // CreateBranchWithUpstream creates a new branch and sets the upstream repo to
 // the given upstream.
-func CreateBranchWithUpstream(branchName, upstream string) error {
-	return run("branch", branchName, upstream)
+func (g *Git) CreateBranchWithUpstream(branchName, upstream string) error {
+	return g.run("branch", branchName, upstream)
 }
 
 // CurrentBranchName returns the name of the current branch.
-func CurrentBranchName() (string, error) {
+func (g *Git) CurrentBranchName() (string, error) {
 	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return "", NewGitError(out, errOut, args...)
 	}
-	return out, nil
+	return strings.Join(out, "\n"), nil
 }
 
 // Fetch fetches refs and tags from the remote repository.
-func Fetch() error {
-	return run("fetch", "origin", "master")
+func (g *Git) Fetch() error {
+	return g.run("fetch", "origin", "master")
 }
 
 // ForeDeleteBranch deletes the given branch, even if that branch contains
 // unmerged changes.
-func ForceDeleteBranch(branchName string) error {
-	return run("branch", "-D", branchName)
+func (g *Git) ForceDeleteBranch(branchName string) error {
+	return g.run("branch", "-D", branchName)
 }
 
-// GerritRepoPath builds the URL of the Gerrit repository for the given branch.
-func GerritRepoPath() (string, error) {
-	repoName, err := RepoName()
+// GerritRepoPath builds the URL of the Gerrit repository for the
+// given branch.
+//
+// TODO(jsimsa): Move out of the git package.
+func (g *Git) GerritRepoPath() (string, error) {
+	repoName, err := g.RepoName()
 	if err != nil {
 		return "", err
 	}
@@ -200,113 +216,124 @@ func GerritRepoPath() (string, error) {
 }
 
 // GerritReview pushes the branch to Gerrit.
-func GerritReview(repoPathArg string, draft bool, reviewers, ccs string) error {
+//
+// TODO(jsimsa): Move out of the git package.
+func (g *Git) GerritReview(repoPathArg string, draft bool, reviewers, ccs string) error {
 	repoPath := repoPathArg
 	if repoPathArg == "" {
 		var err error
-		repoPath, err = GerritRepoPath()
+		repoPath, err = g.GerritRepoPath()
 		if err != nil {
 			return err
 		}
 	}
 	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs)
-	_, errOut, err := cmd.RunOutput("git", "push", repoPath, refspec)
+	_, errOut, err := cmd.RunOutput(g.verbose, "git", "push", repoPath, refspec)
 	if err != nil {
 		return fmt.Errorf("%v", errOut)
 	}
 	re := regexp.MustCompile("remote:[^\n]*")
-	for _, line := range re.FindAllString(errOut, -1) {
-		fmt.Println(line)
+	for _, line := range errOut {
+		if re.MatchString(line) {
+			fmt.Println(line)
+		}
 	}
 	return nil
 }
 
 // Init initializes a new git repo.
-func Init(path string) error {
-	return run("init", path)
+func (g *Git) Init(path string) error {
+	return g.run("init", path)
 }
 
 // IsFileCommitted tests whether the given file has been committed to the repo.
-func IsFileCommitted(file string) bool {
+func (g *Git) IsFileCommitted(file string) bool {
 	// Check if file is still in staging enviroment.
-	if out, _, _ := cmd.RunOutput("git", "status", "--porcelain", file); len(out) > 0 {
+	if out, _, _ := cmd.RunOutput(g.verbose, "git", "status", "--porcelain", file); len(out) > 0 {
 		return false
 	}
 	// Check if file is unknown to git.
-	if err := cmd.Run("git", "ls-files", file, "--error-unmatch"); err != nil {
+	if err := cmd.Run(g.verbose, "git", "ls-files", file, "--error-unmatch"); err != nil {
 		return false
 	}
 	return true
 }
 
 // LatestCommitID returns the latest commit identifier for the current branch.
-func LatestCommitID() (string, error) {
+func (g *Git) LatestCommitID() (string, error) {
 	args := []string{"rev-parse", "HEAD"}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return "", NewGitError(out, errOut, args...)
 	}
-	return out, nil
+	return strings.Join(out, "\n"), nil
 }
 
 // LatestCommitMessage returns the latest commit message on the current branch.
-func LatestCommitMessage() (string, error) {
+func (g *Git) LatestCommitMessage() (string, error) {
 	args := []string{"log", "-n", "1", "--format=format:%B"}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return "", NewGitError(out, errOut, args...)
 	}
-	return out, nil
+	return strings.Join(out, "\n"), nil
 }
 
 // ModifiedFiles returns a slice of filenames that have changed between
 // <baseBranch> and <currentBranch>.
-func ModifiedFiles(baseBranch, currentBranch string) ([]string, error) {
+func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) {
 	args := []string{"diff", "--name-only", baseBranch + ".." + currentBranch}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return nil, NewGitError(out, errOut, args...)
-	}
-	files := strings.Split(string(out), "\n")
-	return files, nil
-}
-
-// Pull pulls the given branch from the given remote repo.
-func Pull(remote, branch string) error {
-	return run("pull", remote, branch)
-}
-
-// RebaseAbort aborts an in-progress rebase operation.
-func RebaseAbort() error {
-	return run("rebase", "--abort")
-}
-
-// Remove removes the given file.
-func Remove(fileName string) error {
-	return run("rm", fileName)
-}
-
-// RepoName gets the name of the current repo.
-func RepoName() (string, error) {
-	args := []string{"config", "--get", "remote.origin.url"}
-	out, errOut, err := cmd.RunOutput("git", args...)
-	if err != nil {
-		return "", NewGitError(out, errOut, args...)
-	}
-	out, errOut, err = cmd.RunOutput("basename", out)
-	if err != nil {
-		return "", fmt.Errorf("'basename %v' failed:\n%v", out, errOut)
 	}
 	return out, nil
 }
 
+// Pull pulls the given branch from the given remote repo.
+func (g *Git) Pull(remote, branch string) error {
+	return g.run("pull", remote, branch)
+}
+
+// RebaseAbort aborts an in-progress rebase operation.
+func (g *Git) RebaseAbort() error {
+	return g.run("rebase", "--abort")
+}
+
+// Remove removes the given file.
+func (g *Git) Remove(fileName string) error {
+	return g.run("rm", fileName)
+}
+
+// RepoName gets the name of the current repo.
+func (g *Git) RepoName() (string, error) {
+	args := []string{"config", "--get", "remote.origin.url"}
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	if err != nil {
+		return "", NewGitError(out, errOut, args...)
+	}
+	if expected, got := 1, len(out); expected != got {
+		return "", NewGitError(out, errOut, args...)
+	}
+	out, errOut, err = cmd.RunOutput(g.verbose, "basename", out[0])
+	if err != nil {
+		return "", fmt.Errorf("'basename %v' failed:\n%v", out[0], errOut)
+	}
+	if expected, got := 1, len(out); expected != got {
+		return "", fmt.Errorf("'basename %v' failed:\n%v", out[0], errOut)
+	}
+	return out[0], nil
+}
+
 // SelfUpdate updates the given tool to the latest version.
-func SelfUpdate(name string) error {
+//
+// TODO(jsimsa): Move out of the git package.
+func (g *Git) SelfUpdate(name string) error {
 	root := os.Getenv(ROOT_ENV)
 	if root == "" {
 		return fmt.Errorf("%v is not set", ROOT_ENV)
 	}
-	if err := cmd.Run("veyron", "update", "tools"); err != nil {
+	if err := cmd.Run(true, "veyron", fmt.Sprintf("-v=%v", g.verbose), "update", "tools"); err != nil {
 		return err
 	}
 	wd, err := os.Getwd()
@@ -317,7 +344,7 @@ func SelfUpdate(name string) error {
 	repo := filepath.Join(root, "tools")
 	os.Chdir(repo)
 	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
-	count, err := CountCommits("HEAD", "")
+	count, err := g.CountCommits("HEAD", "")
 	if err != nil {
 		return err
 	}
@@ -325,17 +352,22 @@ func SelfUpdate(name string) error {
 	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
 	args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
-	if err := cmd.Run(goScript, args...); err != nil {
+	if err := cmd.Run(true, goScript, args...); err != nil {
 		return fmt.Errorf("%v tool update failed: %v", name, err)
 	}
 	return nil
 }
 
+// SetVerbose sets the verbosity.
+func (g *Git) SetVerbose(verbose bool) {
+	g.verbose = verbose
+}
+
 // Squash squashes all commits from <fromBranch> to the current branch.
-func Squash(fromBranch string) error {
+func (g *Git) Squash(fromBranch string) error {
 	args := []string{"merge", "--squash", fromBranch}
-	if _, errOut, err := cmd.RunOutput("git", args...); err != nil {
-		cmd.Run("git", "reset", "--merge")
+	if _, errOut, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
+		cmd.Run(g.verbose, "git", "reset", "--merge")
 		return fmt.Errorf("%v", errOut)
 	}
 	return nil
@@ -344,15 +376,15 @@ func Squash(fromBranch string) error {
 // Stash attempts to stash any unsaved changes. It returns true if anything was
 // actually stashed, otherwise false. An error is returned if the stash command
 // fails.
-func Stash() (bool, error) {
-	oldSize, err := StashSize()
+func (g *Git) Stash() (bool, error) {
+	oldSize, err := g.StashSize()
 	if err != nil {
 		return false, err
 	}
-	if err := run("stash", "save"); err != nil {
+	if err := g.run("stash", "save"); err != nil {
 		return false, err
 	}
-	newSize, err := StashSize()
+	newSize, err := g.StashSize()
 	if err != nil {
 		return false, err
 	}
@@ -360,37 +392,37 @@ func Stash() (bool, error) {
 }
 
 // StashSize returns the size of the stash stack.
-func StashSize() (int, error) {
+func (g *Git) StashSize() (int, error) {
 	args := []string{"stash", "list"}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return 0, NewGitError(out, errOut, args...)
 	}
 	// If output is empty, then stash is empty.
-	if len(strings.Replace(out, "\n", "", -1)) == 0 {
+	if len(out) == 0 {
 		return 0, nil
 	}
 	// Otherwise, stash size is the length of the output.
-	return len(strings.Split(out, "\n")), nil
+	return len(out), nil
 }
 
 // StashPop pops the stash into the current working tree.
-func StashPop() error {
-	return run("stash", "pop")
+func (g *Git) StashPop() error {
+	return g.run("stash", "pop")
 }
 
 // TopLevel returns the top level path of the current repo.
-func TopLevel() (string, error) {
+func (g *Git) TopLevel() (string, error) {
 	args := []string{"rev-parse", "--show-toplevel"}
-	out, errOut, err := cmd.RunOutput("git", args...)
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return "", NewGitError(out, errOut, args...)
 	}
-	return out, nil
+	return strings.Join(out, "\n"), nil
 }
 
-func run(args ...string) error {
-	out, errOut, err := cmd.RunOutput("git", args...)
+func (g *Git) run(args ...string) error {
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
 	if err != nil {
 		return NewGitError(out, errOut, args...)
 	}
@@ -415,16 +447,16 @@ func (c *Committer) Commit(message string) error {
 // NewCommitter is the Committer factory. The boolean <edit> flag
 // determines whether the commit commands should prompt users to edit
 // the commit message. This flag enables automated testing.
-func NewCommitter(edit bool) *Committer {
+func (g *Git) NewCommitter(edit bool) *Committer {
 	if edit {
 		return &Committer{
-			commit:            CommitAndEdit,
-			commitWithMessage: CommitWithMessageAndEdit,
+			commit:            g.CommitAndEdit,
+			commitWithMessage: g.CommitWithMessageAndEdit,
 		}
 	} else {
 		return &Committer{
-			commit:            Commit,
-			commitWithMessage: CommitWithMessage,
+			commit:            g.Commit,
+			commitWithMessage: g.CommitWithMessage,
 		}
 	}
 }

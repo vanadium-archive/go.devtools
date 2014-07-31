@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
@@ -179,8 +180,9 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	cmd.SetVerbose(verbose)
-	return git.SelfUpdate("veyron")
+	git := git.New(verbose)
+	tool := "veyron"
+	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
 }
 
 // cmdSetup represents the 'setup' command of the veyron tool.
@@ -219,7 +221,6 @@ func profilesDescription() string {
 }
 
 func runSetup(command *cmdline.Command, args []string) error {
-	cmd.SetVerbose(verbose)
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
 		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
@@ -230,9 +231,12 @@ func runSetup(command *cmdline.Command, args []string) error {
 	// Setup the profiles.
 	for _, arg := range args {
 		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
-		if _, err := cmd.RunErrorOutput(script); err != nil {
-			return fmt.Errorf("profile %v setup failed: %v", arg, err)
+		cmd.LogStart(fmt.Sprintf("Setting up profile %q", arg))
+		if _, errOut, err := cmd.RunOutput(true, script); err != nil {
+			cmd.LogEnd(false)
+			return fmt.Errorf("profile %q setup failed with\n%v", arg, strings.Join(errOut, "\n"))
 		}
+		cmd.LogEnd(true)
 	}
 	return nil
 }
@@ -279,7 +283,7 @@ func reposDescription() string {
 }
 
 func runUpdate(command *cmdline.Command, args []string) error {
-	cmd.SetVerbose(verbose)
+	git := git.New(verbose)
 	path := filepath.Join(root, ".repo", "manifest.xml")
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -291,7 +295,7 @@ func runUpdate(command *cmdline.Command, args []string) error {
 	}
 	projects := map[string]string{}
 	for _, project := range m.Projects {
-		projects[project.Name] = projects[project.Path]
+		projects[project.Name] = project.Path
 	}
 	if len(args) == 0 {
 		// The default behavior is to update all repositories.
@@ -314,14 +318,15 @@ func runUpdate(command *cmdline.Command, args []string) error {
 	defer os.Chdir(wd)
 	for _, arg := range args {
 		path := projects[arg]
-		if err := updateRepository(path); err != nil {
+		if err := cmd.Log(fmt.Sprintf("Updating repository %q", path),
+			func() error { return updateRepository(filepath.Join(root, path), git) }); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func updateRepository(repo string) error {
+func updateRepository(repo string, git *git.Git) error {
 	os.Chdir(repo)
 	branch, err := git.CurrentBranchName()
 	if err != nil {

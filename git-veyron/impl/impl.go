@@ -131,14 +131,14 @@ var defaultMessageHeader = `
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(*cmdline.Command, []string) error {
-	cmd.SetVerbose(verbose)
+	git := git.New(verbose)
 	branch, err := git.CurrentBranchName()
 	if err != nil {
 		return err
 	}
 	edit, repo := true, ""
 	r := NewReview(draft, edit, branch, repo, reviewers, ccs)
-	return r.run()
+	return r.run(git)
 }
 
 // review holds the state of a review.
@@ -178,7 +178,7 @@ var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcde
 
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
-func (r *review) checkGoFormat() error {
+func (r *review) checkGoFormat(git *git.Git) error {
 	if err := git.Fetch(); err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func (r *review) checkGoFormat() error {
 			}
 			// Check if the formatting of <file> differs
 			// from gofmt.
-			out, _, err := cmd.RunOutput(gofmt, "-l", path)
+			out, _, err := cmd.RunOutput(verbose, gofmt, "-l", path)
 			if err != nil || len(out) != 0 {
 				ill = append(ill, file)
 			}
@@ -223,7 +223,7 @@ func (r *review) checkGoFormat() error {
 }
 
 // cleanup cleans up after the review.
-func (r *review) cleanup(stashed bool) {
+func (r *review) cleanup(stashed bool, git *git.Git) {
 	if err := git.CheckoutBranch(r.branch); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 	}
@@ -241,7 +241,7 @@ func (r *review) cleanup(stashed bool) {
 
 // createReviewBranch creates a clean review branch from master and
 // squashes the commits into one, with the supplied message.
-func (r *review) createReviewBranch(message string) error {
+func (r *review) createReviewBranch(message string, git *git.Git) error {
 	if err := git.Fetch(); err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func (r *review) createReviewBranch(message string) error {
 	// If message is empty, replace it with the default.
 	if len(message) == 0 {
 		var err error
-		message, err = r.defaultCommitMessage()
+		message, err = r.defaultCommitMessage(git)
 		if err != nil {
 			return err
 		}
@@ -286,7 +286,7 @@ func (r *review) createReviewBranch(message string) error {
 
 // defaultCommitMessage creates the default commit message from the list of
 // commits on the branch.
-func (r *review) defaultCommitMessage() (string, error) {
+func (r *review) defaultCommitMessage(git *git.Git) (string, error) {
 	commitMessages, err := git.CommitMessages(r.branch, r.reviewBranch)
 	if err != nil {
 		return "", err
@@ -301,7 +301,7 @@ func (r *review) defaultCommitMessage() (string, error) {
 
 // ensureChangeID makes sure that the last commit contains a Change-Id, and
 // returns an error if it does not.
-func (r *review) ensureChangeID() error {
+func (r *review) ensureChangeID(git *git.Git) error {
 	latestCommitMessage, err := git.LatestCommitMessage()
 	if err != nil {
 		return err
@@ -314,14 +314,14 @@ func (r *review) ensureChangeID() error {
 }
 
 // run implements the end-to-end functionality of the review command.
-func (r *review) run() error {
-	if err := r.checkGoFormat(); err != nil {
+func (r *review) run(git *git.Git) error {
+	if err := r.checkGoFormat(git); err != nil {
 		return err
 	}
 	if r.branch == "master" {
 		return fmt.Errorf("cannot do a review from the 'master' branch.")
 	}
-	filename, err := getCommitMessageFilename()
+	filename, err := getCommitMessageFilename(git)
 	if err != nil {
 		return err
 	}
@@ -339,22 +339,22 @@ func (r *review) run() error {
 		return err
 	}
 	os.Chdir(topLevel)
-	defer r.cleanup(stashed)
-	if err := r.createReviewBranch(readFile(filename)); err != nil {
+	defer r.cleanup(stashed, git)
+	if err := r.createReviewBranch(readFile(filename), git); err != nil {
 		return err
 	}
-	if err := r.updateReviewMessage(filename); err != nil {
+	if err := r.updateReviewMessage(filename, git); err != nil {
 		return err
 	}
-	if err := r.send(); err != nil {
+	if err := r.send(git); err != nil {
 		return err
 	}
 	return nil
 }
 
 // send sends the current branch out for review.
-func (r *review) send() error {
-	if err := r.ensureChangeID(); err != nil {
+func (r *review) send(git *git.Git) error {
+	if err := r.ensureChangeID(git); err != nil {
 		return err
 	}
 	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs); err != nil {
@@ -366,7 +366,7 @@ func (r *review) send() error {
 // updateReviewMessage writes the commit message to the specified
 // file. It then adds that file to the original branch, and makes sure
 // it is not on the review branch.
-func (r *review) updateReviewMessage(filename string) error {
+func (r *review) updateReviewMessage(filename string, git *git.Git) error {
 	if err := git.CheckoutBranch(r.reviewBranch); err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func fileExists(filename string) bool {
 
 // getCommitMessageFilename returns the name of the file that will get
 // used for the Gerrit commit message.
-func getCommitMessageFilename() (string, error) {
+func getCommitMessageFilename(git *git.Git) (string, error) {
 	topLevel, err := git.TopLevel()
 	if err != nil {
 		return "", err
@@ -446,8 +446,9 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	cmd.SetVerbose(verbose)
-	return git.SelfUpdate("git-veyron")
+	git := git.New(verbose)
+	tool := "git-veyron"
+	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
 }
 
 // cmdVersion represent the 'version' command of the review tool.
