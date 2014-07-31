@@ -23,7 +23,8 @@ const (
 )
 
 var (
-	root = func() string {
+	arch, opsys string
+	root        = func() string {
 		result := os.Getenv(ROOT_ENV)
 		if result == "" {
 			panic(fmt.Sprintf("%v is not set", ROOT_ENV))
@@ -34,6 +35,8 @@ var (
 )
 
 func init() {
+	cmdBuild.Flags.StringVar(&arch, "arch", runtime.GOARCH, "Target architecture.")
+	cmdBuild.Flags.StringVar(&opsys, "os", runtime.GOOS, "Target operating system.")
 	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
 }
 
@@ -117,7 +120,7 @@ func invokeBuild(name string, files []vbuild.File) ([]byte, []vbuild.File, error
 	if err != nil {
 		return nil, nil, fmt.Errorf("BindBuild(%v) failed: %v", name, err)
 	}
-	stream, err := client.Build(rt.R().NewContext())
+	stream, err := client.Build(rt.R().NewContext(), vbuild.Architecture(arch), vbuild.OperatingSystem(opsys))
 	if err != nil {
 		return nil, nil, fmt.Errorf("Build() failed: %v", err)
 	}
