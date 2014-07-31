@@ -98,7 +98,6 @@ func run(verbose, stdout bool, command string, args ...string) ([]string, []stri
 	}
 	cmd := exec.Command(command, args...)
 	cmd.Stdin = os.Stdin
-	cmd.Env = os.Environ()
 	var outPipe io.ReadCloser
 	if stdout {
 		var err error
@@ -106,7 +105,10 @@ func run(verbose, stdout bool, command string, args ...string) ([]string, []stri
 		if err != nil {
 			return nil, nil, fmt.Errorf("StdoutPipe() failed: %v", err)
 		}
+	} else {
+		cmd.Stdout = os.Stdout
 	}
+	cmd.Env = os.Environ()
 	errPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, nil, fmt.Errorf("StderrPipe() failed: %v", err)
