@@ -292,7 +292,21 @@ func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) 
 
 // Pull pulls the given branch from the given remote repo.
 func (g *Git) Pull(remote, branch string) error {
-	return g.run("pull", remote, branch)
+	if err := g.run("pull", remote, branch); err != nil {
+		return err
+	}
+	major, minor, err := g.Version()
+	if err != nil {
+		return err
+	}
+	// Starting with git 1.8, "git pull remote branch" does not create
+	// the remote branch "origin/master" locally. To avoid the need to
+	// account for this, run "git pull", which fails but creates the
+	// missing branch, for git 1.7 and older.
+	if major < 2 && minor < 8 {
+		g.run("pull")
+	}
+	return nil
 }
 
 // RebaseAbort aborts an in-progress rebase operation.
@@ -419,6 +433,35 @@ func (g *Git) TopLevel() (string, error) {
 		return "", NewGitError(out, errOut, args...)
 	}
 	return strings.Join(out, "\n"), nil
+}
+
+// Version returns the major and minor git version.
+func (g *Git) Version() (int, int, error) {
+	args := []string{"version"}
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	if err != nil {
+		return 0, 0, NewGitError(out, errOut, args...)
+	}
+	if expected, got := 1, len(out); expected != got {
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of lines in %v: got %v, expected %v", out, got, expected)}, args...)
+	}
+	words := strings.Split(out[0], " ")
+	if expected, got := 3, len(words); expected != got {
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of tokens in %v: got %v, expected %v", words, got, expected)}, args...)
+	}
+	version := strings.Split(words[2], ".")
+	if expected, got := 3, len(version); expected > got {
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of toknes in %v: got %v, expected at leasst %v", version, got, expected)}, args...)
+	}
+	major, err := strconv.Atoi(version[0])
+	if err != nil {
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("failed parsing %q to integer", major)}, args...)
+	}
+	minor, err := strconv.Atoi(version[1])
+	if err != nil {
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("failed parsing %q to integer", minor)}, args...)
+	}
+	return major, minor, nil
 }
 
 func (g *Git) run(args ...string) error {

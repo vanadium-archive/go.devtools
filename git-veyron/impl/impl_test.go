@@ -187,11 +187,11 @@ func createTestRepos(workingDir string) (string, string, string, error) {
 func setup(t *testing.T, installHook bool) (string, string, string, string) {
 	workingDir, err := ioutil.TempDir("", "test-git-veyron-review")
 	if err != nil {
-		t.Fatalf("Error creating working directory: ", err)
+		t.Fatalf("Error creating working directory: %v", err)
 	}
 	repoPath, originPath, gerritPath, err := createTestRepos(workingDir)
 	if err != nil {
-		t.Fatalf("Error creating repo: ", err)
+		t.Fatalf("Error creating repo: %v", err)
 	}
 	if installHook == true {
 		for _, path := range []string{repoPath, originPath, gerritPath} {
