@@ -446,12 +446,12 @@ func (g *Git) Version() (int, int, error) {
 		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of lines in %v: got %v, expected %v", out, got, expected)}, args...)
 	}
 	words := strings.Split(out[0], " ")
-	if expected, got := 3, len(words); expected != got {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of tokens in %v: got %v, expected %v", words, got, expected)}, args...)
+	if expected, got := 3, len(words); expected > got {
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of tokens in %v: got %v, expected at least %v", words, got, expected)}, args...)
 	}
 	version := strings.Split(words[2], ".")
 	if expected, got := 3, len(version); expected > got {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of toknes in %v: got %v, expected at leasst %v", version, got, expected)}, args...)
+		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of tokens in %v: got %v, expected at least %v", version, got, expected)}, args...)
 	}
 	major, err := strconv.Atoi(version[0])
 	if err != nil {
