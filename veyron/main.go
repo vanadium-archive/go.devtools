@@ -1,9 +1,15 @@
 package main
 
 import (
+	"log"
+
 	"tools/veyron/impl"
 )
 
 func main() {
-	impl.Root().Main()
+	root, err := impl.Root()
+	if err != nil {
+		log.Fatalf("%v", err.Error())
+	}
+	root.Main()
 }

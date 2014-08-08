@@ -88,6 +88,11 @@ func (g *Git) CheckoutBranch(branchName string) error {
 	return g.run("checkout", branchName)
 }
 
+// Clone clones the given repository to the given local path.
+func (g *Git) Clone(repo, path string) error {
+	return g.run("clone", repo, path)
+}
+
 // Commit commits all files in staging with an empty message.
 func (g *Git) Commit() error {
 	return g.run("commit", "--allow-empty", "--allow-empty-message", "--no-edit")
