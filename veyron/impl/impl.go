@@ -92,7 +92,8 @@ the host platform.
 }
 
 func profilesDescription() (string, error) {
-	result := "<profiles> is a list of profiles to set up. Supported profiles are:\n"
+	result := "<profiles> is a list of profiles to set up."
+	return result, nil
 	dir := filepath.Join(root, "environment/scripts/setup", runtime.GOOS)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
