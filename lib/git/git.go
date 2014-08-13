@@ -352,7 +352,7 @@ func (g *Git) SelfUpdate(name string) error {
 	if root == "" {
 		return fmt.Errorf("%v is not set", ROOT_ENV)
 	}
-	if err := cmd.Run(true, "veyron", fmt.Sprintf("-v=%v", g.verbose), "update", "tools"); err != nil {
+	if err := cmd.Run(true, "veyron", fmt.Sprintf("-v=%v", g.verbose), "project", "update", "tools"); err != nil {
 		return err
 	}
 	wd, err := os.Getwd()
