@@ -31,86 +31,77 @@ var (
 	verbose bool
 )
 
+func init() {
+	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
+	cmdProjectUpdate.Flags.BoolVar(&gc, "gc", false, "Garbage collect obsolete repositories.")
+}
+
 // Root returns a command that represents the root of the veyron tool.
-func Root() (*cmdline.Command, error) {
-	cmdFuncs := []func() (*cmdline.Command, error){cmdSelfUpdate, cmdSetup, cmdUpdate, cmdVersion}
-	cmds := []*cmdline.Command{}
-	for _, cmdFunc := range cmdFuncs {
-		cmd, err := cmdFunc()
-		if err != nil {
-			return nil, err
-		}
-		cmds = append(cmds, cmd)
-	}
-	cmd := &cmdline.Command{
-		Name:     "veyron",
-		Short:    "Command-line tool for managing veyron projects",
-		Long:     "The veyron tool facilitates interaction with veyron projects.",
-		Children: cmds,
-	}
-	cmd.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
-	return cmd, nil
+func Root() *cmdline.Command {
+	return cmdRoot
 }
 
-// cmdSelfUpdate returns the 'selfupdate' command of the veyron tool.
-func cmdSelfUpdate() (*cmdline.Command, error) {
-	return &cmdline.Command{
-		Run:   runSelfUpdate,
-		Name:  "selfupdate",
-		Short: "Update the veyron tool",
-		Long:  "Download and install the latest version of the veyron tool.",
-	}, nil
+// cmdRoot represents the root of the veyron tool.
+var cmdRoot = &cmdline.Command{
+	Name:     "veyron",
+	Short:    "Command-line tool for managing veyron projects",
+	Long:     "The veyron tool facilitates interaction with veyron projects.",
+	Children: []*cmdline.Command{cmdProfile, cmdProject, cmdSelfUpdate, cmdVersion},
 }
 
-func runSelfUpdate(command *cmdline.Command, args []string) error {
-	git := git.New(verbose)
-	tool := "veyron"
-	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
-}
-
-// cmdSetup returns the 'setup' command of the veyron tool.
-func cmdSetup() (*cmdline.Command, error) {
-	description, err := profilesDescription()
-	if err != nil {
-		return nil, err
-	}
-	return &cmdline.Command{
-		Run:   runSetup,
-		Name:  "setup",
-		Short: "Set up the given veyron profiles",
-		Long: `
+// cmdProfile represents the 'profile' command of the veyron tool.
+var cmdProfile = &cmdline.Command{
+	Name:  "profile",
+	Short: "Manage veyron profiles",
+	Long: `
 To facilitate development across different platforms, veyron defines
 platform-independent profiles that map different platforms to a set
 of libraries and tools that can be used for a factor of veyron
-development. The "setup" command can be used to install the libraries
-and tools identified by the combination of the given profiles and
-the host platform.
+development.
 `,
-		ArgsName: "<profiles>",
-		ArgsLong: description,
-	}, nil
+	Children: []*cmdline.Command{cmdProfileDescribe, cmdProfileSetup},
 }
 
-func profilesDescription() (string, error) {
-	result := "<profiles> is a list of profiles to set up."
-	return result, nil
+// cmdProfileDescribe represents the 'describe' sub-command of the
+// 'profile' command of the veyron tool.
+var cmdProfileDescribe = &cmdline.Command{
+	Run:   runProfileDescribe,
+	Name:  "describe",
+	Short: "Describe supported veyron profiles",
+	Long:  "Inspect the host platform and enumerate supported profiles.",
+}
+
+func runProfileDescribe(*cmdline.Command, []string) error {
 	dir := filepath.Join(root, "environment/scripts/setup", runtime.GOOS)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return "", fmt.Errorf("could not read %s", dir)
+		return fmt.Errorf("could not read %s", dir)
 	}
+	description := fmt.Sprintf("Supported profiles:\n")
 	for _, entry := range entries {
 		file := filepath.Join(dir, entry.Name(), "DESCRIPTION")
-		description, err := ioutil.ReadFile(file)
+		bytes, err := ioutil.ReadFile(file)
 		if err != nil {
-			return "", fmt.Errorf("could not read %s", file)
+			return fmt.Errorf("could not read %s", file)
 		}
-		result += fmt.Sprintf("  %s: %s", entry.Name(), string(description))
+		description += fmt.Sprintf("  %s: %s", entry.Name(), string(bytes))
 	}
-	return result, nil
+	fmt.Printf("%s", description)
+	return nil
 }
 
-func runSetup(command *cmdline.Command, args []string) error {
+// cmdProfileSetup represents the 'setup' sub-command of the 'profile'
+// command of the veyron tool.
+var cmdProfileSetup = &cmdline.Command{
+	Run:      runProfileSetup,
+	Name:     "setup",
+	Short:    "Set up the given veyron profiles",
+	Long:     "Set up the given veyron profiles.",
+	ArgsName: "<profiles>",
+	ArgsLong: "<profiles> is a list of profiles to set up.",
+}
+
+func runProfileSetup(command *cmdline.Command, args []string) error {
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
 		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
@@ -131,52 +122,63 @@ func runSetup(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// cmdUpdate returns the 'update' command of the veyron tool.
-func cmdUpdate() (*cmdline.Command, error) {
-	description, err := projectsDescription()
-	if err != nil {
-		return nil, err
-	}
-	cmd := &cmdline.Command{
-		Run:   runUpdate,
-		Name:  "update",
-		Short: "Update veyron projects",
-		Long: `
-Update the local master branch of veyron projects by pulling from
-the remote master. The projects to be updated are specified as a list
-of arguments. If no project is specified, the default behavior is to
-update all existing projects.
-`,
-		ArgsName: "<projects>",
-		ArgsLong: description,
-	}
-	cmd.Flags.BoolVar(&gc, "gc", false, "Garbage collect old repositories.")
-	return cmd, nil
+// cmdProject represents the 'project' command of the veyron tool.
+var cmdProject = &cmdline.Command{
+	Name:     "project",
+	Short:    "Manage veyron projects",
+	Long:     "Manage veyron projects.",
+	Children: []*cmdline.Command{cmdProjectDescribe, cmdProjectUpdate},
 }
 
-// projectsDescription generates a human-readable description of
+// cmdProjectDescribe represents the 'describe' sub-command of the
+// 'project' command of the veyron tool.
+var cmdProjectDescribe = &cmdline.Command{
+	Run:   runProjectDescribe,
+	Name:  "describe",
+	Short: "Describe supported veyron profiles",
+	Long:  "Inspect the local filesystem and enumerate existing projects.",
+}
+
+// runProjectDescribe generates a human-readable description of
 // existing projects.
-func projectsDescription() (string, error) {
+func runProjectDescribe(*cmdline.Command, []string) error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("Getwd() failed: %v", err)
+		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
 	git := git.New(verbose)
 	projects := map[string]string{}
 	if err := findCurrentProjects(root, projects, git); err != nil {
-		return "", fmt.Errorf("%v", err)
+		return fmt.Errorf("%v", err)
 	}
-	result := "<projects> is a list of projects to update. Existing projects are:\n"
 	names := []string{}
 	for name := range projects {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	description := fmt.Sprintf("Existing projects:\n")
 	for _, name := range names {
-		result += fmt.Sprintf("   %v (located in %v)\n", name, projects[name])
+		description += fmt.Sprintf("   %v (located in %v)\n", name, projects[name])
 	}
-	return result, nil
+	fmt.Printf("%s", description)
+	return nil
+}
+
+// cmdProjectUpdate represents the 'update' sub-command of the 'project'
+// command of the veyron tool.
+var cmdProjectUpdate = &cmdline.Command{
+	Run:   runProjectUpdate,
+	Name:  "update",
+	Short: "Update veyron projects",
+	Long: `
+Update the local master branch of veyron projects by pulling from
+the remote master. The projects to be updated are specified as a list
+of arguments. If no project is specified, the default behavior is to
+update all projects.
+`,
+	ArgsName: "<projects>",
+	ArgsLong: "<projects> is a list of projects to update.",
 }
 
 type project struct {
@@ -445,8 +447,8 @@ func runOperation(op operation, git *git.Git) error {
 	return nil
 }
 
-// runUpdate implements the update command of the veyron tool.
-func runUpdate(command *cmdline.Command, args []string) error {
+// runProjectUpdate implements the update command of the veyron tool.
+func runProjectUpdate(command *cmdline.Command, args []string) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
@@ -567,14 +569,26 @@ func updateProject(project string, git *git.Git) error {
 	return nil
 }
 
-// cmdVersion represent the 'version' command of the veyron tool.
-func cmdVersion() (*cmdline.Command, error) {
-	return &cmdline.Command{
-		Run:   runVersion,
-		Name:  "version",
-		Short: "Print version",
-		Long:  "Print version of the veyron tool.",
-	}, nil
+// cmdSelfUpdate represents the 'selfupdate' command of the veyron tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the veyron tool",
+	Long:  "Download and install the latest version of the veyron tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, args []string) error {
+	git := git.New(verbose)
+	tool := "veyron"
+	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
+}
+
+// cmdVersion represents the 'version' command of the veyron tool.
+var cmdVersion = &cmdline.Command{
+	Run:   runVersion,
+	Name:  "version",
+	Short: "Print version",
+	Long:  "Print version of the veyron tool.",
 }
 
 const version string = "0.3.0"
