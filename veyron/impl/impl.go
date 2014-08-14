@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"bufio"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -309,12 +310,26 @@ func findCurrentProjects(path string, projects map[string]string, git *git.Git) 
 		projects[name] = path
 		return nil
 	}
+	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".veyronignore")
+	file, err := os.Open(ignorePath)
+	if err == nil {
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			ignoreSet[scanner.Text()] = struct{}{}
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("Scan() failed: %v", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("Open(%v) failed: %v", ignorePath, err)
+	}
 	fis, err := ioutil.ReadDir(path)
 	if err != nil {
-		fmt.Errorf("ReadDir(%v) failed: %v", path, err)
+		return fmt.Errorf("ReadDir(%v) failed: %v", path, err)
 	}
 	for _, fi := range fis {
-		if fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") {
+		if _, ignore := ignoreSet[fi.Name()]; fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") && !ignore {
 			if err := findCurrentProjects(filepath.Join(path, fi.Name()), projects, git); err != nil {
 				return err
 			}
