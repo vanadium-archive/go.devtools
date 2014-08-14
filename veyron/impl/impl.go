@@ -21,7 +21,12 @@ const (
 )
 
 var (
-	gc   bool
+	gcFlag       bool
+	manifestFlag string
+	verboseFlag  bool
+)
+
+var (
 	root = func() string {
 		result := os.Getenv(ROOT_ENV)
 		if result == "" {
@@ -29,12 +34,12 @@ var (
 		}
 		return result
 	}()
-	verbose bool
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
-	cmdProjectUpdate.Flags.BoolVar(&gc, "gc", false, "Garbage collect obsolete repositories.")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
+	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 }
 
 // Root returns a command that represents the root of the veyron tool.
@@ -148,7 +153,7 @@ func runProjectDescribe(*cmdline.Command, []string) error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	git := git.New(verbose)
+	git := git.New(verboseFlag)
 	projects := map[string]string{}
 	if err := findCurrentProjects(root, projects, git); err != nil {
 		return fmt.Errorf("%v", err)
@@ -283,7 +288,7 @@ func computeOperations(updateProjects map[string]struct{}, currentProjects, newP
 				} else {
 					result = append(result, newOperation(name, currentPath, newPath, moveOperation))
 				}
-			} else if gc {
+			} else if gcFlag {
 				result = append(result, newOperation(name, currentPath, "", deleteOperation))
 			}
 		} else if newPath, ok := newProjects[name]; ok {
@@ -347,7 +352,7 @@ func findNewProjects(projects map[string]string, git *git.Git) error {
 		return err
 	}
 	// Parse the manifest.
-	path = filepath.Join(root, ".manifest", "default.xml")
+	path = filepath.Join(root, ".manifest", manifestFlag+".xml")
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
@@ -469,7 +474,7 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	git := git.New(verbose)
+	git := git.New(verboseFlag)
 	currentProjects := map[string]string{}
 	if err := findCurrentProjects(root, currentProjects, git); err != nil {
 		return err
@@ -593,7 +598,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	git := git.New(verbose)
+	git := git.New(verboseFlag)
 	tool := "veyron"
 	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
 }
