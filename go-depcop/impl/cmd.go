@@ -66,8 +66,12 @@ func runCheck(command *cmdline.Command, args []string) error {
 			fmt.Printf("%q violates its outgoing rule by depending on %q:\n    {\"deny\": %q} (in %s)\n",
 				v.Package.ImportPath, v.MatchingPackage.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
 		case IncomingDependency:
-			fmt.Printf("%q violates incoming rule of package %q:\n    {\"deny\": %q} (in %s)\n",
-				v.MatchingPackage.ImportPath, v.Package.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
+			if v.InternalPackage {
+				fmt.Printf("%q is inaccessible by package %q because it is internal\n", v.Package.ImportPath, v.MatchingPackage.ImportPath)
+			} else {
+				fmt.Printf("%q violates incoming rule of package %q:\n    {\"deny\": %q} (in %s)\n",
+					v.MatchingPackage.ImportPath, v.Package.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
+			}
 		}
 	}
 

@@ -2,12 +2,19 @@ package impl
 
 import (
 	"go/build"
+	"strings"
 )
 
 var (
-	pkgCache = map[string]*build.Package{}
-	ctx      = build.Default
+	ctx                 = build.Default
+	pseudoPackageC      = &build.Package{ImportPath: "C", Goroot: true}
+	pseudoPackageUnsafe = &build.Package{ImportPath: "unsafe", Goroot: true}
+	pkgCache            = map[string]*build.Package{"C": pseudoPackageC, "unsafe": pseudoPackageUnsafe}
 )
+
+func IsPseudoPackage(p *build.Package) bool {
+	return p == pseudoPackageUnsafe || p == pseudoPackageC
+}
 
 func ImportPackage(path string) (*build.Package, error) {
 	if p, ok := pkgCache[path]; ok {
@@ -21,4 +28,13 @@ func ImportPackage(path string) (*build.Package, error) {
 
 	pkgCache[path] = p
 	return p, nil
+}
+
+func IsInternalPackage(p *build.Package) bool {
+	for _, part := range strings.Split(p.ImportPath, "/") {
+		if part == "internal" {
+			return true
+		}
+	}
+	return false
 }

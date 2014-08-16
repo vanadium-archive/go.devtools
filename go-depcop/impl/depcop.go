@@ -3,6 +3,7 @@ package impl
 import (
 	"fmt"
 	"go/build"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -38,6 +39,7 @@ const (
 
 type DependencyRuleReference struct {
 	Package, MatchingPackage *build.Package
+	InternalPackage          bool
 	Path                     string
 	Direction                DependencyDirection
 	RuleIndex                int
@@ -98,13 +100,12 @@ func validateDependencyRelationship(p, x *build.Package, direction DependencyDir
 
 	for it.Advance() {
 		c := it.Value()
-		ruleSet := c.Dependencies.Incoming
-		if direction == OutgoingDependency {
-			ruleSet = c.Dependencies.Outgoing
+		ruleSet := c.Dependencies.Outgoing
+		if direction == IncomingDependency {
+			ruleSet = c.Dependencies.Incoming
 		}
 
 		action, index, err := enforceDependencyRulesOnPackage(ruleSet, x)
-
 		ref := DependencyRuleReference{
 			Package:         p,
 			MatchingPackage: x,
@@ -123,6 +124,23 @@ func validateDependencyRelationship(p, x *build.Package, direction DependencyDir
 			return ref, nil
 		case RejectedPolicyAction:
 			return ref, &dependencyViolationError{}
+		}
+
+		if direction == IncomingDependency {
+			pkgConfDir := filepath.Dir(c.Path)
+			pkgName := filepath.Base(pkgConfDir)
+			if pkgName == "internal" {
+				internalPackagePrefix := filepath.Dir(pkgConfDir)
+				if internalPackagePrefix != x.Dir && !strings.HasPrefix(x.Dir, internalPackagePrefix+"/") {
+					return DependencyRuleReference{
+						Package:         p,
+						MatchingPackage: x,
+						Path:            c.Path,
+						Direction:       direction,
+						InternalPackage: true,
+					}, &dependencyViolationError{}
+				}
+			}
 		}
 	}
 

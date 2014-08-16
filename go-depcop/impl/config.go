@@ -116,9 +116,7 @@ func (e *configFileReadError) Error() string {
 	return "invalid config file: " + e.path + ": " + e.innerError.Error()
 }
 
-const (
-	configFileName = "GO.PACKAGE"
-)
+const configFileName = "GO.PACKAGE"
 
 func (c *configFileIterator) Advance() bool {
 	if c.depth < 0 {
@@ -127,15 +125,13 @@ func (c *configFileIterator) Advance() bool {
 	configFilePath := filepath.Join(c.dir, configFileName)
 	pkgConfig, err := loadPackageConfigFile(configFilePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			c.depth--
-			c.dir = filepath.Dir(c.dir)
-			return c.Advance()
+		if !os.IsNotExist(err) {
+			c.depth = -1
+			c.err = &configFileReadError{err, configFilePath}
+			return false
 		}
 
-		c.depth = -1
-		c.err = &configFileReadError{err, configFilePath}
-		return false
+		pkgConfig = &PackageConfig{Path: configFilePath}
 	}
 
 	c.depth--
@@ -153,6 +149,9 @@ func (c *configFileIterator) Err() error {
 }
 
 func NewPackageConfigFileIterator(p *build.Package) PackageConfigIterator {
+	if IsPseudoPackage(p) {
+		return &configFileIterator{depth: -1}
+	}
 	return &configFileIterator{
 		dir:   p.Dir,
 		depth: strings.Count(p.ImportPath, "/"),
