@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"tools/lib/cmd"
@@ -176,6 +178,25 @@ func NewReview(draft, edit bool, branch, repo, reviewers, ccs string) *review {
 // Change-Ids start with 'I' and are followed by 40 characters of hex.
 var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 
+// gofmt returns the path to the gofmt binary.
+func gofmt() (string, error) {
+	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", "gofmt")
+	if _, err := os.Stat(envbin); err == nil {
+		return envbin, nil
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("Stat(%v) failed: %v", envbin, err)
+	}
+	pathbin, err := exec.LookPath("go")
+	switch {
+	case err == nil:
+		return pathbin, nil
+	case err == exec.ErrNotFound:
+		return "", fmt.Errorf("%q does not exist and %q not found in PATH", envbin, "go")
+	default:
+		return "", fmt.Errorf("LookPath(%q) failed: %v", "go", err)
+	}
+}
+
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat(git *git.Git) error {
@@ -186,9 +207,9 @@ func (r *review) checkGoFormat(git *git.Git) error {
 	if err != nil {
 		return err
 	}
-	gofmt := filepath.Join(root, "environment/go/bin/gofmt")
-	if _, err := os.Stat(gofmt); err != nil {
-		return fmt.Errorf("Stat(%v) failed: %v", gofmt, err)
+	gofmt, err := gofmt()
+	if err != nil {
+		return err
 	}
 	wd, err := os.Getwd()
 	if err != nil {
