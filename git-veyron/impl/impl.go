@@ -178,22 +178,22 @@ func NewReview(draft, edit bool, branch, repo, reviewers, ccs string) *review {
 // Change-Ids start with 'I' and are followed by 40 characters of hex.
 var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 
-// gofmt returns the path to the gofmt binary.
-func gofmt() (string, error) {
-	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", "gofmt")
+// findGoBinary returns the path to the given Go binary.
+func findGoBinary(name string) (string, error) {
+	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", name)
 	if _, err := os.Stat(envbin); err == nil {
 		return envbin, nil
 	} else if !os.IsNotExist(err) {
 		return "", fmt.Errorf("Stat(%v) failed: %v", envbin, err)
 	}
-	pathbin, err := exec.LookPath("gofmt")
+	pathbin, err := exec.LookPath(name)
 	switch {
 	case err == nil:
 		return pathbin, nil
 	case err == exec.ErrNotFound:
-		return "", fmt.Errorf("%q does not exist and %q not found in PATH", envbin, "gofmt")
+		return "", fmt.Errorf("%q does not exist and %q not found in PATH", envbin, name)
 	default:
-		return "", fmt.Errorf("LookPath(%q) failed: %v", "go", err)
+		return "", fmt.Errorf("LookPath(%q) failed: %v", name, err)
 	}
 }
 
@@ -207,7 +207,7 @@ func (r *review) checkGoFormat(git *git.Git) error {
 	if err != nil {
 		return err
 	}
-	gofmt, err := gofmt()
+	gofmt, err := findGoBinary("gofmt")
 	if err != nil {
 		return err
 	}
