@@ -186,12 +186,12 @@ func gofmt() (string, error) {
 	} else if !os.IsNotExist(err) {
 		return "", fmt.Errorf("Stat(%v) failed: %v", envbin, err)
 	}
-	pathbin, err := exec.LookPath("go")
+	pathbin, err := exec.LookPath("gofmt")
 	switch {
 	case err == nil:
 		return pathbin, nil
 	case err == exec.ErrNotFound:
-		return "", fmt.Errorf("%q does not exist and %q not found in PATH", envbin, "go")
+		return "", fmt.Errorf("%q does not exist and %q not found in PATH", envbin, "gofmt")
 	default:
 		return "", fmt.Errorf("LookPath(%q) failed: %v", "go", err)
 	}
