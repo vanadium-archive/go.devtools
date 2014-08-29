@@ -378,7 +378,7 @@ func (r *review) send(git *git.Git) error {
 	if err := r.ensureChangeID(git); err != nil {
 		return err
 	}
-	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs); err != nil {
+	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
 		return GerritError(err.Error())
 	}
 	return nil

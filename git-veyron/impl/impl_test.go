@@ -336,7 +336,7 @@ func TestSendReview(t *testing.T) {
 		if err := review.send(g); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
-		expectedRef := gerrit.Reference(review.draft, review.reviewers, review.ccs)
+		expectedRef := gerrit.Reference(review.draft, review.reviewers, review.ccs, review.branch)
 		assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	}
 	{
@@ -346,7 +346,7 @@ func TestSendReview(t *testing.T) {
 		if err := review.send(g); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
-		expectedRef := gerrit.Reference(draft, reviewers, ccs)
+		expectedRef := gerrit.Reference(draft, reviewers, ccs, review.branch)
 		assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	}
 	{
@@ -356,7 +356,7 @@ func TestSendReview(t *testing.T) {
 		if err := review.send(g); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
-		expectedRef := gerrit.Reference(draft, reviewers, ccs)
+		expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 		assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	}
 	{
@@ -366,7 +366,7 @@ func TestSendReview(t *testing.T) {
 		if err := review.send(g); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
-		expectedRef := gerrit.Reference(draft, reviewers, ccs)
+		expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 		assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	}
 }
@@ -412,7 +412,7 @@ func TestEndToEnd(t *testing.T) {
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
 	review.run(g)
-	expectedRef := gerrit.Reference(draft, reviewers, ccs)
+	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 }
 
@@ -459,7 +459,7 @@ func TestDirtyBranch(t *testing.T) {
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
 	review.run(g)
-	expectedRef := gerrit.Reference(draft, reviewers, ccs)
+	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	assertFilesNotCommitted(t, []string{stagedFile})
 	assertFilesNotCommitted(t, []string{untrackedFile})
@@ -516,6 +516,6 @@ func TestRunInSubdirectory(t *testing.T) {
 	if expected != got {
 		t.Fatalf("Unexpected working direcotry, expected %v, got %v", expected, got)
 	}
-	expectedRef := gerrit.Reference(draft, reviewers, ccs)
+	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 }

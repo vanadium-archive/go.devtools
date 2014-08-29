@@ -37,14 +37,15 @@ func formatCCParams(ccs string) []string {
 	return formatParams(ccs, "cc")
 }
 
-// Reference inputs a draft flag and a list of reviewers and ccers and
-// returns a matching string representation of a Gerrit reference.
-func Reference(draft bool, reviewers, ccs string) string {
+// Reference inputs a draft flag, a list of reviewers, a list of ccers, and
+// the branch name. It returns a matching string representation of a Gerrit
+// reference.
+func Reference(draft bool, reviewers, ccs, branch string) string {
 	var ref string
 	if draft {
 		ref = "refs/drafts/master"
 	} else {
-		ref = "refs/for/master"
+		ref = "refs/for/master%topic=" + branch
 	}
 
 	reviewerParams := formatReviewerParams(reviewers)

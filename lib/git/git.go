@@ -223,7 +223,7 @@ func (g *Git) GerritRepoPath() (string, error) {
 // GerritReview pushes the branch to Gerrit.
 //
 // TODO(jsimsa): Move out of the git package.
-func (g *Git) GerritReview(repoPathArg string, draft bool, reviewers, ccs string) error {
+func (g *Git) GerritReview(repoPathArg string, draft bool, reviewers, ccs, branch string) error {
 	repoPath := repoPathArg
 	if repoPathArg == "" {
 		var err error
@@ -232,7 +232,7 @@ func (g *Git) GerritReview(repoPathArg string, draft bool, reviewers, ccs string
 			return err
 		}
 	}
-	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs)
+	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs, branch)
 	_, errOut, err := cmd.RunOutput(g.verbose, "git", "push", repoPath, refspec)
 	if err != nil {
 		return fmt.Errorf("%v", errOut)
