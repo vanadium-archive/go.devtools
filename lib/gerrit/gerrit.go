@@ -4,8 +4,8 @@ import (
 	"strings"
 )
 
-// Helpers for formatting the reviewers and CCs on a change list.
-func formatParams(params, keyName string) []string {
+// Helpers for formatting the parameters of a change list.
+func formatParams(params, key string, email bool) []string {
 	if len(params) == 0 {
 		return []string{}
 	}
@@ -14,16 +14,13 @@ func formatParams(params, keyName string) []string {
 	formattedParamsSlice := make([]string, len(paramsSlice))
 
 	for i, param := range paramsSlice {
-		trimmedParam := strings.TrimSpace(param)
-		var email string
-		if strings.Contains(trimmedParam, "@") {
-			// Param is already an email.
-			email = trimmedParam
-		} else {
-			// Param is only an ldap.
-			email = trimmedParam + "@google.com"
+		value := strings.TrimSpace(param)
+		if !strings.Contains(value, "@") && email {
+			// Param is only an ldap and we need an email;
+			// append @google.com to it.
+			value = value + "@google.com"
 		}
-		formattedParamsSlice[i] = keyName + "=" + email
+		formattedParamsSlice[i] = key + "=" + value
 	}
 
 	return formattedParamsSlice
@@ -40,9 +37,9 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 		ref = "refs/for/master"
 	}
 
-	params := formatParams(reviewers, "r")
-	params = append(params, formatParams(ccs, "cc")...)
-	params = append(params, formatParams(branch, "topic")...)
+	params := formatParams(reviewers, "r", true)
+	params = append(params, formatParams(ccs, "cc", true)...)
+	params = append(params, formatParams(branch, "topic", false)...)
 
 	if len(params) > 0 {
 		ref = ref + "%" + strings.Join(params, ",")
