@@ -352,8 +352,8 @@ func (g *Git) SelfUpdate(name string) error {
 	if root == "" {
 		return fmt.Errorf("%v is not set", ROOT_ENV)
 	}
-	if err := cmd.Run(true, "veyron", fmt.Sprintf("-v=%v", g.verbose), "project", "update", "tools"); err != nil {
-		return err
+	if _, errOut, err := cmd.RunOutput(true, "veyron", fmt.Sprintf("-v=%v", g.verbose), "project", "update", "tools"); err != nil {
+		return fmt.Errorf("%s", strings.Join(errOut, "\n"))
 	}
 	wd, err := os.Getwd()
 	if err != nil {
@@ -371,8 +371,8 @@ func (g *Git) SelfUpdate(name string) error {
 	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
 	args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
-	if err := cmd.Run(true, goScript, args...); err != nil {
-		return fmt.Errorf("%v tool update failed: %v", name, err)
+	if _, errOut, err := cmd.RunOutput(true, goScript, args...); err != nil {
+		return fmt.Errorf("%v tool update failed\n%v", name, strings.Join(errOut, "\n"))
 	}
 	return nil
 }

@@ -428,8 +428,8 @@ func runOperation(op operation, git *git.Git) error {
 		file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
 		url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
 		args := []string{"-Lo", file, url}
-		if err := cmd.Run(false, "curl", args...); err != nil {
-			return fmt.Errorf("download of Gerrit commit message git hook failed")
+		if _, errOut, err := cmd.RunOutput(false, "curl", args...); err != nil {
+			return fmt.Errorf("download of Gerrit commit message git hook failed\n%s", strings.Join(errOut, "\n"))
 		}
 		if err := os.Chmod(file, perm); err != nil {
 			return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
