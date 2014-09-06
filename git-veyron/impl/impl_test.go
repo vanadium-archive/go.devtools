@@ -8,15 +8,15 @@ import (
 	"testing"
 
 	"tools/lib/gerrit"
-	"tools/lib/git"
+	gitlib "tools/lib/git"
 )
 
-var g = git.New(true)
+var git = gitlib.New(true)
 
 // assertCommitCount asserts that the commit count between two
 // branches matches the expectedCount.
 func assertCommitCount(t *testing.T, branch, baseBranch string, expectedCount int) {
-	commitCount, err := g.CountCommits(branch, baseBranch)
+	commitCount, err := git.CountCommits(branch, baseBranch)
 	if err != nil {
 		t.Fatalf("CountCommits(%v, %v) failed: %v", branch, baseBranch, err)
 	}
@@ -42,7 +42,7 @@ func assertFilesCommitted(t *testing.T, files []string) {
 		if !fileExists(fileName) {
 			t.Fatalf("Expected file %v to exist but it did not.", fileName)
 		}
-		if !g.IsFileCommitted(fileName) {
+		if !git.IsFileCommitted(fileName) {
 			t.Fatalf("Expected file %v to be committed but it is not.", fileName)
 		}
 	}
@@ -55,7 +55,7 @@ func assertFilesNotCommitted(t *testing.T, files []string) {
 		if !fileExists(fileName) {
 			t.Fatalf("Expected file %v to exist but it did not.", fileName)
 		}
-		if g.IsFileCommitted(fileName) {
+		if git.IsFileCommitted(fileName) {
 			t.Fatalf("Expected file %v not to be committed but it is.", fileName)
 		}
 	}
@@ -68,7 +68,7 @@ func assertFilesPushedToRef(t *testing.T, repoPath, gerritPath, pushedRef string
 		t.Fatalf("os.Chdir(%v) failed: %v", gerritPath, err)
 	}
 	assertCommitCount(t, pushedRef, "master", 1)
-	if err := g.CheckoutBranch(pushedRef); err != nil {
+	if err := git.CheckoutBranch(pushedRef); err != nil {
 		t.Fatalf("CheckoutBranch(%v) failed: %v", pushedRef, err)
 	}
 	assertFilesCommitted(t, files)
@@ -80,7 +80,7 @@ func assertFilesPushedToRef(t *testing.T, repoPath, gerritPath, pushedRef string
 // assertStashSize asserts that the stash size matches the expected
 // size.
 func assertStashSize(t *testing.T, expectedStashSize int) {
-	actualStashSize, err := g.StashSize()
+	actualStashSize, err := git.StashSize()
 	if err != nil {
 		t.Fatalf("StashSize() failed: %v", err)
 	}
@@ -98,7 +98,7 @@ func commitFiles(fileNames []string) error {
 			return err
 		}
 		commitMessage := "Commit " + fileName
-		if err := g.CommitFile(fileName, commitMessage); err != nil {
+		if err := git.CommitFile(fileName, commitMessage); err != nil {
 			return err
 		}
 	}
@@ -114,7 +114,7 @@ func createRepo(workingDir, prefix string) (string, error) {
 	if err := os.Chmod(repoPath, 0777); err != nil {
 		return repoPath, err
 	}
-	if err := g.Init(repoPath); err != nil {
+	if err := git.Init(repoPath); err != nil {
 		return repoPath, err
 	}
 	return repoPath, nil
@@ -145,7 +145,7 @@ func createTestRepos(workingDir string) (string, string, string, error) {
 	if err := os.Chdir(originPath); err != nil {
 		return "", "", "", err
 	}
-	if err := g.CommitWithMessage("initial commit"); err != nil {
+	if err := git.CommitWithMessage("initial commit"); err != nil {
 		return "", "", "", err
 	}
 	// Create test repo.
@@ -156,10 +156,10 @@ func createTestRepos(workingDir string) (string, string, string, error) {
 	if err := os.Chdir(repoPath); err != nil {
 		return "", "", "", err
 	}
-	if err := g.AddRemote("origin", originPath); err != nil {
+	if err := git.AddRemote("origin", originPath); err != nil {
 		return "", "", "", err
 	}
-	if err := g.Pull("origin", "master"); err != nil {
+	if err := git.Pull("origin", "master"); err != nil {
 		return "", "", "", err
 	}
 	// Add Gerrit remote.
@@ -170,10 +170,10 @@ func createTestRepos(workingDir string) (string, string, string, error) {
 	if err := os.Chdir(gerritPath); err != nil {
 		return "", "", "", err
 	}
-	if err := g.AddRemote("origin", originPath); err != nil {
+	if err := git.AddRemote("origin", originPath); err != nil {
 		return "", "", "", err
 	}
-	if err := g.Pull("origin", "master"); err != nil {
+	if err := git.Pull("origin", "master"); err != nil {
 		return "", "", "", err
 	}
 	// Switch back to test repo.
@@ -213,13 +213,72 @@ func teardown(t *testing.T, workingDir string) {
 	}
 }
 
+// TestCleanupClean checks that cleanup succeeds if the branch to be
+// cleaned up has been merged with the master.
+func TestCleanupClean(t *testing.T) {
+	workingDir, _, _, _ := setup(t, true)
+	defer teardown(t, workingDir)
+	branch := "my-branch"
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
+	}
+	file1 := []string{"file1"}
+	if err := commitFiles(file1); err != nil {
+		t.Fatalf("commitFiles(%v) failed: %v", file1, err)
+	}
+	file2 := []string{"file2"}
+	if err := commitFiles(file2); err != nil {
+		t.Fatalf("commitFiles(%v) failed: %v", file2, err)
+	}
+	if err := git.CheckoutBranch("master"); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := git.Merge(branch, true); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := git.Commit(); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := cleanup(git, []string{branch}); err != nil {
+		t.Fatalf("cleanup() failed: %v", err)
+	}
+	if git.BranchExists(branch) {
+		t.Fatalf("cleanup failed to remove the feature branch")
+	}
+}
+
+// TestCleanupDirty checks that cleanup is a no-op if the branch to be
+// cleaned up has unmerged changes.
+func TestCleanupDirty(t *testing.T) {
+	workingDir, _, _, _ := setup(t, true)
+	defer teardown(t, workingDir)
+	branch := "my-branch"
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
+	}
+	files := []string{"file1", "file2"}
+	if err := commitFiles(files); err != nil {
+		t.Fatalf("commitFiles(%v) failed: %v", files, err)
+	}
+	if err := git.CheckoutBranch("master"); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := cleanup(git, []string{branch}); err == nil {
+		t.Fatalf("cleanup did not fail when it should")
+	}
+	if err := git.CheckoutBranch(branch); err != nil {
+		t.Fatalf("%v", err)
+	}
+	assertFilesCommitted(t, files)
+}
+
 // TestCreateReviewBranch checks that the temporary review branch is
 // created correctly.
 func TestCreateReviewBranch(t *testing.T) {
 	workingDir, _, _, _ := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	files := []string{"file1", "file2", "file3"}
@@ -231,14 +290,14 @@ func TestCreateReviewBranch(t *testing.T) {
 		t.Fatalf("Unexpected review branch name: expected %v, got %v", expected, got)
 	}
 	commitMessage := "squashed commit"
-	if err := review.createReviewBranch(commitMessage, g); err != nil {
+	if err := review.createReviewBranch(commitMessage, git); err != nil {
 		t.Fatalf("createReviewBranch() failed: %v", err)
 	}
 	// Verify that the branch exists.
-	if !g.BranchExists(review.reviewBranch) {
+	if !git.BranchExists(review.reviewBranch) {
 		t.Fatalf("Expected createReviewBranch() to create a new branch, but it did not.")
 	}
-	if err := g.CheckoutBranch(review.reviewBranch); err != nil {
+	if err := git.CheckoutBranch(review.reviewBranch); err != nil {
 		t.Fatalf("CheckoutBranch(%v) failed: %v", review, err)
 	}
 	assertCommitCount(t, review.reviewBranch, "master", 1)
@@ -252,13 +311,13 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 	workingDir, _, _, _ := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, branch, reviewers, ccs)
 	commitMessage := "squashed commit"
-	err := review.createReviewBranch(commitMessage, g)
+	err := review.createReviewBranch(commitMessage, git)
 	if err == nil {
 		t.Fatal("Expected createReviewBranch() on an branch with no new commits to fail but it did not.")
 	}
@@ -271,7 +330,7 @@ func TestGoFormatError(t *testing.T) {
 	workingDir, _, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	file, fileContent := "file.go", ` package main
@@ -282,12 +341,12 @@ func main() {}
 		t.Fatalf("writeFile(%v, %v) failed: %v", file, fileContent, err)
 	}
 	commitMessage := "Commit " + file
-	if err := g.CommitFile(file, commitMessage); err != nil {
+	if err := git.CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
 	}
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	if err := review.checkGoFormat(g); err == nil {
+	if err := review.checkGoFormat(git); err == nil {
 		t.Fatalf("checkGoFormat() did not fail")
 	}
 }
@@ -296,7 +355,7 @@ func TestGoFormatOK(t *testing.T) {
 	workingDir, _, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	file, fileContent := "file.go", `package main
@@ -307,12 +366,12 @@ func main() {}
 		t.Fatalf("writeFile(%v, %v) failed: %v", file, fileContent, err)
 	}
 	commitMessage := "Commit " + file
-	if err := g.CommitFile(file, commitMessage); err != nil {
+	if err := git.CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
 	}
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	if err := review.checkGoFormat(g); err != nil {
+	if err := review.checkGoFormat(git); err != nil {
 		t.Fatalf("checkGoFormat() failed: %v", err)
 	}
 }
@@ -322,7 +381,7 @@ func TestSendReview(t *testing.T) {
 	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	files := []string{"file1"}
@@ -333,7 +392,7 @@ func TestSendReview(t *testing.T) {
 		// Test with draft = false, no reviewiers, no ccs.
 		draft, edit, reviewers, ccs := false, false, "", ""
 		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(g); err != nil {
+		if err := review.send(git); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(review.draft, review.reviewers, review.ccs, review.branch)
@@ -343,7 +402,7 @@ func TestSendReview(t *testing.T) {
 		// Test with draft = true, no reviewers, and no ccs.
 		draft, edit, reviewers, ccs := true, false, "", ""
 		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(g); err != nil {
+		if err := review.send(git); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(draft, reviewers, ccs, review.branch)
@@ -353,7 +412,7 @@ func TestSendReview(t *testing.T) {
 		// Test with reviewers only.
 		draft, edit, reviewers, ccs := false, false, "reviewer1,reviewer2@example.org", ""
 		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(g); err != nil {
+		if err := review.send(git); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
@@ -363,7 +422,7 @@ func TestSendReview(t *testing.T) {
 		// Test with draft = true, with reviewers and ccs.
 		draft, edit, reviewers, ccs := true, false, "reviewer3@example.org,reviewer4", "cc1@example.org,cc2"
 		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(g); err != nil {
+		if err := review.send(git); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
@@ -378,7 +437,7 @@ func TestSendReviewNoChangeID(t *testing.T) {
 	workingDir, _, _, gerritPath := setup(t, false)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	files := []string{"file1"}
@@ -388,7 +447,7 @@ func TestSendReviewNoChangeID(t *testing.T) {
 	// Test with draft = false, no reviewiers, no ccs.
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	err := review.send(g)
+	err := review.send(git)
 	if err == nil {
 		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail but it did not.")
 	}
@@ -402,7 +461,7 @@ func TestEndToEnd(t *testing.T) {
 	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	files := []string{"file1", "file2", "file3"}
@@ -411,7 +470,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	review.run(g)
+	review.run(git)
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 }
@@ -422,7 +481,7 @@ func TestDirtyBranch(t *testing.T) {
 	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	files := []string{"file1", "file2", "file3"}
@@ -434,10 +493,10 @@ func TestDirtyBranch(t *testing.T) {
 	if err := writeFile(stashedFile, stashedFileContent); err != nil {
 		t.Fatalf("writeFile(%v, %v) failed: %v", stashedFile, stashedFileContent, err)
 	}
-	if err := g.Add(stashedFile); err != nil {
+	if err := git.Add(stashedFile); err != nil {
 		t.Fatalf("Add(%v) failed: %v", stashedFile, err)
 	}
-	if _, err := g.Stash(); err != nil {
+	if _, err := git.Stash(); err != nil {
 		t.Fatalf("Stash() failed: %v", err)
 	}
 	assertStashSize(t, 1)
@@ -449,7 +508,7 @@ func TestDirtyBranch(t *testing.T) {
 	if err := writeFile(stagedFile, stagedFileContent); err != nil {
 		t.Fatalf("writeFile(%v, %v) failed: %v", stagedFile, stagedFileContent, err)
 	}
-	if err := g.Add(stagedFile); err != nil {
+	if err := git.Add(stagedFile); err != nil {
 		t.Fatalf("Add(%v) failed: %v", stagedFile, err)
 	}
 	untrackedFile, untrackedFileContent := "untracked-file", "untracked-file content"
@@ -458,7 +517,7 @@ func TestDirtyBranch(t *testing.T) {
 	}
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	review.run(g)
+	review.run(git)
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	assertFilesNotCommitted(t, []string{stagedFile})
@@ -467,7 +526,7 @@ func TestDirtyBranch(t *testing.T) {
 	assertFileContent(t, stagedFile, stagedFileContent)
 	assertFileContent(t, untrackedFile, untrackedFileContent)
 	assertStashSize(t, 1)
-	if err := g.StashPop(); err != nil {
+	if err := git.StashPop(); err != nil {
 		t.Fatalf("StashPop() failed: %v", err)
 	}
 	assertStashSize(t, 0)
@@ -482,7 +541,7 @@ func TestRunInSubdirectory(t *testing.T) {
 	workingDir, repoPath, _, gerritPath := setup(t, true)
 	defer teardown(t, workingDir)
 	branch := "my-branch"
-	if err := g.CreateAndCheckoutBranch(branch); err != nil {
+	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
 	subdir := "sub/directory"
@@ -499,7 +558,7 @@ func TestRunInSubdirectory(t *testing.T) {
 	}
 	draft, edit, reviewers, ccs := false, false, "", ""
 	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	review.run(g)
+	review.run(git)
 	path := path.Join(repoPath, subdir)
 	expected, err := filepath.EvalSymlinks(path)
 	if err != nil {

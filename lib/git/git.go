@@ -284,6 +284,22 @@ func (g *Git) LatestCommitMessage() (string, error) {
 	return strings.Join(out, "\n"), nil
 }
 
+// Merge merge all commits from <branch> to the current branch. If
+// <squash> is set, then all merged commits are squashed into a single
+// commit.
+func (g *Git) Merge(branch string, squash bool) error {
+	args := []string{"merge"}
+	if squash {
+		args = append(args, "--squash")
+	}
+	args = append(args, branch)
+	if _, errOut, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
+		cmd.Run(g.verbose, "git", "reset", "--merge")
+		return fmt.Errorf("%v", errOut)
+	}
+	return nil
+}
+
 // ModifiedFiles returns a slice of filenames that have changed between
 // <baseBranch> and <currentBranch>.
 func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) {
@@ -380,16 +396,6 @@ func (g *Git) SelfUpdate(name string) error {
 // SetVerbose sets the verbosity.
 func (g *Git) SetVerbose(verbose bool) {
 	g.verbose = verbose
-}
-
-// Squash squashes all commits from <fromBranch> to the current branch.
-func (g *Git) Squash(fromBranch string) error {
-	args := []string{"merge", "--squash", fromBranch}
-	if _, errOut, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
-		cmd.Run(g.verbose, "git", "reset", "--merge")
-		return fmt.Errorf("%v", errOut)
-	}
-	return nil
 }
 
 // Stash attempts to stash any unsaved changes. It returns true if anything was
