@@ -84,10 +84,6 @@ func cleanup(command *cmdline.Command, git *gitlib.Git, branches []string) error
 	if err != nil {
 		return err
 	}
-	if err := git.CheckoutBranch("master"); err != nil {
-		return err
-	}
-	defer git.CheckoutBranch(currentBranch)
 	stashed, err := git.Stash()
 	if err != nil {
 		return err
@@ -95,6 +91,10 @@ func cleanup(command *cmdline.Command, git *gitlib.Git, branches []string) error
 	if stashed {
 		defer git.StashPop()
 	}
+	if err := git.CheckoutBranch("master"); err != nil {
+		return err
+	}
+	defer git.CheckoutBranch(currentBranch)
 	if err := git.Pull("origin", "master"); err != nil {
 		return err
 	}

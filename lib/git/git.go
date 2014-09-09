@@ -293,9 +293,9 @@ func (g *Git) Merge(branch string, squash bool) error {
 		args = append(args, "--squash")
 	}
 	args = append(args, branch)
-	if _, errOut, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
+	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
 		cmd.Run(g.verbose, "git", "reset", "--merge")
-		return fmt.Errorf("%v", errOut)
+		return fmt.Errorf("%v", strings.Join(out, "\n"))
 	}
 	return nil
 }
