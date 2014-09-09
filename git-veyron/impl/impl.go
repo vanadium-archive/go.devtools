@@ -76,7 +76,10 @@ reports the difference and stops. Otherwise, it deletes the branch.
 	ArgsLong: "<branches> is a list of branches to cleanup.",
 }
 
-func cleanup(git *gitlib.Git, branches []string) error {
+func cleanup(command *cmdline.Command, git *gitlib.Git, branches []string) error {
+	if len(branches) == 0 {
+		return command.Errorf("cleanup requires at least one argument")
+	}
 	currentBranch, err := git.CurrentBranchName()
 	if err != nil {
 		return err
@@ -96,43 +99,51 @@ func cleanup(git *gitlib.Git, branches []string) error {
 		return err
 	}
 	for _, branch := range branches {
-		if err := git.CheckoutBranch(branch); err != nil {
+		cleanupFn := func() error { return cleanupBranch(git, branch) }
+		if err := cmd.Log(fmt.Sprintf("Cleaning up branch %q", branch), cleanupFn); err != nil {
 			return err
-		}
-		if !forceFlag {
-			if err := git.Merge("master", false); err != nil {
-				return err
-			}
-			files, err := git.ModifiedFiles("master", branch)
-			if err != nil {
-				return err
-			}
-			// A feature branch is considered merged with
-			// the master, when there are no differences
-			// or the only difference is the gerrit commit
-			// message file.
-			if len(files) != 0 && (len(files) != 1 || files[0] != ".gerrit_commit_message") {
-				return fmt.Errorf("unmerged changes in\n%s", strings.Join(files, "\n"))
-			}
-		}
-		if err := git.CheckoutBranch("master"); err != nil {
-			return err
-		}
-		if err := git.ForceDeleteBranch(branch); err != nil {
-			return err
-		}
-		reviewBranch := branch + "-REVIEW"
-		if git.BranchExists(reviewBranch) {
-			if err := git.ForceDeleteBranch(reviewBranch); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
 }
 
-func runCleanup(_ *cmdline.Command, args []string) error {
-	return cleanup(gitlib.New(verboseFlag), args)
+func cleanupBranch(git *gitlib.Git, branch string) error {
+	if err := git.CheckoutBranch(branch); err != nil {
+		return err
+	}
+	if !forceFlag {
+		if err := git.Merge("master", false); err != nil {
+			return err
+		}
+		files, err := git.ModifiedFiles("master", branch)
+		if err != nil {
+			return err
+		}
+		// A feature branch is considered merged with
+		// the master, when there are no differences
+		// or the only difference is the gerrit commit
+		// message file.
+		if len(files) != 0 && (len(files) != 1 || files[0] != ".gerrit_commit_message") {
+			return fmt.Errorf("unmerged changes in\n%s", strings.Join(files, "\n"))
+		}
+	}
+	if err := git.CheckoutBranch("master"); err != nil {
+		return err
+	}
+	if err := git.ForceDeleteBranch(branch); err != nil {
+		return err
+	}
+	reviewBranch := branch + "-REVIEW"
+	if git.BranchExists(reviewBranch) {
+		if err := git.ForceDeleteBranch(reviewBranch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runCleanup(command *cmdline.Command, args []string) error {
+	return cleanup(command, gitlib.New(verboseFlag), args)
 }
 
 // cmdReview represent the 'review' command of the git veyron tool.

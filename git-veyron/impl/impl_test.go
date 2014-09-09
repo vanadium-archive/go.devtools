@@ -239,7 +239,7 @@ func TestCleanupClean(t *testing.T) {
 	if err := git.Commit(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := cleanup(git, []string{branch}); err != nil {
+	if err := cleanup(nil, git, []string{branch}); err != nil {
 		t.Fatalf("cleanup() failed: %v", err)
 	}
 	if git.BranchExists(branch) {
@@ -263,7 +263,7 @@ func TestCleanupDirty(t *testing.T) {
 	if err := git.CheckoutBranch("master"); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := cleanup(git, []string{branch}); err == nil {
+	if err := cleanup(nil, git, []string{branch}); err == nil {
 		t.Fatalf("cleanup did not fail when it should")
 	}
 	if err := git.CheckoutBranch(branch); err != nil {
