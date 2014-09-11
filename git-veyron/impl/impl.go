@@ -12,7 +12,9 @@ import (
 
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
+	"tools/lib/gerrit"
 	gitlib "tools/lib/git"
+	"tools/lib/tool"
 )
 
 const (
@@ -100,7 +102,7 @@ func cleanup(command *cmdline.Command, git *gitlib.Git, branches []string) error
 	}
 	for _, branch := range branches {
 		cleanupFn := func() error { return cleanupBranch(git, branch) }
-		if err := cmd.Log(fmt.Sprintf("Cleaning up branch %q", branch), cleanupFn); err != nil {
+		if err := cmd.Log(cleanupFn, "Cleaning up branch %q", branch); err != nil {
 			return err
 		}
 	}
@@ -462,7 +464,7 @@ func (r *review) send(git *gitlib.Git) error {
 	if err := r.ensureChangeID(git); err != nil {
 		return err
 	}
-	if err := git.GerritReview(r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
+	if err := gerrit.Review(verboseFlag, r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
 		return GerritError(err.Error())
 	}
 	return nil
@@ -551,9 +553,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	git := gitlib.New(verboseFlag)
-	tool := "git-veyron"
-	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
+	return tool.SelfUpdate(verboseFlag, "git-veyron")
 }
 
 // cmdVersion represent the 'version' command of the review tool.

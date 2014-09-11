@@ -2,18 +2,10 @@ package git
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"tools/lib/cmd"
-	"tools/lib/gerrit"
-)
-
-const (
-	ROOT_ENV = "VEYRON_ROOT"
 )
 
 type GitError struct {
@@ -208,44 +200,6 @@ func (g *Git) ForceDeleteBranch(branchName string) error {
 	return g.run("branch", "-D", branchName)
 }
 
-// GerritRepoPath builds the URL of the Gerrit repository for the
-// given branch.
-//
-// TODO(jsimsa): Move out of the git package.
-func (g *Git) GerritRepoPath() (string, error) {
-	repoName, err := g.RepoName()
-	if err != nil {
-		return "", err
-	}
-	return "https://veyron-review.googlesource.com/" + repoName, nil
-}
-
-// GerritReview pushes the branch to Gerrit.
-//
-// TODO(jsimsa): Move out of the git package.
-func (g *Git) GerritReview(repoPathArg string, draft bool, reviewers, ccs, branch string) error {
-	repoPath := repoPathArg
-	if repoPathArg == "" {
-		var err error
-		repoPath, err = g.GerritRepoPath()
-		if err != nil {
-			return err
-		}
-	}
-	refspec := "HEAD:" + gerrit.Reference(draft, reviewers, ccs, branch)
-	_, errOut, err := cmd.RunOutput(g.verbose, "git", "push", repoPath, refspec)
-	if err != nil {
-		return fmt.Errorf("%v", errOut)
-	}
-	re := regexp.MustCompile("remote:[^\n]*")
-	for _, line := range errOut {
-		if re.MatchString(line) {
-			fmt.Println(line)
-		}
-	}
-	return nil
-}
-
 // Init initializes a new git repo.
 func (g *Git) Init(path string) error {
 	return g.run("init", path)
@@ -350,47 +304,7 @@ func (g *Git) RepoName() (string, error) {
 	if expected, got := 1, len(out); expected != got {
 		return "", NewGitError(out, errOut, args...)
 	}
-	out, errOut, err = cmd.RunOutput(g.verbose, "basename", out[0])
-	if err != nil {
-		return "", fmt.Errorf("'basename %v' failed:\n%v", out[0], errOut)
-	}
-	if expected, got := 1, len(out); expected != got {
-		return "", fmt.Errorf("'basename %v' failed:\n%v", out[0], errOut)
-	}
 	return out[0], nil
-}
-
-// SelfUpdate updates the given tool to the latest version.
-//
-// TODO(jsimsa): Move out of the git package.
-func (g *Git) SelfUpdate(name string) error {
-	root := os.Getenv(ROOT_ENV)
-	if root == "" {
-		return fmt.Errorf("%v is not set", ROOT_ENV)
-	}
-	if _, errOut, err := cmd.RunOutput(true, "veyron", fmt.Sprintf("-v=%v", g.verbose), "project", "update", "tools"); err != nil {
-		return fmt.Errorf("%s", strings.Join(errOut, "\n"))
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer os.Chdir(wd)
-	repo := filepath.Join(root, "tools")
-	os.Chdir(repo)
-	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
-	count, err := g.CountCommits("HEAD", "")
-	if err != nil {
-		return err
-	}
-	output := filepath.Join(root, "bin", name)
-	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
-	pkg := fmt.Sprintf("tools/%v", name)
-	args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
-	if _, errOut, err := cmd.RunOutput(true, goScript, args...); err != nil {
-		return fmt.Errorf("%v tool update failed\n%v", name, strings.Join(errOut, "\n"))
-	}
-	return nil
 }
 
 // SetVerbose sets the verbosity.

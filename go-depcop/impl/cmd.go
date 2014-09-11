@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"go/build"
 
-	"tools/lib/cmd"
 	"tools/lib/cmdline"
-	"tools/lib/git"
+	"tools/lib/tool"
 )
 
 var (
@@ -119,9 +118,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	git := git.New(verbose)
-	tool := "go-depcop"
-	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
+	return tool.SelfUpdate(verbose, "go-depcop")
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.

@@ -16,8 +16,8 @@ var (
 )
 
 // Log logs the result of the given command.
-func Log(message string, fn func() error) error {
-	LogStart(message)
+func Log(fn func() error, format string, v ...interface{}) error {
+	LogStart(fmt.Sprintf(format, v))
 	err := fn()
 	LogEnd(err == nil)
 	return err

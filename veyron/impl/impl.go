@@ -14,6 +14,7 @@ import (
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
 	"tools/lib/git"
+	"tools/lib/tool"
 )
 
 const (
@@ -422,7 +423,7 @@ func runOperation(op operation, git *git.Git) error {
 		if err := os.MkdirAll(path, perm); err != nil {
 			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
 		}
-		if err := git.Clone("https://veyron.googlesource.com/"+op.project, op.destination); err != nil {
+		if err := git.Clone(op.project, op.destination); err != nil {
 			return err
 		}
 		file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
@@ -511,7 +512,8 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 		return err
 	}
 	for _, op := range ops {
-		if err := cmd.Log(fmt.Sprintf("%v", op), func() error { return runOperation(op, git) }); err != nil {
+		runFn := func() error { return runOperation(op, git) }
+		if err := cmd.Log(runFn, "%v", op); err != nil {
 			return err
 		}
 	}
@@ -598,9 +600,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	git := git.New(verboseFlag)
-	tool := "veyron"
-	return cmd.Log(fmt.Sprintf("Updating tool %q", tool), func() error { return git.SelfUpdate(tool) })
+	return tool.SelfUpdate(verboseFlag, "veyron")
 }
 
 // cmdVersion represents the 'version' command of the veyron tool.
