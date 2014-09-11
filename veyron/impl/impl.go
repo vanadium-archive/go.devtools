@@ -39,7 +39,7 @@ var (
 
 func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
+	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 }
 
