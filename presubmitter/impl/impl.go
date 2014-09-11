@@ -12,6 +12,7 @@ import (
 
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
+	"tools/lib/tool"
 )
 
 const (
@@ -58,8 +59,7 @@ var cmdRoot = &cmdline.Command{
 	Name:     "presubmitter",
 	Short:    "Command-line tool for various presubmit related functionalities",
 	Long:     "Command-line tool for various presubmit related functionalities.",
-	Children: []*cmdline.Command{cmdQuery},
-	// TODO(jingjin): add "version" and "selfupdate" commands.
+	Children: []*cmdline.Command{cmdQuery, cmdSelfUpdate, cmdVersion},
 }
 
 // cmdQuery represents the 'query' command of the presubmitter tool.
@@ -255,4 +255,35 @@ func addPresubmitTestBuild(queryResult gerrit.QueryResult) error {
 		resp.Body.Close()
 	}
 	return err
+}
+
+// cmdSelfUpdate represents the 'selfupdate' command of the presubmitter tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the presubmitter tool",
+	Long:  "Download and install the latest version of the presubmitter tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, args []string) error {
+	return tool.SelfUpdate(false, "presubmitter")
+}
+
+// cmdVersion represent the 'version' command of the presubmitter tool.
+var cmdVersion = &cmdline.Command{
+	Run:   runVersion,
+	Name:  "version",
+	Short: "Print version",
+	Long:  "Print version of the presubmitter tool.",
+}
+
+const version string = "0.1"
+
+// commitId should be over-written during build:
+// go build -ldflags "-X tools/presubmitter/impl.commitId <commitId>" tools/presubmitter
+var commitId string = "test-build"
+
+func runVersion(cmd *cmdline.Command, args []string) error {
+	fmt.Printf("presubmitter tool version %v (build %v)\n", version, commitId)
+	return nil
 }
