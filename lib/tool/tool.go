@@ -19,7 +19,7 @@ func selfUpdate(verbose bool, name string) error {
 	if root == "" {
 		return fmt.Errorf("%v is not set", rootEnv)
 	}
-	if _, errOut, err := cmd.RunOutput(true, "veyron", fmt.Sprintf("-v=%v", verbose), "project", "update", "tools"); err != nil {
+	if _, errOut, err := cmd.RunOutput(true, "veyron", fmt.Sprintf("-v=%v", verbose), "project", "update", "https://veyron.googlesource.com/tools"); err != nil {
 		return fmt.Errorf("%s", strings.Join(errOut, "\n"))
 	}
 	wd, err := os.Getwd()
