@@ -37,7 +37,7 @@ type LogInjector struct {
 
 func (l LogInjector) load() (prog *loader.Program, interfacePackages, implementationPackages []*loader.PackageInfo, err error) {
 	// TODO: expand "..." in package names in command line
-	conf := loader.Config{}
+	conf := loader.Config{SourceImports: true}
 
 	allPackages := append(append([]string{}, l.Interfaces...), l.Implementations...)
 	conf.FromArgs(allPackages, false)
