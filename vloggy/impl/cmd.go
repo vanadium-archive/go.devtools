@@ -9,14 +9,16 @@ import (
 )
 
 var (
-	verboseFlag    bool
 	interfacesFlag string
+	manifestFlag   string
+	verboseFlag    bool
 )
 
 func init() {
 	cmdCheck.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required)")
 	cmdInject.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required)")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 // Root returns a command that represents the root of the vloggy tool.
@@ -100,7 +102,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, "vloggy")
+	return tool.SelfUpdate(verboseFlag, manifestFlag, "vloggy")
 }
 
 // cmdVersion represents the 'version' command of the vloggy tool.

@@ -37,16 +37,20 @@ var (
 	jenkinsHost                 string
 	presubmitTestJenkinsProject string
 	jenkinsToken                string
+	manifestFlag                string
+	verboseFlag                 bool
 )
 
 func init() {
 	cmdRoot.Flags.StringVar(&gerritBaseUrl, "url", defaultGerritBaseUrl, "The base url of the gerrit instance")
 	cmdRoot.Flags.StringVar(&netRcFilePath, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdQuery.Flags.StringVar(&queryString, "query", defaultQueryString, "The string used to query Gerrit for open CLs")
 	cmdQuery.Flags.StringVar(&logFilePath, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query")
 	cmdQuery.Flags.StringVar(&jenkinsHost, "host", "", "The Jenkins host. Presubmitter will not send any CLs to an empty host.")
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProject, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to")
 	cmdQuery.Flags.StringVar(&jenkinsToken, "token", "", "The Jenkins API token")
+	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 // Root returns a command that represents the root of the presubmitter tool.
@@ -266,7 +270,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(false, "presubmitter")
+	return tool.SelfUpdate(verboseFlag, manifestFlag, "presubmitter")
 }
 
 // cmdVersion represent the 'version' command of the presubmitter tool.

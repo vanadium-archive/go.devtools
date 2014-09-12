@@ -25,6 +25,7 @@ var (
 	ccsFlag       string
 	draftFlag     bool
 	forceFlag     bool
+	manifestFlag  string
 	reviewersFlag string
 	verboseFlag   bool
 )
@@ -46,6 +47,7 @@ func init() {
 	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send draft change list.")
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
+	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -553,7 +555,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, "git-veyron")
+	return tool.SelfUpdate(verboseFlag, manifestFlag, "git-veyron")
 }
 
 // cmdVersion represent the 'version' command of the review tool.

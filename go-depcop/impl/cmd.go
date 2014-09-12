@@ -9,13 +9,15 @@ import (
 )
 
 var (
-	recursive bool
-	verbose   bool
+	recursiveFlag bool
+	verboseFlag   bool
+	manifestFlag  string
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&verbose, "v", false, "Print verbose output.")
-	cmdCheck.Flags.BoolVar(&recursive, "r", false, "Check dependencies recursively.")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdCheck.Flags.BoolVar(&recursiveFlag, "r", false, "Check dependencies recursively.")
+	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 // Root returns a command that represents the root of the go-depcop tool.
@@ -52,7 +54,7 @@ func runCheck(command *cmdline.Command, args []string) error {
 			return err
 		}
 		var v []DependencyRuleReference
-		v, err = verifyDependencyHierarchy(p, map[*build.Package]bool{}, nil, recursive)
+		v, err = verifyDependencyHierarchy(p, map[*build.Package]bool{}, nil, recursiveFlag)
 		if err != nil {
 			return err
 		}
@@ -118,7 +120,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verbose, "go-depcop")
+	return tool.SelfUpdate(verboseFlag, manifestFlag, "go-depcop")
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.
