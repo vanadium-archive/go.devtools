@@ -29,27 +29,30 @@ type credential struct {
 }
 
 var (
-	gerritBaseUrl string
-	netRcFilePath string
-
-	queryString                 string
-	logFilePath                 string
-	jenkinsHost                 string
-	presubmitTestJenkinsProject string
-	jenkinsToken                string
-	manifestFlag                string
-	verboseFlag                 bool
+	gerritBaseUrlFlag               string
+	netRcFilePathFlag               string
+	verboseFlag                     bool
+	queryStringFlag                 string
+	logFilePathFlag                 string
+	jenkinsHostFlag                 string
+	presubmitTestJenkinsProjectFlag string
+	jenkinsTokenFlag                string
+	reviewMessageFlag               string
+	reviewTargetRefFlag             string
+	manifestFlag                    string
 )
 
 func init() {
-	cmdRoot.Flags.StringVar(&gerritBaseUrl, "url", defaultGerritBaseUrl, "The base url of the gerrit instance")
-	cmdRoot.Flags.StringVar(&netRcFilePath, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials")
+	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
+	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdQuery.Flags.StringVar(&queryString, "query", defaultQueryString, "The string used to query Gerrit for open CLs")
-	cmdQuery.Flags.StringVar(&logFilePath, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query")
-	cmdQuery.Flags.StringVar(&jenkinsHost, "host", "", "The Jenkins host. Presubmitter will not send any CLs to an empty host.")
-	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProject, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to")
-	cmdQuery.Flags.StringVar(&jenkinsToken, "token", "", "The Jenkins API token")
+	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
+	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
+	cmdQuery.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmitter will not send any CLs to an empty host.")
+	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
+	cmdQuery.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
+	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
+	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
@@ -63,7 +66,7 @@ var cmdRoot = &cmdline.Command{
 	Name:     "presubmitter",
 	Short:    "Command-line tool for various presubmit related functionalities",
 	Long:     "Command-line tool for various presubmit related functionalities.",
-	Children: []*cmdline.Command{cmdQuery, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdSelfUpdate, cmdVersion},
 }
 
 // cmdQuery represents the 'query' command of the presubmitter tool.
@@ -82,28 +85,15 @@ with test results.
 // runQuery implements the "query" subcommand.
 func runQuery(*cmdline.Command, []string) error {
 	// Basic sanity check for the Gerrit base url.
-	gerritURL, err := url.Parse(gerritBaseUrl)
-	if err != nil {
-		return fmt.Errorf("url.Parse(%q) failed: %v", gerritBaseUrl, err)
-	}
-	gerritHost := gerritURL.Host
-	if gerritHost == "" {
-		return fmt.Errorf("%q has no host", gerritBaseUrl)
-	}
-
-	// Parse .netrc file to get Gerrit credential.
-	fdNetRc, err := os.Open(netRcFilePath)
-	if err != nil {
-		return fmt.Errorf("Open(%q) failed: %v", netRcFilePath, err)
-	}
-	defer fdNetRc.Close()
-	creds, err := parseNetRcFile(fdNetRc)
+	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {
 		return err
 	}
-	gerritCred, ok := creds[gerritHost]
-	if !ok {
-		return fmt.Errorf("cannot find credential for %q in %q", gerritHost, netRcFilePath)
+
+	// Parse .netrc file to get Gerrit credential.
+	gerritCred, err := gerritHostCredential(gerritHost)
+	if err != nil {
+		return err
 	}
 
 	// Read refs from the log file.
@@ -114,9 +104,9 @@ func runQuery(*cmdline.Command, []string) error {
 
 	// Query Gerrit.
 	username, password := gerritCred.username, gerritCred.password
-	curQueryResults, err := gerrit.Query(gerritBaseUrl, username, password, queryString)
+	curQueryResults, err := gerrit.Query(gerritBaseUrlFlag, username, password, queryStringFlag)
 	if err != nil {
-		return fmt.Errorf("Query(%q, %q, %q, %q) failed: %v", gerritBaseUrl, username, password, queryString, err)
+		return fmt.Errorf("Query(%q, %q, %q, %q) failed: %v", gerritBaseUrlFlag, username, password, queryStringFlag, err)
 	}
 	newCLs := newOpenCLs(prevRefs, curQueryResults)
 	outputOpenCLs(newCLs)
@@ -132,7 +122,7 @@ func runQuery(*cmdline.Command, []string) error {
 	if newCLsCount == 0 {
 		return nil
 	}
-	if jenkinsHost == "" {
+	if jenkinsHostFlag == "" {
 		fmt.Println("Not sending CLs to run presubmit tests due to empty Jenkins host.")
 		return nil
 	}
@@ -147,9 +137,41 @@ func runQuery(*cmdline.Command, []string) error {
 			fmt.Println("PASS")
 		}
 	}
-	fmt.Printf("%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProject)
+	fmt.Printf("%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
 
 	return nil
+}
+
+// checkGerritBaseUrl performs basic sanity checks for Gerrit base url.
+// It returns the gerrit host.
+func checkGerritBaseUrl() (string, error) {
+	gerritURL, err := url.Parse(gerritBaseUrlFlag)
+	if err != nil {
+		return "", fmt.Errorf("Parse(%q) failed: %v", gerritBaseUrlFlag, err)
+	}
+	gerritHost := gerritURL.Host
+	if gerritHost == "" {
+		return "", fmt.Errorf("%q has no host", gerritBaseUrlFlag)
+	}
+	return gerritHost, nil
+}
+
+// gerritHostCredential returns credential for the given gerritHost.
+func gerritHostCredential(gerritHost string) (credential, error) {
+	fdNetRc, err := os.Open(netRcFilePathFlag)
+	if err != nil {
+		return credential{}, fmt.Errorf("Open(%q) failed: %v", netRcFilePathFlag, err)
+	}
+	defer fdNetRc.Close()
+	creds, err := parseNetRcFile(fdNetRc)
+	if err != nil {
+		return credential{}, err
+	}
+	gerritCred, ok := creds[gerritHost]
+	if !ok {
+		return credential{}, fmt.Errorf("cannot find credential for %q in %q", gerritHost, netRcFilePathFlag)
+	}
+	return gerritCred, nil
 }
 
 // parseNetRcFile parses the content of the .netrc file and returns credentials stored in the file indexed by hosts.
@@ -175,9 +197,9 @@ func parseNetRcFile(reader io.Reader) (map[string]credential, error) {
 
 // readLog returns a set of ref strings stored in the log file.
 func readLog() (map[string]bool, error) {
-	fd, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_RDONLY, 0644)
+	fd, err := os.OpenFile(logFilePathFlag, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("OpenFile(%q) failed: %v", logFilePath, err)
+		return nil, fmt.Errorf("OpenFile(%q) failed: %v", logFilePathFlag, err)
 	}
 	defer fd.Close()
 
@@ -195,9 +217,9 @@ func readLog() (map[string]bool, error) {
 
 // writeLog writes the refs (from the given QueryResult entries) to the log file.
 func writeLog(queryResults []gerrit.QueryResult) error {
-	fd, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	fd, err := os.OpenFile(logFilePathFlag, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
-		return fmt.Errorf("OpenFile(%q) failed: %v", logFilePath, err)
+		return fmt.Errorf("OpenFile(%q) failed: %v", logFilePathFlag, err)
 	}
 	defer fd.Close()
 
@@ -243,13 +265,13 @@ func outputOpenCLs(queryResults []gerrit.QueryResult) {
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for a given open CL to run presubmit tests.
 func addPresubmitTestBuild(queryResult gerrit.QueryResult) error {
-	addBuildUrl, err := url.Parse(jenkinsHost)
+	addBuildUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
-		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHost, err)
+		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestJenkinsProject)
+	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestJenkinsProjectFlag)
 	addBuildUrl.RawQuery = url.Values{
-		"token":    {jenkinsToken},
+		"token":    {jenkinsTokenFlag},
 		"REF":      {queryResult.Ref},
 		"REPO":     {queryResult.Repo},
 		"CHANGEID": {queryResult.ChangeID},
@@ -259,6 +281,48 @@ func addPresubmitTestBuild(queryResult gerrit.QueryResult) error {
 		resp.Body.Close()
 	}
 	return err
+}
+
+// cmdPost represents the 'post' command of the presubmitter tool.
+var cmdPost = &cmdline.Command{
+	Name:  "post",
+	Short: "Post review with the test results to Gerrit",
+	Long: `
+This subcommand posts review with the test results to Gerrit. It also sets Verified
+label to +1.
+`,
+	Run: runPost,
+}
+
+// runPost implements the "post" subcommand.
+func runPost(command *cmdline.Command, args []string) error {
+	if !strings.HasPrefix(reviewTargetRefFlag, "refs/changes/") {
+		return fmt.Errorf("invalid ref: %q", reviewTargetRefFlag)
+	}
+
+	// Basic sanity check for the Gerrit base url.
+	gerritHost, err := checkGerritBaseUrl()
+	if err != nil {
+		return err
+	}
+
+	// Parse .netrc file to get Gerrit credential.
+	gerritCred, err := gerritHostCredential(gerritHost)
+	if err != nil {
+		return err
+	}
+
+	// Construct and post review.
+	// TODO(jingjin): do we need to add a flag to the post command to add "Verified" label?
+	review := gerrit.GerritReview{
+		Message: reviewMessageFlag,
+	}
+	err = gerrit.PostReview(gerritBaseUrlFlag, gerritCred.username, gerritCred.password, reviewTargetRefFlag, review)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the presubmitter tool.

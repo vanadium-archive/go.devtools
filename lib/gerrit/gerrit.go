@@ -2,6 +2,7 @@ package gerrit
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,57 @@ import (
 var (
 	remoteRE = regexp.MustCompile("remote:[^\n]*")
 )
+
+// Comment represents a single inline file comment.
+type Comment struct {
+	Line    int    `json:"line,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// GerritReview represents a Gerrit review.
+// For more details, see:
+// http://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#review-input
+type GerritReview struct {
+	Message  string               `json:"message,omitempty"`
+	Labels   struct{}             `json:"labels,omitempty"`
+	Comments map[string][]Comment `json:"comments,omitempty"`
+}
+
+// PostReview posts a review to the given Gerrit ref.
+func PostReview(gerritBaseUrl, username, password, ref string, review GerritReview) error {
+	fmt.Printf("Posting review for %s:\n%#v\n", ref, review)
+
+	// Construct api url.
+	// ref is in the form of "refs/changes/<last two digits of change number>/<change number>/<patch set number>".
+	parts := strings.Split(ref, "/")
+	if expected, got := 5, len(parts); expected != got {
+		return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
+	}
+	cl, revision := parts[3], parts[4]
+	url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", gerritBaseUrl, cl, revision)
+
+	// Encode "review" in json.
+	encodedBytes, err := json.Marshal(review)
+	if err != nil {
+		return fmt.Errorf("Marshal(%#v) failed: %v", review, err)
+	}
+
+	// Post review.
+	method, body := "POST", bytes.NewReader(encodedBytes)
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+	}
+	req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+	req.SetBasicAuth(username, password)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("Do(%v) failed: %v", req, err)
+	}
+	res.Body.Close()
+
+	return nil
+}
 
 // parseQueryResults parses a list of Gerrit ChangeInfo entries (json
 // result of a query) and returns a list of QueryResult entries.
