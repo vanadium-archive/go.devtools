@@ -512,11 +512,16 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 	if err := testOperations(ops); err != nil {
 		return err
 	}
+	failed := false
 	for _, op := range ops {
 		runFn := func() error { return runOperation(op, git) }
 		if err := cmd.Log(runFn, "%v", op); err != nil {
-			return err
+			fmt.Fprintf(command.Stderr(), "%v\n", err)
+			failed = true
 		}
+	}
+	if failed {
+		os.Exit(2)
 	}
 	return nil
 }
@@ -586,7 +591,10 @@ func updateProject(project string, git *git.Git) error {
 		return err
 	}
 	defer git.CheckoutBranch(branch)
-	if err := git.Pull("origin", "master"); err != nil {
+	if err := git.Fetch(); err != nil {
+		return err
+	}
+	if err := git.Merge("FETCH_HEAD", false); err != nil {
 		return err
 	}
 	return nil
