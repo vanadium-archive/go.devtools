@@ -79,7 +79,7 @@ func runCheck(command *cmdline.Command, args []string) error {
 	}
 
 	if len(violations) > 0 {
-		return fmt.Errorf("depedency violation")
+		return fmt.Errorf("dependency violation")
 	}
 
 	return nil
