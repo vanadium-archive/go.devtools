@@ -9,15 +9,17 @@ import (
 )
 
 var (
-	recursiveFlag bool
-	verboseFlag   bool
-	manifestFlag  string
+	recursiveFlag     bool
+	verboseFlag       bool
+	manifestFlag      string
+	includeGorootFlag bool
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdCheck.Flags.BoolVar(&recursiveFlag, "r", false, "Check dependencies recursively.")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
+	cmdList.Flags.BoolVar(&includeGorootFlag, "includegoroot", false, "Show packages in goroot.")
 }
 
 // Root returns a command that represents the root of the go-depcop tool.

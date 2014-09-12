@@ -173,8 +173,10 @@ func printDependencyHierarchy(p *build.Package, visited map[*build.Package]bool,
 		if err != nil {
 			return err
 		}
-		if err := printDependencyHierarchy(pkg, visited, depth+1); err != nil {
-			return err
+		if includeGorootFlag || !pkg.Goroot {
+			if err := printDependencyHierarchy(pkg, visited, depth+1); err != nil {
+				return err
+			}
 		}
 	}
 
