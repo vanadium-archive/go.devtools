@@ -12,7 +12,7 @@ import (
 
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
-	"tools/lib/tool"
+	"tools/lib/util"
 )
 
 const (
@@ -334,7 +334,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, manifestFlag, "presubmitter")
+	return util.SelfUpdate(false, manifestFlag, "presubmitter")
 }
 
 // cmdVersion represent the 'version' command of the presubmitter tool.

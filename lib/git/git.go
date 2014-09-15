@@ -194,10 +194,43 @@ func (g *Git) Fetch() error {
 	return g.run("fetch", "origin", "master")
 }
 
-// ForeDeleteBranch deletes the given branch, even if that branch contains
+// ForceDeleteBranch deletes the given branch, even if that branch contains
 // unmerged changes.
 func (g *Git) ForceDeleteBranch(branchName string) error {
 	return g.run("branch", "-D", branchName)
+}
+
+// GetBranches returns a slice of the local branches of the current
+// repository, followed by the name of the current branch.
+func (g *Git) GetBranches() ([]string, string, error) {
+	args := []string{"branch"}
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	if err != nil {
+		return nil, "", NewGitError(out, errOut, args...)
+	}
+	branches, current := []string{}, ""
+	for _, branch := range out {
+		if strings.HasPrefix(branch, "*") {
+			branch = strings.TrimSpace(strings.TrimPrefix(branch, "*"))
+			current = branch
+		}
+		branches = append(branches, strings.TrimSpace(branch))
+	}
+	return branches, current, nil
+}
+
+func (g *Git) HasUntrackedFiles() (bool, error) {
+	args := []string{"ls-files", "--other", "--directory", "--exclude-standard"}
+	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	if err != nil {
+		return false, NewGitError(out, errOut, args...)
+	}
+	// If output is empty, then there are no untracked files.
+	if len(out) == 0 {
+		return false, nil
+	}
+	// Otherwise there are untracked files.
+	return true, nil
 }
 
 // Init initializes a new git repo.

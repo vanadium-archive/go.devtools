@@ -1,8 +1,6 @@
 package impl
 
 import (
-	"bufio"
-	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -14,31 +12,20 @@ import (
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
 	"tools/lib/git"
-	"tools/lib/tool"
-)
-
-const (
-	ROOT_ENV = "VEYRON_ROOT"
+	"tools/lib/util"
 )
 
 var (
+	branchesFlag string
 	gcFlag       bool
 	manifestFlag string
 	verboseFlag  bool
 )
 
-var (
-	root = func() string {
-		result := os.Getenv(ROOT_ENV)
-		if result == "" {
-			panic(fmt.Sprintf("%v is not set", ROOT_ENV))
-		}
-		return result
-	}()
-)
-
 func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdProjectList.Flags.StringVar(&branchesFlag, "branches", "none",
+		"Determines what project branches to list (none, all).")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
@@ -67,19 +54,23 @@ platform-independent profiles that map different platforms to a set
 of libraries and tools that can be used for a factor of veyron
 development.
 `,
-	Children: []*cmdline.Command{cmdProfileDescribe, cmdProfileSetup},
+	Children: []*cmdline.Command{cmdProfileList, cmdProfileSetup},
 }
 
-// cmdProfileDescribe represents the 'describe' sub-command of the
+// cmdProfileList represents the 'list' sub-command of the
 // 'profile' command of the veyron tool.
-var cmdProfileDescribe = &cmdline.Command{
-	Run:   runProfileDescribe,
-	Name:  "describe",
-	Short: "Describe supported veyron profiles",
-	Long:  "Inspect the host platform and enumerate supported profiles.",
+var cmdProfileList = &cmdline.Command{
+	Run:   runProfileList,
+	Name:  "list",
+	Short: "List supported veyron profiles",
+	Long:  "Inspect the host platform and list supported profiles.",
 }
 
-func runProfileDescribe(*cmdline.Command, []string) error {
+func runProfileList(*cmdline.Command, []string) error {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return err
+	}
 	dir := filepath.Join(root, "environment/scripts/setup", runtime.GOOS)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -110,6 +101,10 @@ var cmdProfileSetup = &cmdline.Command{
 }
 
 func runProfileSetup(command *cmdline.Command, args []string) error {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return err
+	}
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
 		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
@@ -135,30 +130,28 @@ var cmdProject = &cmdline.Command{
 	Name:     "project",
 	Short:    "Manage veyron projects",
 	Long:     "Manage veyron projects.",
-	Children: []*cmdline.Command{cmdProjectDescribe, cmdProjectUpdate},
+	Children: []*cmdline.Command{cmdProjectList, cmdProjectUpdate},
 }
 
-// cmdProjectDescribe represents the 'describe' sub-command of the
+// cmdProjectList represents the 'list' sub-command of the
 // 'project' command of the veyron tool.
-var cmdProjectDescribe = &cmdline.Command{
-	Run:   runProjectDescribe,
-	Name:  "describe",
-	Short: "Describe supported veyron profiles",
-	Long:  "Inspect the local filesystem and enumerate existing projects.",
+var cmdProjectList = &cmdline.Command{
+	Run:   runProjectList,
+	Name:  "list",
+	Short: "List existing veyron projects",
+	Long:  "Inspect the local filesystem and list the existing projects.",
 }
 
-// runProjectDescribe generates a human-readable description of
+// runProjectList generates a human-readable description of
 // existing projects.
-func runProjectDescribe(*cmdline.Command, []string) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
+func runProjectList(command *cmdline.Command, _ []string) error {
+	if branchesFlag != "none" && branchesFlag != "all" {
+		return command.Errorf("unrecognized branches option: %v", branchesFlag)
 	}
-	defer os.Chdir(wd)
 	git := git.New(verboseFlag)
-	projects := map[string]string{}
-	if err := findCurrentProjects(root, projects, git); err != nil {
-		return fmt.Errorf("%v", err)
+	projects, err := util.LocalProjects(git)
+	if err != nil {
+		return err
 	}
 	names := []string{}
 	for name := range projects {
@@ -167,7 +160,23 @@ func runProjectDescribe(*cmdline.Command, []string) error {
 	sort.Strings(names)
 	description := fmt.Sprintf("Existing projects:\n")
 	for _, name := range names {
-		description += fmt.Sprintf("   %v (located in %v)\n", name, projects[name])
+		description += fmt.Sprintf("  %q in %q\n", filepath.Base(name), projects[name])
+		if branchesFlag != "none" {
+			if err := os.Chdir(projects[name]); err != nil {
+				return fmt.Errorf("Chdir(%v) failed: %v", projects[name], err)
+			}
+			branches, current, err := git.GetBranches()
+			if err != nil {
+				return err
+			}
+			for _, branch := range branches {
+				if branch == current {
+					description += fmt.Sprintf("    * %v\n", branch)
+				} else {
+					description += fmt.Sprintf("    %v\n", branch)
+				}
+			}
+		}
 	}
 	fmt.Printf("%s", description)
 	return nil
@@ -187,15 +196,6 @@ update all projects.
 `,
 	ArgsName: "<projects>",
 	ArgsLong: "<projects> is a list of projects to update.",
-}
-
-type project struct {
-	Name string `xml:"name,attr"`
-	Path string `xml:"path,attr"`
-}
-
-type manifest struct {
-	Projects []project `xml:"project"`
 }
 
 type operationType int
@@ -303,72 +303,6 @@ func computeOperations(updateProjects map[string]struct{}, currentProjects, newP
 	return result, nil
 }
 
-// findCurrentProjects scans the VEYRON_ROOT folder to identify
-// existing projects.
-func findCurrentProjects(path string, projects map[string]string, git *git.Git) error {
-	if err := os.Chdir(path); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", path, err)
-	}
-	name, err := git.RepoName()
-	if err == nil {
-		if existingPath, ok := projects[name]; ok {
-			return fmt.Errorf("name conflict: both %v and %v contain the project %v", existingPath, path, name)
-		}
-		projects[name] = path
-		return nil
-	}
-	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".veyronignore")
-	file, err := os.Open(ignorePath)
-	if err == nil {
-		defer file.Close()
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			ignoreSet[scanner.Text()] = struct{}{}
-		}
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("Scan() failed: %v", err)
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Open(%v) failed: %v", ignorePath, err)
-	}
-	fis, err := ioutil.ReadDir(path)
-	if err != nil {
-		return fmt.Errorf("ReadDir(%v) failed: %v", path, err)
-	}
-	for _, fi := range fis {
-		if _, ignore := ignoreSet[fi.Name()]; fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") && !ignore {
-			if err := findCurrentProjects(filepath.Join(path, fi.Name()), projects, git); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// findNewProjects parses the most recent version fo the project
-// manifest to identify the latest state of the project universe.
-func findNewProjects(projects map[string]string, git *git.Git) error {
-	// Update the manifest.
-	path := filepath.Join(root, ".manifest")
-	if err := updateProject(path, git); err != nil {
-		return err
-	}
-	// Parse the manifest.
-	path = filepath.Join(root, ".manifest", manifestFlag+".xml")
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
-	}
-	var m manifest
-	if err := xml.Unmarshal(data, &m); err != nil {
-		return fmt.Errorf("Unmarshal(%v) failed: %v", string(data), err)
-	}
-	for _, project := range m.Projects {
-		projects[project.Name] = filepath.Join(root, project.Path)
-	}
-	return nil
-}
-
 // preCommitHook is a git hook installed to all new projects. It
 // prevents accidental commits to the local master branch.
 const preCommitHook = `
@@ -456,11 +390,11 @@ func runOperation(op operation, git *git.Git) error {
 		if err := os.Rename(op.source, op.destination); err != nil {
 			return fmt.Errorf("Rename(%v, %v) failed: %v", op.source, op.destination, err)
 		}
-		if err := updateProject(op.destination, git); err != nil {
+		if err := util.UpdateProject(op.destination, git); err != nil {
 			return err
 		}
 	case updateOperation:
-		if err := updateProject(op.destination, git); err != nil {
+		if err := util.UpdateProject(op.destination, git); err != nil {
 			return err
 		}
 	default:
@@ -477,12 +411,12 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 	}
 	defer os.Chdir(wd)
 	git := git.New(verboseFlag)
-	currentProjects := map[string]string{}
-	if err := findCurrentProjects(root, currentProjects, git); err != nil {
+	currentProjects, err := util.LocalProjects(git)
+	if err != nil {
 		return err
 	}
-	newProjects := map[string]string{}
-	if err := findNewProjects(newProjects, git); err != nil {
+	newProjects, err := util.LatestProjects(manifestFlag, git)
+	if err != nil {
 		return err
 	}
 	allProjects := map[string]struct{}{}
@@ -570,36 +504,6 @@ func testOperations(ops operationList) error {
 	return nil
 }
 
-// updateProject advances the local master branch of the project
-// identified by the given path.
-func updateProject(project string, git *git.Git) error {
-	if err := os.Chdir(project); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", project, err)
-	}
-	branch, err := git.CurrentBranchName()
-	if err != nil {
-		return err
-	}
-	stashed, err := git.Stash()
-	if err != nil {
-		return err
-	}
-	if stashed {
-		defer git.StashPop()
-	}
-	if err := git.CheckoutBranch("master"); err != nil {
-		return err
-	}
-	defer git.CheckoutBranch(branch)
-	if err := git.Fetch(); err != nil {
-		return err
-	}
-	if err := git.Merge("FETCH_HEAD", false); err != nil {
-		return err
-	}
-	return nil
-}
-
 // cmdSelfUpdate represents the 'selfupdate' command of the veyron tool.
 var cmdSelfUpdate = &cmdline.Command{
 	Run:   runSelfUpdate,
@@ -609,7 +513,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, manifestFlag, "veyron")
+	return util.SelfUpdate(verboseFlag, manifestFlag, "veyron")
 }
 
 // cmdVersion represents the 'version' command of the veyron tool.

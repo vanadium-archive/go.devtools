@@ -5,7 +5,7 @@ import (
 	"go/build"
 
 	"tools/lib/cmdline"
-	"tools/lib/tool"
+	"tools/lib/util"
 )
 
 var (
@@ -122,7 +122,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, manifestFlag, "go-depcop")
+	return util.SelfUpdate(verboseFlag, manifestFlag, "go-depcop")
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.

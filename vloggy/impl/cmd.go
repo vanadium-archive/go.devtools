@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"tools/lib/cmdline"
-	"tools/lib/tool"
+	"tools/lib/util"
 )
 
 var (
@@ -102,7 +102,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, manifestFlag, "vloggy")
+	return util.SelfUpdate(verboseFlag, manifestFlag, "vloggy")
 }
 
 // cmdVersion represents the 'version' command of the vloggy tool.

@@ -8,36 +8,25 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
 	gitlib "tools/lib/git"
-	"tools/lib/tool"
-)
-
-const (
-	ROOT_ENV = "VEYRON_ROOT"
+	"tools/lib/util"
 )
 
 var (
 	ccsFlag       string
 	draftFlag     bool
+	dirtyFlag     bool
 	forceFlag     bool
+	masterFlag    bool
 	manifestFlag  string
 	reviewersFlag string
 	verboseFlag   bool
-)
-
-var (
-	root = func() string {
-		result := os.Getenv(ROOT_ENV)
-		if result == "" {
-			panic(fmt.Sprintf("%v is not set", ROOT_ENV))
-		}
-		return result
-	}()
 )
 
 // init carries out the package initialization.
@@ -48,6 +37,8 @@ func init() {
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
+	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
+	cmdStatus.Flags.BoolVar(&dirtyFlag, "show-dirty", true, "Indicate if there is unrevisioned content.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -58,7 +49,7 @@ The veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changes from a local branch
 to the Gerrit server.
 `,
-	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdSelfUpdate, cmdStatus, cmdVersion},
 }
 
 // Root returns a command that represents the root of the git veyron tool.
@@ -268,6 +259,10 @@ var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcde
 
 // findGoBinary returns the path to the given Go binary.
 func findGoBinary(name string) (string, error) {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return "", err
+	}
 	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", name)
 	if _, err := os.Stat(envbin); err == nil {
 		return envbin, nil
@@ -555,7 +550,70 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return tool.SelfUpdate(verboseFlag, manifestFlag, "git-veyron")
+	return util.SelfUpdate(verboseFlag, manifestFlag, "git-veyron")
+}
+
+// cmdStatus represent the 'status' command of the git veyron tool.
+var cmdStatus = &cmdline.Command{
+	Run:   runStatus,
+	Name:  "status",
+	Short: "Print a succint status of the veyron repositories",
+	Long: `
+Reports current branches of existing veyron repositories as well as an
+indication of whether there are any unstaged, uncommitted, or stashed
+changes.
+`,
+}
+
+func runStatus(cmd *cmdline.Command, args []string) error {
+	git := gitlib.New(verboseFlag)
+	projects, err := util.LocalProjects(git)
+	if err != nil {
+		return err
+	}
+	names := []string{}
+	for name := range projects {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer os.Chdir(wd)
+	current, err := git.CurrentBranchName()
+	if err != nil {
+		return err
+	}
+	status := ""
+	for _, name := range names {
+		if err := os.Chdir(projects[name]); err != nil {
+			return fmt.Errorf("Chdir(%v) failed: %v", projects[name], err)
+		}
+		branch, err := git.CurrentBranchName()
+		if err != nil {
+			return err
+		}
+		branchStatus := fmt.Sprintf("%v:%v", filepath.Base(name), branch)
+		if dirtyFlag {
+			untracked, err := git.HasUntrackedFiles()
+			if err != nil {
+				return err
+			}
+			if untracked {
+				branchStatus += "%"
+			}
+		}
+		if branch == current {
+			status = branchStatus + status
+		} else {
+			if masterFlag || branch != "master" {
+				status += "," + branchStatus
+			}
+		}
+	}
+	fmt.Println(status)
+	return nil
 }
 
 // cmdVersion represent the 'version' command of the review tool.
