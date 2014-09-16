@@ -9,17 +9,21 @@ import (
 )
 
 var (
-	recursiveFlag     bool
-	verboseFlag       bool
-	manifestFlag      string
-	includeGorootFlag bool
+	gorootFlag     bool
+	manifestFlag   string
+	prettyFlag     bool
+	recursiveFlag  bool
+	transitiveFlag bool
+	verboseFlag    bool
 )
 
 func init() {
 	cmdCheck.Flags.BoolVar(&recursiveFlag, "r", false, "Check dependencies recursively.")
+	cmdList.Flags.BoolVar(&prettyFlag, "pretty-print", false, "Make output easy to read, indenting nested dependencies.")
+	cmdList.Flags.BoolVar(&gorootFlag, "show-goroot", false, "Show packages in goroot.")
+	cmdList.Flags.BoolVar(&transitiveFlag, "transitive", false, "List transitive dependencies.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
-	cmdList.Flags.BoolVar(&includeGorootFlag, "includegoroot", false, "Show packages in goroot.")
 }
 
 // Root returns a command that represents the root of the go-depcop tool.
@@ -32,9 +36,9 @@ var cmdRoot = &cmdline.Command{
 	Short: "Command-line tool for checking Go dependencies",
 	Long: `
 The go-depcop tool checks if a package imports respects outgoing and
-incoming dependecy constraints described in the GO.PACKAGE files.
+incoming dependency constraints described in the GO.PACKAGE files.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdList, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdList, cmdRevList, cmdSelfUpdate, cmdVersion},
 }
 
 // cmdCheck represents the 'check' command of the go-depcop tool.
@@ -89,8 +93,8 @@ func runCheck(command *cmdline.Command, args []string) error {
 var cmdList = &cmdline.Command{
 	Run:      runList,
 	Name:     "list",
-	Short:    "List package dependencies",
-	Long:     "List package dependencies.",
+	Short:    "List outgoing package dependencies",
+	Long:     "List outgoing package dependencies.",
 	ArgsName: "<packages>",
 	ArgsLong: "<packages> is a list of packages",
 }
@@ -107,6 +111,38 @@ func runList(command *cmdline.Command, args []string) error {
 		}
 		if err := printDependencyHierarchy(p, map[*build.Package]bool{}, 0); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// cmdRevList represents the 'rlist' command of the go-depcop tool.
+var cmdRevList = &cmdline.Command{
+	Run:      runRevList,
+	Name:     "rlist",
+	Short:    "List incoming package dependencies",
+	Long:     "List incoming package dependencies.",
+	ArgsName: "<packages>",
+	ArgsLong: "<packages> is a list of packages",
+}
+
+// TODO(jsimsa): Implement transitive incoming dependencies as a
+// fix-point.
+func runRevList(command *cmdline.Command, args []string) error {
+	if len(args) == 0 {
+		command.Errorf("not enough arguments")
+	}
+	revDeps, err := computeIncomingDependencies()
+	if err != nil {
+		return err
+	}
+	for _, arg := range args {
+		if deps, ok := revDeps[arg]; !ok {
+			fmt.Fprintf(command.Stderr(), "package %v not found\n", arg)
+		} else {
+			for dep, _ := range deps {
+				fmt.Fprintf(command.Stdout(), "%v\n", dep)
+			}
 		}
 	}
 	return nil

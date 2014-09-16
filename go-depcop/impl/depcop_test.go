@@ -2,6 +2,8 @@ package impl
 
 import (
 	"go/build"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -54,7 +56,7 @@ type dependencyRuleTest struct {
 	testCases []dependencyRuleTestCase
 }
 
-func TestPackages(t *testing.T) {
+func TestVerifyDependency(t *testing.T) {
 	var packageTests = []packageTest{
 		{"tools/go-depcop/impl/internal/testpackages/test-a", false},
 		{"tools/go-depcop/impl/internal/testpackages/test-b", true},
@@ -101,4 +103,28 @@ func (policy *DependencyPolicy) ruleSet(outgoing bool) []DependencyRule {
 		return policy.Outgoing
 	}
 	return policy.Incoming
+}
+
+func TestComputeIncomingDependency(t *testing.T) {
+	root := os.Getenv("VEYRON_ROOT")
+	if root == "" {
+		t.Fatalf("VEYRON_ROOT not set")
+	}
+	oldPath := os.Getenv("GOPATH")
+	defer os.Setenv("GOPATH", oldPath)
+	if err := os.Setenv("GOPATH", filepath.Join(root, "tools", "go")); err != nil {
+		t.Fatalf("Setenv(%v, %v) failed: %v", "GOPATH", filepath.Join(root, "tools", "go"))
+	}
+	allDeps, err := computeIncomingDependencies()
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+	this, that := "tools/go-depcop/impl", "tools/go-depcop"
+	if deps, ok := allDeps[this]; !ok {
+		t.Fatalf("no incoming dependencies for %v", this)
+	} else {
+		if _, ok := deps[that]; !ok {
+			t.Fatalf("missing incoming dependency for %v -> %v", that, this)
+		}
+	}
 }

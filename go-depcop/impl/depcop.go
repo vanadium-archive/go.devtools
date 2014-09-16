@@ -3,6 +3,8 @@ package impl
 import (
 	"fmt"
 	"go/build"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -84,6 +86,53 @@ func (r DependencyRule) Enforce(p *build.Package) (DependencyPolicyAction, error
 	return UndecidedPolicyAction, nil
 }
 
+func collectDirs(root, suffix string, dirs map[string]struct{}) error {
+	path := filepath.Join(root, suffix)
+	fis, err := ioutil.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("ReadDir(%v) failed: %v", path, err)
+	}
+	for _, fi := range fis {
+		if fi.IsDir() {
+			suffix2 := filepath.Join(suffix, fi.Name())
+			dirs[suffix2] = struct{}{}
+			collectDirs(root, suffix2, dirs)
+		}
+	}
+	return nil
+}
+
+func computeIncomingDependencies() (map[string]map[string]struct{}, error) {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		return nil, fmt.Errorf("GOPATH is not set")
+	}
+	dirs := strings.Split(gopath, ":")
+	allDirs := map[string]struct{}{}
+	for _, dir := range dirs {
+		if err := collectDirs(filepath.Join(dir, "src"), "", allDirs); err != nil {
+			return nil, err
+		}
+	}
+	allDeps := map[string]map[string]struct{}{}
+	for dir, _ := range allDirs {
+		allDeps[dir] = map[string]struct{}{}
+	}
+	for dir, _ := range allDirs {
+		mode := build.ImportMode(0)
+		pkg, err := build.Import(dir, "", mode)
+		if err != nil {
+			fmt.Errorf("Import(%v, %v) failed: %v", dir, mode, err)
+		}
+		for _, dep := range pkg.Imports {
+			if deps, ok := allDeps[dep]; ok {
+				deps[dir] = struct{}{}
+			}
+		}
+	}
+	return allDeps, nil
+}
+
 func enforceDependencyRulesOnPackage(rules []DependencyRule, p *build.Package) (DependencyPolicyAction, int, error) {
 	for i, r := range rules {
 		if x, err := r.Enforce(p); err != nil {
@@ -152,18 +201,23 @@ func validateDependencyRelationship(p, x *build.Package, direction DependencyDir
 }
 
 func printDependencyHierarchy(p *build.Package, visited map[*build.Package]bool, depth int) error {
-	for i := 0; i < depth-1; i++ {
-		fmt.Print(" │")
-	}
-	if depth > 0 {
-		fmt.Print(" ├─")
+	if prettyFlag {
+		for i := 0; i < depth-1; i++ {
+			fmt.Print(" │")
+		}
+		if depth > 0 {
+			fmt.Print(" ├─")
+		} else {
+			fmt.Print("#")
+		}
+		fmt.Println(p.ImportPath)
 	} else {
-		fmt.Print("#")
+		if depth > 0 {
+			fmt.Println(p.ImportPath)
+		}
 	}
 
-	fmt.Println(p.ImportPath)
-
-	if visited[p] {
+	if visited[p] || (!transitiveFlag && depth == 1) {
 		return nil
 	}
 
@@ -173,7 +227,7 @@ func printDependencyHierarchy(p *build.Package, visited map[*build.Package]bool,
 		if err != nil {
 			return err
 		}
-		if includeGorootFlag || !pkg.Goroot {
+		if gorootFlag || !pkg.Goroot {
 			if err := printDependencyHierarchy(pkg, visited, depth+1); err != nil {
 				return err
 			}
