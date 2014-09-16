@@ -20,6 +20,7 @@ import (
 
 var (
 	ccsFlag       string
+	currentFlag   bool
 	draftFlag     bool
 	dirtyFlag     bool
 	forceFlag     bool
@@ -39,6 +40,7 @@ func init() {
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
 	cmdStatus.Flags.BoolVar(&dirtyFlag, "show-dirty", true, "Indicate if there is unrevisioned content.")
+	cmdStatus.Flags.BoolVar(&currentFlag, "show-current", false, "Show the name of the current repo.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -581,11 +583,11 @@ func runStatus(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	current, err := git.CurrentBranchName()
+	currentRepo, err := git.RepoName()
 	if err != nil {
 		return err
 	}
-	status := ""
+	var statuses []string
 	for _, name := range names {
 		if err := os.Chdir(projects[name]); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", projects[name], err)
@@ -604,15 +606,19 @@ func runStatus(cmd *cmdline.Command, args []string) error {
 				branchStatus += "%"
 			}
 		}
-		if branch == current {
-			status = branchStatus + status
+		if currentRepo == name {
+			if currentFlag {
+				statuses = append([]string{branchStatus}, statuses...)
+			} else {
+				statuses = append([]string{branch}, statuses...)
+			}
 		} else {
 			if masterFlag || branch != "master" {
-				status += "," + branchStatus
+				statuses = append(statuses, branchStatus)
 			}
 		}
 	}
-	fmt.Println(status)
+	fmt.Println(strings.Join(statuses, ","))
 	return nil
 }
 
