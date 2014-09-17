@@ -142,3 +142,45 @@ func TestNewOpenCLs(t *testing.T) {
 		t.Errorf("want: %v, got: %v", expected, got)
 	}
 }
+
+func TestTestsForRepo(t *testing.T) {
+	configFileContent := `
+{
+  "veyron": [
+    "veyron-go-build",
+    "veyron-go-test"
+  ],
+  "default": [
+    "tools-go-build",
+    "tools-go-test"
+  ]
+}
+  `
+
+	// Get tests for a repo that is in the config file.
+	got, err := testsForRepo([]byte(configFileContent), "veyron")
+	expected := []string{
+		"veyron-go-build",
+		"veyron-go-test",
+	}
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+
+	// Get tests for a repo that is NOT in the config file.
+	// This should fall back to getting tests for "_all".
+	got, err = testsForRepo([]byte(configFileContent), "non-exist-repo")
+	expected = []string{
+		"tools-go-build",
+		"tools-go-test",
+	}
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+}

@@ -3,15 +3,20 @@ package impl
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"tools/lib/cmd"
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
+	"tools/lib/git"
 	"tools/lib/util"
 )
 
@@ -21,6 +26,7 @@ const (
 	defaultQueryString                 = "(status:open -label:Code-Review=2 -project:experimental)"
 	defaultLogFilePath                 = "/var/veyron/tmp/presubmitter_log"
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
+	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
 )
 
 type credential struct {
@@ -40,9 +46,23 @@ var (
 	reviewMessageFlag               string
 	reviewTargetRefFlag             string
 	manifestFlag                    string
+	testsConfigFileFlag             string
+	repoFlag                        string
+	testScriptsBasePathFlag         string
+	manifestNameFlag                string
+	jenkinsBuildNumberFlag          int
+	veyronRoot                      string
 )
 
 func init() {
+	// Check VEYRON_ROOT.
+	var err error
+	veyronRoot, err = util.VeyronRoot()
+	if err != nil {
+		fmt.Errorf("%v", err)
+		return
+	}
+
 	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
 	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
@@ -53,6 +73,12 @@ func init() {
 	cmdQuery.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
 	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
 	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
+	cmdTest.Flags.StringVar(&testsConfigFileFlag, "conf", filepath.Join(veyronRoot, "tools", "go", "src", "tools", "presubmitter", "presubmit_tests.conf"), "The config file for presubmit tests.")
+	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The repo for the CL pointed by the ref.")
+	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
+	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "jenkins", "scripts"), "The base path of all the test scripts.")
+	cmdTest.Flags.StringVar(&manifestNameFlag, "manifest", "default", "Name of the project manifest.")
+	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
@@ -66,7 +92,7 @@ var cmdRoot = &cmdline.Command{
 	Name:     "presubmitter",
 	Short:    "Command-line tool for various presubmit related functionalities",
 	Long:     "Command-line tool for various presubmit related functionalities.",
-	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdTest, cmdSelfUpdate, cmdVersion},
 }
 
 // cmdQuery represents the 'query' command of the presubmitter tool.
@@ -323,6 +349,168 @@ func runPost(command *cmdline.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// cmdTest represents the 'test' command of the presubmitter tool.
+var cmdTest = &cmdline.Command{
+	Name:  "test",
+	Short: "Run tests for a CL",
+	Long: `
+This subcommand pulls the open CLs from Gerrit, runs tests specified in a config
+file, and posts test results back to the corresponding Gerrit review thread.
+`,
+	Run: runTest,
+}
+
+// runTest implements the 'test' subcommand.
+func runTest(command *cmdline.Command, args []string) error {
+	// Basic sanity checks.
+	manifestFilePath := filepath.Join(veyronRoot, ".manifest", manifestNameFlag+".xml")
+	if _, err := os.Stat(testsConfigFileFlag); err != nil {
+		return fmt.Errorf("Stat(%q) failed: %v", testsConfigFileFlag, err)
+	}
+	if _, err := os.Stat(manifestFilePath); err != nil {
+		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
+	}
+	if _, err := os.Stat(testScriptsBasePathFlag); err != nil {
+		return fmt.Errorf("Stat(%q) failed: %v", testScriptsBasePathFlag, err)
+	}
+	if repoFlag == "" {
+		return command.Errorf("-repo flag is required")
+	}
+	if reviewTargetRefFlag == "" {
+		return command.Errorf("-ref flag is required")
+	}
+	parts := strings.Split(reviewTargetRefFlag, "/")
+	if expected, got := 5, len(parts); expected != got {
+		return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", reviewTargetRefFlag, expected, got)
+	}
+	cl, patchSet := parts[3], parts[4]
+
+	// Parse the manifest file to get the local path for the repo.
+	projects, err := util.LatestProjects(manifestNameFlag, git.New(verboseFlag))
+	if err != nil {
+		return err
+	}
+	localRepoDir, ok := projects[repoFlag]
+	if !ok {
+		return fmt.Errorf("repo %q not found", repoFlag)
+	}
+
+	// Setup cleanup function for cleaning up presubmit test branch.
+	cleanupFn := func() {
+		if err := cleanUpPresubmitTestBranch(localRepoDir); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+		}
+	}
+	defer cleanupFn()
+
+	// Prepare presubmit test branch.
+	if err := preparePresubmitTestBranch(localRepoDir, cl); err != nil {
+		return err
+	}
+
+	// Parse tests from config file.
+	configFileContent, err := ioutil.ReadFile(testsConfigFileFlag)
+	if err != nil {
+		return fmt.Errorf("ReadFile(%q) failed: %v", testsConfigFileFlag)
+	}
+	tests, err := testsForRepo(configFileContent, repoFlag)
+	if err != nil {
+		return err
+	}
+
+	// Run tests.
+	// TODO(jingjin): Add support for expressing dependencies between tests
+	// (e.g. run test B only if test A passes).
+	results := &bytes.Buffer{}
+	fmt.Fprintf(results, "Test results for http://go/vcl/%s, patch set %s:\n\n", cl, patchSet)
+	for _, test := range tests {
+		fmt.Printf("\n### Running %q\n", test)
+		testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
+		if _, err := cmd.RunOutputError(verboseFlag, testScript); err != nil {
+			fmt.Fprintf(results, "FAILED: %s\n", test)
+		} else {
+			fmt.Fprintf(results, "PASSED: %s\n", test)
+		}
+	}
+	if jenkinsBuildNumberFlag >= 0 {
+		fmt.Fprintf(results, "\nSee details at: %s/%s/%d/console\n",
+			jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
+	}
+
+	// Post test results.
+	reviewMessageFlag = results.String()
+	fmt.Println("\n### Posting test results to Gerrit")
+	if err := runPost(nil, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// presubmitTestBranchName returns the name of the branch where the cl content is pulled.
+func presubmitTestBranchName() string {
+	return "presubmit_" + reviewTargetRefFlag
+}
+
+// preparePresubmitTestBranch creates and checks out the presubmit test branch and pulls the CL there.
+func preparePresubmitTestBranch(localRepoDir, cl string) error {
+	fmt.Printf("\n### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer os.Chdir(wd)
+	if err := os.Chdir(localRepoDir); err != nil {
+		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+	}
+	git := git.New(verboseFlag)
+	branchName := presubmitTestBranchName()
+	if err := git.CreateAndCheckoutBranch(branchName); err != nil {
+		return fmt.Errorf("CreateAndCheckoutBranch(%q) failed: %v", branchName, err)
+	}
+	origin := "origin"
+	if err := git.Pull(origin, reviewTargetRefFlag); err != nil {
+		return fmt.Errorf("Pull(%q, %q) failed: %v", origin, reviewTargetRefFlag, err)
+	}
+	return nil
+}
+
+// cleanUpPresubmitTestBranch removes the presubmit test branch.
+func cleanUpPresubmitTestBranch(localRepoDir string) error {
+	fmt.Println("\n### Cleaning up")
+
+	if err := os.Chdir(localRepoDir); err != nil {
+		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+	}
+	git := git.New(verboseFlag)
+	master := "master"
+	if err := git.CheckoutBranch(master); err != nil {
+		return fmt.Errorf("CheckoutBranch(%q) failed: %v", master, err)
+	}
+	branchName := presubmitTestBranchName()
+	if err := git.ForceDeleteBranch(branchName); err != nil {
+		return fmt.Errorf("ForceDeleteBranch(%q) failed: %v", branchName, err)
+	}
+	return nil
+}
+
+// testsForRepo returns all the tests for the given repo by querying the presubmit tests config file.
+func testsForRepo(testsConfigContent []byte, repoName string) ([]string, error) {
+	var repos map[string][]string
+	if err := json.Unmarshal(testsConfigContent, &repos); err != nil {
+		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", testsConfigContent, err)
+	}
+	if _, ok := repos[repoName]; !ok {
+		fmt.Printf("Configuration for repository %q not found, using default configuration instead.\n", repoName)
+		repoName = "default"
+		if _, ok := repos[repoName]; !ok {
+			return nil, fmt.Errorf("default configuration not found")
+		}
+	}
+	return repos[repoName], nil
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the presubmitter tool.
