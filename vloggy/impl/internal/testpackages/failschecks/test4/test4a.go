@@ -6,7 +6,7 @@ package test4
 
 import (
 	"fmt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type Type1 struct{}
