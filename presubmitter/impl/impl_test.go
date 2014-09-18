@@ -1,11 +1,14 @@
 package impl
 
 import (
+	"io/ioutil"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"tools/lib/gerrit"
+	"tools/lib/util"
 )
 
 func TestParseValidNetRcFile(t *testing.T) {
@@ -171,16 +174,30 @@ func TestTestsForRepo(t *testing.T) {
 	}
 
 	// Get tests for a repo that is NOT in the config file.
-	// This should fall back to getting tests for "_all".
+	// This should return empty tests.
 	got, err = testsForRepo([]byte(configFileContent), "non-exist-repo")
-	expected = []string{
-		"tools-go-build",
-		"tools-go-test",
-	}
+	expected = []string{}
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
 	}
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("want: %v, got: %v", expected, got)
+	}
+}
+
+func TestTestsConfigFile(t *testing.T) {
+	veyronRoot, err := util.VeyronRoot()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	presubmitTestsConfigFile := filepath.Join(veyronRoot, "tools", "go", "src", "tools", "presubmitter", "presubmit_tests.conf")
+	configFileContent, err := ioutil.ReadFile(presubmitTestsConfigFile)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) failed: %v", presubmitTestsConfigFile, err)
+	}
+	_, err = testsForRepo(configFileContent, repoFlag)
+	if err != nil {
+		t.Fatalf("%v", err)
 	}
 }

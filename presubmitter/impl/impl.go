@@ -74,10 +74,10 @@ func init() {
 	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
 	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testsConfigFileFlag, "conf", filepath.Join(veyronRoot, "tools", "go", "src", "tools", "presubmitter", "presubmit_tests.conf"), "The config file for presubmit tests.")
-	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The repo for the CL pointed by the ref.")
+	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "jenkins", "scripts"), "The base path of all the test scripts.")
-	cmdTest.Flags.StringVar(&manifestNameFlag, "manifest", "default", "Name of the project manifest.")
+	cmdTest.Flags.StringVar(&manifestNameFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
@@ -387,6 +387,19 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 	cl, patchSet := parts[3], parts[4]
 
+	// Parse tests from config file.
+	configFileContent, err := ioutil.ReadFile(testsConfigFileFlag)
+	if err != nil {
+		return fmt.Errorf("ReadFile(%q) failed: %v", testsConfigFileFlag)
+	}
+	tests, err := testsForRepo(configFileContent, repoFlag)
+	if err != nil {
+		return err
+	}
+	if len(tests) == 0 {
+		return nil
+	}
+
 	// Parse the manifest file to get the local path for the repo.
 	projects, err := util.LatestProjects(manifestNameFlag, git.New(verboseFlag))
 	if err != nil {
@@ -407,16 +420,6 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Prepare presubmit test branch.
 	if err := preparePresubmitTestBranch(localRepoDir, cl); err != nil {
-		return err
-	}
-
-	// Parse tests from config file.
-	configFileContent, err := ioutil.ReadFile(testsConfigFileFlag)
-	if err != nil {
-		return fmt.Errorf("ReadFile(%q) failed: %v", testsConfigFileFlag)
-	}
-	tests, err := testsForRepo(configFileContent, repoFlag)
-	if err != nil {
 		return err
 	}
 
@@ -501,14 +504,11 @@ func cleanUpPresubmitTestBranch(localRepoDir string) error {
 func testsForRepo(testsConfigContent []byte, repoName string) ([]string, error) {
 	var repos map[string][]string
 	if err := json.Unmarshal(testsConfigContent, &repos); err != nil {
-		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", testsConfigContent, err)
+		return nil, fmt.Errorf("Unmarshal(%q) failed: %v", testsConfigContent, err)
 	}
 	if _, ok := repos[repoName]; !ok {
-		fmt.Printf("Configuration for repository %q not found, using default configuration instead.\n", repoName)
-		repoName = "default"
-		if _, ok := repos[repoName]; !ok {
-			return nil, fmt.Errorf("default configuration not found")
-		}
+		fmt.Printf("Configuration for repository %q not found. Not running any tests.\n", repoName)
+		return []string{}, nil
 	}
 	return repos[repoName], nil
 }
