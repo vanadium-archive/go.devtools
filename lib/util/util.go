@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,22 @@ import (
 const (
 	rootEnv = "VEYRON_ROOT"
 )
+
+type configType struct {
+	GoRepos []string
+}
+
+var baseEnv map[string]string
+
+func init() {
+	// Initialize the baseEnv map with values of the environment
+	// variables relevant to veyron.
+	baseEnv = map[string]string{}
+	vars := []string{"GOPATH"}
+	for _, v := range vars {
+		baseEnv[v] = os.Getenv(v)
+	}
+}
 
 // LatestProjects parses the most recent version fo the project
 // manifest to identify the latest projects.
@@ -45,6 +62,21 @@ func LocalProjects(git *git.Git) (map[string]string, error) {
 func SelfUpdate(verbose bool, manifest, name string) error {
 	updateFn := func() error { return selfUpdate(verbose, manifest, name) }
 	return cmd.Log(updateFn, "Updating tool %q", name)
+}
+
+// SetupVeyronEnvironment sets up the environment variables used by
+// the veyron setup.
+func SetupVeyronEnvironment() error {
+	environment, err := VeyronEnvironment()
+	if err != nil {
+		return err
+	}
+	for key, value := range environment {
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("Setenv(%v, %v) failed: %v", key, value, err)
+		}
+	}
+	return nil
 }
 
 // UpdateProject advances the local master branch of the project
@@ -80,6 +112,34 @@ func UpdateProject(project string, git *git.Git) error {
 		return err
 	}
 	return nil
+}
+
+// VeyronEnvironment returns the environment variables setting for
+// veyron. The util package captures the original state of the
+// environment variables relevant to veyron when it is initialized,
+// and every invocation of this function updates this original state
+// according to the current configuration of the veyron tool.
+func VeyronEnvironment() (map[string]string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return nil, err
+	}
+	configPath := filepath.Join(root, "tools", "conf", "veyron")
+	configBytes, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFile(%v) failed: %v", configPath, err)
+	}
+	var config configType
+	if err := json.Unmarshal(configBytes, &config); err != nil {
+		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(configBytes), err)
+	}
+	workspaces := []string{}
+	for _, repo := range config.GoRepos {
+		workspaces = append(workspaces, filepath.Join(root, repo, "go"))
+	}
+	env := map[string]string{}
+	env["GOPATH"] = strings.Join(append([]string{baseEnv["GOPATH"]}, workspaces...), ":")
+	return env, nil
 }
 
 // VeyronRoot returns the root of the veyron universe.

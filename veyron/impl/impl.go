@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -41,7 +42,56 @@ var cmdRoot = &cmdline.Command{
 	Name:     "veyron",
 	Short:    "Command-line tool for managing veyron projects",
 	Long:     "The veyron tool facilitates interaction with veyron projects.",
-	Children: []*cmdline.Command{cmdProfile, cmdProject, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdGo, cmdProfile, cmdProject, cmdRun, cmdSelfUpdate, cmdVersion},
+}
+
+// cmdGo represents the 'go' command of the veyron tool.
+var cmdGo = &cmdline.Command{
+	Run:   runGo,
+	Name:  "go",
+	Short: "Wrapper around the Go build tool",
+	Long: `
+Wrapper around the 'go' tool that takes care of veyron-specific setup,
+such as setting up the GOPATH or making sure that VDL generated files
+are regenerated before compilation.
+`,
+	ArgsName: "<args>",
+	ArgsLong: "<args> is a list for the arguments for the Go tool.",
+}
+
+func runGo(command *cmdline.Command, args []string) error {
+	if len(args) == 0 {
+		command.Errorf("not enough arguments")
+	}
+	if err := util.SetupVeyronEnvironment(); err != nil {
+		return err
+	}
+	switch args[0] {
+	case "build", "install", "run", "test":
+		if err := generateVDL(); err != nil {
+			return err
+		}
+	}
+	goCmd := exec.Command("go", args...)
+	goCmd.Stdout = command.Stdout()
+	goCmd.Stderr = command.Stderr()
+	if err := goCmd.Run(); err != nil {
+		return fmt.Errorf("%v %v failed: %v", goCmd.Path, strings.Join(goCmd.Args, " "), err)
+	}
+	return nil
+}
+
+func generateVDL() error {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return err
+	}
+	vdlMain := filepath.Join(root, "veyron", "go", "src", "veyron2", "vdl", "vdl", "*.go")
+	goCmd := exec.Command("go", "run", vdlMain, "generate", "all")
+	if out, err := goCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("generating up-to-date VDL files failed: %v\n%s", err, out)
+	}
+	return nil
 }
 
 // cmdProfile represents the 'profile' command of the veyron tool.
@@ -504,6 +554,36 @@ func testOperations(ops operationList) error {
 	return nil
 }
 
+// cmdRun represents the 'run' command of the veyron tool.
+var cmdRun = &cmdline.Command{
+	Run:      runRun,
+	Name:     "run",
+	Short:    "Execute a command using the veyron environment",
+	Long:     "Execute a command using the veyron environment.",
+	ArgsName: "<command> <args>",
+	ArgsLong: "<command> <args> is a command and list of its arguments",
+}
+
+func runRun(command *cmdline.Command, args []string) error {
+	if len(args) == 0 {
+		command.Errorf("no command to run")
+	}
+	if err := util.SetupVeyronEnvironment(); err != nil {
+		return err
+	}
+	switch args[0] {
+	case "go":
+		return fmt.Errorf(`use "veyron go" instead of "veyron run go"`)
+	}
+	goCmd := exec.Command(args[0], args[1:]...)
+	goCmd.Stdout = command.Stdout()
+	goCmd.Stderr = command.Stderr()
+	if err := goCmd.Run(); err != nil {
+		return fmt.Errorf("%v %v failed: %v", goCmd.Path, strings.Join(goCmd.Args, " "), err)
+	}
+	return nil
+}
+
 // cmdSelfUpdate represents the 'selfupdate' command of the veyron tool.
 var cmdSelfUpdate = &cmdline.Command{
 	Run:   runSelfUpdate,
@@ -512,7 +592,7 @@ var cmdSelfUpdate = &cmdline.Command{
 	Long:  "Download and install the latest version of the veyron tool.",
 }
 
-func runSelfUpdate(command *cmdline.Command, args []string) error {
+func runSelfUpdate(*cmdline.Command, []string) error {
 	return util.SelfUpdate(verboseFlag, manifestFlag, "veyron")
 }
 
@@ -530,7 +610,7 @@ const version string = "0.3.0"
 // go build -ldflags "-X tools/veyron/impl.commitId <commitId>" tools/veyron
 var commitId string = "test-build"
 
-func runVersion(cmd *cmdline.Command, args []string) error {
+func runVersion(*cmdline.Command, []string) error {
 	fmt.Printf("veyron tool version %v (build %v)\n", version, commitId)
 	return nil
 }
