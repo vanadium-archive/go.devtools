@@ -1,3 +1,5 @@
+// +build testpackage
+
 // iface declares the interface used by test packages.
 package iface
 

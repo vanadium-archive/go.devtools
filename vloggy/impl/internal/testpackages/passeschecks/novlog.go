@@ -1,3 +1,5 @@
+// +build testpackage
+
 package passeschecks
 
 import "fmt"

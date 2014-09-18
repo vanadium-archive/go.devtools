@@ -1,3 +1,5 @@
+// +build testpackage
+
 package testa
 
 import "fmt"

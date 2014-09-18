@@ -1,3 +1,5 @@
+// +build testpackage
+
 // test1 should fail the log check because Method1
 // prints something before calling LogCall.
 package test1
