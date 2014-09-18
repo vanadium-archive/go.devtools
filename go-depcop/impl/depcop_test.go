@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+func init() {
+	ctx.BuildTags = []string{"testpackage"}
+}
+
 func TestEnforceDependencyRulesOnPackage(t *testing.T) {
 	var dependencyRuleTests = []dependencyRuleTest{
 		{DependencyPolicy{

@@ -1,3 +1,5 @@
+// +build testpackage
+
 // test3 fails the log check because it does not include
 // any logging constructs.
 package test3

@@ -1,3 +1,5 @@
+// +build testpackage
+
 package passeschecks
 
 import "veyron.io/veyron/veyron2/vlog"

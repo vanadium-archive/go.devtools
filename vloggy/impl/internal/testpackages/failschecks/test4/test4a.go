@@ -1,3 +1,5 @@
+// +build testpackage
+
 // test4 fails the log check, because it has an executable
 // statement in Method1() before the required log statement.
 // Type1 is splitted across two files, and this test ensures

@@ -1,3 +1,5 @@
+// +build testpackage
+
 // passeschecks should pass all the log checks, as it includes
 // all the necessary logging constructs.
 package passeschecks

@@ -52,10 +52,12 @@ func TestInjection(t *testing.T) {
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
 	l := LogInjector{CheckerMode, []string{path.Join(testPackagePrefix, "iface")}, packages}
 
-	prog, interfacePackages, implementationPackages, err := l.load()
+	prog, err := l.loadWithBuildTags([]string{"testpackage"})
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	interfacePackages, implementationPackages := l.findPackages(prog)
 
 	interfaces := findPublicInterfaces(interfacePackages)
 	if len(interfaces) == 0 {

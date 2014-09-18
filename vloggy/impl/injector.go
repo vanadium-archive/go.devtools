@@ -3,6 +3,7 @@ package impl
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -35,19 +36,22 @@ type LogInjector struct {
 	Interfaces, Implementations []string
 }
 
-func (l LogInjector) load() (prog *loader.Program, interfacePackages, implementationPackages []*loader.PackageInfo, err error) {
+func (l LogInjector) loadWithBuildTags(tags []string) (prog *loader.Program, err error) {
 	// TODO: expand "..." in package names in command line
-	conf := loader.Config{SourceImports: true}
-
+	buildContext := build.Default
+	buildContext.BuildTags = tags
+	conf := loader.Config{SourceImports: true, Build: &buildContext}
 	allPackages := append(append([]string{}, l.Interfaces...), l.Implementations...)
 	conf.FromArgs(allPackages, false)
 	conf.ParserMode |= parser.ParseComments
+	return conf.Load()
+}
 
-	prog, err = conf.Load()
-	if err != nil {
-		return nil, nil, nil, err
-	}
+func (l LogInjector) load() (prog *loader.Program, err error) {
+	return l.loadWithBuildTags(nil)
+}
 
+func (l LogInjector) findPackages(prog *loader.Program) (interfacePackages, implementationPackages []*loader.PackageInfo) {
 	iSet := newStringSet(l.Interfaces)
 	mSet := newStringSet(l.Implementations)
 
@@ -64,7 +68,7 @@ func (l LogInjector) load() (prog *loader.Program, interfacePackages, implementa
 		}
 	}
 
-	return prog, iPackages, mPackages, nil
+	return iPackages, mPackages
 }
 
 type void struct{}
@@ -84,10 +88,12 @@ func newStringSet(values []string) map[string]void {
 
 // Run runs the log injector.
 func (l LogInjector) Run() error {
-	prog, interfacePackages, implementationPackages, err := l.load()
+	prog, err := l.load()
 	if err != nil {
 		return err
 	}
+
+	interfacePackages, implementationPackages := l.findPackages(prog)
 
 	interfaces := findPublicInterfaces(interfacePackages)
 	methods := findMethodsImplementing(implementationPackages, interfaces)
