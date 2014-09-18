@@ -571,6 +571,10 @@ func runRun(command *cmdline.Command, args []string) error {
 	if err := util.SetupVeyronEnvironment(); err != nil {
 		return err
 	}
+	// For certain commands, veyron uses specialized wrappers that do
+	// more than just set up the veyron environment. If the user is
+	// trying to run any of these commands using the 'run' command,
+	// inform the user that they should use the specialized wrapper.
 	switch args[0] {
 	case "go":
 		return fmt.Errorf(`use "veyron go" instead of "veyron run go"`)
