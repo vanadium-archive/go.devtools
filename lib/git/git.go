@@ -54,7 +54,7 @@ func (g *Git) AddRemote(name, path string) error {
 // BranchExists tests whether a branch with the given name exists in the local
 // repository.
 func (g *Git) BranchExists(branchName string) bool {
-	if err := cmd.Run(g.verbose, "git", "show-branch", branchName); err != nil {
+	if err := g.run("show-branch", branchName); err != nil {
 		return false
 	}
 	return true
@@ -219,6 +219,8 @@ func (g *Git) GetBranches() ([]string, string, error) {
 	return branches, current, nil
 }
 
+// HasUntrackedFiles checks whether the current branch contains any
+// untracked files.
 func (g *Git) HasUntrackedFiles() (bool, error) {
 	args := []string{"ls-files", "--other", "--directory", "--exclude-standard"}
 	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
@@ -233,6 +235,15 @@ func (g *Git) HasUntrackedFiles() (bool, error) {
 	return true, nil
 }
 
+// HasUnstagedChanges checks whether the current branch contains any
+// unstaged changes.
+func (g *Git) HasUnstagedChanges() bool {
+	if err := g.run("diff", "--no-ext-diff", "--quiet", "--exit-code"); err != nil {
+		return true
+	}
+	return false
+}
+
 // Init initializes a new git repo.
 func (g *Git) Init(path string) error {
 	return g.run("init", path)
@@ -245,7 +256,7 @@ func (g *Git) IsFileCommitted(file string) bool {
 		return false
 	}
 	// Check if file is unknown to git.
-	if err := cmd.Run(g.verbose, "git", "ls-files", file, "--error-unmatch"); err != nil {
+	if err := g.run("ls-files", file, "--error-unmatch"); err != nil {
 		return false
 	}
 	return true
@@ -281,7 +292,7 @@ func (g *Git) Merge(branch string, squash bool) error {
 	}
 	args = append(args, branch)
 	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
-		cmd.Run(g.verbose, "git", "reset", "--merge")
+		g.run("reset", "--merge")
 		return fmt.Errorf("%v", strings.Join(out, "\n"))
 	}
 	return nil
