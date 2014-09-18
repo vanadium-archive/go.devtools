@@ -16,11 +16,11 @@ import (
 )
 
 const (
-	vlogPackageIdentifier = "vlog"         // package name holding the log function
-	vlogPackageImportPath = "veyron2/vlog" // full import path for the log package
-	vlogCallFuncName      = "LogCall"      // name of the default logging function
-	vlogCallfFuncName     = "LogCallf"     // name of the formattable logging function
-	nologComment          = "novlog"       // magic comment that disables injection
+	vlogPackageIdentifier = "vlog"                          // package name holding the log function
+	vlogPackageImportPath = "veyron.io/veyron/veyron2/vlog" // full import path for the log package
+	vlogCallFuncName      = "LogCall"                       // name of the default logging function
+	vlogCallfFuncName     = "LogCallf"                      // name of the formattable logging function
+	nologComment          = "novlog"                        // magic comment that disables injection
 )
 
 type LogInjectorMode int
