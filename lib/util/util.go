@@ -250,7 +250,7 @@ func selfUpdate(verbose bool, manifest, name string) error {
 	if err := os.Chdir(repo); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", repo, err)
 	}
-	goScript := filepath.Join(root, "veyron", "scripts", "build", "go")
+	goScript := filepath.Join(root, "scripts", "build", "go")
 	git := git.New(verbose)
 	count, err := git.CountCommits("HEAD", "")
 	if err != nil {
