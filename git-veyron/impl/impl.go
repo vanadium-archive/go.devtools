@@ -22,12 +22,13 @@ var (
 	ccsFlag       string
 	currentFlag   bool
 	draftFlag     bool
-	dirtyFlag     bool
 	forceFlag     bool
 	masterFlag    bool
 	manifestFlag  string
 	reviewersFlag string
 	verboseFlag   bool
+	untrackedFlag bool
+	unstagedFlag  bool
 )
 
 // init carries out the package initialization.
@@ -39,7 +40,8 @@ func init() {
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
-	cmdStatus.Flags.BoolVar(&dirtyFlag, "show-dirty", true, "Indicate if there is unrevisioned content.")
+	cmdStatus.Flags.BoolVar(&unstagedFlag, "show-unstaged", true, "Indicate if there are any unstaged changes.")
+	cmdStatus.Flags.BoolVar(&untrackedFlag, "show-untracked", true, "Indicate if there are any untracked files.")
 	cmdStatus.Flags.BoolVar(&currentFlag, "show-current", false, "Show the name of the current repo.")
 }
 
@@ -596,25 +598,32 @@ func runStatus(cmd *cmdline.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		branchStatus := fmt.Sprintf("%v:%v", filepath.Base(name), branch)
-		if dirtyFlag {
+		status := ""
+		if unstagedFlag {
+			if git.HasUnstagedChanges() {
+				status += "*"
+			}
+		}
+		if untrackedFlag {
 			untracked, err := git.HasUntrackedFiles()
 			if err != nil {
 				return err
 			}
 			if untracked {
-				branchStatus += "%"
+				status += "%"
 			}
 		}
+		short := branch + status
+		long := filepath.Base(name) + ":" + short
 		if currentRepo == name {
 			if currentFlag {
-				statuses = append([]string{branchStatus}, statuses...)
+				statuses = append([]string{long}, statuses...)
 			} else {
-				statuses = append([]string{branch}, statuses...)
+				statuses = append([]string{short}, statuses...)
 			}
 		} else {
 			if masterFlag || branch != "master" {
-				statuses = append(statuses, branchStatus)
+				statuses = append(statuses, long)
 			}
 		}
 	}
