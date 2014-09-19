@@ -23,7 +23,7 @@ import (
 const (
 	defaultGerritBaseUrl               = "https://veyron-review.googlesource.com"
 	defaultNetRcFilePath               = "/var/veyron/.netrc"
-	defaultQueryString                 = "(status:open -label:Code-Review=2 -project:experimental)"
+	defaultQueryString                 = "(status:open -project:experimental)"
 	defaultLogFilePath                 = "/var/veyron/tmp/presubmitter_log"
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
 	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
@@ -66,11 +66,11 @@ func init() {
 	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
 	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmitter will not send any CLs to an empty host.")
+	cmdRoot.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
-	cmdQuery.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmitter will not send any CLs to an empty host.")
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
-	cmdQuery.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
 	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
 	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testsConfigFileFlag, "conf", filepath.Join(veyronRoot, "tools", "go", "src", "tools", "presubmitter", "presubmit_tests.conf"), "The config file for presubmit tests.")
@@ -109,7 +109,7 @@ with test results.
 }
 
 // runQuery implements the "query" subcommand.
-func runQuery(*cmdline.Command, []string) error {
+func runQuery(command *cmdline.Command, args []string) error {
 	// Basic sanity check for the Gerrit base url.
 	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {
@@ -135,7 +135,7 @@ func runQuery(*cmdline.Command, []string) error {
 		return fmt.Errorf("Query(%q, %q, %q, %q) failed: %v", gerritBaseUrlFlag, username, password, queryStringFlag, err)
 	}
 	newCLs := newOpenCLs(prevRefs, curQueryResults)
-	outputOpenCLs(newCLs)
+	outputOpenCLs(newCLs, command)
 
 	// Write current refs to the log file.
 	err = writeLog(curQueryResults)
@@ -149,21 +149,21 @@ func runQuery(*cmdline.Command, []string) error {
 		return nil
 	}
 	if jenkinsHostFlag == "" {
-		fmt.Println("Not sending CLs to run presubmit tests due to empty Jenkins host.")
+		fmt.Fprintf(command.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
 		return nil
 	}
 	sentCount := 0
 	for index, curNewCL := range newCLs {
-		fmt.Printf("Adding presubmit test build #%d: ", index+1)
+		fmt.Fprintf(command.Stdout(), "Adding presubmit test build #%d: ", index+1)
 		if err := addPresubmitTestBuild(curNewCL); err != nil {
-			fmt.Println("FAIL")
-			fmt.Fprintf(os.Stderr, "addPresubmitTestBuild(%+v) failed: %v", curNewCL, err)
+			fmt.Fprintf(command.Stdout(), "FAIL\n")
+			fmt.Fprintf(command.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curNewCL, err)
 		} else {
 			sentCount++
-			fmt.Println("PASS")
+			fmt.Fprintf(command.Stdout(), "PASS\n")
 		}
 	}
-	fmt.Printf("%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
+	fmt.Fprintf(command.Stdout(), "%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
 
 	return nil
 }
@@ -270,9 +270,9 @@ func newOpenCLs(prevRefs map[string]bool, curQueryResults []gerrit.QueryResult) 
 
 // outputOpenCLs prints out the given QueryResult entries line by line.
 // Each line shows the link to the CL and its related info.
-func outputOpenCLs(queryResults []gerrit.QueryResult) {
+func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) {
 	if len(queryResults) == 0 {
-		fmt.Println("No new open CLs")
+		fmt.Fprintf(command.Stdout(), "No new open CLs\n")
 		return
 	}
 	count := len(queryResults)
@@ -281,11 +281,11 @@ func outputOpenCLs(queryResults []gerrit.QueryResult) {
 	if count > 1 {
 		fmt.Fprintf(buf, "s")
 	}
-	fmt.Println(buf.String())
+	fmt.Fprintf(command.Stdout(), "%s\n", buf.String())
 	for _, queryResult := range queryResults {
 		// The ref string is in the form of /refs/12/3412/1 where "3412" is the CL number and "1" is the patch set number.
 		parts := strings.Split(queryResult.Ref, "/")
-		fmt.Printf("http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
+		fmt.Fprintf(command.Stdout(), "http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
 	}
 }
 
@@ -392,7 +392,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("ReadFile(%q) failed: %v", testsConfigFileFlag)
 	}
-	tests, err := testsForRepo(configFileContent, repoFlag)
+	tests, err := testsForRepo(configFileContent, repoFlag, command)
 	if err != nil {
 		return err
 	}
@@ -412,14 +412,14 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() {
-		if err := cleanUpPresubmitTestBranch(localRepoDir); err != nil {
+		if err := cleanUpPresubmitTestBranch(localRepoDir, command); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
 	defer cleanupFn()
 
 	// Prepare presubmit test branch.
-	if err := preparePresubmitTestBranch(localRepoDir, cl); err != nil {
+	if err := preparePresubmitTestBranch(localRepoDir, cl, command); err != nil {
 		return err
 	}
 
@@ -429,13 +429,28 @@ func runTest(command *cmdline.Command, args []string) error {
 	results := &bytes.Buffer{}
 	fmt.Fprintf(results, "Test results for http://go/vcl/%s, patch set %s:\n\n", cl, patchSet)
 	for _, test := range tests {
-		fmt.Printf("\n### Running %q\n", test)
-		testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
-		if _, err := cmd.RunOutputError(verboseFlag, testScript); err != nil {
-			fmt.Fprintf(results, "FAILED: %s\n", test)
+		fmt.Fprintf(command.Stdout(), "\n### Running %q\n", test)
+		// Get the status of the last completed build for this test from Jenkins.
+		lastStatus, err := lastCompletedBuildStatusForProject(test)
+		lastStatusString := "?"
+		if err != nil {
+			fmt.Fprintf(command.Stderr(), "%v\n", err)
 		} else {
-			fmt.Fprintf(results, "PASSED: %s\n", test)
+			if lastStatus {
+				lastStatusString = "✔"
+			} else {
+				lastStatusString = "✖"
+			}
 		}
+
+		testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
+		var curStatusString string
+		if _, err := cmd.RunOutputError(verboseFlag, testScript); err != nil {
+			curStatusString = "✖"
+		} else {
+			curStatusString = "✔"
+		}
+		fmt.Fprintf(results, "%s ➔ %s: %s\n", lastStatusString, curStatusString, test)
 	}
 	if jenkinsBuildNumberFlag >= 0 {
 		fmt.Fprintf(results, "\nSee details at: %s/%s/%d/console\n",
@@ -444,7 +459,7 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Post test results.
 	reviewMessageFlag = results.String()
-	fmt.Println("\n### Posting test results to Gerrit")
+	fmt.Fprintf(command.Stdout(), "\n### Posting test results to Gerrit\n")
 	if err := runPost(nil, nil); err != nil {
 		return err
 	}
@@ -458,8 +473,9 @@ func presubmitTestBranchName() string {
 }
 
 // preparePresubmitTestBranch creates and checks out the presubmit test branch and pulls the CL there.
-func preparePresubmitTestBranch(localRepoDir, cl string) error {
-	fmt.Printf("\n### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
+func preparePresubmitTestBranch(localRepoDir, cl string, command *cmdline.Command) error {
+	fmt.Fprintf(command.Stdout(),
+		"\n### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -482,8 +498,8 @@ func preparePresubmitTestBranch(localRepoDir, cl string) error {
 }
 
 // cleanUpPresubmitTestBranch removes the presubmit test branch.
-func cleanUpPresubmitTestBranch(localRepoDir string) error {
-	fmt.Println("\n### Cleaning up")
+func cleanUpPresubmitTestBranch(localRepoDir string, command *cmdline.Command) error {
+	fmt.Fprintf(command.Stdout(), "\n### Cleaning up\n")
 
 	if err := os.Chdir(localRepoDir); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
@@ -501,16 +517,59 @@ func cleanUpPresubmitTestBranch(localRepoDir string) error {
 }
 
 // testsForRepo returns all the tests for the given repo by querying the presubmit tests config file.
-func testsForRepo(testsConfigContent []byte, repoName string) ([]string, error) {
+func testsForRepo(testsConfigContent []byte, repoName string, command *cmdline.Command) ([]string, error) {
 	var repos map[string][]string
 	if err := json.Unmarshal(testsConfigContent, &repos); err != nil {
 		return nil, fmt.Errorf("Unmarshal(%q) failed: %v", testsConfigContent, err)
 	}
 	if _, ok := repos[repoName]; !ok {
-		fmt.Printf("Configuration for repository %q not found. Not running any tests.\n", repoName)
+		fmt.Println(command)
+		fmt.Fprintf(command.Stderr(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
 		return []string{}, nil
 	}
 	return repos[repoName], nil
+}
+
+// lastCompletedBuildStatusForProject gets the status of the last completed build for a given jenkins project.
+func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
+	// Construct rest API url to get build status.
+	statusUrl, err := url.Parse(jenkinsHostFlag)
+	if err != nil {
+		return false, fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
+	}
+	statusUrl.Path = fmt.Sprintf("%s/job/%s/lastBuild/api/json", statusUrl.Path, projectName)
+	statusUrl.RawQuery = url.Values{
+		"token": {jenkinsTokenFlag},
+	}.Encode()
+
+	// Get and parse json response.
+	var body io.Reader
+	method, url, body := "GET", statusUrl.String(), nil
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return false, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+	}
+	req.Header.Add("Accept", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("Do(%v) failed: %v", req, err)
+	}
+	defer res.Body.Close()
+
+	return parseLastCompletedBuildStatusJsonResponse(res.Body)
+}
+
+// parseLastCompletedBuildStatusJsonResponse parses whether the last completed build was successful or not.
+func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (bool, error) {
+	r := bufio.NewReader(reader)
+	var status struct {
+		Result string
+	}
+	if err := json.NewDecoder(r).Decode(&status); err != nil {
+		return false, fmt.Errorf("Decode() failed: %v", err)
+	}
+
+	return status.Result == "SUCCESS", nil
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the presubmitter tool.

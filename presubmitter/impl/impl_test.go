@@ -2,14 +2,27 @@ package impl
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"tools/lib/cmdline"
 	"tools/lib/gerrit"
 	"tools/lib/util"
 )
+
+var cmdTmp = &cmdline.Command{
+	Name:  "tmp",
+	Short: "For testing",
+	Long:  "For testing",
+	Run:   func(*cmdline.Command, []string) error { return nil },
+}
+
+func init() {
+	cmdTmp.Init(nil, os.Stdout, os.Stderr)
+}
 
 func TestParseValidNetRcFile(t *testing.T) {
 	// Valid content.
@@ -161,7 +174,7 @@ func TestTestsForRepo(t *testing.T) {
   `
 
 	// Get tests for a repo that is in the config file.
-	got, err := testsForRepo([]byte(configFileContent), "veyron")
+	got, err := testsForRepo([]byte(configFileContent), "veyron", cmdTmp)
 	expected := []string{
 		"veyron-go-build",
 		"veyron-go-test",
@@ -175,13 +188,49 @@ func TestTestsForRepo(t *testing.T) {
 
 	// Get tests for a repo that is NOT in the config file.
 	// This should return empty tests.
-	got, err = testsForRepo([]byte(configFileContent), "non-exist-repo")
+	got, err = testsForRepo([]byte(configFileContent), "non-exist-repo", cmdTmp)
 	expected = []string{}
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
 	}
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("want: %v, got: %v", expected, got)
+	}
+}
+
+func TestParseLastCompletedBuildStatusJsonResponse(t *testing.T) {
+	// "SUCCESS" status.
+	input := `
+	{
+		"building": false,
+		"fullDisplayName": "veyron-android-build #182",
+		"result": "SUCCESS"
+	}
+	`
+	expected := true
+	got, err := parseLastCompletedBuildStatusJsonResponse(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if expected != got {
+		t.Fatalf("want %v, got %v", expected, got)
+	}
+
+	// "FAILURE" status.
+	input = `
+	{
+		"building": false,
+		"fullDisplayName": "veyron-android-build #182",
+		"result": "FAILURE"
+	}
+	`
+	expected = false
+	got, err = parseLastCompletedBuildStatusJsonResponse(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if expected != got {
+		t.Fatalf("want %v, got %v", expected, got)
 	}
 }
 
@@ -196,7 +245,7 @@ func TestTestsConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q) failed: %v", presubmitTestsConfigFile, err)
 	}
-	_, err = testsForRepo(configFileContent, repoFlag)
+	_, err = testsForRepo(configFileContent, repoFlag, cmdTmp)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
