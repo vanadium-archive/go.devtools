@@ -449,8 +449,9 @@ func runTest(command *cmdline.Command, args []string) error {
 
 		testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
 		var curStatusString string
-		if _, err := cmd.RunOutputError(verboseFlag, testScript); err != nil {
+		if errLines, err := cmd.RunOutputError(verboseFlag, testScript); err != nil {
 			curStatusString = "✖"
+			fmt.Fprintf(command.Stderr(), "%v\n", strings.Join(errLines, "\n"))
 		} else {
 			curStatusString = "✔"
 		}
@@ -528,7 +529,7 @@ func testsForRepo(testsConfigContent []byte, repoName string, command *cmdline.C
 	}
 	if _, ok := repos[repoName]; !ok {
 		fmt.Println(command)
-		fmt.Fprintf(command.Stderr(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
+		fmt.Fprintf(command.Stdout(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
 		return []string{}, nil
 	}
 	return repos[repoName], nil
