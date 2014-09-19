@@ -23,3 +23,28 @@ type NotImplementingInterface struct{}
 
 func (NotImplementingInterface) Method1() {}
 func (NotImplementingInterface) Method2() {}
+
+type ValueReturningType struct{}
+
+func (ValueReturningType) ReturnsSomething(a int) (b int) {
+	defer vlog.LogCall(a)(&b)
+	return 42
+}
+
+type ValueReturningType2 struct{}
+
+func (ValueReturningType2) ReturnsSomething(a int) (b int) {
+	defer vlog.LogCall(a)()
+	return 42
+}
+
+type UnexportedType struct{}
+
+func (UnexportedType) UnexportedInterfaceMethod() {}
+
+type LogCallfTest struct{}
+
+func (obj LogCallfTest) ReturnsSomething(a int) (b int) {
+	defer vlog.LogCallf("a: %d", a)("b: %d", &b)
+	return 42
+}

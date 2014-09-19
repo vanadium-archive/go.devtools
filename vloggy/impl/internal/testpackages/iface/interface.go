@@ -9,5 +9,9 @@ type Interface1 interface {
 }
 
 type unexportedInterface interface {
-	method2()
+	UnexportedInterfaceMethod()
+}
+
+type ReturnsValueInterface interface {
+	ReturnsSomething(a int) int
 }

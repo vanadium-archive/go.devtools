@@ -10,7 +10,7 @@ import (
 const (
 	testPackagePrefix   = "tools/vloggy/impl/internal/testpackages"
 	failingPrefix       = "failschecks"
-	failingPackageCount = 4
+	failingPackageCount = 6
 )
 
 func TestValidPackages(t *testing.T) {
@@ -61,12 +61,12 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 
 	interfaces := findPublicInterfaces(interfacePackages)
 	if len(interfaces) == 0 {
-		t.Fatalf("Log injector did not find any interfaces in %v", interfaces)
+		t.Fatalf("Log injector did not find any interfaces in %v", interfacePackages)
 	}
 
 	methods := findMethodsImplementing(implementationPackages, interfaces)
 	if len(methods) == 0 {
-		t.Fatal("Log injector could not find any methods implementing the test interfaces")
+		t.Fatalf("Log injector could not find any methods implementing the test interfaces in %v", implementationPackages)
 	}
 
 	return prog.Fset, checkMethods(methods)
