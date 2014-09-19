@@ -586,7 +586,7 @@ var cmdRun = &cmdline.Command{
 
 func runRun(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
-		command.Errorf("no command to run")
+		return command.Errorf("no command to run")
 	}
 	if err := util.SetupVeyronEnvironment(); err != nil {
 		return err
