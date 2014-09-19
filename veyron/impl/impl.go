@@ -61,7 +61,7 @@ are regenerated before compilation.
 
 func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
-		command.Errorf("not enough arguments")
+		return command.Errorf("not enough arguments")
 	}
 	if err := util.SetupVeyronEnvironment(); err != nil {
 		return err
@@ -76,7 +76,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
 	if err := goCmd.Run(); err != nil {
-		return fmt.Errorf("%v %v failed: %v", goCmd.Path, strings.Join(goCmd.Args, " "), err)
+		return fmt.Errorf("%v failed: %v", strings.Join(goCmd.Args, " "), err)
 	}
 	return nil
 }
@@ -86,10 +86,21 @@ func generateVDL() error {
 	if err != nil {
 		return err
 	}
-	vdlMain := filepath.Join(root, "veyron", "go", "src", "veyron2", "vdl", "vdl", "*.go")
-	goCmd := exec.Command("go", "run", vdlMain, "generate", "all")
+	vdlDir := filepath.Join(root, "veyron", "go", "src", "veyron.io", "veyron", "veyron2", "vdl", "vdl")
+	args := []string{"run"}
+	fis, err := ioutil.ReadDir(vdlDir)
+	if err != nil {
+		return fmt.Errorf("ReadDir(%v) failed: %v", vdlDir, err)
+	}
+	for _, fi := range fis {
+		if strings.HasSuffix(fi.Name(), ".go") {
+			args = append(args, filepath.Join(vdlDir, fi.Name()))
+		}
+	}
+	args = append(args, "generate", "all")
+	goCmd := exec.Command("go", args...)
 	if out, err := goCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("generating up-to-date VDL files failed: %v\n%s", err, out)
+		return fmt.Errorf("%v failed: %v\n%s", strings.Join(goCmd.Args, " "), err, out)
 	}
 	return nil
 }
