@@ -261,6 +261,10 @@ func writeLog(queryResults []gerrit.QueryResult) error {
 func newOpenCLs(prevRefs map[string]bool, curQueryResults []gerrit.QueryResult) []gerrit.QueryResult {
 	newCLs := []gerrit.QueryResult{}
 	for _, curQueryResult := range curQueryResults {
+		// Ref could be empty in cases where a patchset is causing conflicts.
+		if curQueryResult.Ref == "" {
+			continue
+		}
 		if _, ok := prevRefs[curQueryResult.Ref]; !ok {
 			newCLs = append(newCLs, curQueryResult)
 		}
