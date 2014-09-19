@@ -20,16 +20,18 @@ var (
 	branchesFlag string
 	gcFlag       bool
 	manifestFlag string
+	novdlFlag    bool
 	verboseFlag  bool
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdProjectList.Flags.StringVar(&branchesFlag, "branches", "none",
 		"Determines what project branches to list (none, all).")
-	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
-	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
+	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
+	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
+	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 }
 
 // Root returns a command that represents the root of the veyron tool.
@@ -42,14 +44,14 @@ var cmdRoot = &cmdline.Command{
 	Name:     "veyron",
 	Short:    "Command-line tool for managing veyron projects",
 	Long:     "The veyron tool facilitates interaction with veyron projects.",
-	Children: []*cmdline.Command{cmdGo, cmdProfile, cmdProject, cmdRun, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdProfile, cmdProject, cmdRun, cmdGo, cmdSelfUpdate, cmdVersion},
 }
 
 // cmdGo represents the 'go' command of the veyron tool.
 var cmdGo = &cmdline.Command{
 	Run:   runGo,
 	Name:  "go",
-	Short: "Wrapper around the Go build tool",
+	Short: "Execute the go build tool using the veyron environment",
 	Long: `
 Wrapper around the 'go' tool that takes care of veyron-specific setup,
 such as setting up the GOPATH or making sure that VDL generated files
@@ -82,6 +84,9 @@ func runGo(command *cmdline.Command, args []string) error {
 }
 
 func generateVDL() error {
+	if novdlFlag {
+		return nil
+	}
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -97,6 +102,10 @@ func generateVDL() error {
 			args = append(args, filepath.Join(vdlDir, fi.Name()))
 		}
 	}
+	// TODO(toddw): We should probably only generate vdl for the packages
+	// specified for the corresponding "go" command.  This isn't trivial; we'd
+	// need to grab the transitive go dependencies for the specified packages, and
+	// then look for transitive vdl dependencies based on that set.
 	args = append(args, "generate", "all")
 	goCmd := exec.Command("go", args...)
 	if out, err := goCmd.CombinedOutput(); err != nil {
