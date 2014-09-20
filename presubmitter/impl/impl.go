@@ -458,7 +458,7 @@ func runTest(command *cmdline.Command, args []string) error {
 		fmt.Fprintf(results, "%s ➔ %s: %s\n", lastStatusString, curStatusString, test)
 	}
 	if jenkinsBuildNumberFlag >= 0 {
-		fmt.Fprintf(results, "\nSee details at: %s/%s/%d/console\n",
+		fmt.Fprintf(results, "\nSee details at: %s/%s/%d/\n",
 			jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
 	}
 
@@ -542,7 +542,7 @@ func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	statusUrl.Path = fmt.Sprintf("%s/job/%s/lastBuild/api/json", statusUrl.Path, projectName)
+	statusUrl.Path = fmt.Sprintf("%s/job/%s/lastCompletedBuild/api/json", statusUrl.Path, projectName)
 	statusUrl.RawQuery = url.Values{
 		"token": {jenkinsTokenFlag},
 	}.Encode()
