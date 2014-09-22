@@ -323,7 +323,7 @@ func (g *Git) Pull(remote, branch string) error {
 	// account for this, run "git pull", which fails but creates the
 	// missing branch, for git 1.7 and older.
 	if major < 2 && minor < 8 {
-		g.run("pull")
+		cmd.Run(false, "git", "pull")
 	}
 	return nil
 }
