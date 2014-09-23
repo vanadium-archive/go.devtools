@@ -10,7 +10,7 @@ import (
 const (
 	testPackagePrefix   = "tools/vloggy/impl/internal/testpackages"
 	failingPrefix       = "failschecks"
-	failingPackageCount = 6
+	failingPackageCount = 7
 )
 
 func TestValidPackages(t *testing.T) {
@@ -50,14 +50,14 @@ func TestInjection(t *testing.T) {
 }
 
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
-	l := LogInjector{CheckerMode, []string{path.Join(testPackagePrefix, "iface")}, packages}
+	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
 
-	prog, err := l.loadWithBuildTags([]string{"testpackage"})
+	prog, err := load(interfaceList, packages, []string{"testpackage"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	interfacePackages, implementationPackages := l.findPackages(prog)
+	interfacePackages, implementationPackages := findPackages(prog, interfaceList, packages)
 
 	interfaces := findPublicInterfaces(interfacePackages)
 	if len(interfaces) == 0 {

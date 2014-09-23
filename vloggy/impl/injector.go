@@ -24,36 +24,20 @@ const (
 	nologComment          = "novlog"                        // magic comment that disables injection
 )
 
-type LogInjectorMode int
-
-const (
-	InjectorMode LogInjectorMode = iota
-	CheckerMode
-)
-
-type LogInjector struct {
-	Mode                        LogInjectorMode
-	Interfaces, Implementations []string
-}
-
-func (l LogInjector) loadWithBuildTags(tags []string) (prog *loader.Program, err error) {
+func load(interfaces, implementations, tags []string) (prog *loader.Program, err error) {
 	// TODO: expand "..." in package names in command line
 	buildContext := build.Default
 	buildContext.BuildTags = tags
 	conf := loader.Config{SourceImports: true, Build: &buildContext}
-	allPackages := append(append([]string{}, l.Interfaces...), l.Implementations...)
+	allPackages := append(append([]string{}, interfaces...), implementations...)
 	conf.FromArgs(allPackages, false)
 	conf.ParserMode |= parser.ParseComments
 	return conf.Load()
 }
 
-func (l LogInjector) load() (prog *loader.Program, err error) {
-	return l.loadWithBuildTags(nil)
-}
-
-func (l LogInjector) findPackages(prog *loader.Program) (interfacePackages, implementationPackages []*loader.PackageInfo) {
-	iSet := newStringSet(l.Interfaces)
-	mSet := newStringSet(l.Implementations)
+func findPackages(prog *loader.Program, interfaces, implementations []string) (interfacePackages, implementationPackages []*loader.PackageInfo) {
+	iSet := newStringSet(interfaces)
+	mSet := newStringSet(implementations)
 
 	iPackages := []*loader.PackageInfo{}
 	mPackages := []*loader.PackageInfo{}
@@ -71,15 +55,13 @@ func (l LogInjector) findPackages(prog *loader.Program) (interfacePackages, impl
 	return iPackages, mPackages
 }
 
-type void struct{}
-
 // exists is used as the value to indicate existence for maps
 // that function as sets.
-var exists = void{}
+var exists = struct{}{}
 
 // newStringSet creates a new set out of a slice of strings.
-func newStringSet(values []string) map[string]void {
-	set := map[string]void{}
+func newStringSet(values []string) map[string]struct{} {
+	set := map[string]struct{}{}
 	for _, s := range values {
 		set[s] = exists
 	}
@@ -87,27 +69,27 @@ func newStringSet(values []string) map[string]void {
 }
 
 // Run runs the log injector.
-func (l LogInjector) Run() error {
-	prog, err := l.load()
+func Run(interfaceList, implementationList []string, checkOnly bool) error {
+	prog, err := load(interfaceList, implementationList, nil)
 	if err != nil {
 		return err
 	}
 
-	interfacePackages, implementationPackages := l.findPackages(prog)
+	interfacePackages, implementationPackages := findPackages(prog, interfaceList, implementationList)
 
 	interfaces := findPublicInterfaces(interfacePackages)
 	methods := findMethodsImplementing(implementationPackages, interfaces)
 	needsInjection := checkMethods(methods)
 
-	if l.Mode == InjectorMode {
-		return injectInSource(prog.Fset, needsInjection)
+	if checkOnly {
+		reportResults(prog.Fset, needsInjection)
+		if len(needsInjection) > 0 {
+			os.Exit(1)
+		}
+		return nil
 	}
 
-	reportResults(prog.Fset, needsInjection)
-	if len(needsInjection) > 0 {
-		os.Exit(1)
-	}
-	return nil
+	return injectInSource(prog.Fset, needsInjection)
 }
 
 // funcDeclRef stores a reference to a function declaration, paired
@@ -115,6 +97,56 @@ func (l LogInjector) Run() error {
 type funcDeclRef struct {
 	Decl *ast.FuncDecl
 	File *ast.File
+}
+
+// methodSetVisibleThroughInterfaces returns intersection of all
+// exported method names implemented by t and the union of all
+// method names declared by interfaces.
+func methodSetVisibleThroughInterfaces(t types.Type, interfaces []*types.Interface) map[string]struct{} {
+	set := map[string]struct{}{}
+	for _, iface := range interfaces {
+		if types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface) {
+			// t implements iface, so add all the public
+			// method names of iface to set.
+			for i := 0; i < iface.NumMethods(); i++ {
+				if name := iface.Method(i).Name(); ast.IsExported(name) {
+					set[name] = exists
+				}
+			}
+		}
+	}
+	return set
+}
+
+// functionDeclarationsAtPositions returns references to function
+// declarations in packages where the position of the identifier
+// token representing the name of the function is in positions.
+func functionDeclarationsAtPositions(packages []*loader.PackageInfo, positions map[token.Pos]struct{}) []funcDeclRef {
+	result := []funcDeclRef{}
+	for _, pkg := range packages {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				if decl, ok := decl.(*ast.FuncDecl); ok {
+					// for each function declaration in packages:
+
+					// it's important not to use decl.Pos() here
+					// as it gives us the position of the "func"
+					// token, whereas positions has collected
+					// the locations of method name tokens:
+					if _, ok := positions[decl.Name.Pos()]; ok {
+						result = append(result, funcDeclRef{decl, file})
+					}
+				}
+			}
+		}
+	}
+	return result
+}
+
+// isInterface returns true if t is an interface declaration.
+func isInterface(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Interface)
+	return ok
 }
 
 // findMethodsImplementing searches the specified packages and returns
@@ -128,31 +160,21 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 	// our static analysis library has no easy way to map types.Func
 	// objects to ast.FuncDecl objects, so we then look into AST
 	// declarations and find everything that has a matching position.
-	positions := map[token.Pos]void{}
-	msetCache := types.MethodSetCache{} // for typeutil.IntuitiveMethodSet()
+	positions := map[token.Pos]struct{}{}
+
+	// msetCache caches infromation for typeutil.IntuitiveMethodSet()
+	msetCache := types.MethodSetCache{}
 	for _, pkg := range packages {
 		for _, def := range pkg.Defs {
 			if def, ok := def.(*types.TypeName); ok {
-				// for each type, t, declared in packages
 				t := def.Type()
-
-				// apiMethodSet is the union of all method names
-				// that (1) begin with an uppercase letter, and
-				// (2) are declared by an interface in interfaces
-				// that t implements.
-				apiMethodSet := map[string]void{}
-
-				for _, iface := range interfaces {
-					if types.Implements(t, iface) {
-						// t implements iface, so add all the public
-						// method names of iface to apiMethodSet.
-						for i := 0; i < iface.NumMethods(); i++ {
-							if name := iface.Method(i).Name(); ast.IsExported(name) {
-								apiMethodSet[name] = exists
-							}
-						}
-					}
+				// ignore interfaces as they have no method implementations
+				if isInterface(t) {
+					continue
 				}
+
+				// for each non-interface type t declared in packages:
+				apiMethodSet := methodSetVisibleThroughInterfaces(t, interfaces)
 
 				// optimization: if t implements no non-empty interfaces that
 				// we care about, we can just ignore it.
@@ -161,9 +183,8 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 					// inherited through embedding on type t or *t.
 					for _, method := range typeutil.IntuitiveMethodSet(t, &msetCache) {
 						fn := method.Obj().(*types.Func)
-						// t may have a method that is not declared in any
-						// of the interfaces we care about. No need to log
-						// that.
+						// t may have a method that is not declared in any of
+						// the interfaces we care about. No need to log that.
 						if _, ok := apiMethodSet[fn.Name()]; ok {
 							positions[fn.Pos()] = exists
 						}
@@ -173,27 +194,7 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 		}
 	}
 
-	// We have collected all the positions.  Now traverse all the
-	// declarations in each file and see if any of them has a
-	// matching position.  If so, add it to results.
-	result := []funcDeclRef{}
-	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				// skip if the declaration is not a function:
-				if decl, ok := decl.(*ast.FuncDecl); ok {
-					// it's important not to use decl.Pos() here
-					// as it gives us the position of the "func"
-					// token, whereas positions has collected
-					// the locations of method name tokens:
-					if _, ok := positions[decl.Name.Pos()]; ok {
-						result = append(result, funcDeclRef{decl, file})
-					}
-				}
-			}
-		}
-	}
-	return result
+	return functionDeclarationsAtPositions(packages, positions)
 }
 
 // vlogQuotedImportPath is the quoted identifier for the import path
@@ -298,20 +299,10 @@ func checkMethod(method funcDeclRef) error {
 
 // doInjection injects log statements in methods, returning the set
 // of modified files.
-func doInjection(fset *token.FileSet, methods map[funcDeclRef]error) (modified map[*ast.File]void) {
-	modified = map[*ast.File]void{}
-	for m, err := range methods {
-		method := m.Decl
-		if _, ok := err.(*errInvalid); ok {
-			// The method already has something at its beginning that looks
-			// like a logging construct, but it is invalid for some reason.
-			// Warn the user.
-			position := fset.Position(method.Pos())
-			methodName := method.Name.Name
-			fmt.Printf("Warning: %v: %s: %v\n", position, methodName, err)
-		}
-
-		injectLogStatement(method)
+func doInjection(fset *token.FileSet, methods map[funcDeclRef]error) (modified map[*ast.File]struct{}) {
+	modified = map[*ast.File]struct{}{}
+	for m, _ := range methods {
+		injectLogStatement(m.Decl)
 		file := m.File
 		if _, ok := modified[file]; !ok {
 			modified[file] = exists
@@ -336,6 +327,18 @@ func gofmt(files []string) error {
 // injectInSource modifies methods and saves them in the source tree.
 func injectInSource(fset *token.FileSet, methods map[funcDeclRef]error) error {
 	modified := doInjection(fset, methods)
+
+	// Warn the user for methods that already have something at their beginning
+	// that looks like a logging construct, but it is invalid for some reason.
+	for m, err := range methods {
+		if _, ok := err.(*errInvalid); ok {
+			method := m.Decl
+			position := fset.Position(method.Pos())
+			methodName := method.Name.Name
+			fmt.Printf("Warning: %v: %s: %v\n", position, methodName, err)
+		}
+	}
+
 	files := []string{}
 	for file, _ := range modified {
 		filename := fset.Position(file.Pos()).Filename
@@ -453,7 +456,10 @@ func findPublicInterfaces(packages []*loader.PackageInfo) (interfaces []*types.I
 				if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.TYPE && len(decl.Specs) > 0 {
 					if typeSpec, ok := decl.Specs[0].(*ast.TypeSpec); ok && ast.IsExported(typeSpec.Name.Name) {
 						if ifaceType, ok := typeSpec.Type.(*ast.InterfaceType); ok {
-							interfaces = append(interfaces, pkg.TypeOf(ifaceType).(*types.Interface))
+							iface := pkg.TypeOf(ifaceType).(*types.Interface)
+							if !iface.Empty() {
+								interfaces = append(interfaces, pkg.TypeOf(ifaceType).(*types.Interface))
+							}
 						}
 					}
 				}

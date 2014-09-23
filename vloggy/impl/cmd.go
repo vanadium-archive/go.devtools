@@ -69,7 +69,7 @@ func splitCommaSeparatedValues(s string) []string {
 // runCheck handles the "check" command and executes
 // the log injector in check-only mode.
 func runCheck(command *cmdline.Command, args []string) error {
-	return executeInjector(command, CheckerMode, splitCommaSeparatedValues(interfacesFlag), args)
+	return executeInjector(command, true, splitCommaSeparatedValues(interfacesFlag), args)
 }
 
 // cmdInject represents the 'inject' command of the vloggy tool.
@@ -89,7 +89,7 @@ you can see the diff or revert the changes.
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
 func runInject(command *cmdline.Command, args []string) error {
-	return executeInjector(command, InjectorMode, splitCommaSeparatedValues(interfacesFlag), args)
+	return executeInjector(command, false, splitCommaSeparatedValues(interfacesFlag), args)
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the vloggy
@@ -125,7 +125,7 @@ func runVersion(cmd *cmdline.Command, args []string) error {
 }
 
 // executeInjector creates a new LogInjector instance and runs it.
-func executeInjector(command *cmdline.Command, mode LogInjectorMode, interfacePackageList, implementationPackageList []string) error {
+func executeInjector(command *cmdline.Command, checkOnly bool, interfacePackageList, implementationPackageList []string) error {
 	if len(interfacePackageList) == 0 {
 		command.Errorf("no interface packages listed")
 	}
@@ -134,5 +134,5 @@ func executeInjector(command *cmdline.Command, mode LogInjectorMode, interfacePa
 		command.Errorf("no implementation package listed")
 	}
 
-	return LogInjector{mode, interfacePackageList, implementationPackageList}.Run()
+	return Run(interfacePackageList, implementationPackageList, checkOnly)
 }
