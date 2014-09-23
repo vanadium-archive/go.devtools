@@ -16,5 +16,5 @@ func (Type1) Method1() {
 	defer vlog.LogCall()()
 }
 func (Type1) Method2(int) {
-	//novlog
+	//nologcall
 }

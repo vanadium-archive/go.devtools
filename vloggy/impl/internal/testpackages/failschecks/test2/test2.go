@@ -11,10 +11,10 @@ package test2
 type Type1 struct{}
 
 func (Type1) Method1() {
-	//novlog
+	//nologcall
 }
 func (Type1) Method2(int) {
-	//novlog
+	//nologcall
 }
 
 type HalfType2 struct{}
@@ -27,5 +27,5 @@ type HalfType3 struct {
 }
 
 func (HalfType3) Method2(int) {
-	//novlog
+	//nologcall
 }

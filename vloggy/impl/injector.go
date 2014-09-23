@@ -21,7 +21,7 @@ const (
 	vlogPackageImportPath = "veyron.io/veyron/veyron2/vlog" // full import path for the log package
 	vlogCallFuncName      = "LogCall"                       // name of the default logging function
 	vlogCallfFuncName     = "LogCallf"                      // name of the formattable logging function
-	nologComment          = "novlog"                        // magic comment that disables injection
+	nologComment          = "nologcall"                     // magic comment that disables injection
 )
 
 func load(interfaces, implementations, tags []string) (prog *loader.Program, err error) {
@@ -162,7 +162,7 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 	// declarations and find everything that has a matching position.
 	positions := map[token.Pos]struct{}{}
 
-	// msetCache caches infromation for typeutil.IntuitiveMethodSet()
+	// msetCache caches information for typeutil.IntuitiveMethodSet()
 	msetCache := types.MethodSetCache{}
 	for _, pkg := range packages {
 		for _, def := range pkg.Defs {
@@ -251,7 +251,7 @@ func injectLogStatement(method *ast.FuncDecl) {
 	method.Body.List = append([]ast.Stmt{newDeferStmtWithSelector(ast.NewIdent(vlogPackageIdentifier), ast.NewIdent(vlogCallFuncName))}, method.Body.List...)
 }
 
-// methodBeginsWithNoLogComment returns true if method has a "novlog"
+// methodBeginsWithNoLogComment returns true if method has a "nologcall"
 // comment before any non-whitespace or non-comment token.
 func methodBeginsWithNoLogComment(m funcDeclRef) bool {
 	method := m.Decl
