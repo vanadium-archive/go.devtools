@@ -287,7 +287,7 @@ func findGoBinary(name string) (string, error) {
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat(git *gitlib.Git) error {
-	if err := git.Fetch(); err != nil {
+	if err := git.Fetch("origin", "master"); err != nil {
 		return err
 	}
 	files, err := git.ModifiedFiles("FETCH_HEAD", r.branch)
@@ -350,7 +350,7 @@ func (r *review) cleanup(stashed bool, git *gitlib.Git) {
 // createReviewBranch creates a clean review branch from master and
 // squashes the commits into one, with the supplied message.
 func (r *review) createReviewBranch(message string, git *gitlib.Git) error {
-	if err := git.Fetch(); err != nil {
+	if err := git.Fetch("origin", "master"); err != nil {
 		return err
 	}
 	if git.BranchExists(r.reviewBranch) {

@@ -105,10 +105,7 @@ func UpdateProject(project string, git *git.Git) error {
 		return err
 	}
 	defer git.CheckoutBranch(branch)
-	if err := git.Fetch(); err != nil {
-		return err
-	}
-	if err := git.Merge("FETCH_HEAD", false); err != nil {
+	if err := git.Pull("origin", "master"); err != nil {
 		return err
 	}
 	return nil

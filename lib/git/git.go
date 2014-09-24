@@ -190,8 +190,8 @@ func (g *Git) CurrentBranchName() (string, error) {
 }
 
 // Fetch fetches refs and tags from the remote repository.
-func (g *Git) Fetch() error {
-	return g.run("fetch", "origin", "master")
+func (g *Git) Fetch(remote, branch string) error {
+	return g.run("fetch", remote, branch)
 }
 
 // ForceDeleteBranch deletes the given branch, even if that branch contains
@@ -280,6 +280,25 @@ func (g *Git) LatestCommitMessage() (string, error) {
 		return "", NewGitError(out, errOut, args...)
 	}
 	return strings.Join(out, "\n"), nil
+}
+
+// Log returns a list of commits on <branch> that are not on <base>,
+// using the specified format.
+func (g *Git) Log(branch, base, format string) ([][]string, error) {
+	n, err := g.CountCommits(branch, base)
+	if err != nil {
+		return nil, err
+	}
+	result := [][]string{}
+	for i := 0; i < n; i++ {
+		args := []string{"log", "-1", fmt.Sprintf("--skip=%d", i), fmt.Sprintf("--format=%s", format), fmt.Sprintf("%v..%v", base, branch)}
+		out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+		if err != nil {
+			return nil, NewGitError(out, errOut, args...)
+		}
+		result = append(result, out)
+	}
+	return result, nil
 }
 
 // Merge merge all commits from <branch> to the current branch. If

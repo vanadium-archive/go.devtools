@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -136,7 +137,7 @@ var cmdProfileList = &cmdline.Command{
 	Long:  "Inspect the host platform and list supported profiles.",
 }
 
-func runProfileList(*cmdline.Command, []string) error {
+func runProfileList(command *cmdline.Command, _ []string) error {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -155,7 +156,7 @@ func runProfileList(*cmdline.Command, []string) error {
 		}
 		description += fmt.Sprintf("  %s: %s", entry.Name(), string(bytes))
 	}
-	fmt.Printf("%s", description)
+	fmt.Fprintf(command.Stdout(), "%s", description)
 	return nil
 }
 
@@ -200,7 +201,7 @@ var cmdProject = &cmdline.Command{
 	Name:     "project",
 	Short:    "Manage veyron projects",
 	Long:     "Manage veyron projects.",
-	Children: []*cmdline.Command{cmdProjectList, cmdProjectUpdate},
+	Children: []*cmdline.Command{cmdProjectList, cmdProjectPoll, cmdProjectUpdate},
 }
 
 // cmdProjectList represents the 'list' sub-command of the
@@ -248,8 +249,84 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 			}
 		}
 	}
-	fmt.Printf("%s", description)
+	fmt.Fprintf(command.Stdout(), "%s", description)
 	return nil
+}
+
+// cmdProjectPoll represents the 'poll' sub-command of the 'project'
+// command of the veyron tool.
+var cmdProjectPoll = &cmdline.Command{
+	Run:   runProjectPoll,
+	Name:  "poll",
+	Short: "Poll existing veyron projects",
+	Long: `
+Poll existing veyron projects and report whether any new changes exist.
+`,
+}
+
+// runProjectPoll generates a description of the new changes.
+func runProjectPoll(command *cmdline.Command, _ []string) error {
+	git := git.New(verboseFlag)
+	currentProjects, err := util.LocalProjects(git)
+	if err != nil {
+		return err
+	}
+	newProjects, err := util.LatestProjects(manifestFlag, git)
+	if err != nil {
+		return err
+	}
+	allProjects := map[string]struct{}{}
+	for project, _ := range currentProjects {
+		allProjects[project] = struct{}{}
+	}
+	for project, _ := range newProjects {
+		allProjects[project] = struct{}{}
+	}
+	ops, err := computeOperations(allProjects, currentProjects, newProjects)
+	if err != nil {
+		return err
+	}
+	update, err := computeUpdate(git, ops)
+	if err != nil {
+		return err
+	}
+	bytes, err := json.MarshalIndent(update, "", "  ")
+	if err != nil {
+		return fmt.Errorf("MarshalIndent() failed: %v", err)
+	}
+	fmt.Fprintf(command.Stdout(), "%s\n", bytes)
+	return nil
+}
+
+func computeUpdate(git *git.Git, ops operationList) (util.Update, error) {
+	update := util.Update{}
+	for _, op := range ops {
+		commits := []util.Commit{}
+		if op.ty == updateOperation {
+			if err := os.Chdir(op.destination); err != nil {
+				return nil, fmt.Errorf("Chdir(%v) failed: %v", op.destination, err)
+			}
+			if err := git.Fetch("origin", "master"); err != nil {
+				return nil, err
+			}
+			commitsText, err := git.Log("FETCH_HEAD", "master", "%an%n%ae%n%B")
+			if err != nil {
+				return nil, err
+			}
+			for _, commitText := range commitsText {
+				if expected, got := 3, len(commitText); got < expected {
+					return nil, fmt.Errorf("Unexpected length of %v: expected at least %v, got %v", commitText, expected, got)
+				}
+				commits = append(commits, util.Commit{
+					Author:      commitText[0],
+					Email:       commitText[1],
+					Description: strings.Join(commitText[2:], "\n"),
+				})
+			}
+		}
+		update[op.project] = commits
+	}
+	return update, nil
 }
 
 // cmdProjectUpdate represents the 'update' sub-command of the 'project'
@@ -259,10 +336,10 @@ var cmdProjectUpdate = &cmdline.Command{
 	Name:  "update",
 	Short: "Update veyron projects",
 	Long: `
-Update the local master branch of veyron projects by pulling from
-the remote master. The projects to be updated are specified as a list
-of arguments. If no project is specified, the default behavior is to
-update all projects.
+Update the local projects to match the state of the remote projects
+identified by a project manifest. The projects to be updated are
+specified as a list of arguments. If no project is specified, the
+default behavior is to update all projects.
 `,
 	ArgsName: "<projects>",
 	ArgsLong: "<projects> is a list of projects to update.",
@@ -421,7 +498,7 @@ exit 0
 // commit hooks for existing repositories. Overwriting the existing
 // hooks is not a good idea as developers might have customized the
 // hooks.
-func runOperation(op operation, git *git.Git) error {
+func runOperation(git *git.Git, op operation) error {
 	switch op.ty {
 	case createOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0700)
@@ -475,11 +552,6 @@ func runOperation(op operation, git *git.Git) error {
 
 // runProjectUpdate implements the update command of the veyron tool.
 func runProjectUpdate(command *cmdline.Command, args []string) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer os.Chdir(wd)
 	git := git.New(verboseFlag)
 	currentProjects, err := util.LocalProjects(git)
 	if err != nil {
@@ -518,7 +590,7 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 	}
 	failed := false
 	for _, op := range ops {
-		runFn := func() error { return runOperation(op, git) }
+		runFn := func() error { return runOperation(git, op) }
 		if err := cmd.Log(runFn, "%v", op); err != nil {
 			fmt.Fprintf(command.Stderr(), "%v\n", err)
 			failed = true
@@ -634,7 +706,7 @@ const version string = "0.3.0"
 // go build -ldflags "-X tools/veyron/impl.commitId <commitId>" tools/veyron
 var commitId string = "test-build"
 
-func runVersion(*cmdline.Command, []string) error {
-	fmt.Printf("veyron tool version %v (build %v)\n", version, commitId)
+func runVersion(command *cmdline.Command, _ []string) error {
+	fmt.Fprintf(command.Stdout(), "veyron tool version %v (build %v)\n", version, commitId)
 	return nil
 }
