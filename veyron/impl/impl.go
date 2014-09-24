@@ -501,7 +501,7 @@ exit 0
 func runOperation(git *git.Git, op operation) error {
 	switch op.ty {
 	case createOperation:
-		path, perm := filepath.Dir(op.destination), os.FileMode(0700)
+		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
 		if err := os.MkdirAll(path, perm); err != nil {
 			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
 		}
@@ -530,7 +530,7 @@ func runOperation(git *git.Git, op operation) error {
 			return fmt.Errorf("RemoveAll(%v) failed: %v", op.source, err)
 		}
 	case moveOperation:
-		path, perm := filepath.Dir(op.destination), os.FileMode(0700)
+		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
 		if err := os.MkdirAll(path, perm); err != nil {
 			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
 		}
