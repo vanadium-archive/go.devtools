@@ -311,8 +311,10 @@ func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) 
 
 // Pull pulls the given branch from the given remote repo.
 func (g *Git) Pull(remote, branch string) error {
-	if err := g.run("pull", remote, branch); err != nil {
-		return err
+	args := []string{"pull", remote, branch}
+	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
+		g.run("reset", "--merge")
+		return fmt.Errorf("%v", strings.Join(out, "\n"))
 	}
 	major, minor, err := g.Version()
 	if err != nil {
