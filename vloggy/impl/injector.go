@@ -17,11 +17,17 @@ import (
 )
 
 const (
-	vlogPackageIdentifier = "vlog"                          // package name holding the log function
-	vlogPackageImportPath = "veyron.io/veyron/veyron2/vlog" // full import path for the log package
-	vlogCallFuncName      = "LogCall"                       // name of the default logging function
-	vlogCallfFuncName     = "LogCallf"                      // name of the formattable logging function
-	nologComment          = "nologcall"                     // magic comment that disables injection
+	// logPackageIdentifier is the identifier through which the log package
+	// is imported.
+	logPackageIdentifier = "vlog"
+	// logPackageImportPath is the import path for the log package.
+	logPackageImportPath = "veyron.io/veyron/veyron2/vlog"
+	// logCallFuncName is the name of the default logging function.
+	logCallFuncName = "LogCall"
+	// logCallfFuncName is the name of the formattable logging function.
+	logCallfFuncName = "LogCallf"
+	// nologComment is the magic comment text that disables log injection.
+	nologComment = "nologcall"
 )
 
 func load(interfaces, implementations, tags []string) (prog *loader.Program, err error) {
@@ -197,15 +203,15 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 	return functionDeclarationsAtPositions(packages, positions)
 }
 
-// vlogQuotedImportPath is the quoted identifier for the import path
+// logPackageQuotedImportPath is the quoted identifier for the import path
 // of the logging library.  It is used to check for existence of an
 // import statement for the vlog runtime library or to inject a new
 // import statement.
-const vlogQuotedImportPath = `"` + vlogPackageImportPath + `"`
+const logPackageQuotedImportPath = `"` + logPackageImportPath + `"`
 
-// insertImportVlog adds a new import for the logging package to file.
-func insertImportVlog(file *ast.File) {
-	newImportSpec := []ast.Spec{&ast.ImportSpec{Path: &ast.BasicLit{Value: vlogQuotedImportPath}}}
+// injectImportLogPackage adds a new import for the logging package to file.
+func injectImportLogPackage(file *ast.File) {
+	newImportSpec := []ast.Spec{&ast.ImportSpec{Path: &ast.BasicLit{Value: logPackageQuotedImportPath}}}
 
 	// Try appending the new import spec to the first import declaration
 	// if one exists and contains a block
@@ -221,9 +227,9 @@ func insertImportVlog(file *ast.File) {
 	file.Decls = append([]ast.Decl{&ast.GenDecl{Tok: token.IMPORT, Specs: newImportSpec}}, file.Decls...)
 }
 
-// ensureImportVlog will make sure that the file includes an import declaration
+// ensureImportLogPackage will make sure that the file includes an import declaration
 // to the vlog package, and adds one if it does not already.
-func ensureImportVlog(file *ast.File) {
+func ensureImportLogPackage(file *ast.File) {
 	for _, d := range file.Decls {
 		d, ok := d.(*ast.GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -234,7 +240,7 @@ func ensureImportVlog(file *ast.File) {
 
 		for _, s := range d.Specs {
 			s := s.(*ast.ImportSpec)
-			if s.Path.Value == vlogQuotedImportPath && (s.Name == nil || s.Name.Name == vlogPackageIdentifier) {
+			if s.Path.Value == logPackageQuotedImportPath && (s.Name == nil || s.Name.Name == logPackageIdentifier) {
 				// We found a valid import for the logging package.
 				// No need to inject a duplicate one.
 				return
@@ -242,13 +248,13 @@ func ensureImportVlog(file *ast.File) {
 		}
 	}
 
-	insertImportVlog(file)
+	injectImportLogPackage(file)
 }
 
 // injectLogStatement adds a "defer vlog.LogCall()()" statement at the
 // beginning of the specified method.
 func injectLogStatement(method *ast.FuncDecl) {
-	method.Body.List = append([]ast.Stmt{newDeferStmtWithSelector(ast.NewIdent(vlogPackageIdentifier), ast.NewIdent(vlogCallFuncName))}, method.Body.List...)
+	method.Body.List = append([]ast.Stmt{newDeferStmtWithSelector(ast.NewIdent(logPackageIdentifier), ast.NewIdent(logCallFuncName))}, method.Body.List...)
 }
 
 // methodBeginsWithNoLogComment returns true if method has a "nologcall"
@@ -308,7 +314,7 @@ func doInjection(fset *token.FileSet, methods map[funcDeclRef]error) (modified m
 			modified[file] = exists
 			// We should make sure the log package is imported if we are the
 			// first one adding a method call that depends on that import.
-			ensureImportVlog(file)
+			ensureImportLogPackage(file)
 		}
 	}
 	return modified
@@ -316,6 +322,9 @@ func doInjection(fset *token.FileSet, methods map[funcDeclRef]error) (modified m
 
 // gofmt runs gofmt -w on files.
 func gofmt(files []string) error {
+	if !gofmtFlag {
+		return nil
+	}
 	args := []string{"-w"}
 	args = append(args, files...)
 	cmd := exec.Command("gofmt", args...)
@@ -344,19 +353,20 @@ func injectInSource(fset *token.FileSet, methods map[funcDeclRef]error) error {
 		filename := fset.Position(file.Pos()).Filename
 		files = append(files, filename)
 
-		fileHandle, err := os.OpenFile(filename, os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-		defer fileHandle.Close()
+		if err := func() error {
+			fileHandle, err := os.OpenFile(filename, os.O_WRONLY, 0644)
+			if err != nil {
+				return err
+			}
+			defer fileHandle.Close()
 
-		prn := &printer.Config{
-			Mode:     printer.UseSpaces | printer.TabIndent,
-			Tabwidth: 8,
-		}
+			prn := &printer.Config{
+				Mode:     printer.UseSpaces | printer.TabIndent,
+				Tabwidth: 8,
+			}
 
-		err = prn.Fprint(fileHandle, fset, file)
-		if err != nil {
+			return prn.Fprint(fileHandle, fset, file)
+		}(); err != nil {
 			return err
 		}
 	}
@@ -412,16 +422,16 @@ func validateLogStatement(method *ast.FuncDecl) error {
 		return &errNotExists{}
 	}
 
-	if packageIdent.Name != vlogPackageIdentifier {
+	if packageIdent.Name != logPackageIdentifier {
 		return &errNotExists{}
 	}
 
 	switch selector.Sel.Name {
-	case vlogCallFuncName:
+	case logCallFuncName:
 		return ensureExprsArePointers(deferStmt.Call.Args)
-	case vlogCallfFuncName:
+	case logCallfFuncName:
 		if len(deferStmt.Call.Args) < 1 {
-			return &errInvalid{"no format specifier specified for " + vlogCallFuncName}
+			return &errInvalid{"no format specifier specified for " + logCallFuncName}
 		}
 		return ensureExprsArePointers(deferStmt.Call.Args[1:])
 	}
