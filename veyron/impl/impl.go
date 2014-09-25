@@ -142,7 +142,7 @@ func runProfileList(command *cmdline.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(root, "environment/scripts/setup", runtime.GOOS)
+	dir := filepath.Join(root, "scripts", "setup", runtime.GOOS)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("could not read %s", dir)
@@ -178,14 +178,14 @@ func runProfileSetup(command *cmdline.Command, args []string) error {
 	}
 	// Check that the profiles to be set up exist.
 	for _, arg := range args {
-		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
+		script := filepath.Join(root, "scripts", "setup", runtime.GOOS, arg, "setup.sh")
 		if _, err := os.Lstat(script); err != nil {
 			return command.Errorf("profile %v does not exist", arg)
 		}
 	}
 	// Setup the profiles.
 	for _, arg := range args {
-		script := filepath.Join(root, "environment/scripts/setup", runtime.GOOS, arg, "setup.sh")
+		script := filepath.Join(root, "scripts", "setup", runtime.GOOS, arg, "setup.sh")
 		cmd.LogStart(fmt.Sprintf("Setting up profile %q", arg))
 		if _, errOut, err := cmd.RunOutput(true, script); err != nil {
 			cmd.LogEnd(false)
