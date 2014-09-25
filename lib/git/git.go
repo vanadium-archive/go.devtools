@@ -312,7 +312,7 @@ func (g *Git) Merge(branch string, squash bool) error {
 	args = append(args, branch)
 	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
 		g.run("reset", "--merge")
-		return fmt.Errorf("%v", strings.Join(out, "\n"))
+		return fmt.Errorf("%v\n%v", err, strings.Join(out, "\n"))
 	}
 	return nil
 }
@@ -333,7 +333,7 @@ func (g *Git) Pull(remote, branch string) error {
 	args := []string{"pull", remote, branch}
 	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
 		g.run("reset", "--merge")
-		return fmt.Errorf("%v", strings.Join(out, "\n"))
+		return fmt.Errorf("%v\n%v", err, strings.Join(out, "\n"))
 	}
 	major, minor, err := g.Version()
 	if err != nil {
