@@ -31,24 +31,6 @@ func TestInvalidPackages(t *testing.T) {
 	}
 }
 
-func TestInjection(t *testing.T) {
-	for i := 1; i <= failingPackageCount; i++ {
-		pkg := path.Join(testPackagePrefix, failingPrefix, "test"+strconv.Itoa(i))
-		fset, methods := doTest(t, []string{pkg})
-		if len(methods) > 0 {
-			modifiedFiles := doInjection(fset, methods)
-			if len(modifiedFiles) == 0 {
-				t.Fatalf("Log injector did not alter any files for package %q", pkg)
-			}
-			for method, _ := range methods {
-				if err := checkMethod(method); err != nil {
-					t.Fatalf("Package %q fails log checker after injection", pkg)
-				}
-			}
-		}
-	}
-}
-
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
 	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
 

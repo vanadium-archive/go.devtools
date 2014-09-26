@@ -5,10 +5,11 @@ import (
 	"go/ast"
 	"go/build"
 	"go/parser"
-	"go/printer"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"code.google.com/p/go.tools/go/loader"
@@ -95,7 +96,7 @@ func Run(interfaceList, implementationList []string, checkOnly bool) error {
 		return nil
 	}
 
-	return injectInSource(prog.Fset, needsInjection)
+	return inject(prog.Fset, needsInjection)
 }
 
 // funcDeclRef stores a reference to a function declaration, paired
@@ -203,33 +204,44 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 	return functionDeclarationsAtPositions(packages, positions)
 }
 
+type patch struct {
+	Offset int
+	Text   string
+}
+
+type patchSorter []patch
+
+func (p patchSorter) Len() int {
+	return len(p)
+}
+
+func (p patchSorter) Less(i, j int) bool {
+	return p[i].Offset < p[j].Offset
+}
+
+func (p patchSorter) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
 // logPackageQuotedImportPath is the quoted identifier for the import path
 // of the logging library.  It is used to check for existence of an
 // import statement for the vlog runtime library or to inject a new
 // import statement.
 const logPackageQuotedImportPath = `"` + logPackageImportPath + `"`
 
-// injectImportLogPackage adds a new import for the logging package to file.
-func injectImportLogPackage(file *ast.File) {
-	newImportSpec := []ast.Spec{&ast.ImportSpec{Path: &ast.BasicLit{Value: logPackageQuotedImportPath}}}
-
-	// Try appending the new import spec to the first import declaration
-	// if one exists and contains a block
-	if len(file.Decls) > 0 {
-		if importDecl, ok := file.Decls[0].(*ast.GenDecl); ok && importDecl.Tok == token.IMPORT && importDecl.Lparen.IsValid() {
-			importDecl.Specs = append(newImportSpec, importDecl.Specs...)
-			return
-		}
+// countOverlap counts the length of the common prefix between two strings.
+func countOverlap(a, b string) (i int) {
+	for ; i < len(a) && i < len(b) && a[i] == b[i]; i++ {
 	}
-
-	// No import declaration found; create a new one
-	// and add it to the beginning of the file
-	file.Decls = append([]ast.Decl{&ast.GenDecl{Tok: token.IMPORT, Specs: newImportSpec}}, file.Decls...)
+	return
 }
 
 // ensureImportLogPackage will make sure that the file includes an import declaration
-// to the vlog package, and adds one if it does not already.
-func ensureImportLogPackage(file *ast.File) {
+// to the log package, and adds one if it does not already.
+func ensureImportLogPackage(fset *token.FileSet, file *ast.File) (patch, bool) {
+	maxOverlap := 0
+	var candidate token.Pos
+
 	for _, d := range file.Decls {
 		d, ok := d.(*ast.GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -240,21 +252,26 @@ func ensureImportLogPackage(file *ast.File) {
 
 		for _, s := range d.Specs {
 			s := s.(*ast.ImportSpec)
-			if s.Path.Value == logPackageQuotedImportPath && (s.Name == nil || s.Name.Name == logPackageIdentifier) {
+			overlap := countOverlap(s.Path.Value, logPackageQuotedImportPath)
+			if overlap == len(logPackageQuotedImportPath) && (s.Name == nil || s.Name.Name == logPackageIdentifier) {
 				// We found a valid import for the logging package.
 				// No need to inject a duplicate one.
-				return
+				return patch{}, false
+			}
+			if d.Lparen.IsValid() && overlap > maxOverlap {
+				maxOverlap = overlap
+				candidate = s.Pos()
 			}
 		}
 	}
 
-	injectImportLogPackage(file)
-}
+	if maxOverlap > 0 {
+		return patch{Offset: fset.Position(candidate).Offset, Text: logPackageQuotedImportPath + "\n"}, true
+	}
 
-// injectLogStatement adds a "defer vlog.LogCall()()" statement at the
-// beginning of the specified method.
-func injectLogStatement(method *ast.FuncDecl) {
-	method.Body.List = append([]ast.Stmt{newDeferStmtWithSelector(ast.NewIdent(logPackageIdentifier), ast.NewIdent(logCallFuncName))}, method.Body.List...)
+	// No import declaration found with parenthesis; create a new one
+	// and add it to the beginning of the file
+	return patch{Offset: fset.Position(file.Decls[0].Pos()).Offset, Text: "import " + logPackageQuotedImportPath + "\n"}, true
 }
 
 // methodBeginsWithNoLogComment returns true if method has a "nologcall"
@@ -303,40 +320,18 @@ func checkMethod(method funcDeclRef) error {
 	return nil
 }
 
-// doInjection injects log statements in methods, returning the set
-// of modified files.
-func doInjection(fset *token.FileSet, methods map[funcDeclRef]error) (modified map[*ast.File]struct{}) {
-	modified = map[*ast.File]struct{}{}
-	for m, _ := range methods {
-		injectLogStatement(m.Decl)
-		file := m.File
-		if _, ok := modified[file]; !ok {
-			modified[file] = exists
-			// We should make sure the log package is imported if we are the
-			// first one adding a method call that depends on that import.
-			ensureImportLogPackage(file)
-		}
-	}
-	return modified
-}
-
-// gofmt runs gofmt -w on files.
+// gofmt runs "gofmt -w files...".
 func gofmt(files []string) error {
 	if !gofmtFlag {
 		return nil
 	}
-	args := []string{"-w"}
-	args = append(args, files...)
-	cmd := exec.Command("gofmt", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd := exec.Command("gofmt", append([]string{"-w"}, files...)...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	return cmd.Run()
 }
 
-// injectInSource modifies methods and saves them in the source tree.
-func injectInSource(fset *token.FileSet, methods map[funcDeclRef]error) error {
-	modified := doInjection(fset, methods)
-
+// inject injects a log call at the beginning of each method in methods.
+func inject(fset *token.FileSet, methods map[funcDeclRef]error) error {
 	// Warn the user for methods that already have something at their beginning
 	// that looks like a logging construct, but it is invalid for some reason.
 	for m, err := range methods {
@@ -348,30 +343,40 @@ func injectInSource(fset *token.FileSet, methods map[funcDeclRef]error) error {
 		}
 	}
 
-	files := []string{}
-	for file, _ := range modified {
-		filename := fset.Position(file.Pos()).Filename
-		files = append(files, filename)
+	files := map[*ast.File][]patch{}
+	for m, _ := range methods {
+		delta := patch{Offset: fset.Position(m.Decl.Body.Lbrace).Offset + 1, Text: "\ndefer vlog.LogCall()(); "}
+		file := m.File
+		files[file] = append(files[file], delta)
+	}
 
-		if err := func() error {
-			fileHandle, err := os.OpenFile(filename, os.O_WRONLY, 0644)
-			if err != nil {
-				return err
-			}
-			defer fileHandle.Close()
-
-			prn := &printer.Config{
-				Mode:     printer.UseSpaces | printer.TabIndent,
-				Tabwidth: 8,
-			}
-
-			return prn.Fprint(fileHandle, fset, file)
-		}(); err != nil {
-			return err
+	for file, deltas := range files {
+		if delta, hasChanges := ensureImportLogPackage(fset, file); hasChanges {
+			files[file] = append(deltas, delta)
 		}
 	}
 
-	return gofmt(files)
+	filesToFormat := []string{}
+	for file, patches := range files {
+		filename := fset.Position(file.Pos()).Filename
+		filesToFormat = append(filesToFormat, filename)
+		sort.Sort(patchSorter(patches))
+		src, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		beginOffset := 0
+		patchedSrc := []byte{}
+		for _, patch := range patches {
+			patchedSrc = append(patchedSrc, src[beginOffset:patch.Offset]...)
+			patchedSrc = append(patchedSrc, patch.Text...)
+			beginOffset = patch.Offset
+		}
+		patchedSrc = append(patchedSrc, src[beginOffset:]...)
+		ioutil.WriteFile(filename, patchedSrc, 644)
+	}
+
+	return gofmt(filesToFormat)
 }
 
 // reportResults prints out the validation results from checkMethods
@@ -445,17 +450,6 @@ func isAddressOfExpression(expr ast.Expr) (isAddrExpr bool) {
 	// TODO: support (&x) as well as &x
 	unaryExpr, ok := expr.(*ast.UnaryExpr)
 	return ok && unaryExpr.Op == token.AND
-}
-
-// newDeferStmtWithSelector returns an abstract syntax node representing
-// the statement
-//
-//     defer x.sel()()
-//
-func newDeferStmtWithSelector(x ast.Expr, sel *ast.Ident) (deferStatement ast.Stmt) {
-	return &ast.DeferStmt{
-		Call: &ast.CallExpr{Fun: &ast.CallExpr{Fun: &ast.SelectorExpr{Sel: sel, X: x}}},
-	}
 }
 
 // findPublicInterfaces returns all the public interfaces defined in packages

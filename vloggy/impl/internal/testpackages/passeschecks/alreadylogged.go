@@ -48,3 +48,11 @@ func (obj LogCallfTest) ReturnsSomething(a int) (b int) {
 	defer vlog.LogCallf("a: %d", a)("b: %d", &b)
 	return 42
 }
+
+type NotPartOfInterfacePackageInterface interface {
+	NotPartOfInterfacePackageMethod()
+}
+
+type NotPartOfInterfacePackageType struct{}
+
+func (NotPartOfInterfacePackageType) NotPartOfInterfacePackageMethod() {}
