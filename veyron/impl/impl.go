@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 
 	"tools/lib/cmd"
 	"tools/lib/cmdline"
@@ -48,6 +49,22 @@ var cmdRoot = &cmdline.Command{
 	Children: []*cmdline.Command{cmdProfile, cmdProject, cmdRun, cmdGo, cmdSelfUpdate, cmdVersion},
 }
 
+// execExitOnNonZero runs the cmd, and calls os.Exit if the cmd exits with a
+// non-zero status.
+func execExitOnNonZero(cmd *exec.Cmd) error {
+	if err := cmd.Run(); err != nil {
+		if exit, ok := err.(*exec.ExitError); ok {
+			if wait, ok := exit.Sys().(syscall.WaitStatus); ok {
+				if status := wait.ExitStatus(); wait.Exited() && status != 0 {
+					os.Exit(status)
+				}
+			}
+		}
+		return err
+	}
+	return nil
+}
+
 // cmdGo represents the 'go' command of the veyron tool.
 var cmdGo = &cmdline.Command{
 	Run:   runGo,
@@ -78,10 +95,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	goCmd := exec.Command("go", args...)
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
-	if err := goCmd.Run(); err != nil {
-		return fmt.Errorf("%v failed: %v", strings.Join(goCmd.Args, " "), err)
-	}
-	return nil
+	return execExitOnNonZero(goCmd)
 }
 
 func generateVDL() error {
@@ -107,10 +121,10 @@ func generateVDL() error {
 	// specified for the corresponding "go" command.  This isn't trivial; we'd
 	// need to grab the transitive go dependencies for the specified packages, and
 	// then look for transitive vdl dependencies based on that set.
-	args = append(args, "generate", "all")
-	goCmd := exec.Command("go", args...)
-	if out, err := goCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%v failed: %v\n%s", strings.Join(goCmd.Args, " "), err, out)
+	args = append(args, "generate", "-lang=go", "all")
+	vdlCmd := exec.Command("go", args...)
+	if out, err := vdlCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
 	}
 	return nil
 }
@@ -671,13 +685,10 @@ func runRun(command *cmdline.Command, args []string) error {
 	case "go":
 		return fmt.Errorf(`use "veyron go" instead of "veyron run go"`)
 	}
-	goCmd := exec.Command(args[0], args[1:]...)
-	goCmd.Stdout = command.Stdout()
-	goCmd.Stderr = command.Stderr()
-	if err := goCmd.Run(); err != nil {
-		return fmt.Errorf("%v %v failed: %v", goCmd.Path, strings.Join(goCmd.Args, " "), err)
-	}
-	return nil
+	execCmd := exec.Command(args[0], args[1:]...)
+	execCmd.Stdout = command.Stdout()
+	execCmd.Stderr = command.Stderr()
+	return execExitOnNonZero(execCmd)
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the veyron tool.
