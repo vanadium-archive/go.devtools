@@ -38,6 +38,14 @@ The vloggy tool can be used to:
 interfaces declared in packages passed to the -interface flag have
 an appropriate logging construct, and
 2) automatically inject such logging constructs.
+
+LIMITATIONS:
+
+vloggy requires the ` + logPackageQuotedImportPath + ` to be
+imported as "` + logPackageIdentifier + `".  Aliasing the log package
+to another name makes vloggy ignore the calls.  Importing any
+other package with the name "` + logPackageIdentifier + `" will
+invoke undefined behavior.
 `,
 	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdSelfUpdate, cmdVersion},
 }
