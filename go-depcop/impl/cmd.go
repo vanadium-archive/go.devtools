@@ -50,15 +50,15 @@ GO.PACKAGE is a JSON file with a structure along the lines of:
 
 {
 	"dependencies": {
-		"outgoing": {
+		"outgoing": [
 			{"allow": "allowpattern1/..."},
 			{"deny": "denypattern"},
 			{"allow": "pattern2"}
-		},
-		"incoming": {
+		],
+		"incoming": [
 			{"allow": "pattern3"},
 			{"deny": "pattern4"}
-		}
+		]
 	}
 }
 `,
