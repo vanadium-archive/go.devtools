@@ -23,9 +23,15 @@ import (
 	"strings"
 )
 
-// ErrUsage is returned to indicate an error in command usage; e.g. unknown
-// flags, subcommands or args.
-var ErrUsage = errors.New("usage error")
+var (
+	// ErrUsage is returned to indicate an error in command usage;
+	// e.g. unknown flags, subcommands or args.
+	ErrUsage = errors.New("usage error")
+	// ErrEmpty is returned when the caller does not want suppress
+	// the cmdline library's error message in the case errors have
+	// been already printed to command.Stderr().
+	ErrEmpty = errors.New("")
+)
 
 // Command represents a single command in a command-line program.  A program
 // with subcommands is represented as a root Command with children representing
@@ -352,11 +358,14 @@ func (cmd *Command) Execute(args []string) error {
 func (cmd *Command) Main() {
 	cmd.Init(nil, os.Stdout, os.Stderr)
 	if err := cmd.Execute(os.Args[1:]); err != nil {
-		if err == ErrUsage {
+		switch err {
+		case ErrUsage:
 			os.Exit(1)
-		} else {
-			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		case ErrEmpty:
 			os.Exit(2)
+		default:
+			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+			os.Exit(3)
 		}
 	}
 }

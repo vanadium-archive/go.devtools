@@ -43,10 +43,18 @@ func Root() *cmdline.Command {
 
 // cmdRoot represents the root of the veyron tool.
 var cmdRoot = &cmdline.Command{
-	Name:     "veyron",
-	Short:    "Command-line tool for managing veyron projects",
-	Long:     "The veyron tool facilitates interaction with veyron projects.",
-	Children: []*cmdline.Command{cmdProfile, cmdProject, cmdRun, cmdGo, cmdSelfUpdate, cmdVersion},
+	Name:  "veyron",
+	Short: "Command-line tool for managing veyron projects",
+	Long:  "The veyron tool facilitates interaction with veyron projects.",
+	Children: []*cmdline.Command{
+		cmdProfile,
+		cmdProject,
+		cmdRun,
+		cmdGo,
+		cmdGoExt,
+		cmdSelfUpdate,
+		cmdVersion,
+	},
 }
 
 // execExitOnNonZero runs the cmd, and calls os.Exit if the cmd exits with a
@@ -125,6 +133,58 @@ func generateVDL() error {
 	vdlCmd := exec.Command("go", args...)
 	if out, err := vdlCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
+	}
+	return nil
+}
+
+// cmdGoExt represents the 'goext' command of the veyron tool.
+var cmdGoExt = &cmdline.Command{
+	Name:     "goext",
+	Short:    "Veyron extensions of the go tool",
+	Long:     "Veyron extension of the go tool.",
+	Children: []*cmdline.Command{cmdGoExtDistClean},
+}
+
+// cmdGoExtDistClean represents the 'distclean' sub-command of 'goext'
+// command of the veyron tool.
+var cmdGoExtDistClean = &cmdline.Command{
+	Run:   runGoExtDistClean,
+	Name:  "distclean",
+	Short: "Restore the veyron Go repositories to their pristine state",
+	Long: `
+Unlike the 'go clean' command, which only removes object files for
+packages in the source tree, the 'goext disclean' command removes all
+object files from veyron Go workspaces. This functionality is needed
+to avoid accidental use of stale object files that correspond to
+packages that no longer exist in the source tree.
+`,
+}
+
+func runGoExtDistClean(command *cmdline.Command, _ []string) error {
+	if err := util.SetupVeyronEnvironment(); err != nil {
+		return err
+	}
+	goPath := os.Getenv("GOPATH")
+	failed := false
+	for _, workspace := range strings.Split(goPath, ":") {
+		if workspace == "" {
+			continue
+		}
+		for _, name := range []string{"bin", "pkg"} {
+			dir := filepath.Join(workspace, name)
+			// TODO(jsimsa): Use the new logging library
+			// for this when it is checked in.
+			fmt.Fprintf(command.Stdout(), "Removing %v\n", dir)
+			if err := os.RemoveAll(dir); err != nil {
+				failed = true
+				fmt.Fprintf(command.Stderr(), "RemoveAll(%v) failed: %v", dir, err)
+			}
+		}
+	}
+	if failed {
+		// TODO(jsimsa): Replace with cmdline.ErrExitCode()
+		// when available.
+		os.Exit(2)
 	}
 	return nil
 }
