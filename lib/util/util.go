@@ -256,7 +256,21 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 	if err := os.Chdir(repo); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", repo, err)
 	}
-	goScript := filepath.Join(root, "scripts", "build", "go")
+	branch, err := git.CurrentBranchName()
+	if err != nil {
+		return err
+	}
+	stashed, err := git.Stash()
+	if err != nil {
+		return err
+	}
+	if stashed {
+		defer git.StashPop()
+	}
+	if err := git.CheckoutBranch("master"); err != nil {
+		return err
+	}
+	defer git.CheckoutBranch(branch)
 	count, err := git.CountCommits("HEAD", "")
 	if err != nil {
 		return err
@@ -264,9 +278,9 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 	output := filepath.Join(root, "bin", name)
 	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
-	args = []string{"build", "-ldflags", ldflags, "-o", output, pkg}
+	args = []string{"go", "build", "-ldflags", ldflags, "-o", output, pkg}
 	stderr.Reset()
-	if err := run.Command(ioutil.Discard, &stderr, goScript, args...); err != nil {
+	if err := run.Command(ioutil.Discard, &stderr, "veyron", args...); err != nil {
 		return fmt.Errorf("%v tool update failed\n%v", name, stderr.String())
 	}
 	return nil
