@@ -1,0 +1,4 @@
+package internal
+
+func A() {
+}

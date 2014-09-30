@@ -62,16 +62,16 @@ type dependencyRuleTest struct {
 
 func TestVerifyDependency(t *testing.T) {
 	var packageTests = []packageTest{
-		{"tools/go-depcop/impl/internal/testpackages/test-a", false},
-		{"tools/go-depcop/impl/internal/testpackages/test-b", true},
-		{"tools/go-depcop/impl/internal/testpackages/test-c", true},
-		{"tools/go-depcop/impl/internal/testpackages/test-c/child", false},
-		{"tools/go-depcop/impl/internal/testpackages/import-C", false},
-		{"tools/go-depcop/impl/internal/testpackages/import-unsafe", false},
-		{"tools/go-depcop/impl/internal/testpackages/test-internal", false},
-		{"tools/go-depcop/impl/internal/testpackages/test-internal/child", false},
-		{"tools/go-depcop/impl/internal/testpackages/test-internal/internal/child", false},
-		{"tools/go-depcop/impl/internal/testpackages/test-internal-fail", true},
+		{"tools/go-depcop/impl/testdata/test-a", false},
+		{"tools/go-depcop/impl/testdata/test-b", true},
+		{"tools/go-depcop/impl/testdata/test-c", true},
+		{"tools/go-depcop/impl/testdata/test-c/child", false},
+		{"tools/go-depcop/impl/testdata/import-C", false},
+		{"tools/go-depcop/impl/testdata/import-unsafe", false},
+		{"tools/go-depcop/impl/testdata/test-internal", false},
+		{"tools/go-depcop/impl/testdata/test-internal/child", false},
+		{"tools/go-depcop/impl/testdata/test-internal/internal/child", false},
+		{"tools/go-depcop/impl/testdata/test-internal-fail", true},
 	}
 
 	for _, test := range packageTests {

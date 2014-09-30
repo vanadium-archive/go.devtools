@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	testPackagePrefix   = "tools/vloggy/impl/internal/testpackages"
 	failingPrefix       = "failschecks"
 	failingPackageCount = 7
+	testPackagePrefix   = "tools/vloggy/impl/testdata"
 )
 
 func TestValidPackages(t *testing.T) {
