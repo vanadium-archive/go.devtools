@@ -50,6 +50,7 @@ var cmdRoot = &cmdline.Command{
 	Children: []*cmdline.Command{
 		cmdProfile,
 		cmdProject,
+		cmdEnv,
 		cmdRun,
 		cmdGo,
 		cmdGoExt,
@@ -70,6 +71,46 @@ func execExitOnNonZero(cmd *exec.Cmd) error {
 			}
 		}
 		return err
+	}
+	return nil
+}
+
+// cmdEnv represents the 'env' command of the veyron tool.
+var cmdEnv = &cmdline.Command{
+	Run:   runEnv,
+	Name:  "env",
+	Short: "Print veyron environment variables",
+	Long: `
+Print veyron environment variables.
+
+If no arguments are given, prints all variables in NAME=VALUE format,
+each on a separate line ordered by name.
+
+If arguments are given, prints only the value of each named variable,
+each on a separate line in the same order as the arguments.
+`,
+	ArgsName: "[name ...]",
+	ArgsLong: "[name ...] is an optional list of variable names.",
+}
+
+func runEnv(command *cmdline.Command, args []string) error {
+	env, err := util.VeyronEnvironment()
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		for _, name := range args {
+			fmt.Fprintf(command.Stdout(), "%s\n", env[name])
+		}
+		return nil
+	}
+	names := []string{}
+	for name := range env {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(command.Stdout(), "%s=%s\n", name, env[name])
 	}
 	return nil
 }

@@ -138,12 +138,19 @@ func VeyronEnvironment() (map[string]string, error) {
 	if err := json.Unmarshal(configBytes, &config); err != nil {
 		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(configBytes), err)
 	}
-	workspaces := []string{}
+	gopath := []string{}
+	// Initialize gopath to base GOPATH, with empty entries dropped.
+	for _, base := range strings.Split(baseEnv["GOPATH"], ":") {
+		if base != "" {
+			gopath = append(gopath, base)
+		}
+	}
+	// Append an entry to gopath for each veyron go repo.
 	for _, repo := range config.GoRepos {
-		workspaces = append(workspaces, filepath.Join(root, repo, "go"))
+		gopath = append(gopath, filepath.Join(root, repo, "go"))
 	}
 	env := map[string]string{}
-	env["GOPATH"] = strings.Join(append([]string{baseEnv["GOPATH"]}, workspaces...), ":")
+	env["GOPATH"] = strings.Join(gopath, ":")
 	return env, nil
 }
 
