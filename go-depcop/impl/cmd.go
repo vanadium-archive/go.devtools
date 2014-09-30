@@ -181,8 +181,8 @@ var cmdSelfUpdate = &cmdline.Command{
 	Long:  "Download and install the latest version of the go-depcop tool.",
 }
 
-func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return util.SelfUpdate(verboseFlag, manifestFlag, "go-depcop")
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "go-depcop")
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.
@@ -199,7 +199,7 @@ const version string = "0.1.0"
 // go build -ldflags "-X tools/go-depcop/impl.commitId <commitId>" tools/go-depcop
 var commitId string = "test-build"
 
-func runVersion(cmd *cmdline.Command, args []string) error {
-	fmt.Printf("go-depcop tool version %v (build %v)\n", version, commitId)
+func runVersion(command *cmdline.Command, _ []string) error {
+	fmt.Fprintf(command.Stdout(), "go-depcop tool version %v (build %v)\n", version, commitId)
 	return nil
 }

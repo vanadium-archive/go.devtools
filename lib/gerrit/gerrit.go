@@ -1,3 +1,5 @@
+// Package gerrit provides library functions for interacting with the
+// gerrit code review system.
 package gerrit
 
 import (
@@ -12,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
-	"tools/lib/cmd"
-	"tools/lib/git"
+	"tools/lib/gitutil"
+	"tools/lib/runutil"
 )
 
 var (
@@ -191,34 +193,32 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 // repoName returns the URL of the veyron Gerrit repository with
 // respect to the repository identified by the current working
 // directory.
-func repoName(verbose bool) (string, error) {
+func repoName(run *runutil.Run) (string, error) {
 	args := []string{"config", "--get", "remote.origin.url"}
-	out, errOut, err := cmd.RunOutput(verbose, "git", args...)
-	if err != nil {
-		return "", git.NewGitError(out, errOut, args...)
+	var stdout, stderr bytes.Buffer
+	if err := run.Command(&stdout, &stderr, "git", args...); err != nil {
+		return "", gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
-	if len(out) != 1 {
-		return "", git.NewGitError(out, errOut, args...)
-	}
-	return "https://veyron-review.googlesource.com/" + filepath.Base(out[0]), nil
+	return "https://veyron-review.googlesource.com/" + filepath.Base(strings.TrimSpace(stdout.String())), nil
 }
 
 // Review pushes the branch to Gerrit.
-func Review(verbose bool, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
+func Review(run *runutil.Run, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
 	repoPath := repoPathArg
 	if repoPathArg == "" {
 		var err error
-		repoPath, err = repoName(verbose)
+		repoPath, err = repoName(run)
 		if err != nil {
 			return err
 		}
 	}
 	refspec := "HEAD:" + Reference(draft, reviewers, ccs, branch)
-	_, errOut, err := cmd.RunOutput(verbose, "git", "push", repoPath, refspec)
-	if err != nil {
-		return fmt.Errorf("%v", errOut)
+	args := []string{"push", repoPath, refspec}
+	var stdout, stderr bytes.Buffer
+	if err := run.Command(&stdout, &stderr, "git", args...); err != nil {
+		return gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
-	for _, line := range errOut {
+	for _, line := range strings.Split(stderr.String(), "\n") {
 		if remoteRE.MatchString(line) {
 			fmt.Println(line)
 		}

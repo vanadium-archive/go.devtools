@@ -111,8 +111,8 @@ var cmdSelfUpdate = &cmdline.Command{
 	Long:  "Download and install the latest version of the vloggy tool.",
 }
 
-func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return util.SelfUpdate(verboseFlag, manifestFlag, "vloggy")
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "vloggy")
 }
 
 // cmdVersion represents the 'version' command of the vloggy tool.
@@ -129,8 +129,8 @@ const version string = "0.1.0"
 // go build -ldflags "-X tools/vloggy/impl.commitId <commitId>" tools/vloggy
 var commitId string = "test-build"
 
-func runVersion(cmd *cmdline.Command, args []string) error {
-	fmt.Printf("vloggy tool version %v (build %v)\n", version, commitId)
+func runVersion(command *cmdline.Command, _ []string) error {
+	fmt.Fprintf(command.Stdout(), "vloggy tool version %v (build %v)\n", version, commitId)
 	return nil
 }
 

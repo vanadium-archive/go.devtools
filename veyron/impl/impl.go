@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,9 +13,9 @@ import (
 	"strings"
 	"syscall"
 
-	"tools/lib/cmd"
 	"tools/lib/cmdline"
-	"tools/lib/git"
+	"tools/lib/gitutil"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -257,15 +258,22 @@ func runProfileSetup(command *cmdline.Command, args []string) error {
 			return command.Errorf("profile %v does not exist", arg)
 		}
 	}
+	// Always log the output of 'veyron profile setup'
+	// irrespective of the value of the verbose flag.
+	run := runutil.New(true, command.Stdout())
 	// Setup the profiles.
 	for _, arg := range args {
 		script := filepath.Join(root, "scripts", "setup", runtime.GOOS, arg, "setup.sh")
-		cmd.LogStart(fmt.Sprintf("Setting up profile %q", arg))
-		if _, errOut, err := cmd.RunOutput(true, script); err != nil {
-			cmd.LogEnd(false)
-			return fmt.Errorf("profile %q setup failed with\n%v", arg, strings.Join(errOut, "\n"))
+		setupFn := func() error {
+			var stderr bytes.Buffer
+			if err := run.Command(ioutil.Discard, &stderr, script); err != nil {
+				return fmt.Errorf("profile %q setup failed: %v\n%v", arg, err, stderr.String())
+			}
+			return nil
 		}
-		cmd.LogEnd(true)
+		if err := run.Function(setupFn, "Setting up profile "+arg); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -293,7 +301,7 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 	if branchesFlag != "none" && branchesFlag != "all" {
 		return command.Errorf("unrecognized branches option: %v", branchesFlag)
 	}
-	git := git.New(verboseFlag)
+	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
 	projects, err := util.LocalProjects(git)
 	if err != nil {
 		return err
@@ -340,7 +348,7 @@ Poll existing veyron projects and report whether any new changes exist.
 
 // runProjectPoll generates a description of the new changes.
 func runProjectPoll(command *cmdline.Command, _ []string) error {
-	git := git.New(verboseFlag)
+	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
 	currentProjects, err := util.LocalProjects(git)
 	if err != nil {
 		return err
@@ -372,7 +380,7 @@ func runProjectPoll(command *cmdline.Command, _ []string) error {
 	return nil
 }
 
-func computeUpdate(git *git.Git, ops operationList) (util.Update, error) {
+func computeUpdate(git *gitutil.Git, ops operationList) (util.Update, error) {
 	update := util.Update{}
 	for _, op := range ops {
 		commits := []util.Commit{}
@@ -456,15 +464,16 @@ func newOperation(project, src, dst string, ty operationType) operation {
 }
 
 func (o operation) String() string {
+	name := filepath.Base(o.project)
 	switch o.ty {
 	case createOperation:
-		return fmt.Sprintf("create project %v in %q", o.project, o.destination)
+		return fmt.Sprintf("create project %q in %q", name, o.destination)
 	case deleteOperation:
-		return fmt.Sprintf("delete project %v from %q", o.project, o.source)
+		return fmt.Sprintf("delete project %q from %q", name, o.source)
 	case moveOperation:
-		return fmt.Sprintf("move project %v from %q to %q and update it", o.project, o.source, o.destination)
+		return fmt.Sprintf("move project %q from %q to %q and update it", name, o.source, o.destination)
 	case updateOperation:
-		return fmt.Sprintf("update project %v in %q", o.project, o.source)
+		return fmt.Sprintf("update project %q in %q", name, o.source)
 	default:
 		return fmt.Sprintf("unknown operation type: %v", o.ty)
 	}
@@ -572,7 +581,7 @@ exit 0
 // commit hooks for existing repositories. Overwriting the existing
 // hooks is not a good idea as developers might have customized the
 // hooks.
-func runOperation(git *git.Git, op operation) error {
+func runOperation(run *runutil.Run, git *gitutil.Git, op operation) error {
 	switch op.ty {
 	case createOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
@@ -585,8 +594,9 @@ func runOperation(git *git.Git, op operation) error {
 		file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
 		url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
 		args := []string{"-Lo", file, url}
-		if _, errOut, err := cmd.RunOutput(false, "curl", args...); err != nil {
-			return fmt.Errorf("download of Gerrit commit message git hook failed\n%s", strings.Join(errOut, "\n"))
+		var stderr bytes.Buffer
+		if err := run.Command(ioutil.Discard, &stderr, "curl", args...); err != nil {
+			return fmt.Errorf("download of Gerrit commit message git hook failed: %v\n%v", err, stderr.String())
 		}
 		if err := os.Chmod(file, perm); err != nil {
 			return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
@@ -626,7 +636,8 @@ func runOperation(git *git.Git, op operation) error {
 
 // runProjectUpdate implements the update command of the veyron tool.
 func runProjectUpdate(command *cmdline.Command, args []string) error {
-	git := git.New(verboseFlag)
+	run := runutil.New(verboseFlag, command.Stdout())
+	git := gitutil.New(run)
 	currentProjects, err := util.LocalProjects(git)
 	if err != nil {
 		return err
@@ -664,8 +675,11 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 	}
 	failed := false
 	for _, op := range ops {
-		runFn := func() error { return runOperation(git, op) }
-		if err := cmd.Log(runFn, "%v", op); err != nil {
+		runFn := func() error { return runOperation(run, git, op) }
+		// Always log the output of 'veyron project update'
+		// irrespective of the value of the verbose flag.
+		run := runutil.New(true, command.Stdout())
+		if err := run.Function(runFn, "%v", op); err != nil {
 			fmt.Fprintf(command.Stderr(), "%v\n", err)
 			failed = true
 		}
@@ -759,8 +773,8 @@ var cmdSelfUpdate = &cmdline.Command{
 	Long:  "Download and install the latest version of the veyron tool.",
 }
 
-func runSelfUpdate(*cmdline.Command, []string) error {
-	return util.SelfUpdate(verboseFlag, manifestFlag, "veyron")
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "veyron")
 }
 
 // cmdVersion represents the 'version' command of the veyron tool.

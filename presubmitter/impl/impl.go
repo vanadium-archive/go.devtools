@@ -13,10 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"tools/lib/cmd"
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
-	"tools/lib/git"
+	"tools/lib/gitutil"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -368,6 +368,7 @@ file, and posts test results back to the corresponding Gerrit review thread.
 
 // runTest implements the 'test' subcommand.
 func runTest(command *cmdline.Command, args []string) error {
+	run := runutil.New(verboseFlag, command.Stdout())
 	// Basic sanity checks.
 	manifestFilePath := filepath.Join(veyronRoot, ".manifest", manifestNameFlag+".xml")
 	if _, err := os.Stat(testsConfigFileFlag); err != nil {
@@ -405,7 +406,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Parse the manifest file to get the local path for the repo.
-	projects, err := util.LatestProjects(manifestNameFlag, git.New(verboseFlag))
+	projects, err := util.LatestProjects(manifestNameFlag, gitutil.New(run))
 	if err != nil {
 		return err
 	}
@@ -416,14 +417,14 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() {
-		if err := cleanUpPresubmitTestBranch(localRepoDir, command); err != nil {
+		if err := cleanUpPresubmitTestBranch(command, run, localRepoDir); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
 	defer cleanupFn()
 
 	// Prepare presubmit test branch.
-	if err := preparePresubmitTestBranch(localRepoDir, cl, command); err != nil {
+	if err := preparePresubmitTestBranch(command, run, localRepoDir, cl); err != nil {
 		return err
 	}
 
@@ -449,9 +450,10 @@ func runTest(command *cmdline.Command, args []string) error {
 
 		testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
 		var curStatusString string
-		if errLines, err := cmd.RunOutputError(verboseFlag, testScript); err != nil {
+		var stderr bytes.Buffer
+		if err := run.Command(ioutil.Discard, &stderr, testScript); err != nil {
 			curStatusString = "✖"
-			fmt.Fprintf(command.Stderr(), "%v\n", strings.Join(errLines, "\n"))
+			fmt.Fprintf(command.Stderr(), "%v\n", stderr.String())
 		} else {
 			curStatusString = "✔"
 		}
@@ -478,7 +480,7 @@ func presubmitTestBranchName() string {
 }
 
 // preparePresubmitTestBranch creates and checks out the presubmit test branch and pulls the CL there.
-func preparePresubmitTestBranch(localRepoDir, cl string, command *cmdline.Command) error {
+func preparePresubmitTestBranch(command *cmdline.Command, run *runutil.Run, localRepoDir, cl string) error {
 	fmt.Fprintf(command.Stdout(),
 		"\n### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
 
@@ -490,7 +492,7 @@ func preparePresubmitTestBranch(localRepoDir, cl string, command *cmdline.Comman
 	if err := os.Chdir(localRepoDir); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
-	git := git.New(verboseFlag)
+	git := gitutil.New(run)
 	branchName := presubmitTestBranchName()
 	if err := git.CreateAndCheckoutBranch(branchName); err != nil {
 		return fmt.Errorf("CreateAndCheckoutBranch(%q) failed: %v", branchName, err)
@@ -503,13 +505,13 @@ func preparePresubmitTestBranch(localRepoDir, cl string, command *cmdline.Comman
 }
 
 // cleanUpPresubmitTestBranch removes the presubmit test branch.
-func cleanUpPresubmitTestBranch(localRepoDir string, command *cmdline.Command) error {
+func cleanUpPresubmitTestBranch(command *cmdline.Command, run *runutil.Run, localRepoDir string) error {
 	fmt.Fprintf(command.Stdout(), "\n### Cleaning up\n")
 
 	if err := os.Chdir(localRepoDir); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
-	git := git.New(verboseFlag)
+	git := gitutil.New(run)
 	master := "master"
 	if err := git.CheckoutBranch(master); err != nil {
 		return fmt.Errorf("CheckoutBranch(%q) failed: %v", master, err)
@@ -585,8 +587,8 @@ var cmdSelfUpdate = &cmdline.Command{
 	Long:  "Download and install the latest version of the presubmitter tool.",
 }
 
-func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return util.SelfUpdate(false, manifestFlag, "presubmitter")
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "presubmitter")
 }
 
 // cmdVersion represent the 'version' command of the presubmitter tool.
@@ -603,7 +605,7 @@ const version string = "0.1"
 // go build -ldflags "-X tools/presubmitter/impl.commitId <commitId>" tools/presubmitter
 var commitId string = "test-build"
 
-func runVersion(cmd *cmdline.Command, args []string) error {
-	fmt.Printf("presubmitter tool version %v (build %v)\n", version, commitId)
+func runVersion(command *cmdline.Command, _ []string) error {
+	fmt.Fprintf(command.Stdout(), "presubmitter tool version %v (build %v)\n", version, commitId)
 	return nil
 }

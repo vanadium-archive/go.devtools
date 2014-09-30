@@ -1,17 +1,21 @@
+// Package util contains a variety of general purpose functions, such
+// as the SelfUpdate() function, for writing tools.
 package util
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"tools/lib/cmd"
-	"tools/lib/git"
+	"tools/lib/gitutil"
+	"tools/lib/runutil"
 )
 
 const (
@@ -36,7 +40,7 @@ func init() {
 
 // LatestProjects parses the most recent version fo the project
 // manifest to identify the latest projects.
-func LatestProjects(manifest string, git *git.Git) (map[string]string, error) {
+func LatestProjects(manifest string, git *gitutil.Git) (map[string]string, error) {
 	projects := map[string]string{}
 	if err := findLatestProjects(manifest, projects, git); err != nil {
 		return nil, err
@@ -46,7 +50,7 @@ func LatestProjects(manifest string, git *git.Git) (map[string]string, error) {
 
 // LocalProjects scans the local filesystem to identify existing
 // projects.
-func LocalProjects(git *git.Git) (map[string]string, error) {
+func LocalProjects(git *gitutil.Git) (map[string]string, error) {
 	root, err := VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -59,9 +63,13 @@ func LocalProjects(git *git.Git) (map[string]string, error) {
 }
 
 // SelfUpdate updates the given tool to the latest version.
-func SelfUpdate(verbose bool, manifest, name string) error {
-	updateFn := func() error { return selfUpdate(verbose, manifest, name) }
-	return cmd.Log(updateFn, "Updating tool %q", name)
+func SelfUpdate(verbose bool, stdout io.Writer, manifest, name string) error {
+	git := gitutil.New(runutil.New(verbose, stdout))
+	// Always log the output of selfupdate logic irrespective of
+	// the value of the verbose flag.
+	run := runutil.New(true, stdout)
+	updateFn := func() error { return selfUpdate(git, run, manifest, name) }
+	return run.Function(updateFn, "Updating tool %q", name)
 }
 
 // SetupVeyronEnvironment sets up the environment variables used by
@@ -81,7 +89,7 @@ func SetupVeyronEnvironment() error {
 
 // UpdateProject advances the local master branch of the project
 // identified by the given path.
-func UpdateProject(project string, git *git.Git) error {
+func UpdateProject(project string, git *gitutil.Git) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
@@ -157,7 +165,7 @@ type manifest struct {
 	Projects []project `xml:"project"`
 }
 
-func findLatestProjects(manifestFile string, projects map[string]string, git *git.Git) error {
+func findLatestProjects(manifestFile string, projects map[string]string, git *gitutil.Git) error {
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
@@ -183,7 +191,7 @@ func findLatestProjects(manifestFile string, projects map[string]string, git *gi
 	return nil
 }
 
-func findLocalProjects(path string, projects map[string]string, git *git.Git) error {
+func findLocalProjects(path string, projects map[string]string, git *gitutil.Git) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
@@ -228,15 +236,16 @@ func findLocalProjects(path string, projects map[string]string, git *git.Git) er
 	return nil
 }
 
-func selfUpdate(verbose bool, manifest, name string) error {
+func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error {
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
 	}
 	url := "https://veyron.googlesource.com/tools"
-	args := []string{fmt.Sprintf("-v=%v", verbose), "project", "update", "-manifest=" + manifest, url}
-	if _, errOut, err := cmd.RunOutput(true, "veyron", args...); err != nil {
-		return fmt.Errorf("%s", strings.Join(errOut, "\n"))
+	args := []string{fmt.Sprintf("-v=%v", run.Verbose), "project", "update", "-manifest=" + manifest, url}
+	var stderr bytes.Buffer
+	if err := run.Command(ioutil.Discard, &stderr, "veyron", args...); err != nil {
+		return fmt.Errorf("%v", stderr.String())
 	}
 	wd, err := os.Getwd()
 	if err != nil {
@@ -248,7 +257,6 @@ func selfUpdate(verbose bool, manifest, name string) error {
 		return fmt.Errorf("Chdir(%v) failed: %v", repo, err)
 	}
 	goScript := filepath.Join(root, "scripts", "build", "go")
-	git := git.New(verbose)
 	count, err := git.CountCommits("HEAD", "")
 	if err != nil {
 		return err
@@ -257,8 +265,9 @@ func selfUpdate(verbose bool, manifest, name string) error {
 	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
 	args = []string{"build", "-ldflags", ldflags, "-o", output, pkg}
-	if _, errOut, err := cmd.RunOutput(true, goScript, args...); err != nil {
-		return fmt.Errorf("%v tool update failed\n%v", name, strings.Join(errOut, "\n"))
+	stderr.Reset()
+	if err := run.Command(ioutil.Discard, &stderr, goScript, args...); err != nil {
+		return fmt.Errorf("%v tool update failed\n%v", name, stderr.String())
 	}
 	return nil
 }

@@ -1,25 +1,28 @@
-package git
+// Package gitutil provides Go wrappers for a variety of git commands.
+package gitutil
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
-	"tools/lib/cmd"
+	"tools/lib/runutil"
 )
 
 type GitError struct {
-	command string
-	args    []string
-	out     []string
-	err     []string
+	args        []string
+	output      string
+	errorOutput string
 }
 
-func NewGitError(out, err []string, args ...string) GitError {
+func Error(output, errorOutput string, args ...string) GitError {
 	return GitError{
-		args: args,
-		out:  out,
-		err:  err,
+		args:        args,
+		output:      output,
+		errorOutput: errorOutput,
 	}
 }
 
@@ -27,17 +30,17 @@ func (ge GitError) Error() string {
 	result := "'git "
 	result += strings.Join(ge.args, " ")
 	result += "' failed:\n"
-	result += strings.Join(ge.err, "\n")
+	result += ge.errorOutput
 	return result
 }
 
 type Git struct {
-	verbose bool
+	runner *runutil.Run
 }
 
-func New(verbose bool) *Git {
+func New(runner *runutil.Run) *Git {
 	return &Git{
-		verbose: verbose,
+		runner: runner,
 	}
 }
 
@@ -62,10 +65,9 @@ func (g *Git) BranchExists(branchName string) bool {
 
 // BranchesDiffer tests whether two branches have any changes between them.
 func (g *Git) BranchesDiffer(branchName1, branchName2 string) (bool, error) {
-	args := []string{"--no-pager", "diff", "--name-only", branchName1 + ".." + branchName2}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("--no-pager", "diff", "-name-only", branchName1+".."+branchName2)
 	if err != nil {
-		return false, NewGitError(out, errOut, args...)
+		return false, err
 	}
 	// If output is empty, then there is no difference.
 	if len(out) == 0 {
@@ -100,9 +102,11 @@ func (g *Git) CommitAmend(message string) error {
 // commit message.
 func (g *Git) CommitAndEdit() error {
 	args := []string{"commit", "--allow-empty"}
-	errOut, err := cmd.RunOutputError(g.verbose, "git", args...)
-	if err != nil {
-		return NewGitError(nil, errOut, args...)
+	var stderr bytes.Buffer
+	// In order for the editing to work correctly with
+	// terminal-based editors, notably "vim", use os.Stdout.
+	if err := g.runner.Command(os.Stdout, &stderr, "git", args...); err != nil {
+		return Error("", stderr.String(), args...)
 	}
 	return nil
 }
@@ -118,10 +122,9 @@ func (g *Git) CommitFile(fileName, message string) error {
 // CommitMessages returns the concatenation of all commit messages on <branch>
 // that are not also on <baseBranch>.
 func (g *Git) CommitMessages(branch, baseBranch string) (string, error) {
-	args := []string{"log", "--no-merges", baseBranch + ".." + branch}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("log", "--no-merges", baseBranch+".."+branch)
 	if err != nil {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	return strings.Join(out, "\n"), nil
 }
@@ -135,9 +138,11 @@ func (g *Git) CommitWithMessage(message string) error {
 // the commit message. The given message will be used as the default.
 func (g *Git) CommitWithMessageAndEdit(message string) error {
 	args := []string{"commit", "--allow-empty", "-e", "-m", message}
-	errOut, err := cmd.RunOutputError(g.verbose, "git", args...)
-	if err != nil {
-		return NewGitError(nil, errOut, args...)
+	var stderr bytes.Buffer
+	// In order for the editing to work correctly with
+	// terminal-based editors, notably "vim", use os.Stdout.
+	if err := g.runner.Command(os.Stdout, &stderr, "git", args...); err != nil {
+		return Error("", stderr.String(), args...)
 	}
 	return nil
 }
@@ -148,12 +153,12 @@ func (g *Git) CountCommits(branch, base string) (int, error) {
 	if base != "" {
 		args = append(args, "^"+base)
 	}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput(args...)
 	if err != nil {
-		return 0, NewGitError(out, errOut, args...)
+		return 0, err
 	}
 	if expected, got := 1, len(out); expected != got {
-		return 0, NewGitError(out, errOut, args...)
+		return 0, err
 	}
 	count, err := strconv.Atoi(out[0])
 	if err != nil {
@@ -181,10 +186,9 @@ func (g *Git) CreateBranchWithUpstream(branchName, upstream string) error {
 
 // CurrentBranchName returns the name of the current branch.
 func (g *Git) CurrentBranchName() (string, error) {
-	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	return strings.Join(out, "\n"), nil
 }
@@ -203,10 +207,9 @@ func (g *Git) ForceDeleteBranch(branchName string) error {
 // GetBranches returns a slice of the local branches of the current
 // repository, followed by the name of the current branch.
 func (g *Git) GetBranches() ([]string, string, error) {
-	args := []string{"branch"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("branch")
 	if err != nil {
-		return nil, "", NewGitError(out, errOut, args...)
+		return nil, "", err
 	}
 	branches, current := []string{}, ""
 	for _, branch := range out {
@@ -222,10 +225,9 @@ func (g *Git) GetBranches() ([]string, string, error) {
 // HasUntrackedFiles checks whether the current branch contains any
 // untracked files.
 func (g *Git) HasUntrackedFiles() (bool, error) {
-	args := []string{"ls-files", "--other", "--directory", "--exclude-standard"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("ls-files", "--other", "--directory", "--exclude-standard")
 	if err != nil {
-		return false, NewGitError(out, errOut, args...)
+		return false, err
 	}
 	// If output is empty, then there are no untracked files.
 	if len(out) == 0 {
@@ -252,7 +254,7 @@ func (g *Git) Init(path string) error {
 // IsFileCommitted tests whether the given file has been committed to the repo.
 func (g *Git) IsFileCommitted(file string) bool {
 	// Check if file is still in staging enviroment.
-	if out, _, _ := cmd.RunOutput(g.verbose, "git", "status", "--porcelain", file); len(out) > 0 {
+	if out, _ := g.runOutput("status", "--porcelain", file); len(out) > 0 {
 		return false
 	}
 	// Check if file is unknown to git.
@@ -264,20 +266,18 @@ func (g *Git) IsFileCommitted(file string) bool {
 
 // LatestCommitID returns the latest commit identifier for the current branch.
 func (g *Git) LatestCommitID() (string, error) {
-	args := []string{"rev-parse", "HEAD"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("rev-parse", "HEAD")
 	if err != nil {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	return strings.Join(out, "\n"), nil
 }
 
 // LatestCommitMessage returns the latest commit message on the current branch.
 func (g *Git) LatestCommitMessage() (string, error) {
-	args := []string{"log", "-n", "1", "--format=format:%B"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("log", "-n", "1", "--format=format:%B")
 	if err != nil {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	return strings.Join(out, "\n"), nil
 }
@@ -291,10 +291,12 @@ func (g *Git) Log(branch, base, format string) ([][]string, error) {
 	}
 	result := [][]string{}
 	for i := 0; i < n; i++ {
-		args := []string{"log", "-1", fmt.Sprintf("--skip=%d", i), fmt.Sprintf("--format=%s", format), fmt.Sprintf("%v..%v", base, branch)}
-		out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+		skipArg := fmt.Sprintf("--skip=%d", i)
+		formatArg := fmt.Sprintf("--format=%s", format)
+		branchArg := fmt.Sprintf("%v..%v", base, branch)
+		out, err := g.runOutput("log", "-1", skipArg, formatArg, branchArg)
 		if err != nil {
-			return nil, NewGitError(out, errOut, args...)
+			return nil, err
 		}
 		result = append(result, out)
 	}
@@ -310,7 +312,7 @@ func (g *Git) Merge(branch string, squash bool) error {
 		args = append(args, "--squash")
 	}
 	args = append(args, branch)
-	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
+	if out, err := g.runOutput(args...); err != nil {
 		g.run("reset", "--merge")
 		return fmt.Errorf("%v\n%v", err, strings.Join(out, "\n"))
 	}
@@ -320,18 +322,16 @@ func (g *Git) Merge(branch string, squash bool) error {
 // ModifiedFiles returns a slice of filenames that have changed between
 // <baseBranch> and <currentBranch>.
 func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) {
-	args := []string{"diff", "--name-only", baseBranch + ".." + currentBranch}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("diff", "--name-only", baseBranch+".."+currentBranch)
 	if err != nil {
-		return nil, NewGitError(out, errOut, args...)
+		return nil, err
 	}
 	return out, nil
 }
 
 // Pull pulls the given branch from the given remote repo.
 func (g *Git) Pull(remote, branch string) error {
-	args := []string{"pull", remote, branch}
-	if out, _, err := cmd.RunOutput(g.verbose, "git", args...); err != nil {
+	if out, err := g.runOutput("pull", remote, branch); err != nil {
 		g.run("reset", "--merge")
 		return fmt.Errorf("%v\n%v", err, strings.Join(out, "\n"))
 	}
@@ -344,7 +344,8 @@ func (g *Git) Pull(remote, branch string) error {
 	// account for this, run "git pull", which fails but creates the
 	// missing branch, for git 1.7 and older.
 	if major < 2 && minor < 8 {
-		cmd.Run(false, "git", "pull")
+		command := exec.Command("git", "pull")
+		command.Run()
 	}
 	return nil
 }
@@ -361,20 +362,14 @@ func (g *Git) Remove(fileName string) error {
 
 // RepoName gets the name of the current repo.
 func (g *Git) RepoName() (string, error) {
-	args := []string{"config", "--get", "remote.origin.url"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("config", "--get", "remote.origin.url")
 	if err != nil {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	if expected, got := 1, len(out); expected != got {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	return out[0], nil
-}
-
-// SetVerbose sets the verbosity.
-func (g *Git) SetVerbose(verbose bool) {
-	g.verbose = verbose
 }
 
 // Stash attempts to stash any unsaved changes. It returns true if anything was
@@ -397,10 +392,9 @@ func (g *Git) Stash() (bool, error) {
 
 // StashSize returns the size of the stash stack.
 func (g *Git) StashSize() (int, error) {
-	args := []string{"stash", "list"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("stash", "list")
 	if err != nil {
-		return 0, NewGitError(out, errOut, args...)
+		return 0, err
 	}
 	// If output is empty, then stash is empty.
 	if len(out) == 0 {
@@ -417,49 +411,60 @@ func (g *Git) StashPop() error {
 
 // TopLevel returns the top level path of the current repo.
 func (g *Git) TopLevel() (string, error) {
-	args := []string{"rev-parse", "--show-toplevel"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("rev-parse", "--show-toplevel")
 	if err != nil {
-		return "", NewGitError(out, errOut, args...)
+		return "", err
 	}
 	return strings.Join(out, "\n"), nil
 }
 
 // Version returns the major and minor git version.
 func (g *Git) Version() (int, int, error) {
-	args := []string{"version"}
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
+	out, err := g.runOutput("version")
 	if err != nil {
-		return 0, 0, NewGitError(out, errOut, args...)
+		return 0, 0, err
 	}
 	if expected, got := 1, len(out); expected != got {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of lines in %v: got %v, expected %v", out, got, expected)}, args...)
+		return 0, 0, fmt.Errorf("unexpected number of lines in %v: got %v, expected %v", out, got, expected)
 	}
 	words := strings.Split(out[0], " ")
 	if expected, got := 3, len(words); expected > got {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of tokens in %v: got %v, expected at least %v", words, got, expected)}, args...)
+		return 0, 0, fmt.Errorf("unexpected number of tokens in %v: got %v, expected at least %v", words, got, expected)
 	}
 	version := strings.Split(words[2], ".")
 	if expected, got := 3, len(version); expected > got {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("unexpected number of tokens in %v: got %v, expected at least %v", version, got, expected)}, args...)
+		return 0, 0, fmt.Errorf("unexpected number of tokens in %v: got %v, expected at least %v", version, got, expected)
 	}
 	major, err := strconv.Atoi(version[0])
 	if err != nil {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("failed parsing %q to integer", major)}, args...)
+		return 0, 0, fmt.Errorf("failed parsing %q to integer", major)
 	}
 	minor, err := strconv.Atoi(version[1])
 	if err != nil {
-		return 0, 0, NewGitError(out, []string{fmt.Sprintf("failed parsing %q to integer", minor)}, args...)
+		return 0, 0, fmt.Errorf("failed parsing %q to integer", minor)
 	}
 	return major, minor, nil
 }
 
 func (g *Git) run(args ...string) error {
-	out, errOut, err := cmd.RunOutput(g.verbose, "git", args...)
-	if err != nil {
-		return NewGitError(out, errOut, args...)
+	var stdout, stderr bytes.Buffer
+	if err := g.runner.Command(&stdout, &stderr, "git", args...); err != nil {
+		return Error(stdout.String(), stderr.String(), args...)
 	}
 	return nil
+}
+
+func (g *Git) runOutput(args ...string) ([]string, error) {
+	var stdout, stderr bytes.Buffer
+	if err := g.runner.Command(&stdout, &stderr, "git", args...); err != nil {
+		return nil, Error(stdout.String(), stderr.String(), args...)
+	}
+	output := strings.TrimSpace(stdout.String())
+	if output == "" {
+		return nil, nil
+	} else {
+		return strings.Split(output, "\n"), nil
+	}
 }
 
 // Committer encapsulates the process of create a commit.

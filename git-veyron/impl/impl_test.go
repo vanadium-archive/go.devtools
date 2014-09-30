@@ -7,11 +7,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	"tools/lib/cmdline"
 	"tools/lib/gerrit"
-	gitlib "tools/lib/git"
+	"tools/lib/gitutil"
+	"tools/lib/runutil"
 )
 
-var git = gitlib.New(true)
+var (
+	run = runutil.New(true, os.Stdout)
+	git = gitutil.New(run)
+)
 
 // assertCommitCount asserts that the commit count between two
 // branches matches the expectedCount.
@@ -239,7 +244,9 @@ func TestCleanupClean(t *testing.T) {
 	if err := git.Commit(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := cleanup(nil, git, []string{branch}); err != nil {
+	testCmd := cmdline.Command{}
+	testCmd.Init(nil, os.Stdout, os.Stderr)
+	if err := cleanup(&testCmd, git, run, []string{branch}); err != nil {
 		t.Fatalf("cleanup() failed: %v", err)
 	}
 	if git.BranchExists(branch) {
@@ -263,7 +270,9 @@ func TestCleanupDirty(t *testing.T) {
 	if err := git.CheckoutBranch("master"); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := cleanup(nil, git, []string{branch}); err == nil {
+	testCmd := cmdline.Command{}
+	testCmd.Init(nil, os.Stdout, os.Stderr)
+	if err := cleanup(&testCmd, git, run, []string{branch}); err == nil {
 		t.Fatalf("cleanup did not fail when it should")
 	}
 	if err := git.CheckoutBranch(branch); err != nil {
@@ -285,12 +294,16 @@ func TestCreateReviewBranch(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	review := NewReview(false, false, branch, "", "", "")
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, "", "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if expected, got := branch+"-REVIEW", review.reviewBranch; expected != got {
 		t.Fatalf("Unexpected review branch name: expected %v, got %v", expected, got)
 	}
 	commitMessage := "squashed commit"
-	if err := review.createReviewBranch(commitMessage, git); err != nil {
+	if err := review.createReviewBranch(commitMessage); err != nil {
 		t.Fatalf("createReviewBranch() failed: %v", err)
 	}
 	// Verify that the branch exists.
@@ -314,10 +327,13 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, branch, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, branch, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	commitMessage := "squashed commit"
-	err := review.createReviewBranch(commitMessage, git)
+	err = review.createReviewBranch(commitMessage)
 	if err == nil {
 		t.Fatal("Expected createReviewBranch() on an branch with no new commits to fail but it did not.")
 	}
@@ -344,9 +360,12 @@ func main() {}
 	if err := git.CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
 	}
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	if err := review.checkGoFormat(git); err == nil {
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := review.checkGoFormat(); err == nil {
 		t.Fatalf("checkGoFormat() did not fail")
 	}
 }
@@ -369,9 +388,12 @@ func main() {}
 	if err := git.CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
 	}
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	if err := review.checkGoFormat(git); err != nil {
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := review.checkGoFormat(); err != nil {
 		t.Fatalf("checkGoFormat() failed: %v", err)
 	}
 }
@@ -389,10 +411,13 @@ func TestSendReview(t *testing.T) {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
 	{
-		// Test with draft = false, no reviewiers, no ccs.
-		draft, edit, reviewers, ccs := false, false, "", ""
-		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(git); err != nil {
+		// Test with draft = false, no reviewiers, and no ccs.
+		draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if err := review.send(); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(review.draft, review.reviewers, review.ccs, review.branch)
@@ -400,29 +425,40 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = true, no reviewers, and no ccs.
-		draft, edit, reviewers, ccs := true, false, "", ""
-		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(git); err != nil {
+		draft, edit, verbose, repo, reviewers, ccs, stdout := true, false, true, gerritPath, "", "", os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if err := review.send(); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(draft, reviewers, ccs, review.branch)
 		assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	}
 	{
-		// Test with reviewers only.
-		draft, edit, reviewers, ccs := false, false, "reviewer1,reviewer2@example.org", ""
-		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(git); err != nil {
+		// Test with draft = false, reviewers, and no ccs.
+		reviewers := "reviewer1,reviewer2@example.org"
+		draft, edit, verbose, repo, ccs, stdout := false, false, true, gerritPath, "", os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if err := review.send(); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 		assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	}
 	{
-		// Test with draft = true, with reviewers and ccs.
+		// Test with draft = true, reviewers, and ccs.
 		draft, edit, reviewers, ccs := true, false, "reviewer3@example.org,reviewer4", "cc1@example.org,cc2"
-		review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-		if err := review.send(git); err != nil {
+		verbose, repo, stdout := true, gerritPath, os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if err := review.send(); err != nil {
 			t.Fatalf("send() failed: %v", err)
 		}
 		expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
@@ -444,10 +480,12 @@ func TestSendReviewNoChangeID(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	// Test with draft = false, no reviewiers, no ccs.
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	err := review.send(git)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	err = review.send()
 	if err == nil {
 		t.Fatal("Expected review.send() on an repo with no gerrit commit-msg hook to fail but it did not.")
 	}
@@ -468,9 +506,12 @@ func TestEndToEnd(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	review.run(git)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	review.run()
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 }
@@ -515,9 +556,12 @@ func TestDirtyBranch(t *testing.T) {
 	if err := writeFile(untrackedFile, untrackedFileContent); err != nil {
 		t.Fatalf("writeFile(%v, %t) failed: %v", untrackedFile, untrackedFileContent, err)
 	}
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	review.run(git)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	review.run()
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, repoPath, gerritPath, expectedRef, files)
 	assertFilesNotCommitted(t, []string{stagedFile})
@@ -556,9 +600,12 @@ func TestRunInSubdirectory(t *testing.T) {
 	if err := os.Chdir(subdir); err != nil {
 		t.Fatalf("os.Chdir(%v) failed: %v", subdir, err)
 	}
-	draft, edit, reviewers, ccs := false, false, "", ""
-	review := NewReview(draft, edit, branch, gerritPath, reviewers, ccs)
-	review.run(git)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	review.run()
 	path := path.Join(repoPath, subdir)
 	expected, err := filepath.EvalSymlinks(path)
 	if err != nil {
