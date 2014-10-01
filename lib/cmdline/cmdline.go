@@ -15,7 +15,6 @@
 package cmdline
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -23,15 +22,17 @@ import (
 	"strings"
 )
 
-var (
-	// ErrUsage is returned to indicate an error in command usage;
-	// e.g. unknown flags, subcommands or args.
-	ErrUsage = errors.New("usage error")
-	// ErrEmpty is returned when the caller does not want suppress
-	// the cmdline library's error message in the case errors have
-	// been already printed to command.Stderr().
-	ErrEmpty = errors.New("")
-)
+// ErrExitCode may be returned by the Run function of a Command to cause the
+// program to exit with a specific error code.
+type ErrExitCode int
+
+func (x ErrExitCode) Error() string {
+	return fmt.Sprintf("exit code %d", x)
+}
+
+// ErrUsage is returned to indicate an error in command usage; e.g. unknown
+// flags, subcommands or args.  It corresponds to exit code 1.
+const ErrUsage = ErrExitCode(1)
 
 // Command represents a single command in a command-line program.  A program
 // with subcommands is represented as a root Command with children representing
@@ -52,7 +53,8 @@ type Command struct {
 
 	// Run is a function that runs cmd with args.  If both Children and Run are
 	// specified, Run will only be called if none of the children match.  It is an
-	// error if neither is specified.
+	// error if neither is specified.  The special ErrExitCode error may be
+	// returned to indicate the command should exit with a specific exit code.
 	Run func(cmd *Command, args []string) error
 
 	// parent holds the parent of this Command, or nil if this is the root.
@@ -65,6 +67,9 @@ type Command struct {
 	// with its own Flags, and we merge in all global flags.  If the same flag is
 	// specified in both sets, the command's own flag wins.
 	parseFlags *flag.FlagSet
+
+	// Is this the default help command provided by the framework?
+	isDefaultHelp bool
 
 	// TODO(toddw): If necessary we can add alias support, e.g. for abbreviations.
 	//   Alias map[string]string
@@ -113,8 +118,10 @@ func (cmd *Command) Stderr() io.Writer {
 	return cmd.stderr
 }
 
-// Errorf should be called to signal an invalid usage of the command.
-func (cmd *Command) Errorf(format string, v ...interface{}) error {
+// UsageErrorf prints the error message represented by the printf-style format
+// string and args, followed by the usage description of cmd.  Returns ErrUsage
+// to make it easy to use from within the cmd.Run function.
+func (cmd *Command) UsageErrorf(format string, v ...interface{}) error {
 	fmt.Fprint(cmd.stderr, "ERROR: ")
 	fmt.Fprintf(cmd.stderr, format, v...)
 	fmt.Fprint(cmd.stderr, "\n\n")
@@ -167,6 +174,9 @@ func (cmd *Command) usage(w io.Writer, style style, firstCall bool) {
 	if len(cmd.Children) > 0 {
 		fmt.Fprintf(w, "\nThe %s commands are:\n", cmd.Name)
 		for _, child := range cmd.Children {
+			if !firstCall && child.isDefaultHelp {
+				continue // don't repeatedly list default help command
+			}
 			fmt.Fprintf(w, "   %-11s %s\n", child.Name, child.Short)
 		}
 	}
@@ -207,16 +217,16 @@ func newDefaultHelp() *Command {
 Help displays usage descriptions for this command, or usage descriptions for
 sub-commands.
 `,
-		ArgsName: "<command>",
+		ArgsName: "[command ...]",
 		ArgsLong: `
-<command> is an optional sequence of commands to display detailed per-command
-usage.  The special-case "help ..." recursively displays help for this command
-and all sub-commands.
+[command ...] is an optional sequence of commands to display detailed usage.
+The special-case "help ..." recursively displays help for all commands.
 `,
 		Run: func(cmd *Command, args []string) error {
 			// Help applies to its parent - e.g. "foo help" applies to the foo command.
 			return runHelp(cmd.parent, args, helpStyle)
 		},
+		isDefaultHelp: true,
 	}
 	help.Flags.Var(&helpStyle, "style", `The formatting style for help output, either "text" or "godoc".`)
 	return help
@@ -242,7 +252,7 @@ func runHelp(cmd *Command, args []string, style style) error {
 			return runHelp(child, subArgs, style)
 		}
 	}
-	return cmd.Errorf("%s: unknown command %q", cmd.Name, subName)
+	return cmd.UsageErrorf("%s: unknown command %q", cmd.Name, subName)
 }
 
 // recursiveHelp prints help recursively via DFS from this cmd onward.
@@ -255,6 +265,9 @@ func recursiveHelp(cmd *Command, style style, firstCall bool) {
 		fmt.Fprintln(cmd.stdout)
 	}
 	for _, child := range cmd.Children {
+		if !firstCall && child.isDefaultHelp {
+			continue // don't repeatedly print default help command
+		}
 		recursiveHelp(child, style, false)
 	}
 }
@@ -334,20 +347,20 @@ func (cmd *Command) Execute(args []string) error {
 	if cmd.Run != nil {
 		if cmd.ArgsName == "" && len(args) > 0 {
 			if len(cmd.Children) > 0 {
-				return cmd.Errorf("%s: unknown command %q", cmd.Name, args[0])
+				return cmd.UsageErrorf("%s: unknown command %q", cmd.Name, args[0])
 			} else {
-				return cmd.Errorf("%s doesn't take any arguments", cmd.Name)
+				return cmd.UsageErrorf("%s doesn't take any arguments", cmd.Name)
 			}
 		}
 		return cmd.Run(cmd, args)
 	}
 	switch {
 	case len(cmd.Children) == 0:
-		return cmd.Errorf("%s: neither Children nor Run is specified", cmd.Name)
+		return cmd.UsageErrorf("%s: neither Children nor Run is specified", cmd.Name)
 	case len(args) > 0:
-		return cmd.Errorf("%s: unknown command %q", cmd.Name, args[0])
+		return cmd.UsageErrorf("%s: unknown command %q", cmd.Name, args[0])
 	default:
-		return cmd.Errorf("%s: no command specified", cmd.Name)
+		return cmd.UsageErrorf("%s: no command specified", cmd.Name)
 	}
 }
 
@@ -358,14 +371,11 @@ func (cmd *Command) Execute(args []string) error {
 func (cmd *Command) Main() {
 	cmd.Init(nil, os.Stdout, os.Stderr)
 	if err := cmd.Execute(os.Args[1:]); err != nil {
-		switch err {
-		case ErrUsage:
-			os.Exit(1)
-		case ErrEmpty:
-			os.Exit(2)
-		default:
+		if code, ok := err.(ErrExitCode); ok {
+			os.Exit(int(code))
+		} else {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-			os.Exit(3)
+			os.Exit(2)
 		}
 	}
 }

@@ -1,7 +1,7 @@
 // Below is the output from $(veyron help -style=godoc ...)
 
 /*
-The veyron tool facilitates interaction with veyron projects.
+The veyron tool helps manage veyron development.
 
 Usage:
    veyron [flags] <command>
@@ -10,7 +10,7 @@ The veyron commands are:
    profile     Manage veyron profiles
    project     Manage veyron projects
    env         Print veyron environment variables
-   run         Execute a command using the veyron environment
+   run         Run an executable using the veyron environment
    go          Execute the go build tool using the veyron environment
    goext       Veyron extensions of the go tool
    selfupdate  Update the veyron tool
@@ -33,7 +33,6 @@ Usage:
 The profile commands are:
    list        List supported veyron profiles
    setup       Set up the given veyron profiles
-   help        Display help for commands
 
 Veyron Profile List
 
@@ -51,21 +50,6 @@ Usage:
 
 <profiles> is a list of profiles to set up.
 
-Veyron Profile Help
-
-Help displays usage descriptions for this command, or usage descriptions for
-sub-commands.
-
-Usage:
-   veyron profile help [flags] <command>
-
-<command> is an optional sequence of commands to display detailed per-command
-usage.  The special-case "help ..." recursively displays help for this command
-and all sub-commands.
-
-The help flags are:
-   -style=text: The formatting style for help output, either "text" or "godoc".
-
 Veyron Project
 
 Manage veyron projects.
@@ -77,7 +61,6 @@ The project commands are:
    list        List existing veyron projects
    poll        Poll existing veyron projects
    update      Update veyron projects
-   help        Display help for commands
 
 Veyron Project List
 
@@ -112,21 +95,6 @@ The update flags are:
    -gc=false: Garbage collect obsolete repositories.
    -manifest=absolute: Name of the project manifest.
 
-Veyron Project Help
-
-Help displays usage descriptions for this command, or usage descriptions for
-sub-commands.
-
-Usage:
-   veyron project help [flags] <command>
-
-<command> is an optional sequence of commands to display detailed per-command
-usage.  The special-case "help ..." recursively displays help for this command
-and all sub-commands.
-
-The help flags are:
-   -style=text: The formatting style for help output, either "text" or "godoc".
-
 Veyron Env
 
 Print veyron environment variables.
@@ -144,12 +112,13 @@ Usage:
 
 Veyron Run
 
-Execute a command using the veyron environment.
+Run an executable using the veyron environment.
 
 Usage:
-   veyron run <command> <args>
+   veyron run <executable> [arg ...]
 
-<command> <args> is a command and list of its arguments
+<executable> [arg ...] is the executable to run and any arguments to pass
+verbatim to the executable.
 
 Veyron Go
 
@@ -158,9 +127,9 @@ such as setting up the GOPATH or making sure that VDL generated files
 are regenerated before compilation.
 
 Usage:
-   veyron go [flags] <args>
+   veyron go [flags] <arg ...>
 
-<args> is a list for the arguments for the Go tool.
+<arg ...> is a list of arguments for the Go tool.
 
 The go flags are:
    -novdl=false: Disable automatic generation of vdl files.
@@ -174,7 +143,6 @@ Usage:
 
 The goext commands are:
    distclean   Restore the veyron Go repositories to their pristine state
-   help        Display help for commands
 
 Veyron Goext Distclean
 
@@ -186,21 +154,6 @@ packages that no longer exist in the source tree.
 
 Usage:
    veyron goext distclean
-
-Veyron Goext Help
-
-Help displays usage descriptions for this command, or usage descriptions for
-sub-commands.
-
-Usage:
-   veyron goext help [flags] <command>
-
-<command> is an optional sequence of commands to display detailed per-command
-usage.  The special-case "help ..." recursively displays help for this command
-and all sub-commands.
-
-The help flags are:
-   -style=text: The formatting style for help output, either "text" or "godoc".
 
 Veyron Selfupdate
 
@@ -225,11 +178,10 @@ Help displays usage descriptions for this command, or usage descriptions for
 sub-commands.
 
 Usage:
-   veyron help [flags] <command>
+   veyron help [flags] [command ...]
 
-<command> is an optional sequence of commands to display detailed per-command
-usage.  The special-case "help ..." recursively displays help for this command
-and all sub-commands.
+[command ...] is an optional sequence of commands to display detailed usage.
+The special-case "help ..." recursively displays help for all commands.
 
 The help flags are:
    -style=text: The formatting style for help output, either "text" or "godoc".

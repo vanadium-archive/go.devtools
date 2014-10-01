@@ -90,8 +90,8 @@ func Root() *cmdline.Command {
 // cmdRoot represents the root of the presubmitter tool.
 var cmdRoot = &cmdline.Command{
 	Name:     "presubmitter",
-	Short:    "Command-line tool for various presubmit related functionalities",
-	Long:     "Command-line tool for various presubmit related functionalities.",
+	Short:    "Tool for performing various presubmit related functions",
+	Long:     "The presubmitter tool performs various presubmit related functions.",
 	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdTest, cmdSelfUpdate, cmdVersion},
 }
 
@@ -381,10 +381,10 @@ func runTest(command *cmdline.Command, args []string) error {
 		return fmt.Errorf("Stat(%q) failed: %v", testScriptsBasePathFlag, err)
 	}
 	if repoFlag == "" {
-		return command.Errorf("-repo flag is required")
+		return command.UsageErrorf("-repo flag is required")
 	}
 	if reviewTargetRefFlag == "" {
-		return command.Errorf("-ref flag is required")
+		return command.UsageErrorf("-ref flag is required")
 	}
 	parts := strings.Split(reviewTargetRefFlag, "/")
 	if expected, got := 5, len(parts); expected != got {

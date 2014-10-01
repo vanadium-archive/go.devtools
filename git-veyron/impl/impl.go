@@ -47,22 +47,22 @@ func init() {
 }
 
 var cmdRoot = &cmdline.Command{
-	Name:  "git veyron",
-	Short: "Command-line tool for interacting with the Veyron Gerrit server",
+	Name:  "git-veyron",
+	Short: "Tool for interacting with the Veyron Gerrit server",
 	Long: `
-The veyron tool facilitates interaction with the Veyron Gerrit server.
+The git-veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changes from a local branch
 to the Gerrit server.
 `,
 	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdSelfUpdate, cmdStatus, cmdVersion},
 }
 
-// Root returns a command that represents the root of the git veyron tool.
+// Root returns a command that represents the root of the git-veyron tool.
 func Root() *cmdline.Command {
 	return cmdRoot
 }
 
-// cmmCleanup represent the 'cleanup' command of the git veyron tool.
+// cmmCleanup represent the 'cleanup' command of the git-veyron tool.
 var cmdCleanup = &cmdline.Command{
 	Run:   runCleanup,
 	Name:  "cleanup",
@@ -78,7 +78,7 @@ reports the difference and stops. Otherwise, it deletes the branch.
 
 func cleanup(command *cmdline.Command, git *gitutil.Git, run *runutil.Run, branches []string) error {
 	if len(branches) == 0 {
-		return command.Errorf("cleanup requires at least one argument")
+		return command.UsageErrorf("cleanup requires at least one argument")
 	}
 	currentBranch, err := git.CurrentBranchName()
 	if err != nil {
@@ -147,7 +147,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	return cleanup(command, gitutil.New(run), run, args)
 }
 
-// cmdReview represent the 'review' command of the git veyron tool.
+// cmdReview represent the 'review' command of the git-veyron tool.
 var cmdReview = &cmdline.Command{
 	Run:   runReview,
 	Name:  "review",
@@ -570,7 +570,7 @@ func runSelfUpdate(command *cmdline.Command, args []string) error {
 	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "git-veyron")
 }
 
-// cmdStatus represent the 'status' command of the git veyron tool.
+// cmdStatus represent the 'status' command of the git-veyron tool.
 var cmdStatus = &cmdline.Command{
 	Run:   runStatus,
 	Name:  "status",
@@ -649,7 +649,7 @@ var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
 	Short: "Print version",
-	Long:  "Print version of the git veyron tool.",
+	Long:  "Print version of the git-veyron tool.",
 }
 
 const version string = "1.1.0"
@@ -659,6 +659,6 @@ const version string = "1.1.0"
 var commitId string = "test-build"
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "git veyron tool version %v (build %v)\n", version, commitId)
+	fmt.Fprintf(command.Stdout(), "git-veyron tool version %v (build %v)\n", version, commitId)
 	return nil
 }

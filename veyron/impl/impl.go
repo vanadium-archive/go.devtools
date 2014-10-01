@@ -45,8 +45,8 @@ func Root() *cmdline.Command {
 // cmdRoot represents the root of the veyron tool.
 var cmdRoot = &cmdline.Command{
 	Name:  "veyron",
-	Short: "Command-line tool for managing veyron projects",
-	Long:  "The veyron tool facilitates interaction with veyron projects.",
+	Short: "Tool for managing veyron development",
+	Long:  "The veyron tool helps manage veyron development.",
 	Children: []*cmdline.Command{
 		cmdProfile,
 		cmdProject,
@@ -59,20 +59,17 @@ var cmdRoot = &cmdline.Command{
 	},
 }
 
-// execExitOnNonZero runs the cmd, and calls os.Exit if the cmd exits with a
-// non-zero status.
-func execExitOnNonZero(cmd *exec.Cmd) error {
-	if err := cmd.Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok {
-			if wait, ok := exit.Sys().(syscall.WaitStatus); ok {
-				if status := wait.ExitStatus(); wait.Exited() && status != 0 {
-					os.Exit(status)
-				}
+// translateExitCode translates errors from the "os/exec" package that contain
+// exit codes into cmdline.ErrExitCode errors.
+func translateExitCode(err error) error {
+	if exit, ok := err.(*exec.ExitError); ok {
+		if wait, ok := exit.Sys().(syscall.WaitStatus); ok {
+			if status := wait.ExitStatus(); wait.Exited() && status != 0 {
+				return cmdline.ErrExitCode(status)
 			}
 		}
-		return err
 	}
-	return nil
+	return err
 }
 
 // cmdEnv represents the 'env' command of the veyron tool.
@@ -125,13 +122,13 @@ Wrapper around the 'go' tool that takes care of veyron-specific setup,
 such as setting up the GOPATH or making sure that VDL generated files
 are regenerated before compilation.
 `,
-	ArgsName: "<args>",
-	ArgsLong: "<args> is a list for the arguments for the Go tool.",
+	ArgsName: "<arg ...>",
+	ArgsLong: "<arg ...> is a list of arguments for the Go tool.",
 }
 
 func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
-		return command.Errorf("not enough arguments")
+		return command.UsageErrorf("not enough arguments")
 	}
 	if err := util.SetupVeyronEnvironment(); err != nil {
 		return err
@@ -145,7 +142,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	goCmd := exec.Command("go", args...)
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
-	return execExitOnNonZero(goCmd)
+	return translateExitCode(goCmd.Run())
 }
 
 func generateVDL() error {
@@ -224,9 +221,7 @@ func runGoExtDistClean(command *cmdline.Command, _ []string) error {
 		}
 	}
 	if failed {
-		// TODO(jsimsa): Replace with cmdline.ErrExitCode()
-		// when available.
-		os.Exit(2)
+		return cmdline.ErrExitCode(2)
 	}
 	return nil
 }
@@ -296,7 +291,7 @@ func runProfileSetup(command *cmdline.Command, args []string) error {
 	for _, arg := range args {
 		script := filepath.Join(root, "scripts", "setup", runtime.GOOS, arg, "setup.sh")
 		if _, err := os.Lstat(script); err != nil {
-			return command.Errorf("profile %v does not exist", arg)
+			return command.UsageErrorf("profile %v does not exist", arg)
 		}
 	}
 	// Always log the output of 'veyron profile setup'
@@ -340,7 +335,7 @@ var cmdProjectList = &cmdline.Command{
 // existing projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
 	if branchesFlag != "none" && branchesFlag != "all" {
-		return command.Errorf("unrecognized branches option: %v", branchesFlag)
+		return command.UsageErrorf("unrecognized branches option: %v", branchesFlag)
 	}
 	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
 	projects, err := util.LocalProjects(git)
@@ -697,8 +692,7 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 	updateProjects := map[string]struct{}{}
 	for _, arg := range args {
 		if _, ok := allProjects[arg]; !ok {
-			command.Errorf("project %v does not exist", arg)
-			return cmdline.ErrUsage
+			return command.UsageErrorf("project %v does not exist", arg)
 		}
 		updateProjects[arg] = struct{}{}
 	}
@@ -726,7 +720,7 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 		}
 	}
 	if failed {
-		os.Exit(2)
+		return cmdline.ErrExitCode(2)
 	}
 	return nil
 }
@@ -779,15 +773,18 @@ func testOperations(ops operationList) error {
 var cmdRun = &cmdline.Command{
 	Run:      runRun,
 	Name:     "run",
-	Short:    "Execute a command using the veyron environment",
-	Long:     "Execute a command using the veyron environment.",
-	ArgsName: "<command> <args>",
-	ArgsLong: "<command> <args> is a command and list of its arguments",
+	Short:    "Run an executable using the veyron environment",
+	Long:     "Run an executable using the veyron environment.",
+	ArgsName: "<executable> [arg ...]",
+	ArgsLong: `
+<executable> [arg ...] is the executable to run and any arguments to pass
+verbatim to the executable.
+`,
 }
 
 func runRun(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
-		return command.Errorf("no command to run")
+		return command.UsageErrorf("no command to run")
 	}
 	if err := util.SetupVeyronEnvironment(); err != nil {
 		return err
@@ -803,7 +800,7 @@ func runRun(command *cmdline.Command, args []string) error {
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = command.Stdout()
 	execCmd.Stderr = command.Stderr()
-	return execExitOnNonZero(execCmd)
+	return translateExitCode(execCmd.Run())
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the veyron tool.

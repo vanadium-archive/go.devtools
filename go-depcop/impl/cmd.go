@@ -33,7 +33,7 @@ func Root() *cmdline.Command {
 
 var cmdRoot = &cmdline.Command{
 	Name:  "go-depcop",
-	Short: "Command-line tool for checking Go dependencies",
+	Short: "Tool for checking Go dependencies",
 	Long: `
 The go-depcop tool checks if a package imports respects outgoing and
 incoming dependency constraints described in the GO.PACKAGE files.
@@ -47,20 +47,19 @@ to stay compatible with existing packages that do not include
 dependency rules.
 
 GO.PACKAGE is a JSON file with a structure along the lines of:
-
-{
-	"dependencies": {
-		"outgoing": [
-			{"allow": "allowpattern1/..."},
-			{"deny": "denypattern"},
-			{"allow": "pattern2"}
-		],
-		"incoming": [
-			{"allow": "pattern3"},
-			{"deny": "pattern4"}
-		]
-	}
-}
+   {
+     "dependencies": {
+       "outgoing": [
+         {"allow": "allowpattern1/..."},
+         {"deny": "denypattern"},
+         {"allow": "pattern2"}
+       ],
+       "incoming": [
+         {"allow": "pattern3"},
+         {"deny": "pattern4"}
+       ]
+     }
+   }
 `,
 	Children: []*cmdline.Command{cmdCheck, cmdList, cmdRevList, cmdSelfUpdate, cmdVersion},
 }
@@ -125,7 +124,7 @@ var cmdList = &cmdline.Command{
 
 func runList(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
-		command.Errorf("not enough arguments")
+		return command.UsageErrorf("not enough arguments")
 	}
 
 	for _, arg := range args {
@@ -154,7 +153,7 @@ var cmdRevList = &cmdline.Command{
 // fix-point.
 func runRevList(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
-		command.Errorf("not enough arguments")
+		return command.UsageErrorf("not enough arguments")
 	}
 	revDeps, err := computeIncomingDependencies()
 	if err != nil {

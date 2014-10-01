@@ -137,11 +137,11 @@ func runVersion(command *cmdline.Command, _ []string) error {
 // executeInjector creates a new LogInjector instance and runs it.
 func executeInjector(command *cmdline.Command, checkOnly bool, interfacePackageList, implementationPackageList []string) error {
 	if len(interfacePackageList) == 0 {
-		command.Errorf("no interface packages listed")
+		return command.UsageErrorf("no interface packages listed")
 	}
 
 	if len(implementationPackageList) == 0 {
-		command.Errorf("no implementation package listed")
+		return command.UsageErrorf("no implementation package listed")
 	}
 
 	return Run(interfacePackageList, implementationPackageList, checkOnly)
