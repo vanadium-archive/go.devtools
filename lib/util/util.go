@@ -174,8 +174,6 @@ func VeyronEnvironment() (map[string]string, error) {
 			if _, err := os.Stat(dir); err != nil {
 				if !os.IsNotExist(err) {
 					return nil, fmt.Errorf("Stat(%v) failed: %v", dir, err)
-				} else {
-					fmt.Println(err)
 				}
 			} else {
 				if lib == "dbus-1.6.14" {
