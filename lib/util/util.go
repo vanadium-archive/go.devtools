@@ -80,15 +80,19 @@ func SelfUpdate(verbose bool, stdout io.Writer, manifest, name string) error {
 }
 
 // SetupVeyronEnvironment sets up the environment variables used by
-// the veyron setup.
+// the veyron setup. Developers that wish to do the environment
+// variable setup themselves, should set the VEYRON_ENV_SETUP
+// environment variable to "none".
 func SetupVeyronEnvironment() error {
-	environment, err := VeyronEnvironment()
-	if err != nil {
-		return err
-	}
-	for key, value := range environment {
-		if err := os.Setenv(key, value); err != nil {
-			return fmt.Errorf("Setenv(%v, %v) failed: %v", key, value, err)
+	if os.Getenv("VEYRON_ENV_SETUP") != "none" {
+		environment, err := VeyronEnvironment()
+		if err != nil {
+			return err
+		}
+		for key, value := range environment {
+			if err := os.Setenv(key, value); err != nil {
+				return fmt.Errorf("Setenv(%v, %v) failed: %v", key, value, err)
+			}
 		}
 	}
 	return nil
