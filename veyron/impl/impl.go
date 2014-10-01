@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	branchesFlag string
+	branchesFlag bool
 	gcFlag       bool
 	manifestFlag string
 	novdlFlag    bool
@@ -28,8 +28,7 @@ var (
 )
 
 func init() {
-	cmdProjectList.Flags.StringVar(&branchesFlag, "branches", "none",
-		"Determines what project branches to list (none, all).")
+	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
@@ -334,9 +333,6 @@ var cmdProjectList = &cmdline.Command{
 // runProjectList generates a human-readable description of
 // existing projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
-	if branchesFlag != "none" && branchesFlag != "all" {
-		return command.UsageErrorf("unrecognized branches option: %v", branchesFlag)
-	}
 	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
 	projects, err := util.LocalProjects(git)
 	if err != nil {
@@ -350,7 +346,7 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 	description := fmt.Sprintf("Existing projects:\n")
 	for _, name := range names {
 		description += fmt.Sprintf("  %q in %q\n", filepath.Base(name), projects[name])
-		if branchesFlag != "none" {
+		if branchesFlag {
 			if err := os.Chdir(projects[name]); err != nil {
 				return fmt.Errorf("Chdir(%v) failed: %v", projects[name], err)
 			}
