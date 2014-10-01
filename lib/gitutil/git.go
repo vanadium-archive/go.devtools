@@ -198,6 +198,16 @@ func (g *Git) Fetch(remote, branch string) error {
 	return g.run("fetch", remote, branch)
 }
 
+// FilesWithUncommittedChanges returns the list of files that have
+// uncommitted changes.
+func (g *Git) FilesWithUncommittedChanges() ([]string, error) {
+	out, err := g.runOutput("diff", "--name-only", "--no-ext-diff")
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ForceDeleteBranch deletes the given branch, even if that branch contains
 // unmerged changes.
 func (g *Git) ForceDeleteBranch(branchName string) error {
@@ -222,28 +232,24 @@ func (g *Git) GetBranches() ([]string, string, error) {
 	return branches, current, nil
 }
 
-// HasUntrackedFiles checks whether the current branch contains any
-// untracked files.
-func (g *Git) HasUntrackedFiles() (bool, error) {
-	out, err := g.runOutput("ls-files", "--other", "--directory", "--exclude-standard")
+// HasUncommittedChanges checks whether the current branch contains
+// any uncommitted changes.
+func (g *Git) HasUncommittedChanges() (bool, error) {
+	out, err := g.FilesWithUncommittedChanges()
 	if err != nil {
 		return false, err
 	}
-	// If output is empty, then there are no untracked files.
-	if len(out) == 0 {
-		return false, nil
-	}
-	// Otherwise there are untracked files.
-	return true, nil
+	return len(out) != 0, nil
 }
 
-// HasUnstagedChanges checks whether the current branch contains any
-// unstaged changes.
-func (g *Git) HasUnstagedChanges() bool {
-	if err := g.run("diff", "--no-ext-diff", "--quiet", "--exit-code"); err != nil {
-		return true
+// HasUntrackedFiles checks whether the current branch contains any
+// untracked files.
+func (g *Git) HasUntrackedFiles() (bool, error) {
+	out, err := g.UntrackedFiles()
+	if err != nil {
+		return false, err
 	}
-	return false
+	return len(out) != 0, nil
 }
 
 // Init initializes a new git repo.
@@ -416,6 +422,16 @@ func (g *Git) TopLevel() (string, error) {
 		return "", err
 	}
 	return strings.Join(out, "\n"), nil
+}
+
+// UntrackedFiles returns the list of files that are not
+// tracked.
+func (g *Git) UntrackedFiles() ([]string, error) {
+	out, err := g.runOutput("ls-files", "--others", "--directory", "--exclude-standard")
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // Version returns the major and minor git version.

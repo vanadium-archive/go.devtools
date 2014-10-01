@@ -20,16 +20,16 @@ import (
 )
 
 var (
-	ccsFlag       string
-	currentFlag   bool
-	draftFlag     bool
-	forceFlag     bool
-	masterFlag    bool
-	manifestFlag  string
-	reviewersFlag string
-	verboseFlag   bool
-	untrackedFlag bool
-	unstagedFlag  bool
+	ccsFlag         string
+	currentFlag     bool
+	draftFlag       bool
+	forceFlag       bool
+	masterFlag      bool
+	manifestFlag    string
+	reviewersFlag   string
+	verboseFlag     bool
+	uncommittedFlag bool
+	untrackedFlag   bool
 )
 
 // init carries out the package initialization.
@@ -41,7 +41,7 @@ func init() {
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
-	cmdStatus.Flags.BoolVar(&unstagedFlag, "show-unstaged", true, "Indicate if there are any unstaged changes.")
+	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show-uncommitted", true, "Indicate if there are any uncommitted changes.")
 	cmdStatus.Flags.BoolVar(&untrackedFlag, "show-untracked", true, "Indicate if there are any untracked files.")
 	cmdStatus.Flags.BoolVar(&currentFlag, "show-current", false, "Show the name of the current repo.")
 }
@@ -196,6 +196,14 @@ type NoChangeIDError struct{}
 
 func (_ NoChangeIDError) Error() string {
 	result := "change is missing a Change-ID"
+	return result
+}
+
+type UncommittedChangesError []string
+
+func (s UncommittedChangesError) Error() string {
+	result := "uncommitted local changes in files:\n"
+	result += "  " + strings.Join(s, "\n  ")
 	return result
 }
 
@@ -436,6 +444,13 @@ func (r *review) ensureChangeID() error {
 
 // run implements the end-to-end functionality of the review command.
 func (r *review) run() error {
+	changes, err := r.git.FilesWithUncommittedChanges()
+	if err != nil {
+		return err
+	}
+	if len(changes) != 0 {
+		return UncommittedChangesError(changes)
+	}
 	if err := r.checkGoFormat(); err != nil {
 		return err
 	}
@@ -577,8 +592,9 @@ var cmdStatus = &cmdline.Command{
 	Short: "Print a succint status of the veyron repositories",
 	Long: `
 Reports current branches of existing veyron repositories as well as an
-indication of whether there are any unstaged, uncommitted, or stashed
-changes.
+indication of the status:
+  *  indicates whether a repository contains uncommitted changes
+  %  indicates whether a repository contains untracked files
 `,
 }
 
@@ -612,8 +628,12 @@ func runStatus(command *cmdline.Command, args []string) error {
 			return err
 		}
 		status := ""
-		if unstagedFlag {
-			if git.HasUnstagedChanges() {
+		if uncommittedFlag {
+			uncommitted, err := git.HasUncommittedChanges()
+			if err != nil {
+				return err
+			}
+			if uncommitted {
 				status += "*"
 			}
 		}
