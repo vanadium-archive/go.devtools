@@ -575,7 +575,7 @@ func runTest(command *cmdline.Command, args []string) error {
 		testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
 		var curStatusString string
 		var stderr bytes.Buffer
-		if err := run.Command(ioutil.Discard, &stderr, testScript); err != nil {
+		if err := run.Command(command.Stdout(), &stderr, testScript); err != nil {
 			curStatusString = "✖"
 			fmt.Fprintf(command.Stderr(), "%v\n", stderr.String())
 		} else {
