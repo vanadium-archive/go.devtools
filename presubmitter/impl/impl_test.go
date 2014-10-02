@@ -250,3 +250,93 @@ func TestTestsConfigFile(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+func TestParseFailedTestsJsonResponse(t *testing.T) {
+	jenkinsBuildNumberFlag = 10
+	testReportJson := `
+{
+	"suites": [
+	  {
+			"cases": [
+			  {
+					"className": "c1",
+					"name": "t1",
+					"status": "PASSED"
+				},
+			  {
+					"className": "c2",
+					"name": "t2",
+					"status": "FAILED"
+				}
+			]
+		},
+	  {
+			"cases": [
+			  {
+					"className": "c3",
+					"name": "t3",
+					"status": "REGRESSION"
+				}
+			]
+		}
+	]
+}
+  `
+	got, err := parseFailedTestsJsonResponse(strings.NewReader(testReportJson))
+	expected := []string{
+		"- c2․t2\n  http://go/vpst/10/testReport/(root)/c2/t2/",
+		"- c3․t3\n  http://go/vpst/10/testReport/(root)/c3/t3/",
+	}
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+
+	// Make sure the names are normalized.
+	testReportJson = `
+{
+	"suites": [
+	  {
+			"cases": [
+			  {
+					"className": "c.1",
+					"name": "t-1",
+					"status": "FAILED"
+				},
+			  {
+					"className": "c/2",
+					"name": "t2",
+					"status": "FAILED"
+				}
+			]
+		}
+	]
+}
+  `
+	got, err = parseFailedTestsJsonResponse(strings.NewReader(testReportJson))
+	expected = []string{
+		"- c․1․t-1\n  http://go/vpst/10/testReport/c/1/t_1/",
+		"- c/2․t2\n  http://go/vpst/10/testReport/(root)/c_2/t2/",
+	}
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+}
+
+func TestNormalizeNameForTestReport(t *testing.T) {
+	expected := "t_1"
+	if got := normalizeNameForTestReport("t/1", false); got != expected {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+	if got := normalizeNameForTestReport("t.1", false); got != expected {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+	if got := normalizeNameForTestReport("t-1", true); got != expected {
+		t.Errorf("want: %v, got: %v", expected, got)
+	}
+}

@@ -26,6 +26,7 @@ const (
 	defaultQueryString                 = "(status:open -project:experimental)"
 	defaultLogFilePath                 = "/var/veyron/tmp/presubmitter_log"
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
+	defaultTestReportPath              = "/var/veyron/tmp/test_report"
 	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
 )
 
@@ -44,6 +45,7 @@ var (
 	presubmitTestJenkinsProjectFlag string
 	jenkinsTokenFlag                string
 	reviewMessageFlag               string
+	reviewMessageFilePathFlag       string
 	reviewTargetRefFlag             string
 	manifestFlag                    string
 	testsConfigFileFlag             string
@@ -51,6 +53,7 @@ var (
 	testScriptsBasePathFlag         string
 	manifestNameFlag                string
 	jenkinsBuildNumberFlag          int
+	testReportPathFlag              string
 	veyronRoot                      string
 )
 
@@ -72,13 +75,15 @@ func init() {
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
 	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
+	cmdPost.Flags.StringVar(&reviewMessageFilePathFlag, "msg_file", "", "The file containing the review message. This will overwrite the content of -msg flag.")
 	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
+	cmdPost.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 	cmdTest.Flags.StringVar(&testsConfigFileFlag, "conf", filepath.Join(veyronRoot, "tools", "go", "src", "tools", "presubmitter", "presubmit_tests.conf"), "The config file for presubmit tests.")
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "jenkins", "scripts"), "The base path of all the test scripts.")
 	cmdTest.Flags.StringVar(&manifestNameFlag, "manifest", "absolute", "Name of the project manifest.")
-	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
+	cmdTest.Flags.StringVar(&testReportPathFlag, "test_report_path", defaultTestReportPath, "The path to the test report file.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
@@ -344,8 +349,33 @@ func runPost(command *cmdline.Command, args []string) error {
 
 	// Construct and post review.
 	// TODO(jingjin): do we need to add a flag to the post command to add "Verified" label?
+	reviewMsg := reviewMessageFlag
+	if reviewMessageFilePathFlag != "" {
+		reviewMessageFileContent, err := ioutil.ReadFile(reviewMessageFilePathFlag)
+		if err == nil {
+			reviewMsg = string(reviewMessageFileContent)
+		}
+	}
+	// Append detail info about failed tests and test report page.
+	if jenkinsBuildNumberFlag >= 0 {
+		detailInfo := &bytes.Buffer{}
+		if strings.Contains(reviewMsg, "➔ ✖") {
+			links, err := failedTests()
+			if err != nil {
+				return err
+			}
+			linkLines := strings.Join(links, "\n")
+			if linkLines != "" {
+				fmt.Fprintf(detailInfo, "Failed tests:\n%s\n", linkLines)
+			}
+		}
+		fmt.Fprintf(detailInfo, "\nMore details at:\n%s/%s/%d/\n",
+			jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
+		reviewMsg = fmt.Sprintf("%s\n%s", reviewMsg, detailInfo.String())
+	}
+
 	review := gerrit.GerritReview{
-		Message: reviewMessageFlag,
+		Message: reviewMsg,
 	}
 	err = gerrit.PostReview(gerritBaseUrlFlag, gerritCred.username, gerritCred.password, reviewTargetRefFlag, review)
 	if err != nil {
@@ -353,6 +383,100 @@ func runPost(command *cmdline.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// failedTests returns a list of Jenkins links for all failed tests.
+func failedTests() ([]string, error) {
+	// TODO(jingjin): create a helper function to get json response from Jenkins.
+
+	// Construct rest API url to get test report.
+	testReportUrl, err := url.Parse(jenkinsHostFlag)
+	if err != nil {
+		return nil, fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
+	}
+	testReportUrl.Path = fmt.Sprintf("%s/job/%s/%d/testReport/api/json",
+		testReportUrl.Path, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
+	testReportUrl.RawQuery = url.Values{
+		"tree":  {"suites[cases[className,name,status]]"},
+		"token": {jenkinsTokenFlag},
+	}.Encode()
+
+	// Get and parse json response.
+	var body io.Reader
+	method, url, body := "GET", testReportUrl.String(), nil
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+	}
+	req.Header.Add("Accept", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Do(%v) failed: %v", req, err)
+	}
+	defer res.Body.Close()
+
+	return parseFailedTestsJsonResponse(res.Body)
+}
+
+// parseFailedTestsJsonResponse parses the testReport json response and extracts the failed tests.
+func parseFailedTestsJsonResponse(reader io.Reader) ([]string, error) {
+	r := bufio.NewReader(reader)
+	var tests struct {
+		Suites []struct {
+			Cases []struct {
+				ClassName string
+				Name      string
+				Status    string
+			}
+		}
+	}
+	if err := json.NewDecoder(r).Decode(&tests); err != nil {
+		return nil, fmt.Errorf("Decode() failed: %v", err)
+	}
+	failedTestLinks := []string{}
+	for _, curSuite := range tests.Suites {
+		for _, curCase := range curSuite.Cases {
+			if curCase.Status == "FAILED" || curCase.Status == "REGRESSION" {
+				packageName := "(root)"
+				className := curCase.ClassName
+				if strings.Contains(curCase.ClassName, ".") {
+					parts := strings.SplitN(curCase.ClassName, ".", 2)
+					packageName = parts[0]
+					className = parts[1]
+				}
+				normalizedClassName := normalizeNameForTestReport(className, false)
+				testName := normalizeNameForTestReport(curCase.Name, true)
+
+				// Note that the "․" below is a special character that is different from the period character ".".
+				// This is to stop gmail from turning the test full name string into a link.
+				testFullName := fmt.Sprintf("- %s․%s․%s", packageName, className, curCase.Name)
+				link := fmt.Sprintf("%s\n  http://go/vpst/%d/testReport/%s/%s/%s/",
+					testFullName, jenkinsBuildNumberFlag, packageName, normalizedClassName, testName)
+				// Remove "(root)" and "go-build" package name from the test name to make it look better.
+				prefixToRemove := "- (root)․"
+				if strings.HasPrefix(link, prefixToRemove) {
+					link = strings.Replace(link, prefixToRemove, "- ", 1)
+				}
+				prefixToRemove = "- go-build․"
+				if strings.HasPrefix(link, prefixToRemove) {
+					link = strings.Replace(link, prefixToRemove, "- ", 1)
+				}
+				failedTestLinks = append(failedTestLinks, link)
+			}
+		}
+	}
+	return failedTestLinks, nil
+}
+
+// normalizeNameForTestReport replaces "." and "/" in the given name with "_".
+// The normalized name will be used for linking to individual test report page.
+func normalizeNameForTestReport(name string, replaceDash bool) string {
+	ret := strings.Replace(name, ".", "_", -1)
+	ret = strings.Replace(ret, "/", "_", -1)
+	if replaceDash {
+		ret = strings.Replace(ret, "-", "_", -1)
+	}
+	return ret
 }
 
 // cmdTest represents the 'test' command of the presubmitter tool.
@@ -390,7 +514,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	if expected, got := 5, len(parts); expected != got {
 		return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", reviewTargetRefFlag, expected, got)
 	}
-	cl, patchSet := parts[3], parts[4]
+	cl := parts[3]
 
 	// Parse tests from config file.
 	configFileContent, err := ioutil.ReadFile(testsConfigFileFlag)
@@ -432,7 +556,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	// TODO(jingjin): Add support for expressing dependencies between tests
 	// (e.g. run test B only if test A passes).
 	results := &bytes.Buffer{}
-	fmt.Fprintf(results, "Test results for http://go/vcl/%s, patch set %s:\n\n", cl, patchSet)
+	fmt.Fprintf(results, "Test results:\n")
 	for _, test := range tests {
 		fmt.Fprintf(command.Stdout(), "\n### Running %q\n", test)
 		// Get the status of the last completed build for this test from Jenkins.
@@ -459,16 +583,14 @@ func runTest(command *cmdline.Command, args []string) error {
 		}
 		fmt.Fprintf(results, "%s ➔ %s: %s\n", lastStatusString, curStatusString, test)
 	}
-	if jenkinsBuildNumberFlag >= 0 {
-		fmt.Fprintf(results, "\nSee details at: %s/%s/%d/\n",
-			jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
-	}
 
-	// Post test results.
-	reviewMessageFlag = results.String()
-	fmt.Fprintf(command.Stdout(), "\n### Posting test results to Gerrit\n")
-	if err := runPost(nil, nil); err != nil {
-		return err
+	// Write test report.
+	fmt.Fprintf(command.Stdout(), "\n### Writing test report\n")
+	var fileMode os.FileMode
+	fileMode = 0644
+	err = ioutil.WriteFile(testReportPathFlag, results.Bytes(), fileMode)
+	if err != nil {
+		return fmt.Errorf("WriteFile(%q, %q, %v) failed: %v", testReportPathFlag, results.String(), fileMode, err)
 	}
 
 	return nil
