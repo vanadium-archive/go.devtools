@@ -534,21 +534,22 @@ func runTest(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	localRepoDir, ok := projects[repoFlag]
+	localRepo, ok := projects[repoFlag]
 	if !ok {
 		return fmt.Errorf("repo %q not found", repoFlag)
 	}
+	dir := localRepo.Path
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() {
-		if err := cleanUpPresubmitTestBranch(command, run, localRepoDir); err != nil {
+		if err := cleanUpPresubmitTestBranch(command, run, dir); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
 	defer cleanupFn()
 
 	// Prepare presubmit test branch.
-	if err := preparePresubmitTestBranch(command, run, localRepoDir, cl); err != nil {
+	if err := preparePresubmitTestBranch(command, run, dir, cl); err != nil {
 		return err
 	}
 

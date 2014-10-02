@@ -15,6 +15,7 @@ import (
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
 	"tools/lib/gitutil"
+	"tools/lib/hgutil"
 	"tools/lib/runutil"
 	"tools/lib/util"
 )
@@ -599,14 +600,17 @@ indication of the status:
 }
 
 func runStatus(command *cmdline.Command, args []string) error {
-	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
-	projects, err := util.LocalProjects(git)
+	run := runutil.New(verboseFlag, command.Stdout())
+	git, hg := gitutil.New(run), hgutil.New(run)
+	projects, err := util.LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
 	names := []string{}
-	for name := range projects {
-		names = append(names, name)
+	for name, project := range projects {
+		if project.Protocol == "git" {
+			names = append(names, name)
+		}
 	}
 	sort.Strings(names)
 	wd, err := os.Getwd()
@@ -620,8 +624,8 @@ func runStatus(command *cmdline.Command, args []string) error {
 	}
 	var statuses []string
 	for _, name := range names {
-		if err := os.Chdir(projects[name]); err != nil {
-			return fmt.Errorf("Chdir(%v) failed: %v", projects[name], err)
+		if err := os.Chdir(projects[name].Path); err != nil {
+			return fmt.Errorf("Chdir(%v) failed: %v", projects[name].Path, err)
 		}
 		branch, err := git.CurrentBranchName()
 		if err != nil {

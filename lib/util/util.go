@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"tools/lib/gitutil"
+	"tools/lib/hgutil"
 	"tools/lib/runutil"
 )
 
@@ -47,8 +48,8 @@ func init() {
 
 // LatestProjects parses the most recent version fo the project
 // manifest to identify the latest projects.
-func LatestProjects(manifest string, git *gitutil.Git) (map[string]string, error) {
-	projects := map[string]string{}
+func LatestProjects(manifest string, git *gitutil.Git) (map[string]Project, error) {
+	projects := map[string]Project{}
 	if err := findLatestProjects(manifest, projects, git); err != nil {
 		return nil, err
 	}
@@ -57,13 +58,13 @@ func LatestProjects(manifest string, git *gitutil.Git) (map[string]string, error
 
 // LocalProjects scans the local filesystem to identify existing
 // projects.
-func LocalProjects(git *gitutil.Git) (map[string]string, error) {
+func LocalProjects(git *gitutil.Git, hg *hgutil.Hg) (map[string]Project, error) {
 	root, err := VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
-	projects := map[string]string{}
-	if err := findLocalProjects(root, projects, git); err != nil {
+	projects := map[string]Project{}
+	if err := findLocalProjects(root, projects, git, hg); err != nil {
 		return nil, err
 	}
 	return projects, nil
@@ -100,32 +101,58 @@ func SetupVeyronEnvironment() error {
 
 // UpdateProject advances the local master branch of the project
 // identified by the given path.
-func UpdateProject(project string, git *gitutil.Git) error {
+func UpdateProject(path string, git *gitutil.Git, hg *hgutil.Hg) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	if err := os.Chdir(project); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", project, err)
+	if err := os.Chdir(path); err != nil {
+		return fmt.Errorf("Chdir(%v) failed: %v", path, err)
 	}
-	branch, err := git.CurrentBranchName()
-	if err != nil {
+	projects := map[string]Project{}
+	if err := findLocalProjects(path, projects, git, hg); err != nil {
 		return err
 	}
-	stashed, err := git.Stash()
-	if err != nil {
-		return err
+	if expected, got := 1, len(projects); expected != got {
+		return fmt.Errorf("unexpected length of %v: expected %v, got %v", projects, expected, got)
 	}
-	if stashed {
-		defer git.StashPop()
-	}
-	if err := git.CheckoutBranch("master"); err != nil {
-		return err
-	}
-	defer git.CheckoutBranch(branch)
-	if err := git.Pull("origin", "master"); err != nil {
-		return err
+	for _, project := range projects {
+		switch project.Protocol {
+		case "git":
+			branch, err := git.CurrentBranchName()
+			if err != nil {
+				return err
+			}
+			stashed, err := git.Stash()
+			if err != nil {
+				return err
+			}
+			if stashed {
+				defer git.StashPop()
+			}
+			if err := git.CheckoutBranch("master"); err != nil {
+				return err
+			}
+			defer git.CheckoutBranch(branch)
+			if err := git.Pull("origin", "master"); err != nil {
+				return err
+			}
+		case "hg":
+			branch, err := hg.CurrentBranchName()
+			if err != nil {
+				return err
+			}
+			if err := hg.CheckoutBranch("default"); err != nil {
+				return err
+			}
+			defer hg.CheckoutBranch(branch)
+			if err := hg.Pull(); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unsupported protocol %v", project.Protocol)
+		}
 	}
 	return nil
 }
@@ -203,23 +230,24 @@ func VeyronRoot() (string, error) {
 	return root, nil
 }
 
-type project struct {
-	Name string `xml:"name,attr"`
-	Path string `xml:"path,attr"`
+type Project struct {
+	Name     string `xml:"name,attr"`
+	Path     string `xml:"path,attr"`
+	Protocol string `xml:"protocol,attr"`
 }
 
-type manifest struct {
-	Projects []project `xml:"project"`
+type Manifest struct {
+	Projects []Project `xml:"project"`
 }
 
-func findLatestProjects(manifestFile string, projects map[string]string, git *gitutil.Git) error {
+func findLatestProjects(manifestFile string, projects map[string]Project, git *gitutil.Git) error {
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
 	}
 	// Update the manifest.
 	path := filepath.Join(root, ".manifest")
-	if err := UpdateProject(path, git); err != nil {
+	if err := UpdateProject(path, git, nil); err != nil {
 		return err
 	}
 	// Parse the manifest.
@@ -228,17 +256,22 @@ func findLatestProjects(manifestFile string, projects map[string]string, git *gi
 	if err != nil {
 		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
 	}
-	var m manifest
-	if err := xml.Unmarshal(data, &m); err != nil {
+	var manifest Manifest
+	if err := xml.Unmarshal(data, &manifest); err != nil {
 		return fmt.Errorf("Unmarshal(%v) failed: %v", string(data), err)
 	}
-	for _, project := range m.Projects {
-		projects[project.Name] = filepath.Join(root, project.Path)
+	for _, project := range manifest.Projects {
+		// git is the default protocol.
+		if project.Name == "" {
+			project.Name = "git"
+		}
+		project.Path = filepath.Join(root, project.Path)
+		projects[project.Name] = project
 	}
 	return nil
 }
 
-func findLocalProjects(path string, projects map[string]string, git *gitutil.Git) error {
+func findLocalProjects(path string, projects map[string]Project, git *gitutil.Git, hg *hgutil.Hg) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
@@ -249,10 +282,26 @@ func findLocalProjects(path string, projects map[string]string, git *gitutil.Git
 	}
 	name, err := git.RepoName()
 	if err == nil {
-		if existingPath, ok := projects[name]; ok {
-			return fmt.Errorf("name conflict: both %v and %v contain the project %v", existingPath, path, name)
+		if project, ok := projects[name]; ok {
+			return fmt.Errorf("name conflict: both %v and %v contain the project %v", project.Path, path, name)
 		}
-		projects[name] = path
+		projects[name] = Project{
+			Name:     name,
+			Path:     path,
+			Protocol: "git",
+		}
+		return nil
+	}
+	name, err = hg.RepoName()
+	if err == nil {
+		if project, ok := projects[name]; ok {
+			return fmt.Errorf("name conflict: both %v and %v contain the project %v", project.Path, path, name)
+		}
+		projects[name] = Project{
+			Name:     name,
+			Path:     path,
+			Protocol: "hg",
+		}
 		return nil
 	}
 	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".veyronignore")
@@ -275,7 +324,7 @@ func findLocalProjects(path string, projects map[string]string, git *gitutil.Git
 	}
 	for _, fi := range fis {
 		if _, ignore := ignoreSet[fi.Name()]; fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") && !ignore {
-			if err := findLocalProjects(filepath.Join(path, fi.Name()), projects, git); err != nil {
+			if err := findLocalProjects(filepath.Join(path, fi.Name()), projects, git, hg); err != nil {
 				return err
 			}
 		}

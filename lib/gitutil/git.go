@@ -178,8 +178,8 @@ func (g *Git) CreateAndCheckoutBranch(branchName string) error {
 	return g.run("checkout", "-b", branchName)
 }
 
-// CreateBranchWithUpstream creates a new branch and sets the upstream repo to
-// the given upstream.
+// CreateBranchWithUpstream creates a new branch and sets the upstream
+// repository to the given upstream.
 func (g *Git) CreateBranchWithUpstream(branchName, upstream string) error {
 	return g.run("branch", branchName, upstream)
 }
@@ -190,7 +190,10 @@ func (g *Git) CurrentBranchName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.Join(out, "\n"), nil
+	if expected, got := 1, len(out); expected != got {
+		return "", fmt.Errorf("unexpected length of %v: expected %v, got %v", out, expected, got)
+	}
+	return out[0], nil
 }
 
 // Fetch fetches refs and tags from the remote repository.
@@ -252,12 +255,13 @@ func (g *Git) HasUntrackedFiles() (bool, error) {
 	return len(out) != 0, nil
 }
 
-// Init initializes a new git repo.
+// Init initializes a new git repository.
 func (g *Git) Init(path string) error {
 	return g.run("init", path)
 }
 
-// IsFileCommitted tests whether the given file has been committed to the repo.
+// IsFileCommitted tests whether the given file has been committed to
+// the repository.
 func (g *Git) IsFileCommitted(file string) bool {
 	// Check if file is still in staging enviroment.
 	if out, _ := g.runOutput("status", "--porcelain", file); len(out) > 0 {
@@ -335,7 +339,7 @@ func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) 
 	return out, nil
 }
 
-// Pull pulls the given branch from the given remote repo.
+// Pull pulls the given branch from the given remote repository.
 func (g *Git) Pull(remote, branch string) error {
 	if out, err := g.runOutput("pull", remote, branch); err != nil {
 		g.run("reset", "--merge")
@@ -366,14 +370,14 @@ func (g *Git) Remove(fileName string) error {
 	return g.run("rm", fileName)
 }
 
-// RepoName gets the name of the current repo.
+// RepoName gets the name of the current repository.
 func (g *Git) RepoName() (string, error) {
 	out, err := g.runOutput("config", "--get", "remote.origin.url")
 	if err != nil {
 		return "", err
 	}
 	if expected, got := 1, len(out); expected != got {
-		return "", err
+		return "", fmt.Errorf("unexpected length of %v: expected %v, got %v", out, expected, got)
 	}
 	return out[0], nil
 }
@@ -415,7 +419,7 @@ func (g *Git) StashPop() error {
 	return g.run("stash", "pop")
 }
 
-// TopLevel returns the top level path of the current repo.
+// TopLevel returns the top level path of the current repository.
 func (g *Git) TopLevel() (string, error) {
 	out, err := g.runOutput("rev-parse", "--show-toplevel")
 	if err != nil {

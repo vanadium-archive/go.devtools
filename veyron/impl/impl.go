@@ -15,6 +15,7 @@ import (
 
 	"tools/lib/cmdline"
 	"tools/lib/gitutil"
+	"tools/lib/hgutil"
 	"tools/lib/runutil"
 	"tools/lib/util"
 )
@@ -333,8 +334,9 @@ var cmdProjectList = &cmdline.Command{
 // runProjectList generates a human-readable description of
 // existing projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
-	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
-	projects, err := util.LocalProjects(git)
+	run := runutil.New(verboseFlag, command.Stdout())
+	git, hg := gitutil.New(run), hgutil.New(run)
+	projects, err := util.LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
@@ -345,14 +347,26 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 	sort.Strings(names)
 	description := fmt.Sprintf("Existing projects:\n")
 	for _, name := range names {
-		description += fmt.Sprintf("  %q in %q\n", filepath.Base(name), projects[name])
+		project := projects[name]
+		description += fmt.Sprintf("  %q in %q\n", filepath.Base(name), project.Path)
 		if branchesFlag {
-			if err := os.Chdir(projects[name]); err != nil {
-				return fmt.Errorf("Chdir(%v) failed: %v", projects[name], err)
+			if err := os.Chdir(project.Path); err != nil {
+				return fmt.Errorf("Chdir(%v) failed: %v", project.Path, err)
 			}
-			branches, current, err := git.GetBranches()
-			if err != nil {
-				return err
+			branches, current := []string{}, ""
+			switch project.Protocol {
+			case "git":
+				branches, current, err = git.GetBranches()
+				if err != nil {
+					return err
+				}
+			case "hg":
+				branches, current, err = hg.GetBranches()
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported protocol %v", project.Protocol)
 			}
 			for _, branch := range branches {
 				if branch == current {
@@ -380,8 +394,9 @@ Poll existing veyron projects and report whether any new changes exist.
 
 // runProjectPoll generates a description of the new changes.
 func runProjectPoll(command *cmdline.Command, _ []string) error {
-	git := gitutil.New(runutil.New(verboseFlag, command.Stdout()))
-	currentProjects, err := util.LocalProjects(git)
+	run := runutil.New(verboseFlag, command.Stdout())
+	git, hg := gitutil.New(run), hgutil.New(run)
+	currentProjects, err := util.LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
@@ -438,7 +453,7 @@ func computeUpdate(git *gitutil.Git, ops operationList) (util.Update, error) {
 				})
 			}
 		}
-		update[op.project] = commits
+		update[op.project.Name] = commits
 	}
 	return update, nil
 }
@@ -475,10 +490,12 @@ const (
 
 // operation represents a project operation.
 type operation struct {
+	// project holds information about the project such as its
+	// name, local path, and the protocol it uses for version
+	// control.
+	project util.Project
 	// destination is the new project path.
 	destination string
-	// project is the name of the project.
-	project string
 	// source is the current project path.
 	source string
 	// ty is the type of the operation.
@@ -486,17 +503,17 @@ type operation struct {
 }
 
 // newOperation is the operation factory.
-func newOperation(project, src, dst string, ty operationType) operation {
+func newOperation(project util.Project, src, dst string, ty operationType) operation {
 	return operation{
+		project:     project,
 		destination: dst,
 		source:      src,
-		project:     project,
 		ty:          ty,
 	}
 }
 
 func (o operation) String() string {
-	name := filepath.Base(o.project)
+	name := filepath.Base(o.project.Name)
 	switch o.ty {
 	case createOperation:
 		return fmt.Sprintf("create project %q in %q", name, o.destination)
@@ -525,7 +542,7 @@ func (ol operationList) Less(i, j int) bool {
 	if ol[i].ty != ol[j].ty {
 		return ol[i].ty < ol[j].ty
 	}
-	return ol[i].project < ol[j].project
+	return ol[i].project.Name < ol[j].project.Name
 }
 
 // Swap swaps two elements of the collection.
@@ -538,25 +555,25 @@ func (ol operationList) Swap(i, j int) {
 // system and manifest file respectively) and outputs a collection of
 // operations that describe the actions needed to update the target
 // projects.
-func computeOperations(updateProjects map[string]struct{}, currentProjects, newProjects map[string]string) (operationList, error) {
+func computeOperations(updateProjects map[string]struct{}, currentProjects, newProjects map[string]util.Project) (operationList, error) {
 	result := operationList{}
 	names := []string{}
 	for name := range updateProjects {
 		names = append(names, name)
 	}
 	for _, name := range names {
-		if currentPath, ok := currentProjects[name]; ok {
-			if newPath, ok := newProjects[name]; ok {
-				if currentPath == newPath {
-					result = append(result, newOperation(name, currentPath, newPath, updateOperation))
+		if currentProject, ok := currentProjects[name]; ok {
+			if newProject, ok := newProjects[name]; ok {
+				if currentProject.Path == newProject.Path {
+					result = append(result, newOperation(currentProject, currentProject.Path, newProject.Path, updateOperation))
 				} else {
-					result = append(result, newOperation(name, currentPath, newPath, moveOperation))
+					result = append(result, newOperation(currentProject, currentProject.Path, newProject.Path, moveOperation))
 				}
 			} else if gcFlag {
-				result = append(result, newOperation(name, currentPath, "", deleteOperation))
+				result = append(result, newOperation(currentProject, currentProject.Path, "", deleteOperation))
 			}
-		} else if newPath, ok := newProjects[name]; ok {
-			result = append(result, newOperation(name, "", newPath, createOperation))
+		} else if newProject, ok := newProjects[name]; ok {
+			result = append(result, newOperation(newProject, "", newProject.Path, createOperation))
 		} else {
 			return nil, fmt.Errorf("project %v does not exist", name)
 		}
@@ -613,33 +630,45 @@ exit 0
 // commit hooks for existing repositories. Overwriting the existing
 // hooks is not a good idea as developers might have customized the
 // hooks.
-func runOperation(run *runutil.Run, git *gitutil.Git, op operation) error {
+func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operation) error {
 	switch op.ty {
 	case createOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
 		if err := os.MkdirAll(path, perm); err != nil {
 			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
 		}
-		if err := git.Clone(op.project, op.destination); err != nil {
-			return err
-		}
-		file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
-		url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
-		args := []string{"-Lo", file, url}
-		var stderr bytes.Buffer
-		if err := run.Command(ioutil.Discard, &stderr, "curl", args...); err != nil {
-			return fmt.Errorf("download of Gerrit commit message git hook failed: %v\n%v", err, stderr.String())
-		}
-		if err := os.Chmod(file, perm); err != nil {
-			return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
-		}
-		file = filepath.Join(op.destination, ".git", "hooks", "pre-commit")
-		if err := ioutil.WriteFile(file, []byte(preCommitHook), perm); err != nil {
-			return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
-		}
-		file = filepath.Join(op.destination, ".git", "hooks", "pre-push")
-		if err := ioutil.WriteFile(file, []byte(prePushHook), perm); err != nil {
-			return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
+		switch op.project.Protocol {
+		case "git":
+			if err := git.Clone(op.project.Name, op.destination); err != nil {
+				return err
+			}
+			if strings.HasPrefix(op.project.Name, "https://veyron.googlesource.com/") {
+				// Setup the repository for Gerrit code reviews.
+				file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
+				url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
+				args := []string{"-Lo", file, url}
+				var stderr bytes.Buffer
+				if err := run.Command(ioutil.Discard, &stderr, "curl", args...); err != nil {
+					return fmt.Errorf("failed to download commit message hook: %v\n%v", err, stderr.String())
+				}
+				if err := os.Chmod(file, perm); err != nil {
+					return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
+				}
+				file = filepath.Join(op.destination, ".git", "hooks", "pre-commit")
+				if err := ioutil.WriteFile(file, []byte(preCommitHook), perm); err != nil {
+					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
+				}
+				file = filepath.Join(op.destination, ".git", "hooks", "pre-push")
+				if err := ioutil.WriteFile(file, []byte(prePushHook), perm); err != nil {
+					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
+				}
+			}
+		case "hg":
+			if err := hg.Clone(op.project.Name, op.destination); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unsupported protocol %v", op.project.Protocol)
 		}
 	case deleteOperation:
 		if err := os.RemoveAll(op.source); err != nil {
@@ -653,11 +682,11 @@ func runOperation(run *runutil.Run, git *gitutil.Git, op operation) error {
 		if err := os.Rename(op.source, op.destination); err != nil {
 			return fmt.Errorf("Rename(%v, %v) failed: %v", op.source, op.destination, err)
 		}
-		if err := util.UpdateProject(op.destination, git); err != nil {
+		if err := util.UpdateProject(op.destination, git, hg); err != nil {
 			return err
 		}
 	case updateOperation:
-		if err := util.UpdateProject(op.destination, git); err != nil {
+		if err := util.UpdateProject(op.destination, git, hg); err != nil {
 			return err
 		}
 	default:
@@ -669,8 +698,8 @@ func runOperation(run *runutil.Run, git *gitutil.Git, op operation) error {
 // runProjectUpdate implements the update command of the veyron tool.
 func runProjectUpdate(command *cmdline.Command, args []string) error {
 	run := runutil.New(verboseFlag, command.Stdout())
-	git := gitutil.New(run)
-	currentProjects, err := util.LocalProjects(git)
+	git, hg := gitutil.New(run), hgutil.New(run)
+	currentProjects, err := util.LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
@@ -706,7 +735,7 @@ func runProjectUpdate(command *cmdline.Command, args []string) error {
 	}
 	failed := false
 	for _, op := range ops {
-		runFn := func() error { return runOperation(run, git, op) }
+		runFn := func() error { return runOperation(run, git, hg, op) }
 		// Always log the output of 'veyron project update'
 		// irrespective of the value of the verbose flag.
 		run := runutil.New(true, command.Stdout())
