@@ -10,7 +10,7 @@ Usage:
 
 The git-veyron commands are:
    cleanup     Clean up branches that have been merged
-   review      Send changes from a local branch to Gerrit for review
+   review      Send a changelist from a local branch to Gerrit for review
    selfupdate  Update the veyron tool
    status      Print a succint status of the veyron repositories
    version     Print version
@@ -35,9 +35,12 @@ The cleanup flags are:
 
 Git-Veyron Review
 
-Squashes all commits of a local branch into a single commit and
-submits that commit to Gerrit as a single change list. You can run
-it multiple times to send more patch sets to the change list.
+Squashes all commits of a local branch into a single "changelist" and
+sends this changelist to Gerrit as a single commit. First time the
+command is invoked, it generates a Change-Id for the changelist, which
+is appended to the commit message. Consecutive invocations of the
+command use the same Change-Id by default, informing Gerrit that the
+incomming commit is an update of an existing changelist.
 
 Usage:
    git-veyron review [flags]
@@ -60,8 +63,9 @@ The selfupdate flags are:
 Git-Veyron Status
 
 Reports current branches of existing veyron repositories as well as an
-indication of whether there are any unstaged, uncommitted, or stashed
-changes.
+indication of the status:
+  *  indicates whether a repository contains uncommitted changes
+  %  indicates whether a repository contains untracked files
 
 Usage:
    git-veyron status [flags]
@@ -69,7 +73,7 @@ Usage:
 The status flags are:
    -show-current=false: Show the name of the current repo.
    -show-master=false: Show master branches in the status.
-   -show-unstaged=true: Indicate if there are any unstaged changes.
+   -show-uncommitted=true: Indicate if there are any uncommitted changes.
    -show-untracked=true: Indicate if there are any untracked files.
 
 Git-Veyron Version
@@ -88,8 +92,7 @@ Usage:
    git-veyron help [flags] [command ...]
 
 [command ...] is an optional sequence of commands to display detailed usage.
-The special-case "help ..." recursively displays help for this command and all
-sub-commands.
+The special-case "help ..." recursively displays help for all commands.
 
 The help flags are:
    -style=text: The formatting style for help output, either "text" or "godoc".

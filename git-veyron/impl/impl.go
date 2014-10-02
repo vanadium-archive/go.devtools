@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -37,7 +36,7 @@ var (
 func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdCleanup.Flags.BoolVar(&forceFlag, "f", false, "Ignore unmerged changes.")
-	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send draft change list.")
+	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
@@ -52,7 +51,7 @@ var cmdRoot = &cmdline.Command{
 	Short: "Tool for interacting with the Veyron Gerrit server",
 	Long: `
 The git-veyron tool facilitates interaction with the Veyron Gerrit server.
-In particular, it can be used to export changes from a local branch
+In particular, it can be used to export changelists from a local branch
 to the Gerrit server.
 `,
 	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdSelfUpdate, cmdStatus, cmdVersion},
@@ -152,18 +151,21 @@ func runCleanup(command *cmdline.Command, args []string) error {
 var cmdReview = &cmdline.Command{
 	Run:   runReview,
 	Name:  "review",
-	Short: "Send changes from a local branch to Gerrit for review",
+	Short: "Send a changelist from a local branch to Gerrit for review",
 	Long: `
-Squashes all commits of a local branch into a single commit and
-submits that commit to Gerrit as a single change list. You can run
-it multiple times to send more patch sets to the change list.
+Squashes all commits of a local branch into a single "changelist" and
+sends this changelist to Gerrit as a single commit. First time the
+command is invoked, it generates a Change-Id for the changelist, which
+is appended to the commit message. Consecutive invocations of the
+command use the same Change-Id by default, informing Gerrit that the
+incomming commit is an update of an existing changelist.
 `,
 }
 
 type ChangeConflictError string
 
 func (s ChangeConflictError) Error() string {
-	result := "change conflicts with the remote master branch\n\n"
+	result := "changelist conflicts with the remote master branch\n\n"
 	result += "To resolve this problem, run 'git pull origin master',\n"
 	result += "resolve the conflicts identified below, and then try again.\n"
 	result += string(s)
@@ -187,7 +189,7 @@ func (s GerritError) Error() string {
 type GoFormatError []string
 
 func (s GoFormatError) Error() string {
-	result := "change does not adhere to the Go formatting conventions\n\n"
+	result := "changelist does not adhere to the Go formatting conventions\n\n"
 	result += "To resolve this problem, run 'go fmt' for the following file(s):\n"
 	result += "  " + strings.Join(s, "\n  ")
 	return result
@@ -196,7 +198,7 @@ func (s GoFormatError) Error() string {
 type NoChangeIDError struct{}
 
 func (_ NoChangeIDError) Error() string {
-	result := "change is missing a Change-ID"
+	result := "changelist is missing a Change-ID"
 	return result
 }
 
@@ -209,16 +211,16 @@ func (s UncommittedChangesError) Error() string {
 }
 
 var defaultMessageHeader = `
-# Describe your change, specifying what package(s) your change pertains to,
-# followed by a short summary and, in case of non-trivial changes, a detailed
-# description.
+# Describe your changelist, specifying what package(s) your change
+# pertains to, followed by a short summary and, in case of non-trivial
+# changelists, provide a detailed description.
 #
 # For example:
 #
 # veyron/runtimes/google/ipc/stream/proxy: add publish address
 #
-# The listen address is not always the same at the address that external
-# users need to connect to. This change adds a new argument to proxy.New()
+# The listen address is not always the same as the address that external
+# users need to connect to. This CL adds a new argument to proxy.New()
 # to specify the published address that clients should connect to.
 
 # FYI, you are about to submit the following local commits for review:
@@ -282,29 +284,6 @@ func NewReview(draft, edit, verbose bool, repo, reviewers, ccs string, stdout io
 // Change-Ids start with 'I' and are followed by 40 characters of hex.
 var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
 
-// findGoBinary returns the path to the given Go binary.
-func findGoBinary(name string) (string, error) {
-	root, err := util.VeyronRoot()
-	if err != nil {
-		return "", err
-	}
-	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", name)
-	if _, err := os.Stat(envbin); err == nil {
-		return envbin, nil
-	} else if !os.IsNotExist(err) {
-		return "", fmt.Errorf("Stat(%v) failed: %v", envbin, err)
-	}
-	pathbin, err := exec.LookPath(name)
-	switch {
-	case err == nil:
-		return pathbin, nil
-	case err == exec.ErrNotFound:
-		return "", fmt.Errorf("%q does not exist and %q not found in PATH", envbin, name)
-	default:
-		return "", fmt.Errorf("LookPath(%q) failed: %v", name, err)
-	}
-}
-
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat() error {
@@ -312,10 +291,6 @@ func (r *review) checkGoFormat() error {
 		return err
 	}
 	files, err := r.git.ModifiedFiles("FETCH_HEAD", r.branch)
-	if err != nil {
-		return err
-	}
-	gofmt, err := findGoBinary("gofmt")
 	if err != nil {
 		return err
 	}
@@ -339,9 +314,12 @@ func (r *review) checkGoFormat() error {
 			}
 			// Check if the formatting of <file> differs
 			// from gofmt.
-			command := exec.Command(gofmt, "-l", path)
-			out, err := command.Output()
-			if err != nil || len(out) != 0 {
+			fmtCmd := exec.Command("veyron", "go", "fmt", path)
+			out, err := fmtCmd.Output()
+			if err != nil {
+				return fmt.Errorf("failed to check Go format: %v\n%v\n%s", err, strings.Join(fmtCmd.Args, " "), out)
+			}
+			if len(out) != 0 {
 				ill = append(ill, file)
 			}
 		}
