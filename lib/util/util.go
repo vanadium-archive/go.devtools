@@ -285,8 +285,8 @@ func findLatestProjects(manifestFile string, projects map[string]Project, git *g
 	}
 	for _, project := range manifest.Projects {
 		// git is the default protocol.
-		if project.Name == "" {
-			project.Name = "git"
+		if project.Protocol == "" {
+			project.Protocol = "git"
 		}
 		project.Path = filepath.Join(root, project.Path)
 		projects[project.Name] = project
