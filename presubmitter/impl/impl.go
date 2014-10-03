@@ -722,13 +722,12 @@ var cmdVersion = &cmdline.Command{
 	Long:  "Print version of the presubmitter tool.",
 }
 
-const version string = "0.1"
-
-// commitId should be over-written during build:
-// go build -ldflags "-X tools/presubmitter/impl.commitId <commitId>" tools/presubmitter
-var commitId string = "test-build"
+// Version should be over-written during build:
+//
+// go build -ldflags "-X tools/presubmitter/impl.Version <version>" tools/presubmitter
+var Version string = "manual-build"
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "presubmitter tool version %v (build %v)\n", version, commitId)
+	fmt.Fprintf(command.Stdout(), "presubmitter tool version %v\n", Version)
 	return nil
 }

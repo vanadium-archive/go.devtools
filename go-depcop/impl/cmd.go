@@ -192,13 +192,12 @@ var cmdVersion = &cmdline.Command{
 	Long:  "Print version of the go-depcop tool.",
 }
 
-const version string = "0.1.0"
-
-// commitId should be over-written during build:
-// go build -ldflags "-X tools/go-depcop/impl.commitId <commitId>" tools/go-depcop
-var commitId string = "test-build"
+// Version should be over-written during build:
+//
+// go build -ldflags "-X tools/go-depcop/impl.Version <version>" tools/go-depcop
+var Version string = "manual-build"
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "go-depcop tool version %v (build %v)\n", version, commitId)
+	fmt.Fprintf(command.Stdout(), "go-depcop tool version %v\n", Version)
 	return nil
 }

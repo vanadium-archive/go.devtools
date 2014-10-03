@@ -654,13 +654,12 @@ var cmdVersion = &cmdline.Command{
 	Long:  "Print version of the git-veyron tool.",
 }
 
-const version string = "1.1.0"
-
-// commitId should be over-written during build:
-// go build -ldflags "-X tools/git-veyron/impl.commitId <commitId>" tools/git-veyron
-var commitId string = "test-build"
+// Version should be over-written during build:
+//
+// go build -ldflags "-X tools/git-veyron/impl.Version <version>" tools/git-veyron
+var Version string = "manual-build"
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "git-veyron tool version %v (build %v)\n", version, commitId)
+	fmt.Fprintf(command.Stdout(), "git-veyron tool version %v\n", Version)
 	return nil
 }

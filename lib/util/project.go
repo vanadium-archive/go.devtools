@@ -272,7 +272,7 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 		return err
 	}
 	output := filepath.Join(root, "bin", name)
-	ldflags := fmt.Sprintf("-X tools/%v/impl.commitId %d", name, count)
+	ldflags := fmt.Sprintf("-X tools/%v/impl.Version %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
 	args = []string{"go", "build", "-ldflags", ldflags, "-o", output, pkg}
 	stderr.Reset()

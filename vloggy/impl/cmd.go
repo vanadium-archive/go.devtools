@@ -123,14 +123,13 @@ var cmdVersion = &cmdline.Command{
 	Long:  "Print version of the vloggy tool.",
 }
 
-const version string = "0.1.0"
-
-// commitId should be over-written during build:
-// go build -ldflags "-X tools/vloggy/impl.commitId <commitId>" tools/vloggy
-var commitId string = "test-build"
+// Version should be over-written during build:
+//
+// go build -ldflags "-X tools/vloggy/impl.Version <version>" tools/vloggy
+var Version string = "manual-build"
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "vloggy tool version %v (build %v)\n", version, commitId)
+	fmt.Fprintf(command.Stdout(), "vloggy tool version %v\n", Version)
 	return nil
 }
 
