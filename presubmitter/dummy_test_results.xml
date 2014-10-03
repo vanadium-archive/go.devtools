@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  This file will be used to generate a dummy test results file
+  just in case no tests presubmitter runs produces any results files.
+-->
+<testsuites>
+  <testsuite name="NO_TESTS" tests="1" errors="0" failures="0" skip="0">
+    <testcase classname="NO_TESTS" name="NO_TESTS" time="0">
+    </testcase>
+  </testsuite>
+</testsuites>
