@@ -11,8 +11,9 @@ The veyron commands are:
    project     Manage veyron projects
    env         Print veyron environment variables
    run         Run an executable using the veyron environment
-   go          Execute the go build tool using the veyron environment
+   go          Execute the go tool using the veyron environment
    goext       Veyron extensions of the go tool
+   xgo         Execute the go tool using the veyron environment and cross-compilation
    selfupdate  Update the veyron tool
    version     Print version
    help        Display help for commands
@@ -70,7 +71,7 @@ Usage:
    veyron project list [flags]
 
 The list flags are:
-   -branches=none: Determines what project branches to list (none, all).
+   -branches=false: Show project branches.
 
 Veyron Project Poll
 
@@ -122,14 +123,15 @@ verbatim to the executable.
 
 Veyron Go
 
-Wrapper around the 'go' tool that takes care of veyron-specific setup,
-such as setting up the GOPATH or making sure that VDL generated files
-are regenerated before compilation.
+Wrapper around the 'go' tool that can be used for compilation of
+veyron Go sources. It takes care of veyron-specific setup, such as
+setting up the Go specific environment variables or making sure that
+VDL generated files are regenerated before compilation.
 
 Usage:
    veyron go [flags] <arg ...>
 
-<arg ...> is a list of arguments for the Go tool.
+<arg ...> is a list of arguments for the go tool.
 
 The go flags are:
    -novdl=false: Disable automatic generation of vdl files.
@@ -154,6 +156,24 @@ packages that no longer exist in the source tree.
 
 Usage:
    veyron goext distclean
+
+Veyron Xgo
+
+Wrapper around the 'go' tool that can be used for cross-compilation of
+veyron Go sources. It takes care of veyron-specific setup, such as
+setting up the Go specific environment variables or making sure that
+VDL generated files are regenerated before compilation.
+
+Usage:
+   veyron xgo <platform> <arg ...>
+
+<platform> is the cross-compilation target and has the general format
+<arch><sub>-<sys> where:
+- <arch> is the target architecture (e.g. x86, amd64 or arm)
+- <sub> is the target sub-architecture (e.g. v6 for arm)
+- <sys> is the target operating system (e.g. linux, darwin, or android)
+
+<arg ...> is a list of arguments for the go tool."
 
 Veyron Selfupdate
 

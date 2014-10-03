@@ -1,19 +1,14 @@
-// Package util contains a variety of general purpose functions, such
-// as the SelfUpdate() function, for writing tools.
 package util
 
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"tools/lib/gitutil"
@@ -21,30 +16,33 @@ import (
 	"tools/lib/runutil"
 )
 
-const (
-	rootEnv = "VEYRON_ROOT"
-)
+// Update represents an update of veyron projects as a map from
+// project names to a collections of commits.
+type Update map[string][]CL
 
-type configType struct {
-	GoRepos []string
+// CL represents a changelist.
+type CL struct {
+	// Author identifies the author of the changelist.
+	Author string
+	// Email identifies the author's email.
+	Email string
+	// Description holds the description of the changelist.
+	Description string
 }
 
-var baseEnv map[string]string
+// Manifest represents a collection of veyron projects.
+type Manifest struct {
+	Projects []Project `xml:"project"`
+}
 
-func init() {
-	// Initialize the baseEnv map with values of the environment
-	// variables relevant to veyron.
-	baseEnv = map[string]string{}
-	vars := []string{
-		"CGO_ENABLED",
-		"CGO_CFLAGS",
-		"CGO_LDFLAGS",
-		"GOPATH",
-		"VDLPATH",
-	}
-	for _, v := range vars {
-		baseEnv[v] = os.Getenv(v)
-	}
+// Project represents a veyron project.
+type Project struct {
+	// Name is the URL at which the project is hosted.
+	Name string `xml:"name,attr"`
+	// Path is the relative path used to store the project locally.
+	Path string `xml:"path,attr"`
+	// Protocol is the version control protocol used by the project.
+	Protocol string `xml:"protocol,attr"`
 }
 
 // LatestProjects parses the most recent version fo the project
@@ -79,25 +77,6 @@ func SelfUpdate(verbose bool, stdout io.Writer, manifest, name string) error {
 	run := runutil.New(true, stdout)
 	updateFn := func() error { return selfUpdate(git, run, manifest, name) }
 	return run.Function(updateFn, "Updating tool %q", name)
-}
-
-// SetupVeyronEnvironment sets up the environment variables used by
-// the veyron setup. Developers that wish to do the environment
-// variable setup themselves, should set the VEYRON_ENV_SETUP
-// environment variable to "none".
-func SetupVeyronEnvironment() error {
-	if os.Getenv("VEYRON_ENV_SETUP") != "none" {
-		environment, err := VeyronEnvironment()
-		if err != nil {
-			return err
-		}
-		for key, value := range environment {
-			if err := os.Setenv(key, value); err != nil {
-				return fmt.Errorf("Setenv(%v, %v) failed: %v", key, value, err)
-			}
-		}
-	}
-	return nil
 }
 
 // UpdateProject advances the local master branch of the project
@@ -158,111 +137,7 @@ func UpdateProject(path string, git *gitutil.Git, hg *hgutil.Hg) error {
 	return nil
 }
 
-// VeyronEnvironment returns the environment variables setting for
-// veyron. The util package captures the original state of the
-// environment variables relevant to veyron when it is initialized,
-// and every invocation of this function updates this original state
-// according to the current configuration of the veyron tool.
-func VeyronEnvironment() (map[string]string, error) {
-	root, err := VeyronRoot()
-	if err != nil {
-		return nil, err
-	}
-	configPath := filepath.Join(root, "tools", "conf", "veyron")
-	configBytes, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("ReadFile(%v) failed: %v", configPath, err)
-	}
-	var config configType
-	if err := json.Unmarshal(configBytes, &config); err != nil {
-		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(configBytes), err)
-	}
-	env := map[string]string{}
-	setEnvGoPath(env, root, config)
-	setEnvVdlPath(env, root, config)
-	if err := setEnvCgo(env, root); err != nil {
-		return nil, err
-	}
-	return env, nil
-}
-
-func setEnvGoPath(env map[string]string, root string, config configType) {
-	gopath := parseTokens(baseEnv["GOPATH"], ":")
-	// Append an entry to gopath for each veyron go repo.
-	for _, repo := range config.GoRepos {
-		gopath = append(gopath, filepath.Join(root, repo, "go"))
-	}
-	env["GOPATH"] = strings.Join(gopath, ":")
-}
-
-func setEnvVdlPath(env map[string]string, root string, config configType) {
-	vdlpath := parseTokens(baseEnv["VDLPATH"], ":")
-	// Append an entry to vdlpath for each veyron go repo.
-	// TODO(toddw): This logic will change when we pull vdl into a separate repo.
-	for _, repo := range config.GoRepos {
-		vdlpath = append(vdlpath, filepath.Join(root, repo, "go"))
-	}
-	env["VDLPATH"] = strings.Join(vdlpath, ":")
-}
-
-func setEnvCgo(env map[string]string, root string) error {
-	// Set the CGO_* variables for the veyron proximity component.
-	if runtime.GOOS == "linux" {
-		env["CGO_ENABLED"] = "1"
-		libs := []string{
-			"dbus-1.6.14",
-			"expat-2.1.0",
-			"bluez-4.101",
-			"libusb-1.0.16-rc10",
-			"libusb-compat-0.1.5",
-		}
-		archCmd := exec.Command("uname", "-m")
-		arch, err := archCmd.Output()
-		if err != nil {
-			return fmt.Errorf("failed to get host architecture: %v\n%v\n%s", err, strings.Join(archCmd.Args, " "))
-		}
-		cflags := parseTokens(baseEnv["CGO_CFLAGS"], " ")
-		ldflags := parseTokens(baseEnv["CGO_LDFLAGS"], " ")
-		for _, lib := range libs {
-			dir := filepath.Join(root, "environment", "cout", lib, strings.TrimSpace(string(arch)))
-			if _, err := os.Stat(dir); err != nil {
-				if !os.IsNotExist(err) {
-					return fmt.Errorf("Stat(%v) failed: %v", dir, err)
-				}
-			} else {
-				if lib == "dbus-1.6.14" {
-					cflags = append(cflags, filepath.Join("-I"+dir, "include", "dbus-1.0", "dbus"))
-				} else {
-					cflags = append(cflags, filepath.Join("-I"+dir, "include"))
-				}
-				ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"), "-Wl,-rpath", filepath.Join(dir, "lib"))
-			}
-		}
-		env["CGO_CFLAGS"] = strings.Join(cflags, " ")
-		env["CGO_LDFLAGS"] = strings.Join(ldflags, " ")
-	}
-	return nil
-}
-
-// VeyronRoot returns the root of the veyron universe.
-func VeyronRoot() (string, error) {
-	root := os.Getenv(rootEnv)
-	if root == "" {
-		return "", fmt.Errorf("%v is not set", rootEnv)
-	}
-	return root, nil
-}
-
-type Project struct {
-	Name     string `xml:"name,attr"`
-	Path     string `xml:"path,attr"`
-	Protocol string `xml:"protocol,attr"`
-}
-
-type Manifest struct {
-	Projects []Project `xml:"project"`
-}
-
+// findLatestProjects implements FindLocalProjects.
 func findLatestProjects(manifestFile string, projects map[string]Project, git *gitutil.Git) error {
 	root, err := VeyronRoot()
 	if err != nil {
@@ -294,6 +169,7 @@ func findLatestProjects(manifestFile string, projects map[string]Project, git *g
 	return nil
 }
 
+// findLocalProjects implements FindLocalProjects.
 func findLocalProjects(path string, projects map[string]Project, git *gitutil.Git, hg *hgutil.Hg) error {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -355,16 +231,7 @@ func findLocalProjects(path string, projects map[string]Project, git *gitutil.Gi
 	return nil
 }
 
-func parseTokens(tokens, separator string) []string {
-	result := []string{}
-	for _, token := range strings.Split(tokens, separator) {
-		if token != "" {
-			result = append(result, token)
-		}
-	}
-	return result
-}
-
+// selfUpdate is the implementation of SelfUpdate.
 func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error {
 	root, err := VeyronRoot()
 	if err != nil {
