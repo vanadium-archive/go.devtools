@@ -111,10 +111,10 @@ func UpdateProject(path string, git *gitutil.Git, hg *hgutil.Hg) error {
 			if stashed {
 				defer git.StashPop()
 			}
-			if err := git.CheckoutBranch("master"); err != nil {
+			if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 				return err
 			}
-			defer git.CheckoutBranch(branch)
+			defer git.CheckoutBranch(branch, !gitutil.Force)
 			if err := git.Pull("origin", "master"); err != nil {
 				return err
 			}
@@ -263,10 +263,10 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 	if stashed {
 		defer git.StashPop()
 	}
-	if err := git.CheckoutBranch("master"); err != nil {
+	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		return err
 	}
-	defer git.CheckoutBranch(branch)
+	defer git.CheckoutBranch(branch, !gitutil.Force)
 	count, err := git.CountCommits("HEAD", "")
 	if err != nil {
 		return err

@@ -73,8 +73,8 @@ func assertFilesPushedToRef(t *testing.T, repoPath, gerritPath, pushedRef string
 		t.Fatalf("os.Chdir(%v) failed: %v", gerritPath, err)
 	}
 	assertCommitCount(t, pushedRef, "master", 1)
-	if err := git.CheckoutBranch(pushedRef); err != nil {
-		t.Fatalf("CheckoutBranch(%v) failed: %v", pushedRef, err)
+	if err := git.CheckoutBranch(pushedRef, !gitutil.Force); err != nil {
+		t.Fatalf("CheckoutBranch(%v, %v) failed: %v", pushedRef, !gitutil.Force, err)
 	}
 	assertFilesCommitted(t, files)
 	if err := os.Chdir(repoPath); err != nil {
@@ -235,7 +235,7 @@ func TestCleanupClean(t *testing.T) {
 	if err := commitFiles(file2); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", file2, err)
 	}
-	if err := git.CheckoutBranch("master"); err != nil {
+	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := git.Merge(branch, true); err != nil {
@@ -267,7 +267,7 @@ func TestCleanupDirty(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	if err := git.CheckoutBranch("master"); err != nil {
+	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		t.Fatalf("%v", err)
 	}
 	testCmd := cmdline.Command{}
@@ -275,7 +275,7 @@ func TestCleanupDirty(t *testing.T) {
 	if err := cleanup(&testCmd, git, run, []string{branch}); err == nil {
 		t.Fatalf("cleanup did not fail when it should")
 	}
-	if err := git.CheckoutBranch(branch); err != nil {
+	if err := git.CheckoutBranch(branch, !gitutil.Force); err != nil {
 		t.Fatalf("%v", err)
 	}
 	assertFilesCommitted(t, files)
@@ -310,8 +310,8 @@ func TestCreateReviewBranch(t *testing.T) {
 	if !git.BranchExists(review.reviewBranch) {
 		t.Fatalf("Expected createReviewBranch() to create a new branch, but it did not.")
 	}
-	if err := git.CheckoutBranch(review.reviewBranch); err != nil {
-		t.Fatalf("CheckoutBranch(%v) failed: %v", review, err)
+	if err := git.CheckoutBranch(review.reviewBranch, !gitutil.Force); err != nil {
+		t.Fatalf("CheckoutBranch(%v, %v) failed: %v", review, !gitutil.Force, err)
 	}
 	assertCommitCount(t, review.reviewBranch, "master", 1)
 	assertFilesCommitted(t, files)

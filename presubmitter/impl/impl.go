@@ -616,6 +616,10 @@ func preparePresubmitTestBranch(command *cmdline.Command, run *runutil.Run, loca
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
 	git := gitutil.New(run)
+
+	if err := resetRepo(git); err != nil {
+		return err
+	}
 	branchName := presubmitTestBranchName()
 	if err := git.CreateAndCheckoutBranch(branchName); err != nil {
 		return fmt.Errorf("CreateAndCheckoutBranch(%q) failed: %v", branchName, err)
@@ -635,14 +639,47 @@ func cleanUpPresubmitTestBranch(command *cmdline.Command, run *runutil.Run, loca
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
 	git := gitutil.New(run)
-	master := "master"
-	if err := git.CheckoutBranch(master); err != nil {
-		return fmt.Errorf("CheckoutBranch(%q) failed: %v", master, err)
+	if err := resetRepo(git); err != nil {
+		return err
 	}
-	branchName := presubmitTestBranchName()
-	if err := git.ForceDeleteBranch(branchName); err != nil {
-		return fmt.Errorf("ForceDeleteBranch(%q) failed: %v", branchName, err)
+	return nil
+}
+
+// resetRepo cleans up untracked files and uncommitted changes of the current branch,
+// checks out the master branch, and deletes all the other branches.
+func resetRepo(git *gitutil.Git) error {
+	// Clean up changes and check out master.
+	curBranchName, err := git.CurrentBranchName()
+	if err != nil {
+		return err
 	}
+	if curBranchName != "master" {
+		if err := git.CheckoutBranch("master", gitutil.Force); err != nil {
+			return err
+		}
+	}
+	if err := git.RemoveUntrackedFiles(); err != nil {
+		return err
+	}
+	if err := git.RemoveUncommittedChanges(); err != nil {
+		return err
+	}
+
+	// Delete all the other branches.
+	// At this point we should be at the master branch.
+	branches, _, err := git.GetBranches()
+	if err != nil {
+		return err
+	}
+	for _, branch := range branches {
+		if branch == "master" {
+			continue
+		}
+		if err := git.DeleteBranch(branch, gitutil.Force); err != nil {
+			return nil
+		}
+	}
+
 	return nil
 }
 

@@ -91,10 +91,10 @@ func cleanup(command *cmdline.Command, git *gitutil.Git, run *runutil.Run, branc
 	if stashed {
 		defer git.StashPop()
 	}
-	if err := git.CheckoutBranch("master"); err != nil {
+	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		return err
 	}
-	defer git.CheckoutBranch(currentBranch)
+	defer git.CheckoutBranch(currentBranch, !gitutil.Force)
 	if err := git.Pull("origin", "master"); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func cleanup(command *cmdline.Command, git *gitutil.Git, run *runutil.Run, branc
 }
 
 func cleanupBranch(git *gitutil.Git, branch string) error {
-	if err := git.CheckoutBranch(branch); err != nil {
+	if err := git.CheckoutBranch(branch, !gitutil.Force); err != nil {
 		return err
 	}
 	if !forceFlag {
@@ -127,15 +127,15 @@ func cleanupBranch(git *gitutil.Git, branch string) error {
 			return fmt.Errorf("unmerged changes in\n%s", strings.Join(files, "\n"))
 		}
 	}
-	if err := git.CheckoutBranch("master"); err != nil {
+	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		return err
 	}
-	if err := git.ForceDeleteBranch(branch); err != nil {
+	if err := git.DeleteBranch(branch, gitutil.Force); err != nil {
 		return err
 	}
 	reviewBranch := branch + "-REVIEW"
 	if git.BranchExists(reviewBranch) {
-		if err := git.ForceDeleteBranch(reviewBranch); err != nil {
+		if err := git.DeleteBranch(reviewBranch, gitutil.Force); err != nil {
 			return err
 		}
 	}
@@ -332,11 +332,11 @@ func (r *review) checkGoFormat() error {
 
 // cleanup cleans up after the review.
 func (r *review) cleanup(stashed bool) {
-	if err := r.git.CheckoutBranch(r.branch); err != nil {
+	if err := r.git.CheckoutBranch(r.branch, !gitutil.Force); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 	}
 	if r.git.BranchExists(r.reviewBranch) {
-		if err := r.git.ForceDeleteBranch(r.reviewBranch); err != nil {
+		if err := r.git.DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	}
@@ -354,7 +354,7 @@ func (r *review) createReviewBranch(message string) error {
 		return err
 	}
 	if r.git.BranchExists(r.reviewBranch) {
-		if err := r.git.ForceDeleteBranch(r.reviewBranch); err != nil {
+		if err := r.git.DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
 			return err
 		}
 	}
@@ -379,7 +379,7 @@ func (r *review) createReviewBranch(message string) error {
 			return err
 		}
 	}
-	if err := r.git.CheckoutBranch(r.reviewBranch); err != nil {
+	if err := r.git.CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
 		return err
 	}
 	if err := r.git.Merge(r.branch, true); err != nil {
@@ -482,14 +482,14 @@ func (r *review) send() error {
 // file. It then adds that file to the original branch, and makes sure
 // it is not on the review branch.
 func (r *review) updateReviewMessage(filename string) error {
-	if err := r.git.CheckoutBranch(r.reviewBranch); err != nil {
+	if err := r.git.CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
 		return err
 	}
 	newMessage, err := r.git.LatestCommitMessage()
 	if err != nil {
 		return err
 	}
-	if err := r.git.CheckoutBranch(r.branch); err != nil {
+	if err := r.git.CheckoutBranch(r.branch, !gitutil.Force); err != nil {
 		return err
 	}
 	if err := writeFile(filename, newMessage); err != nil {
@@ -499,7 +499,7 @@ func (r *review) updateReviewMessage(filename string) error {
 		return err
 	}
 	// Delete the commit message from review branch.
-	if err := r.git.CheckoutBranch(r.reviewBranch); err != nil {
+	if err := r.git.CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
 		return err
 	}
 	if fileExists(filename) {

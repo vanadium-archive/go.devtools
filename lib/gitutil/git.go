@@ -12,6 +12,8 @@ import (
 	"tools/lib/runutil"
 )
 
+const Force = true
+
 type GitError struct {
 	args        []string
 	output      string
@@ -78,8 +80,22 @@ func (g *Git) BranchesDiffer(branchName1, branchName2 string) (bool, error) {
 }
 
 // CheckoutBranch checks out a branch.
-func (g *Git) CheckoutBranch(branchName string) error {
-	return g.run("checkout", branchName)
+func (g *Git) CheckoutBranch(branchName string, force bool) error {
+	if force {
+		return g.run("checkout", "-f", branchName)
+	} else {
+		return g.run("checkout", branchName)
+	}
+}
+
+// RemoveUncommittedChanges removes uncommitted changes.
+func (g *Git) RemoveUncommittedChanges() error {
+	return g.run("reset", "--hard", "HEAD")
+}
+
+// RemoveUntrackedFiles removes untracked files and directories.
+func (g *Git) RemoveUntrackedFiles() error {
+	return g.run("clean", "-d", "-f")
 }
 
 // Clone clones the given repository to the given local path.
@@ -211,10 +227,13 @@ func (g *Git) FilesWithUncommittedChanges() ([]string, error) {
 	return out, nil
 }
 
-// ForceDeleteBranch deletes the given branch, even if that branch contains
-// unmerged changes.
-func (g *Git) ForceDeleteBranch(branchName string) error {
-	return g.run("branch", "-D", branchName)
+// DeleteBranch deletes the given branch.
+func (g *Git) DeleteBranch(branchName string, force bool) error {
+	if force {
+		return g.run("branch", "-D", branchName)
+	} else {
+		return g.run("branch", "-d", branchName)
+	}
 }
 
 // GetBranches returns a slice of the local branches of the current
