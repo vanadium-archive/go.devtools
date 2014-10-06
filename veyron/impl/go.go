@@ -22,6 +22,11 @@ Wrapper around the 'go' tool that can be used for compilation of
 veyron Go sources. It takes care of veyron-specific setup, such as
 setting up the Go specific environment variables or making sure that
 VDL generated files are regenerated before compilation.
+
+In particular, the tool invokes the following command before invoking
+any go tool commands that compile veyron Go code:
+
+vdl generate -lang=go all
 `,
 	ArgsName: "<arg ...>",
 	ArgsLong: "<arg ...> is a list of arguments for the go tool.",
@@ -31,14 +36,59 @@ func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	if err := util.SetupVeyronEnvironment(); err != nil {
+	return setupAndGo(util.HostPlatform(), command, args)
+}
+
+// cmdXGo represents the 'xgo' command of the veyron tool.
+var cmdXGo = &cmdline.Command{
+	Run:   runXGo,
+	Name:  "xgo",
+	Short: "Execute the go tool using the veyron environment and cross-compilation",
+	Long: `
+Wrapper around the 'go' tool that can be used for cross-compilation of
+veyron Go sources. It takes care of veyron-specific setup, such as
+setting up the Go specific environment variables or making sure that
+VDL generated files are regenerated before compilation.
+
+In particular, the tool invokes the following command before invoking
+any go tool commands that compile veyron Go code:
+
+vdl generate -lang=go all
+
+`,
+	ArgsName: "<platform> <arg ...>",
+	ArgsLong: `
+<platform> is the cross-compilation target and has the general format
+<arch><sub>-<os> or <arch><sub>-<os>-<env> where:
+- <arch> is the platform architecture (e.g. x86, amd64 or arm)
+- <sub> is the platform sub-architecture (e.g. v6 for arm)
+- <os> is the platform operating system (e.g. linux or darwin)
+- <env> is the platform environment (e.g. gnu or android)
+
+<arg ...> is a list of arguments for the go tool."
+`,
+}
+
+func runXGo(command *cmdline.Command, args []string) error {
+	if len(args) < 2 {
+		return command.UsageErrorf("not enough arguments")
+	}
+	platform, err := util.ParsePlatform(args[0])
+	if err != nil {
 		return err
 	}
+	return setupAndGo(platform, command, args[1:])
+}
+
+func setupAndGo(platform util.Platform, command *cmdline.Command, args []string) error {
 	switch args[0] {
 	case "build", "install", "run", "test":
 		if err := generateVDL(); err != nil {
 			return err
 		}
+	}
+	if err := util.SetupVeyronEnvironment(platform); err != nil {
+		return err
 	}
 	goCmd := exec.Command("go", args...)
 	goCmd.Stdout = command.Stdout()
@@ -71,64 +121,19 @@ func generateVDL() error {
 	// then look for transitive vdl dependencies based on that set.
 	args = append(args, "generate", "-lang=go", "all")
 	vdlCmd := exec.Command("go", args...)
+	conf, err := util.VeyronConfig()
+	if err != nil {
+		return err
+	}
+	gopath := []string{}
+	for _, repo := range conf.GoRepos {
+		gopath = append(gopath, filepath.Join(root, repo, "go"))
+	}
+	vdlCmd.Env = append(vdlCmd.Env, fmt.Sprintf("GOPATH=%v", strings.Join(gopath, ":")))
 	if out, err := vdlCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
 	}
 	return nil
-}
-
-// cmdXGo represents the 'xgo' command of the veyron tool.
-var cmdXGo = &cmdline.Command{
-	Run:   runXGo,
-	Name:  "xgo",
-	Short: "Execute the go tool using the veyron environment and cross-compilation",
-	Long: `
-Wrapper around the 'go' tool that can be used for cross-compilation of
-veyron Go sources. It takes care of veyron-specific setup, such as
-setting up the Go specific environment variables or making sure that
-VDL generated files are regenerated before compilation.
-`,
-	ArgsName: "<platform> <arg ...>",
-	ArgsLong: `
-<platform> is the cross-compilation target and has the general format
-<arch><sub>-<sys> where:
-- <arch> is the target architecture (e.g. x86, amd64 or arm)
-- <sub> is the target sub-architecture (e.g. v6 for arm)
-- <sys> is the target operating system (e.g. linux, darwin, or android)
-
-<arg ...> is a list of arguments for the go tool."
-`,
-}
-
-func runXGo(command *cmdline.Command, args []string) error {
-	if len(args) < 2 {
-		return command.UsageErrorf("not enough arguments")
-	}
-	platform, err := util.ParsePlatform(args[0])
-	if err != nil {
-		return err
-	}
-	if err := util.SetupVeyronEnvironment(); err != nil {
-		return err
-	}
-	switch args[0] {
-	case "build", "install", "run", "test":
-		if err := generateVDL(); err != nil {
-			return err
-		}
-	}
-	if platform.Arch == "arm" && platform.Sys == "linux" {
-		// The arm environment is set up after VDL generation as the VDL
-		// generation should use the host compiler.
-		if err := util.SetupArmEnvironment(); err != nil {
-			return err
-		}
-		goCmd := exec.Command("go", args[1:]...)
-		goCmd.Stdout = command.Stdout()
-		goCmd.Stderr = command.Stderr()
-		return translateExitCode(goCmd.Run())
-	}
-	return fmt.Errorf("unsupported target platform %s", platform)
 }
 
 // cmdGoExt represents the 'goext' command of the veyron tool.
@@ -155,7 +160,7 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
-	if err := util.SetupVeyronEnvironment(); err != nil {
+	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
 		return err
 	}
 	goPath := os.Getenv("GOPATH")

@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -10,26 +11,62 @@ var (
 	archRE = regexp.MustCompile("amd64|arm|x86")
 )
 
-// Platform describe a hardware and software platform.
+// Platform describes a hardware and software platform. It models the
+// platform similarly to the LLVM triple:
+// http://llvm.org/docs/doxygen/html/classllvm_1_1Triple.html
 type Platform struct {
 	// Arch is the platform architecture (e.g. arm or amd64).
 	Arch string
-	// Sub is the platform sub-architecture (e.g. v6 or v7 for arm)
-	Sub string
-	// Sys is the platform operating system (e.g. linux or darwin)
-	Sys string
+	// SubArch is the platform sub-architecture (e.g. v6 or v7 for arm).
+	SubArch string
+	// OS is the platform operating system (e.g. linux or darwin).
+	OS string
+	// Environment is the platform environment (e.g. gnu or android).
+	Environment string
 }
 
-// ParsePlatform parses a string in the format <arch><sub>-<sys> to a
-// Platform.
-func ParsePlatform(platform string) (*Platform, error) {
-	result := &Platform{}
-	tokens := strings.Split(platform, "-")
-	if expected, got := 2, len(tokens); expected != got {
-		return nil, fmt.Errorf("invalid length of %v: expected %v, got %v", tokens, expected, got)
+func (p Platform) String() string {
+	return fmt.Sprintf("%v%v-%v-%v", p.Arch, p.SubArch, p.OS, p.Environment)
+}
+
+type UnsupportedErr struct {
+	platform Platform
+}
+
+func (e UnsupportedErr) Error() string {
+	return fmt.Sprintf("unsupported platform %s", e.platform)
+}
+
+// HostPlatform returns the host platform.
+func HostPlatform() Platform {
+	return Platform{
+		Arch:        runtime.GOARCH,
+		SubArch:     "unknown",
+		OS:          runtime.GOOS,
+		Environment: "unknown",
 	}
-	result.Arch, result.Sub = parseArch(tokens[0])
-	result.Sys = tokens[1]
+}
+
+// ParsePlatform parses a string in the format <arch><sub>-<os> or
+// <arch><sub>-<os>-<env> to a Platform.
+func ParsePlatform(platform string) (Platform, error) {
+	if platform == "" {
+		return HostPlatform(), nil
+	}
+	result := Platform{}
+	tokens := strings.Split(platform, "-")
+	switch len(tokens) {
+	case 2:
+		result.Arch, result.SubArch = parseArch(tokens[0])
+		result.OS = tokens[1]
+		result.Environment = "unknown"
+	case 3:
+		result.Arch, result.SubArch = parseArch(tokens[0])
+		result.OS = tokens[1]
+		result.Environment = tokens[2]
+	default:
+		return Platform{}, fmt.Errorf("invalid length of %v: expected 2 or 3, got %v", tokens, len(tokens))
+	}
 	return result, nil
 }
 

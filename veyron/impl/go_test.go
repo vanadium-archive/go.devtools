@@ -24,7 +24,7 @@ func TestGoVeyronEnvironment(t *testing.T) {
 	if err := runGo(&testCmd, []string{"env", "GOPATH"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	env, err := util.VeyronEnvironment()
+	env, err := util.VeyronEnvironment(util.HostPlatform())
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

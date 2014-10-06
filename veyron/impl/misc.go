@@ -42,7 +42,11 @@ each on a separate line in the same order as the arguments.
 }
 
 func runEnv(command *cmdline.Command, args []string) error {
-	env, err := util.VeyronEnvironment()
+	platform, err := util.ParsePlatform(platformFlag)
+	if err != nil {
+		return err
+	}
+	env, err := util.VeyronEnvironment(platform)
 	if err != nil {
 		return err
 	}
@@ -80,7 +84,7 @@ func runRun(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("no command to run")
 	}
-	if err := util.SetupVeyronEnvironment(); err != nil {
+	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
 		return err
 	}
 	// For certain commands, veyron uses specialized wrappers that do
