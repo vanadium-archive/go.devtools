@@ -641,7 +641,7 @@ func failedTestLinks(failedTestNames []string, command *cmdline.Command) ([]stri
 	for _, failedTestName := range failedTestNames {
 		// For a given test script this-is-a-test.sh, its test report file is: tests_this_is_a_test.xml.
 		junitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(failedTestName, "-", "_", -1))
-		junitReportFile := filepath.Join(veyronRoot, junitReportFileName)
+		junitReportFile := filepath.Join(veyronRoot, "..", junitReportFileName)
 		fdReport, err := os.Open(junitReportFile)
 		if err != nil {
 			fmt.Fprintf(command.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
