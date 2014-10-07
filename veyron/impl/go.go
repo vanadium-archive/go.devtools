@@ -81,12 +81,17 @@ func runXGo(command *cmdline.Command, args []string) error {
 }
 
 func setupAndGo(platform util.Platform, command *cmdline.Command, args []string) error {
+	// First set up the environment for the host platform, and run vdl.
+	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
+		return err
+	}
 	switch args[0] {
 	case "build", "install", "run", "test":
 		if err := generateVDL(); err != nil {
 			return err
 		}
 	}
+	// Now set up the specified platform, and run go.
 	if err := util.SetupVeyronEnvironment(platform); err != nil {
 		return err
 	}
@@ -104,8 +109,9 @@ func generateVDL() error {
 	if err != nil {
 		return err
 	}
-	vdlDir := filepath.Join(root, "veyron", "go", "src", "veyron.io", "veyron", "veyron2", "vdl", "vdl")
+	// Initialize args with the *.go files under the vdl directory to run.
 	args := []string{"run"}
+	vdlDir := filepath.Join(root, "veyron", "go", "src", "veyron.io", "veyron", "veyron2", "vdl", "vdl")
 	fis, err := ioutil.ReadDir(vdlDir)
 	if err != nil {
 		return fmt.Errorf("ReadDir(%v) failed: %v", vdlDir, err)
@@ -121,15 +127,6 @@ func generateVDL() error {
 	// then look for transitive vdl dependencies based on that set.
 	args = append(args, "generate", "-lang=go", "all")
 	vdlCmd := exec.Command("go", args...)
-	conf, err := util.VeyronConfig()
-	if err != nil {
-		return err
-	}
-	gopath := []string{}
-	for _, repo := range conf.GoRepos {
-		gopath = append(gopath, filepath.Join(root, repo, "go"))
-	}
-	vdlCmd.Env = append(vdlCmd.Env, fmt.Sprintf("GOPATH=%v", strings.Join(gopath, ":")))
 	if out, err := vdlCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
 	}
