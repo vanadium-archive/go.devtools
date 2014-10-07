@@ -16,12 +16,12 @@ type parseTest struct {
 // platform strings.
 func TestParsePlatform(t *testing.T) {
 	tests := []parseTest{
-		{"x86", empty},
-		{"x86-linux-gnu-oops", empty},
+		{"386", empty},
+		{"386-linux-gnu-oops", empty},
 		{"", Platform{runtime.GOARCH, "unknown", runtime.GOOS, "unknown"}},
-		{"x86-linux", Platform{"x86", "", "linux", "unknown"}},
-		{"x86-linux-gnu", Platform{"x86", "", "linux", "gnu"}},
-		{"x86v1.0-linux-gnu", Platform{"x86", "v1.0", "linux", "gnu"}},
+		{"386-linux", Platform{"386", "", "linux", "unknown"}},
+		{"386-linux-gnu", Platform{"386", "", "linux", "gnu"}},
+		{"386v1.0-linux-gnu", Platform{"386", "v1.0", "linux", "gnu"}},
 		{"armv1.0-linux-gnu", Platform{"arm", "v1.0", "linux", "gnu"}},
 		{"amd64v1.0-linux-gnu", Platform{"amd64", "v1.0", "linux", "gnu"}},
 		{"oops-linux", Platform{"unknown", "unknown", "linux", "unknown"}},
