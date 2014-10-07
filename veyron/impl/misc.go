@@ -31,8 +31,10 @@ var cmdEnv = &cmdline.Command{
 	Long: `
 Print veyron environment variables.
 
-If no arguments are given, prints all variables in NAME=VALUE format,
-each on a separate line ordered by name.
+If no arguments are given, prints all variables in NAME="VALUE" format,
+each on a separate line ordered by name.  This format makes it easy to set
+all vars by running the following bash command (or similar for other shells):
+   eval $(veyron env)
 
 If arguments are given, prints only the value of each named variable,
 each on a separate line in the same order as the arguments.
@@ -62,7 +64,9 @@ func runEnv(command *cmdline.Command, args []string) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Fprintf(command.Stdout(), "%s=%s\n", name, env[name])
+		// We use explicit double-quotes rather than %q since this is a shell value,
+		// and we don't want Go-specific escaping.
+		fmt.Fprintf(command.Stdout(), "%s=\"%s\"\n", name, env[name])
 	}
 	return nil
 }
