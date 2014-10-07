@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	archRE = regexp.MustCompile("amd64|arm|x86")
+	archRE = regexp.MustCompile("amd64|arm|386")
 )
 
 // Platform describes a hardware and software platform. It models the
