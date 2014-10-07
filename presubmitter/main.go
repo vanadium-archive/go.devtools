@@ -58,11 +58,11 @@ Usage:
 
 The test flags are:
    -build_number=-1: The number of the Jenkins build.
-   -conf=/usr/local/google/home/toddw/veyron/tools/go/src/tools/presubmitter/presubmit_tests.conf: The config file for presubmit tests.
+   -conf=$VEYRON_ROOT/veyron/tools/go/src/tools/presubmitter/presubmit_tests.conf: The config file for presubmit tests.
    -manifest=absolute: Name of the project manifest.
    -ref=: The ref where the review is posted.
    -repo=: The URL of the repository containing the CL pointed by the ref.
-   -tests_base_path=/usr/local/google/home/toddw/veyron/jenkins/scripts: The base path of all the test scripts.
+   -tests_base_path=$VEYRON_ROOT/veyron/scripts/jenkins: The base path of all the test scripts.
 
 Presubmitter Selfupdate
 
@@ -90,8 +90,7 @@ Usage:
    presubmitter help [flags] [command ...]
 
 [command ...] is an optional sequence of commands to display detailed usage.
-The special-case "help ..." recursively displays help for this command and all
-sub-commands.
+The special-case "help ..." recursively displays help for all commands.
 
 The help flags are:
    -style=text: The formatting style for help output, either "text" or "godoc".

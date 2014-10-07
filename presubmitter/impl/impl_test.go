@@ -251,80 +251,81 @@ func TestTestsConfigFile(t *testing.T) {
 	}
 }
 
-func TestParseFailedTestsJsonResponse(t *testing.T) {
-	jenkinsBuildNumberFlag = 10
-	testReportJson := `
-{
-	"suites": [
-	  {
-			"cases": [
-			  {
-					"className": "c1",
-					"name": "t1",
-					"status": "PASSED"
-				},
-			  {
-					"className": "c2",
-					"name": "t2",
-					"status": "FAILED"
-				}
-			]
-		},
-	  {
-			"cases": [
-			  {
-					"className": "c3",
-					"name": "t3",
-					"status": "REGRESSION"
-				}
-			]
-		}
-	]
-}
-  `
-	got, err := parseFailedTestsJsonResponse(strings.NewReader(testReportJson))
-	expected := []string{
-		"- c2․t2\n  http://go/vpst/10/testReport/(root)/c2/t2/",
-		"- c3․t3\n  http://go/vpst/10/testReport/(root)/c3/t3/",
-	}
+func TestParseJUnitReportFileWithoutFailedTests(t *testing.T) {
+	// Report with no test failures.
+	reportFileContent := `
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="ts1" tests="1" errors="0" failures="0" skip="0">
+    <testcase classname="c1" name="n1" time="0">
+    </testcase>
+  </testsuite>
+</testsuites>
+	`
+	seenTests := map[string]int{}
+	expectedSeenTests := map[string]int{}
+	expected := []string{}
+	got, err := parseJUnitReportFileForFailedTestLinks(strings.NewReader(reportFileContent), seenTests)
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
 	}
 	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
+		t.Fatalf("want %v, got %v", expected, got)
 	}
+	if !reflect.DeepEqual(expectedSeenTests, seenTests) {
+		t.Fatalf("want %v, got %v", expectedSeenTests, seenTests)
+	}
+}
 
-	// Make sure the names are normalized.
-	testReportJson = `
-{
-	"suites": [
-	  {
-			"cases": [
-			  {
-					"className": "c.1",
-					"name": "t-1",
-					"status": "FAILED"
-				},
-			  {
-					"className": "c/2",
-					"name": "t2",
-					"status": "FAILED"
-				}
-			]
-		}
-	]
-}
-  `
-	got, err = parseFailedTestsJsonResponse(strings.NewReader(testReportJson))
-	expected = []string{
-		"- c․1․t-1\n  http://go/vpst/10/testReport/c/1/t_1/",
-		"- c/2․t2\n  http://go/vpst/10/testReport/(root)/c_2/t2/",
+func TestParseJUnitReportFileWithFailedTests(t *testing.T) {
+	// Report with some test failures.
+	reportFileContent := `
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="ts1" tests="1" errors="0" failures="1" skip="0">
+    <testcase classname="c1" name="n1" time="0">
+		  <failure message="error">
+# tools/presubmitter
+tools/go/src/tools/presubmitter/main.go:106: undefined: test
+		  </failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="ts2" tests="1" errors="0" failures="1" skip="0">
+    <testcase classname="v.c2" name="n2" time="0">
+		  <failure message="error">
+# some errors.
+		  </failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="ts2" tests="1" errors="0" failures="1" skip="0">
+    <testcase classname="v.c2" name="n2" time="0">
+		  <failure message="error">
+# some other errors.
+		  </failure>
+    </testcase>
+  </testsuite>
+</testsuites>
+	`
+	jenkinsBuildNumberFlag = 10
+	seenTests := map[string]int{}
+	expectedSeenTests := map[string]int{
+		"c1::n1":    1,
+		"v::c2::n2": 2,
 	}
+	expected := []string{
+		"- c1::n1\n  http://go/vpst/10/testReport/(root)/c1/n1",
+		"- v::c2::n2\n  http://go/vpst/10/testReport/v/c2/n2",
+		"- v::c2::n2\n  http://go/vpst/10/testReport/v/c2/n2_2",
+	}
+	got, err := parseJUnitReportFileForFailedTestLinks(strings.NewReader(reportFileContent), seenTests)
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
 	}
 	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
+		t.Fatalf("want %v, got %v", expected, got)
+	}
+	if !reflect.DeepEqual(expectedSeenTests, seenTests) {
+		t.Fatalf("want %v, got %v", expectedSeenTests, seenTests)
 	}
 }
 
