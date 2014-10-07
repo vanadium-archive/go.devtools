@@ -95,7 +95,13 @@ func setupAndGo(platform util.Platform, command *cmdline.Command, args []string)
 	if err := util.SetupVeyronEnvironment(platform); err != nil {
 		return err
 	}
-	goCmd := exec.Command("go", args...)
+
+	gocommand := "go"
+	if goroot := os.Getenv("GOROOT"); goroot != "" {
+		gocommand = filepath.Join(goroot, "bin", "go")
+	}
+
+	goCmd := exec.Command(gocommand, args...)
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
 	return translateExitCode(goCmd.Run())
