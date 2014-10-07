@@ -173,7 +173,7 @@ func setAndroidEnv(platform Platform, env map[string]string) error {
 	env["GOARM"] = strings.TrimPrefix(platform.SubArch, "v")
 	env["GOOS"] = platform.OS
 	env["GOROOT"] = filepath.Join(root, "environment", "android", "go")
-	if err := setJniCgoEnv(env, root, "arm"); err != nil {
+	if err := setJniCgoEnv(env, root, "android"); err != nil {
 		return err
 	}
 	// Add the paths to veyron cross-compilation tools to the PATH.
