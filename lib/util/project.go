@@ -274,7 +274,7 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 	output := filepath.Join(root, "bin", name)
 	ldflags := fmt.Sprintf("-X tools/%v/impl.Version %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
-	args = []string{"go", "build", "-ldflags", ldflags, "-o", output, pkg}
+	args = []string{"go", "-novdl", "build", "-ldflags", ldflags, "-o", output, pkg}
 	stderr.Reset()
 	if err := run.Command(ioutil.Discard, &stderr, "veyron", args...); err != nil {
 		return fmt.Errorf("%v tool update failed\n%v", name, stderr.String())
