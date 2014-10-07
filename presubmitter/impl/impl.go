@@ -645,11 +645,13 @@ func failedTestLinks(failedTestNames []string, command *cmdline.Command) ([]stri
 		fdReport, err := os.Open(junitReportFile)
 		if err != nil {
 			fmt.Fprintf(command.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
+			continue
 		}
 		defer fdReport.Close()
 		curLinks, err := parseJUnitReportFileForFailedTestLinks(fdReport, seenTests)
 		if err != nil {
 			fmt.Fprintf(command.Stderr(), "%v\n", err)
+			continue
 		}
 		links = append(links, curLinks...)
 	}
