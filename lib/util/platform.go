@@ -15,7 +15,7 @@ var (
 // platform similarly to the LLVM triple:
 // http://llvm.org/docs/doxygen/html/classllvm_1_1Triple.html
 type Platform struct {
-	// Arch is the platform architecture (e.g. arm or amd64).
+	// Arch is the platform architecture (e.g. 386, arm or amd64).
 	Arch string
 	// SubArch is the platform sub-architecture (e.g. v6 or v7 for arm).
 	SubArch string

@@ -60,8 +60,8 @@ vdl generate -lang=go all
 	ArgsLong: `
 <platform> is the cross-compilation target and has the general format
 <arch><sub>-<os> or <arch><sub>-<os>-<env> where:
-- <arch> is the platform architecture (e.g. x86, amd64 or arm)
-- <sub> is the platform sub-architecture (e.g. v6 for arm)
+- <arch> is the platform architecture (e.g. 386, amd64 or arm)
+- <sub> is the platform sub-architecture (e.g. v6 or v7 for arm)
 - <os> is the platform operating system (e.g. linux or darwin)
 - <env> is the platform environment (e.g. gnu or android)
 

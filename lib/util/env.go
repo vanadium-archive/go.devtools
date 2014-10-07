@@ -123,6 +123,12 @@ func VeyronEnvironment(platform Platform) (map[string]string, error) {
 			return env, nil
 		}
 	}
+	if platform.Arch == "386" && platform.OS == "nacl" {
+		if err := setNaclEnv(platform, env); err != nil {
+			return nil, err
+		}
+		return env, nil
+	}
 	return nil, UnsupportedErr{platform}
 }
 
@@ -279,5 +285,13 @@ func setJniCgoEnv(env map[string]string, root, arch string) error {
 	}
 	env["CGO_CFLAGS"] = strings.Join(cflags, " ")
 	env["CGO_LDFLAGS"] = strings.Join(ldflags, " ")
+	return nil
+}
+
+// setNaclEnv sets the environment variables used for nacl
+// cross-compilation.
+func setNaclEnv(platform Platform, env map[string]string) error {
+	env["GOARCH"] = platform.Arch
+	env["GOOS"] = platform.OS
 	return nil
 }
