@@ -24,6 +24,7 @@ var (
 	currentFlag     bool
 	draftFlag       bool
 	forceFlag       bool
+	gofmtFlag       bool
 	masterFlag      bool
 	manifestFlag    string
 	reviewersFlag   string
@@ -39,6 +40,8 @@ func init() {
 	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
+	cmdReview.Flags.BoolVar(&uncommittedFlag, "check-uncommitted", true, "Check that no uncommitted changes exist.")
+	cmdReview.Flags.BoolVar(&gofmtFlag, "check-gofmt", true, "Check that no go fmt violations exist.")
 	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
 	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show-uncommitted", true, "Indicate if there are any uncommitted changes.")
@@ -423,15 +426,19 @@ func (r *review) ensureChangeID() error {
 
 // run implements the end-to-end functionality of the review command.
 func (r *review) run() error {
-	changes, err := r.git.FilesWithUncommittedChanges()
-	if err != nil {
-		return err
+	if uncommittedFlag {
+		changes, err := r.git.FilesWithUncommittedChanges()
+		if err != nil {
+			return err
+		}
+		if len(changes) != 0 {
+			return UncommittedChangesError(changes)
+		}
 	}
-	if len(changes) != 0 {
-		return UncommittedChangesError(changes)
-	}
-	if err := r.checkGoFormat(); err != nil {
-		return err
+	if gofmtFlag {
+		if err := r.checkGoFormat(); err != nil {
+			return err
+		}
 	}
 	if r.branch == "master" {
 		return fmt.Errorf("cannot do a review from the 'master' branch.")
