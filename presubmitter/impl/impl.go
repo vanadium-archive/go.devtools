@@ -56,7 +56,8 @@ var (
 	manifestNameFlag                string
 	jenkinsBuildNumberFlag          int
 	veyronRoot                      string
-	reCharsToReplaceForReportLinks  *regexp.Regexp = regexp.MustCompile("[:/\\.]")
+	reURLUnsafeChars                *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
+	reNotIdentifierChars            *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
 )
 
 func init() {
@@ -709,12 +710,19 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 						packageName = parts[0]
 						className = parts[1]
 					}
-					normalizedClassName := normalizeNameForTestReport(className, false)
-					normalizedTestName := normalizeNameForTestReport(curTestCase.Name, true)
-					link := fmt.Sprintf("- %s\n  http://go/vpst/%d/testReport/%s/%s/%s",
-						testFullName, jenkinsBuildNumberFlag, packageName, normalizedClassName, normalizedTestName)
-					if seenTests[testFullName] > 1 {
-						link = fmt.Sprintf("%s_%d", link, seenTests[testFullName])
+					safePackageName := safePackageOrClassName(packageName)
+					safeClassName := safePackageOrClassName(className)
+					safeTestName := safeTestName(curTestCase.Name)
+					link := ""
+					testResultUrl, err := url.Parse(fmt.Sprintf("http://go/vpst/%d/testReport/%s/%s/%s",
+						jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestName))
+					if err == nil {
+						link = fmt.Sprintf("- %s\n  %s", testFullName, testResultUrl.String())
+						if seenTests[testFullName] > 1 {
+							link = fmt.Sprintf("%s_%d", link, seenTests[testFullName])
+						}
+					} else {
+						link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
 					}
 					links = append(links, link)
 				}
@@ -724,15 +732,21 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 	return links, nil
 }
 
-// normalizeNameForTestReport replaces characters (defined in reCharsToReplaceForReportLinks)
-// in the given name with "_".
-// The normalized name will be used for linking to the individual test report page.
-func normalizeNameForTestReport(name string, replaceDash bool) string {
-	ret := reCharsToReplaceForReportLinks.ReplaceAllString(name, "_")
-	if replaceDash {
-		ret = strings.Replace(ret, "-", "_", -1)
-	}
-	return ret
+// safePackageOrClassName gets the safe name of the package or class name which
+// will be used to construct the url to a test case.
+//
+// The original implementation in junit jenkins plugin can be found here: http://git.io/iVD0yw
+func safePackageOrClassName(name string) string {
+	return reURLUnsafeChars.ReplaceAllString(name, "_")
+}
+
+// safeTestName gets the safe name of the test name which will be used to construct
+// the url to a test case. Note that this is different from getting the safe name
+// for package or class.
+//
+// The original implementation in junit jenkins plugin can be found here: http://git.io/8X9o7Q
+func safeTestName(name string) string {
+	return reNotIdentifierChars.ReplaceAllString(name, "_")
 }
 
 // cmdSelfUpdate represents the 'selfupdate' command of the presubmitter tool.

@@ -283,7 +283,7 @@ func TestParseJUnitReportFileWithFailedTests(t *testing.T) {
 <?xml version="1.0" encoding="utf-8"?>
 <testsuites>
   <testsuite name="ts1" tests="1" errors="0" failures="1" skip="0">
-    <testcase classname="c1" name="n1" time="0">
+    <testcase classname="package c1" name="n1" time="0">
 		  <failure message="error">
 # tools/presubmitter
 tools/go/src/tools/presubmitter/main.go:106: undefined: test
@@ -309,11 +309,11 @@ tools/go/src/tools/presubmitter/main.go:106: undefined: test
 	jenkinsBuildNumberFlag = 10
 	seenTests := map[string]int{}
 	expectedSeenTests := map[string]int{
-		"c1::n1":    1,
-		"v::c2::n2": 2,
+		"package c1::n1": 1,
+		"v::c2::n2":      2,
 	}
 	expected := []string{
-		"- c1::n1\n  http://go/vpst/10/testReport/(root)/c1/n1",
+		"- package c1::n1\n  http://go/vpst/10/testReport/%28root%29/package%20c1/n1",
 		"- v::c2::n2\n  http://go/vpst/10/testReport/v/c2/n2",
 		"- v::c2::n2\n  http://go/vpst/10/testReport/v/c2/n2_2",
 	}
@@ -329,15 +329,30 @@ tools/go/src/tools/presubmitter/main.go:106: undefined: test
 	}
 }
 
-func TestNormalizeNameForTestReport(t *testing.T) {
-	expected := "t_1"
-	if got := normalizeNameForTestReport("t/1", false); got != expected {
-		t.Errorf("want: %v, got: %v", expected, got)
+func TestSafePackageOrClassName(t *testing.T) {
+	name := "name"
+	expected := "name"
+	if got := safePackageOrClassName(name); expected != got {
+		t.Fatalf("want %q, got %q", expected, got)
 	}
-	if got := normalizeNameForTestReport("t.1", false); got != expected {
-		t.Errorf("want: %v, got: %v", expected, got)
+
+	name = "name\\0/a:b?c#d%e-f_g e"
+	expected = "name_0_a_b_c_d_e-f_g e"
+	if got := safePackageOrClassName(name); expected != got {
+		t.Fatalf("want %q, got %q", expected, got)
 	}
-	if got := normalizeNameForTestReport("t-1", true); got != expected {
-		t.Errorf("want: %v, got: %v", expected, got)
+}
+
+func TestSafeTestName(t *testing.T) {
+	name := "name"
+	expected := "name"
+	if got := safeTestName(name); expected != got {
+		t.Fatalf("want %q, got %q", expected, got)
+	}
+
+	name = "name-a b$c_d"
+	expected = "name_a_b$c_d"
+	if got := safeTestName(name); expected != got {
+		t.Fatalf("want %q, got %q", expected, got)
 	}
 }
