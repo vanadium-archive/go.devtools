@@ -179,8 +179,12 @@ func findLocalProjects(path string, projects map[string]Project, git *gitutil.Gi
 	if err := os.Chdir(path); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", path, err)
 	}
-	name, err := git.RepoName()
-	if err == nil {
+	gitDir := filepath.Join(path, ".git")
+	if _, err := os.Stat(gitDir); err == nil {
+		name, err := git.RepoName()
+		if err != nil {
+			return err
+		}
 		if project, ok := projects[name]; ok {
 			return fmt.Errorf("name conflict: both %v and %v contain the project %v", project.Path, path, name)
 		}
@@ -190,9 +194,15 @@ func findLocalProjects(path string, projects map[string]Project, git *gitutil.Gi
 			Protocol: "git",
 		}
 		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("Stat(%v) failed: %v", gitDir, err)
 	}
-	name, err = hg.RepoName()
-	if err == nil {
+	hgDir := filepath.Join(path, ".hg")
+	if _, err := os.Stat(hgDir); err == nil {
+		name, err := hg.RepoName()
+		if err != nil {
+			return err
+		}
 		if project, ok := projects[name]; ok {
 			return fmt.Errorf("name conflict: both %v and %v contain the project %v", project.Path, path, name)
 		}
@@ -202,6 +212,8 @@ func findLocalProjects(path string, projects map[string]Project, git *gitutil.Gi
 			Protocol: "hg",
 		}
 		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("Stat(%v) failed: %v", hgDir, err)
 	}
 	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".veyronignore")
 	file, err := os.Open(ignorePath)
