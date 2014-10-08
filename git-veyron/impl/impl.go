@@ -596,10 +596,8 @@ func runStatus(command *cmdline.Command, args []string) error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	currentRepo, err := git.RepoName()
-	if err != nil {
-		return err
-	}
+	// Get the name of the current repository, if applicable.
+	currentRepo, _ := git.RepoName()
 	var statuses []string
 	for _, name := range names {
 		if err := os.Chdir(projects[name].Path); err != nil {
