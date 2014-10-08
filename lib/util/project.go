@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"tools/lib/envutil"
 	"tools/lib/gitutil"
 	"tools/lib/hgutil"
 	"tools/lib/runutil"
@@ -245,6 +246,10 @@ func findLocalProjects(path string, projects map[string]Project, git *gitutil.Gi
 
 // selfUpdate is the implementation of SelfUpdate.
 func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error {
+	// Update project sources.
+	//
+	// TODO(toddw): Remove the call to "veyron project update" with "git pull", to
+	// remove the dependency on the existing veyron command.
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
@@ -252,7 +257,7 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 	url := "https://veyron.googlesource.com/tools"
 	args := []string{fmt.Sprintf("-v=%v", run.Verbose), "project", "update", "-manifest=" + manifest, url}
 	var stderr bytes.Buffer
-	if err := run.Command(ioutil.Discard, &stderr, "veyron", args...); err != nil {
+	if err := run.Command(ioutil.Discard, &stderr, nil, "veyron", args...); err != nil {
 		return fmt.Errorf("%v", stderr.String())
 	}
 	wd, err := os.Getwd()
@@ -283,12 +288,19 @@ func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error
 	if err != nil {
 		return err
 	}
+	// Build the named tool, using the veyron environment variables.
+	venv, err := VeyronEnvironment(HostPlatform())
+	if err != nil {
+		return err
+	}
+	env := envutil.ToMap(os.Environ())
+	envutil.Replace(env, venv)
 	output := filepath.Join(root, "bin", name)
 	ldflags := fmt.Sprintf("-X tools/%v/impl.Version %d", name, count)
 	pkg := fmt.Sprintf("tools/%v", name)
-	args = []string{"go", "-novdl", "build", "-ldflags", ldflags, "-o", output, pkg}
+	args = []string{"build", "-ldflags", ldflags, "-o", output, pkg}
 	stderr.Reset()
-	if err := run.Command(ioutil.Discard, &stderr, "veyron", args...); err != nil {
+	if err := run.Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
 		return fmt.Errorf("%v tool update failed\n%v", name, stderr.String())
 	}
 	return nil

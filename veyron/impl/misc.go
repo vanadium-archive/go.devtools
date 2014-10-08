@@ -3,10 +3,10 @@ package impl
 import (
 	"fmt"
 	"os/exec"
-	"sort"
 	"syscall"
 
 	"tools/lib/cmdline"
+	"tools/lib/envutil"
 	"tools/lib/util"
 )
 
@@ -58,15 +58,8 @@ func runEnv(command *cmdline.Command, args []string) error {
 		}
 		return nil
 	}
-	names := []string{}
-	for name := range env {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		// We use explicit double-quotes rather than %q since this is a shell value,
-		// and we don't want Go-specific escaping.
-		fmt.Fprintf(command.Stdout(), "%s=\"%s\"\n", name, env[name])
+	for _, entry := range envutil.ToQuotedSlice(env) {
+		fmt.Fprintln(command.Stdout(), entry)
 	}
 	return nil
 }

@@ -101,7 +101,7 @@ func (h *Hg) RepoName() (string, error) {
 
 func (h *Hg) run(args ...string) error {
 	var stdout, stderr bytes.Buffer
-	if err := h.runner.Command(&stdout, &stderr, "hg", args...); err != nil {
+	if err := h.runner.Command(&stdout, &stderr, nil, "hg", args...); err != nil {
 		return Error(stdout.String(), stderr.String(), args...)
 	}
 	return nil
@@ -109,7 +109,7 @@ func (h *Hg) run(args ...string) error {
 
 func (h *Hg) runOutput(args ...string) ([]string, error) {
 	var stdout, stderr bytes.Buffer
-	if err := h.runner.Command(&stdout, &stderr, "hg", args...); err != nil {
+	if err := h.runner.Command(&stdout, &stderr, nil, "hg", args...); err != nil {
 		return nil, Error(stdout.String(), stderr.String(), args...)
 	}
 	output := strings.TrimSpace(stdout.String())

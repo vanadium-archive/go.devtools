@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"tools/lib/envutil"
 )
 
 const (
@@ -29,13 +31,14 @@ func New(verbose bool, stdout io.Writer) *Run {
 }
 
 // Command runs the given command and logs its outcome.
-func (r *Run) Command(stdout, stderr io.Writer, path string, args ...string) error {
+func (r *Run) Command(stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
 	command := exec.Command(path, args...)
 	command.Stdin = os.Stdin
 	command.Stdout = stdout
 	command.Stderr = stderr
+	command.Env = envutil.ToSlice(env)
 	if r.Verbose {
 		r.printf(r.Stdout, strings.Join(command.Args, " "))
 	}

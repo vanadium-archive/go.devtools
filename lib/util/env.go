@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"tools/lib/envutil"
 )
 
 const (
@@ -26,20 +28,8 @@ type Config struct {
 }
 
 func init() {
-	// Initialize the baseEnv map with values of the environment
-	// variables relevant to veyron.
-	baseEnv = map[string]string{}
-	vars := []string{
-		"PATH",
-		"CGO_ENABLED",
-		"CGO_CFLAGS",
-		"CGO_LDFLAGS",
-		"GOPATH",
-		"VDLPATH",
-	}
-	for _, v := range vars {
-		baseEnv[v] = os.Getenv(v)
-	}
+	// Initialize baseEnv with a snapshot of the environment at startup.
+	baseEnv = envutil.ToMap(os.Environ())
 }
 
 // Config returns the config for veyron tools.
