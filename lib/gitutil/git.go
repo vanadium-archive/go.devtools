@@ -163,6 +163,16 @@ func (g *Git) CommitWithMessageAndEdit(message string) error {
 	return nil
 }
 
+// Committers returns a list of committers for the current repository
+// along with the number of their commits.
+func (g *Git) Committers() ([]string, error) {
+	out, err := g.runOutput("shortlog", "-s", "-n")
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CountCommits returns the number of commits on <branch> that are not on <base>.
 func (g *Git) CountCommits(branch, base string) (int, error) {
 	args := []string{"rev-list", "--count", branch}
