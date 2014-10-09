@@ -436,7 +436,6 @@ func runTest(command *cmdline.Command, args []string) error {
 	// (e.g. run test B only if test A passes).
 	results := &bytes.Buffer{}
 	fmt.Fprintf(results, "Test results:\n")
-	failedTestNames := []string{}
 	for _, test := range tests {
 		fmt.Fprintf(command.Stdout(), "\n### Running %q\n", test)
 		// Get the status of the last completed build for this test from Jenkins.
@@ -456,7 +455,6 @@ func runTest(command *cmdline.Command, args []string) error {
 		var curStatusString string
 		var stderr bytes.Buffer
 		if err := run.Command(command.Stdout(), &stderr, nil, testScript); err != nil {
-			failedTestNames = append(failedTestNames, test)
 			curStatusString = "✖"
 			fmt.Fprintf(command.Stderr(), "%v\n", stderr.String())
 		} else {
@@ -465,8 +463,8 @@ func runTest(command *cmdline.Command, args []string) error {
 		fmt.Fprintf(results, "%s ➔ %s: %s\n", lastStatusString, curStatusString, test)
 	}
 	if jenkinsBuildNumberFlag >= 0 {
-		sort.Strings(failedTestNames)
-		links, err := failedTestLinks(failedTestNames, command)
+		sort.Strings(tests)
+		links, err := failedTestLinks(tests, command)
 		if err != nil {
 			return err
 		}
@@ -630,7 +628,7 @@ func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (bool, error) {
 }
 
 // failedTestLinks returns a list of Jenkins test report links for the failed tests.
-func failedTestLinks(failedTestNames []string, command *cmdline.Command) ([]string, error) {
+func failedTestLinks(allTestNames []string, command *cmdline.Command) ([]string, error) {
 	links := []string{}
 	// seenTests maps the test full names to number of times they have been seen in the test reports.
 	// This will be used to properly generate links to failed tests.
@@ -639,9 +637,9 @@ func failedTestLinks(failedTestNames []string, command *cmdline.Command) ([]stri
 	// http://.../TestA_2
 	// http://.../TestA_3
 	seenTests := map[string]int{}
-	for _, failedTestName := range failedTestNames {
+	for _, testName := range allTestNames {
 		// For a given test script this-is-a-test.sh, its test report file is: tests_this_is_a_test.xml.
-		junitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(failedTestName, "-", "_", -1))
+		junitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
 		junitReportFile := filepath.Join(veyronRoot, "..", junitReportFileName)
 		fdReport, err := os.Open(junitReportFile)
 		if err != nil {
@@ -682,50 +680,48 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 
 	links := []string{}
 	for _, curTestSuite := range testSuites.Testsuites {
-		if curTestSuite.Failures != "0" {
-			for _, curTestCase := range curTestSuite.Testcases {
-				testFullName := fmt.Sprintf("%s.%s", curTestCase.Classname, curTestCase.Name)
-				// Replace the period "." in testFullName with "::" to stop gmail from turning
-				// it into a link automatically.
-				testFullName = strings.Replace(testFullName, ".", "::", -1)
-				// Remove the prefixes introduced by the test scripts to distinguish between
-				// different failed builds/tests.
-				prefixesToRemove := []string{"go-build::", "build::", "android-test::"}
-				for _, prefix := range prefixesToRemove {
-					testFullName = strings.TrimPrefix(testFullName, prefix)
-				}
-				seenTests[testFullName]++
+		for _, curTestCase := range curTestSuite.Testcases {
+			testFullName := fmt.Sprintf("%s.%s", curTestCase.Classname, curTestCase.Name)
+			// Replace the period "." in testFullName with "::" to stop gmail from turning
+			// it into a link automatically.
+			testFullName = strings.Replace(testFullName, ".", "::", -1)
+			// Remove the prefixes introduced by the test scripts to distinguish between
+			// different failed builds/tests.
+			prefixesToRemove := []string{"go-build::", "build::", "android-test::"}
+			for _, prefix := range prefixesToRemove {
+				testFullName = strings.TrimPrefix(testFullName, prefix)
+			}
+			seenTests[testFullName]++
 
-				// A failed test.
-				if curTestCase.Failure.Data != "" {
-					packageName := "(root)"
-					className := curTestCase.Classname
-					// In JUnit:
-					// - If className contains ".", the part before it becomes the
-					//   package name, and the part after it becomes the class name.
-					// - If className doesn't contain ".", the package name will be
-					//   "(root)".
-					if strings.Contains(className, ".") {
-						parts := strings.SplitN(className, ".", 2)
-						packageName = parts[0]
-						className = parts[1]
-					}
-					safePackageName := safePackageOrClassName(packageName)
-					safeClassName := safePackageOrClassName(className)
-					safeTestName := safeTestName(curTestCase.Name)
-					link := ""
-					testResultUrl, err := url.Parse(fmt.Sprintf("http://go/vpst/%d/testReport/%s/%s/%s",
-						jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestName))
-					if err == nil {
-						link = fmt.Sprintf("- %s\n  %s", testFullName, testResultUrl.String())
-						if seenTests[testFullName] > 1 {
-							link = fmt.Sprintf("%s_%d", link, seenTests[testFullName])
-						}
-					} else {
-						link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
-					}
-					links = append(links, link)
+			// A failed test.
+			if curTestCase.Failure.Data != "" {
+				packageName := "(root)"
+				className := curTestCase.Classname
+				// In JUnit:
+				// - If className contains ".", the part before it becomes the
+				//   package name, and the part after it becomes the class name.
+				// - If className doesn't contain ".", the package name will be
+				//   "(root)".
+				if strings.Contains(className, ".") {
+					parts := strings.SplitN(className, ".", 2)
+					packageName = parts[0]
+					className = parts[1]
 				}
+				safePackageName := safePackageOrClassName(packageName)
+				safeClassName := safePackageOrClassName(className)
+				safeTestName := safeTestName(curTestCase.Name)
+				link := ""
+				testResultUrl, err := url.Parse(fmt.Sprintf("http://go/vpst/%d/testReport/%s/%s/%s",
+					jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestName))
+				if err == nil {
+					link = fmt.Sprintf("- %s\n  %s", testFullName, testResultUrl.String())
+					if seenTests[testFullName] > 1 {
+						link = fmt.Sprintf("%s_%d", link, seenTests[testFullName])
+					}
+				} else {
+					link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
+				}
+				links = append(links, link)
 			}
 		}
 	}
