@@ -263,7 +263,9 @@ func TestParseJUnitReportFileWithoutFailedTests(t *testing.T) {
 </testsuites>
 	`
 	seenTests := map[string]int{}
-	expectedSeenTests := map[string]int{}
+	expectedSeenTests := map[string]int{
+		"c1::n1": 1,
+	}
 	expected := []string{}
 	got, err := parseJUnitReportFileForFailedTestLinks(strings.NewReader(reportFileContent), seenTests)
 	if err != nil {
@@ -279,6 +281,7 @@ func TestParseJUnitReportFileWithoutFailedTests(t *testing.T) {
 
 func TestParseJUnitReportFileWithFailedTests(t *testing.T) {
 	// Report with some test failures.
+	// We have two test cases with the same classname+testname, and the second one is failed.
 	reportFileContent := `
 <?xml version="1.0" encoding="utf-8"?>
 <testsuites>
@@ -290,11 +293,8 @@ tools/go/src/tools/presubmitter/main.go:106: undefined: test
 		  </failure>
     </testcase>
   </testsuite>
-  <testsuite name="ts2" tests="1" errors="0" failures="1" skip="0">
+  <testsuite name="ts2" tests="1" errors="0" failures="0" skip="0">
     <testcase classname="v.c2" name="n2" time="0">
-		  <failure message="error">
-# some errors.
-		  </failure>
     </testcase>
   </testsuite>
   <testsuite name="ts2" tests="1" errors="0" failures="1" skip="0">
@@ -314,7 +314,6 @@ tools/go/src/tools/presubmitter/main.go:106: undefined: test
 	}
 	expected := []string{
 		"- package c1::n1\n  http://go/vpst/10/testReport/%28root%29/package%20c1/n1",
-		"- v::c2::n2\n  http://go/vpst/10/testReport/v/c2/n2",
 		"- v::c2::n2\n  http://go/vpst/10/testReport/v/c2/n2_2",
 	}
 	got, err := parseJUnitReportFileForFailedTestLinks(strings.NewReader(reportFileContent), seenTests)
