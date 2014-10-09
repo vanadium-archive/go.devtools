@@ -89,7 +89,7 @@ func runProfileSetup(command *cmdline.Command, args []string) error {
 		script := filepath.Join(root, "scripts", "setup", runtime.GOOS, arg, "setup.sh")
 		setupFn := func() error {
 			var stderr bytes.Buffer
-			if err := run.Command(ioutil.Discard, &stderr, script); err != nil {
+			if err := run.Command(ioutil.Discard, &stderr, nil, script); err != nil {
 				return fmt.Errorf("profile %q setup failed: %v\n%v", arg, err, stderr.String())
 			}
 			return nil

@@ -351,7 +351,7 @@ func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operatio
 				url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
 				args := []string{"-Lo", file, url}
 				var stderr bytes.Buffer
-				if err := run.Command(ioutil.Discard, &stderr, "curl", args...); err != nil {
+				if err := run.Command(ioutil.Discard, &stderr, nil, "curl", args...); err != nil {
 					return fmt.Errorf("failed to download commit message hook: %v\n%v", err, stderr.String())
 				}
 				if err := os.Chmod(file, perm); err != nil {
