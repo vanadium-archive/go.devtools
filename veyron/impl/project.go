@@ -205,16 +205,6 @@ type operation struct {
 	ty operationType
 }
 
-// newOperation is the operation factory.
-func newOperation(project util.Project, src, dst string, ty operationType) operation {
-	return operation{
-		project:     project,
-		destination: dst,
-		source:      src,
-		ty:          ty,
-	}
-}
-
 func (o operation) String() string {
 	name := filepath.Base(o.project.Name)
 	switch o.ty {
@@ -260,23 +250,19 @@ func (ol operationList) Swap(i, j int) {
 // projects.
 func computeOperations(updateProjects map[string]struct{}, currentProjects, newProjects map[string]util.Project) (operationList, error) {
 	result := operationList{}
-	names := []string{}
-	for name := range updateProjects {
-		names = append(names, name)
-	}
-	for _, name := range names {
+	for name, _ := range updateProjects {
 		if currentProject, ok := currentProjects[name]; ok {
 			if newProject, ok := newProjects[name]; ok {
 				if currentProject.Path == newProject.Path {
-					result = append(result, newOperation(currentProject, currentProject.Path, newProject.Path, updateOperation))
+					result = append(result, operation{currentProject, newProject.Path, currentProject.Path, updateOperation})
 				} else {
-					result = append(result, newOperation(currentProject, currentProject.Path, newProject.Path, moveOperation))
+					result = append(result, operation{currentProject, newProject.Path, currentProject.Path, moveOperation})
 				}
 			} else if gcFlag {
-				result = append(result, newOperation(currentProject, currentProject.Path, "", deleteOperation))
+				result = append(result, operation{currentProject, "", currentProject.Path, deleteOperation})
 			}
 		} else if newProject, ok := newProjects[name]; ok {
-			result = append(result, newOperation(newProject, "", newProject.Path, createOperation))
+			result = append(result, operation{newProject, newProject.Path, "", createOperation})
 		} else {
 			return nil, fmt.Errorf("project %v does not exist", name)
 		}
@@ -470,16 +456,16 @@ func testOperations(ops operationList) error {
 		case deleteOperation:
 			if _, err := os.Stat(op.source); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf("cannot delete %q as it does not exist", op.destination)
+					return fmt.Errorf("cannot delete %q as it does not exist", op.source)
 				}
-				return fmt.Errorf("Stat(%v) failed: %v", op.destination, err)
+				return fmt.Errorf("Stat(%v) failed: %v", op.source, err)
 			}
 		case moveOperation:
 			if _, err := os.Stat(op.source); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf("cannot move %q to %q as the source does not exist", op.source, op.destination)
 				}
-				return fmt.Errorf("Stat(%v) failed: %v", op.destination, err)
+				return fmt.Errorf("Stat(%v) failed: %v", op.source, err)
 			}
 			if _, err := os.Stat(op.destination); err != nil {
 				if !os.IsNotExist(err) {

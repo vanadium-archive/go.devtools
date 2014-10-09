@@ -46,7 +46,7 @@ type Project struct {
 	Protocol string `xml:"protocol,attr"`
 }
 
-// LatestProjects parses the most recent version fo the project
+// LatestProjects parses the most recent version of the project
 // manifest to identify the latest projects.
 func LatestProjects(manifest string, git *gitutil.Git) (map[string]Project, error) {
 	projects := map[string]Project{}
@@ -95,8 +95,8 @@ func UpdateProject(path string, git *gitutil.Git, hg *hgutil.Hg) error {
 	if err := findLocalProjects(path, projects, git, hg); err != nil {
 		return err
 	}
-	if expected, got := 1, len(projects); expected != got {
-		return fmt.Errorf("unexpected length of %v: expected %v, got %v", projects, expected, got)
+	if got, want := len(projects), 1; got != want {
+		return fmt.Errorf("unexpected length of %v: got %v, want %v", projects, got, want)
 	}
 	for _, project := range projects {
 		switch project.Protocol {
@@ -138,7 +138,7 @@ func UpdateProject(path string, git *gitutil.Git, hg *hgutil.Hg) error {
 	return nil
 }
 
-// findLatestProjects implements FindLocalProjects.
+// findLatestProjects implements LatestProjects.
 func findLatestProjects(manifestFile string, projects map[string]Project, git *gitutil.Git) error {
 	root, err := VeyronRoot()
 	if err != nil {
@@ -170,7 +170,7 @@ func findLatestProjects(manifestFile string, projects map[string]Project, git *g
 	return nil
 }
 
-// findLocalProjects implements FindLocalProjects.
+// findLocalProjects implements LocalProjects.
 func findLocalProjects(path string, projects map[string]Project, git *gitutil.Git, hg *hgutil.Hg) error {
 	wd, err := os.Getwd()
 	if err != nil {
