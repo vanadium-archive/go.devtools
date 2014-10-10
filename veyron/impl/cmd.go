@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"sort"
@@ -15,6 +16,8 @@ import (
 )
 
 var (
+	hostGo       string
+	targetGo     string
 	branchesFlag bool
 	gcFlag       bool
 	manifestFlag string
@@ -24,6 +27,8 @@ var (
 )
 
 func init() {
+	flag.StringVar(&hostGo, "host-go", "go", "Go command for the host platform.")
+	flag.StringVar(&targetGo, "target-go", "go", "Go command for the target platform.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")

@@ -162,7 +162,6 @@ func setAndroidEnv(platform Platform, env map[string]string) error {
 	env["GOARCH"] = platform.Arch
 	env["GOARM"] = strings.TrimPrefix(platform.SubArch, "v")
 	env["GOOS"] = platform.OS
-	env["GOROOT"] = filepath.Join(root, "environment", "android", "go")
 	if err := setJniCgoEnv(env, root, "android"); err != nil {
 		return err
 	}
@@ -186,7 +185,7 @@ func setArmEnv(platform Platform, env map[string]string) error {
 	env["GOARCH"] = platform.Arch
 	env["GOARM"] = strings.TrimPrefix(platform.SubArch, "v")
 	env["GOOS"] = platform.OS
-	env["GOROOT"] = filepath.Join(root, "environment", "go", "linux", "arm", "go")
+
 	// Add the paths to veyron cross-compilation tools to the PATH.
 	path := getEnvTokens(env, "PATH", ":")
 	path = append([]string{

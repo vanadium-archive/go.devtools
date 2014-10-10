@@ -96,12 +96,7 @@ func setupAndGo(platform util.Platform, command *cmdline.Command, args []string)
 		return err
 	}
 
-	gocommand := "go"
-	if goroot := os.Getenv("GOROOT"); goroot != "" {
-		gocommand = filepath.Join(goroot, "bin", "go")
-	}
-
-	goCmd := exec.Command(gocommand, args...)
+	goCmd := exec.Command(targetGo, args...)
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
 	return translateExitCode(goCmd.Run())
@@ -132,7 +127,7 @@ func generateVDL() error {
 	// need to grab the transitive go dependencies for the specified packages, and
 	// then look for transitive vdl dependencies based on that set.
 	args = append(args, "generate", "-lang=go", "all")
-	vdlCmd := exec.Command("go", args...)
+	vdlCmd := exec.Command(hostGo, args...)
 	if out, err := vdlCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
 	}
