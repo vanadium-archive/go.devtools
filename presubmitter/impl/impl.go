@@ -49,11 +49,10 @@ var (
 	jenkinsTokenFlag                string
 	reviewMessageFlag               string
 	reviewTargetRefFlag             string
-	manifestFlag                    string
 	testsConfigFileFlag             string
 	repoFlag                        string
 	testScriptsBasePathFlag         string
-	manifestNameFlag                string
+	manifestFlag                    string
 	jenkinsBuildNumberFlag          int
 	veyronRoot                      string
 	reURLUnsafeChars                *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
@@ -83,9 +82,8 @@ func init() {
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "scripts", "jenkins"), "The base path of all the test scripts.")
-	cmdTest.Flags.StringVar(&manifestNameFlag, "manifest", "absolute", "Name of the project manifest.")
+	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
-	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 // Root returns a command that represents the root of the presubmitter tool.
@@ -372,7 +370,7 @@ file, and posts test results back to the corresponding Gerrit review thread.
 func runTest(command *cmdline.Command, args []string) error {
 	run := runutil.New(verboseFlag, command.Stdout())
 	// Basic sanity checks.
-	manifestFilePath := filepath.Join(veyronRoot, ".manifest", manifestNameFlag+".xml")
+	manifestFilePath := filepath.Join(veyronRoot, ".manifest", manifestFlag+".xml")
 	if _, err := os.Stat(testsConfigFileFlag); err != nil {
 		return fmt.Errorf("Stat(%q) failed: %v", testsConfigFileFlag, err)
 	}
@@ -408,7 +406,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Parse the manifest file to get the local path for the repo.
-	projects, err := util.LatestProjects(manifestNameFlag, gitutil.New(run))
+	projects, err := util.LatestProjects(manifestFlag, gitutil.New(run))
 	if err != nil {
 		return err
 	}
@@ -754,7 +752,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, _ []string) error {
-	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "presubmitter")
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "presubmitter")
 }
 
 // cmdVersion represent the 'version' command of the presubmitter tool.

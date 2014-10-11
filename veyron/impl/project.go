@@ -364,6 +364,9 @@ func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operatio
 			return fmt.Errorf("RemoveAll(%v) failed: %v", op.source, err)
 		}
 	case moveOperation:
+		if err := util.UpdateLocalProject(op.project, git, hg); err != nil {
+			return err
+		}
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
 		if err := os.MkdirAll(path, perm); err != nil {
 			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
@@ -371,11 +374,8 @@ func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operatio
 		if err := os.Rename(op.source, op.destination); err != nil {
 			return fmt.Errorf("Rename(%v, %v) failed: %v", op.source, op.destination, err)
 		}
-		if err := util.UpdateProject(op.destination, git, hg); err != nil {
-			return err
-		}
 	case updateOperation:
-		if err := util.UpdateProject(op.destination, git, hg); err != nil {
+		if err := util.UpdateLocalProject(op.project, git, hg); err != nil {
 			return err
 		}
 	default:

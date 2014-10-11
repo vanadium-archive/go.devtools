@@ -10,7 +10,6 @@ import (
 
 var (
 	gorootFlag     bool
-	manifestFlag   string
 	prettyFlag     bool
 	recursiveFlag  bool
 	transitiveFlag bool
@@ -23,7 +22,6 @@ func init() {
 	cmdList.Flags.BoolVar(&gorootFlag, "show-goroot", false, "Show packages in goroot.")
 	cmdList.Flags.BoolVar(&transitiveFlag, "transitive", false, "List transitive dependencies.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 // Root returns a command that represents the root of the go-depcop tool.
@@ -181,7 +179,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, _ []string) error {
-	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "go-depcop")
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "go-depcop")
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.

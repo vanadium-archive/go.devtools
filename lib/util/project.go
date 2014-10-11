@@ -1,3 +1,7 @@
+// Package util provides utility functions for veyron tools.
+//
+// TODO(jsimsa): Create a repoutil package that hides different
+// version control systems behind a single interface.
 package util
 
 import (
@@ -71,71 +75,64 @@ func LocalProjects(git *gitutil.Git, hg *hgutil.Hg) (map[string]Project, error) 
 }
 
 // SelfUpdate updates the given tool to the latest version.
-func SelfUpdate(verbose bool, stdout io.Writer, manifest, name string) error {
-	git := gitutil.New(runutil.New(verbose, stdout))
+func SelfUpdate(verbose bool, stdout io.Writer, name string) error {
+	run := runutil.New(verbose, stdout)
+	git, hg := gitutil.New(run), hgutil.New(run)
 	// Always log the output of selfupdate logic irrespective of
 	// the value of the verbose flag.
-	run := runutil.New(true, stdout)
-	updateFn := func() error { return selfUpdate(git, run, manifest, name) }
+	verboseRun := runutil.New(true, stdout)
+	updateFn := func() error { return selfUpdate(git, hg, verboseRun, name) }
 	return run.Function(updateFn, "Updating tool %q", name)
 }
 
-// UpdateProject advances the local master branch of the project
-// identified by the given path.
-func UpdateProject(path string, git *gitutil.Git, hg *hgutil.Hg) error {
+// UpdateLocalProject advances the master branch of a project that is
+// expected to exist locally at project.Path.
+func UpdateLocalProject(project Project, git *gitutil.Git, hg *hgutil.Hg) error {
+	return applyToLocalProject(project, git, hg, func() error { return repoPull(git, hg, project.Protocol) })
+}
+
+// applyToLocalProject applies the operation expressed as the given
+// function to the master branch of a project that is expected to
+// exist locally at project.Path.
+func applyToLocalProject(project Project, git *gitutil.Git, hg *hgutil.Hg, fn func() error) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	if err := os.Chdir(path); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", path, err)
+	if err := os.Chdir(project.Path); err != nil {
+		return fmt.Errorf("Chdir(%v) failed: %v", project.Path, err)
 	}
-	projects := map[string]Project{}
-	if err := findLocalProjects(path, projects, git, hg); err != nil {
-		return err
-	}
-	if got, want := len(projects), 1; got != want {
-		return fmt.Errorf("unexpected length of %v: got %v, want %v", projects, got, want)
-	}
-	for _, project := range projects {
-		switch project.Protocol {
-		case "git":
-			branch, err := git.CurrentBranchName()
-			if err != nil {
-				return err
-			}
-			stashed, err := git.Stash()
-			if err != nil {
-				return err
-			}
-			if stashed {
-				defer git.StashPop()
-			}
-			if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
-				return err
-			}
-			defer git.CheckoutBranch(branch, !gitutil.Force)
-			if err := git.Pull("origin", "master"); err != nil {
-				return err
-			}
-		case "hg":
-			branch, err := hg.CurrentBranchName()
-			if err != nil {
-				return err
-			}
-			if err := hg.CheckoutBranch("default"); err != nil {
-				return err
-			}
-			defer hg.CheckoutBranch(branch)
-			if err := hg.Pull(); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported protocol %v", project.Protocol)
+	switch project.Protocol {
+	case "git":
+		branch, err := git.CurrentBranchName()
+		if err != nil {
+			return err
 		}
+		stashed, err := git.Stash()
+		if err != nil {
+			return err
+		}
+		if stashed {
+			defer git.StashPop()
+		}
+		if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
+			return err
+		}
+		defer git.CheckoutBranch(branch, !gitutil.Force)
+	case "hg":
+		branch, err := hg.CurrentBranchName()
+		if err != nil {
+			return err
+		}
+		if err := hg.CheckoutBranch("default"); err != nil {
+			return err
+		}
+		defer hg.CheckoutBranch(branch)
+	default:
+		return fmt.Errorf("unsupported protocol %v", project.Protocol)
 	}
-	return nil
+	return fn()
 }
 
 // findLatestProjects implements LatestProjects.
@@ -145,12 +142,15 @@ func findLatestProjects(manifestFile string, projects map[string]Project, git *g
 		return err
 	}
 	// Update the manifest.
-	path := filepath.Join(root, ".manifest")
-	if err := UpdateProject(path, git, nil); err != nil {
+	project := Project{
+		Path:     filepath.Join(root, ".manifest"),
+		Protocol: "git",
+	}
+	if err := UpdateLocalProject(project, git, nil); err != nil {
 		return err
 	}
 	// Parse the manifest.
-	path = filepath.Join(root, ".manifest", manifestFile+".xml")
+	path := filepath.Join(root, ".manifest", manifestFile+".xml")
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
@@ -244,64 +244,96 @@ func findLocalProjects(path string, projects map[string]Project, git *gitutil.Gi
 	return nil
 }
 
-// selfUpdate is the implementation of SelfUpdate.
-func selfUpdate(git *gitutil.Git, run *runutil.Run, manifest, name string) error {
-	// Update project sources.
-	//
-	// TODO(toddw): Remove the call to "veyron project update" with "git pull", to
-	// remove the dependency on the existing veyron command.
-	root, err := VeyronRoot()
+// findToolPackage finds the package path for the given tool.
+func findToolPackage(name string) (string, error) {
+	conf, err := VeyronConfig()
+	if err != nil {
+		return "", err
+	}
+	pkg, ok := conf.Tools[name]
+	if !ok {
+		return "", fmt.Errorf("could not find package for tool %v", name)
+	}
+	return pkg, nil
+}
+
+// repoPull invokes a pull operation in the current working directory
+// using the given version control protocol.
+func repoPull(git *gitutil.Git, hg *hgutil.Hg, protocol string) error {
+	switch protocol {
+	case "git":
+		return git.Pull("origin", "master")
+	case "hg":
+		return hg.Pull()
+	default:
+		return fmt.Errorf("unsupported protocol %v", protocol)
+	}
+}
+
+// selfUpdate is the implementation of SelfUpdate. The self-update
+// logic uses three anchor points: the VEYRON_ROOT environment
+// variable, URL of the tools repository, and the veyron tools
+// configuration file location that maps stores a map from tool names
+// to package paths.
+//
+// The reason for these anchor points is that executing the selfupdate
+// logic is expected to retrieve the latest source files, build them,
+// and install the resulting binary to the $VEYRON_ROOT/bin
+// directory. But the tool that invokes the selfupdate logic may be
+// arbitrarily old, so this only works if the source updating and
+// binary building logic in an arbitrarily old tool still works.  Thus
+// we define our anchor points, and require that these anchor points
+// never change.
+//
+// Additionally, the self-update logic should not use os/exec to run
+// the veyron tool to avoid executing an arbitrarilly old version of
+// the veyron tool.
+func selfUpdate(git *gitutil.Git, hg *hgutil.Hg, run *runutil.Run, name string) error {
+	// Find where the tools repository exists locally and update it.
+	projects, err := LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
-	url := "https://veyron.googlesource.com/tools"
-	args := []string{fmt.Sprintf("-v=%v", run.Verbose), "project", "update", "-manifest=" + manifest, url}
-	var stderr bytes.Buffer
-	if err := run.Command(ioutil.Discard, &stderr, nil, "veyron", args...); err != nil {
-		return fmt.Errorf("%v", stderr.String())
+	const url = "https://veyron.googlesource.com/tools"
+	project, ok := projects[url]
+	if !ok {
+		return fmt.Errorf("could not find project %v", url)
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
+	if expected, got := "git", project.Protocol; expected != got {
+		return fmt.Errorf("unexpected protocol: expected %v, got %v", expected, got)
 	}
-	defer os.Chdir(wd)
-	repo := filepath.Join(root, "tools")
-	if err := os.Chdir(repo); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", repo, err)
+	// Fetch the latest sources, and build the tool using the
+	// veyron environment.
+	buildFn := func() error {
+		if err := repoPull(git, hg, project.Protocol); err != nil {
+			return err
+		}
+		venv, err := VeyronEnvironment(HostPlatform())
+		if err != nil {
+			return err
+		}
+		env := envutil.ToMap(os.Environ())
+		envutil.Replace(env, venv)
+		root, err := VeyronRoot()
+		if err != nil {
+			return err
+		}
+		output := filepath.Join(root, "bin", name)
+		count, err := git.CountCommits("HEAD", "")
+		if err != nil {
+			return err
+		}
+		pkg, err := findToolPackage(name)
+		if err != nil {
+			return err
+		}
+		ldflags := fmt.Sprintf("-X %v/impl.Version %d", pkg, count)
+		args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
+		var stderr bytes.Buffer
+		if err := run.Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
+			return fmt.Errorf("%v tool update failed\n%v", name, stderr.String())
+		}
+		return nil
 	}
-	branch, err := git.CurrentBranchName()
-	if err != nil {
-		return err
-	}
-	stashed, err := git.Stash()
-	if err != nil {
-		return err
-	}
-	if stashed {
-		defer git.StashPop()
-	}
-	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
-		return err
-	}
-	defer git.CheckoutBranch(branch, !gitutil.Force)
-	count, err := git.CountCommits("HEAD", "")
-	if err != nil {
-		return err
-	}
-	// Build the named tool, using the veyron environment variables.
-	venv, err := VeyronEnvironment(HostPlatform())
-	if err != nil {
-		return err
-	}
-	env := envutil.ToMap(os.Environ())
-	envutil.Replace(env, venv)
-	output := filepath.Join(root, "bin", name)
-	ldflags := fmt.Sprintf("-X tools/%v/impl.Version %d", name, count)
-	pkg := fmt.Sprintf("tools/%v", name)
-	args = []string{"build", "-ldflags", ldflags, "-o", output, pkg}
-	stderr.Reset()
-	if err := run.Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
-		return fmt.Errorf("%v tool update failed\n%v", name, stderr.String())
-	}
-	return nil
+	return applyToLocalProject(project, git, hg, buildFn)
 }

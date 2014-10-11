@@ -10,7 +10,6 @@ import (
 
 var (
 	interfacesFlag string
-	manifestFlag   string
 	verboseFlag    bool
 	gofmtFlag      bool
 )
@@ -20,7 +19,6 @@ func init() {
 	cmdInject.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required)")
 	cmdInject.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 }
 
 // Root returns a command that represents the root of the vloggy tool.
@@ -112,7 +110,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, _ []string) error {
-	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "vloggy")
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "vloggy")
 }
 
 // cmdVersion represents the 'version' command of the vloggy tool.

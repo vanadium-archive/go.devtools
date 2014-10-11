@@ -23,8 +23,15 @@ var (
 	baseEnv map[string]string
 )
 
+// Config holds configuration for various veyron tools.
 type Config struct {
+	// GoRepos identifies top-level VEYRON_ROOT directories that
+	// host Go repositories.
 	GoRepos []string
+	// Tools maps tool names to package paths. This map is used
+	// by the self-update logic invoked by various tools to
+	// identify the package path of the tools' implementation.
+	Tools map[string]string
 }
 
 func init() {

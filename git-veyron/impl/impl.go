@@ -26,7 +26,6 @@ var (
 	forceFlag       bool
 	gofmtFlag       bool
 	masterFlag      bool
-	manifestFlag    string
 	reviewersFlag   string
 	verboseFlag     bool
 	uncommittedFlag bool
@@ -42,7 +41,6 @@ func init() {
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 	cmdReview.Flags.BoolVar(&uncommittedFlag, "check-uncommitted", true, "Check that no uncommitted changes exist.")
 	cmdReview.Flags.BoolVar(&gofmtFlag, "check-gofmt", true, "Check that no go fmt violations exist.")
-	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
 	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show-uncommitted", true, "Indicate if there are any uncommitted changes.")
 	cmdStatus.Flags.BoolVar(&untrackedFlag, "show-untracked", true, "Indicate if there are any untracked files.")
@@ -568,7 +566,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, args []string) error {
-	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "git-veyron")
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "git-veyron")
 }
 
 // cmdStatus represent the 'status' command of the git-veyron tool.

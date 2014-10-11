@@ -32,7 +32,6 @@ func init() {
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
-	cmdSelfUpdate.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdXGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
@@ -156,7 +155,7 @@ var cmdSelfUpdate = &cmdline.Command{
 }
 
 func runSelfUpdate(command *cmdline.Command, _ []string) error {
-	return util.SelfUpdate(verboseFlag, command.Stdout(), manifestFlag, "veyron")
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "veyron")
 }
 
 // cmdVersion represents the 'version' command of the veyron tool.
