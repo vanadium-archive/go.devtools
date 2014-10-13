@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"tools/lib/cmdline"
@@ -31,6 +32,7 @@ const (
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
 	defaultTestReportPath              = "/var/veyron/tmp/test_report"
 	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
+	outputPrefix                       = "[VEYRON PRESUBMIT]"
 )
 
 type credential struct {
@@ -84,6 +86,12 @@ func init() {
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "scripts", "jenkins"), "The base path of all the test scripts.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "absolute", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
+}
+
+// printf outputs the given message prefixed by outputPrefix.
+func printf(out io.Writer, format string, args ...interface{}) {
+	fmt.Fprintf(out, "%s ", outputPrefix)
+	fmt.Fprintf(out, format, args...)
 }
 
 // Root returns a command that represents the root of the presubmitter tool.
@@ -153,21 +161,30 @@ func runQuery(command *cmdline.Command, args []string) error {
 		return nil
 	}
 	if jenkinsHostFlag == "" {
-		fmt.Fprintf(command.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
+		printf(command.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
 		return nil
 	}
+
 	sentCount := 0
 	for index, curNewCL := range newCLs {
-		fmt.Fprintf(command.Stdout(), "Adding presubmit test build #%d: ", index+1)
+		// Check and cancel matched outdated builds.
+		cl, patchset, err := parseRefString(curNewCL.Ref)
+		if err != nil {
+			printf(command.Stderr(), "%v\n", err)
+		} else {
+			removeOutdatedBuilds(cl, patchset, command)
+		}
+
+		printf(command.Stdout(), "Adding presubmit test build #%d: ", index+1)
 		if err := addPresubmitTestBuild(curNewCL); err != nil {
 			fmt.Fprintf(command.Stdout(), "FAIL\n")
-			fmt.Fprintf(command.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curNewCL, err)
+			printf(command.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curNewCL, err)
 		} else {
 			sentCount++
 			fmt.Fprintf(command.Stdout(), "PASS\n")
 		}
 	}
-	fmt.Fprintf(command.Stdout(), "%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
+	printf(command.Stdout(), "%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
 
 	return nil
 }
@@ -280,7 +297,7 @@ func newOpenCLs(prevRefs map[string]bool, curQueryResults []gerrit.QueryResult) 
 // Each line shows the link to the CL and its related info.
 func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) {
 	if len(queryResults) == 0 {
-		fmt.Fprintf(command.Stdout(), "No new open CLs\n")
+		printf(command.Stdout(), "No new open CLs\n")
 		return
 	}
 	count := len(queryResults)
@@ -289,12 +306,247 @@ func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) 
 	if count > 1 {
 		fmt.Fprintf(buf, "s")
 	}
-	fmt.Fprintf(command.Stdout(), "%s\n", buf.String())
+	printf(command.Stdout(), "%s\n", buf.String())
 	for _, queryResult := range queryResults {
 		// The ref string is in the form of /refs/12/3412/1 where "3412" is the CL number and "1" is the patch set number.
 		parts := strings.Split(queryResult.Ref, "/")
-		fmt.Fprintf(command.Stdout(), "http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
+		printf(command.Stdout(), "http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
 	}
+}
+
+// removeOutdatedBuilds removes all the outdated presubmit-test builds that have
+// the given cl number and equal or smaller patchset number. Outdated builds
+// include queued builds and ongoing build.
+//
+// Since this is not a critical operation, we simply print out the errors if
+// we see any.
+func removeOutdatedBuilds(cl, curPatchSet int, command *cmdline.Command) {
+	// Queued presubmit-test builds.
+	getQueuedBuildsRes, err := jenkinsAPI("queue/api/json", "GET", nil)
+	if err != nil {
+		printf(command.Stderr(), "%v\n", err)
+	} else {
+		// Get queued presubmit-test builds.
+		defer getQueuedBuildsRes.Body.Close()
+		queuedItems, errs := queuedOutdatedBuilds(getQueuedBuildsRes.Body, cl, curPatchSet)
+		if len(errs) != 0 {
+			printf(command.Stderr(), "%v\n", errs)
+		}
+
+		// Cancel them.
+		for _, queuedItem := range queuedItems {
+			cancelQueuedItemUri := "queue/cancelItem"
+			cancelQueuedItemRes, err := jenkinsAPI(cancelQueuedItemUri, "POST", map[string][]string{
+				"id": {fmt.Sprintf("%d", queuedItem.id)},
+			})
+			if err != nil {
+				printf(command.Stderr(), "%v\n", err)
+				continue
+			} else {
+				printf(command.Stdout(), "Cancelled build %s as it is no longer current.\n", queuedItem.ref)
+				cancelQueuedItemRes.Body.Close()
+			}
+		}
+	}
+
+	// Ongoing presubmit-test builds.
+	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestJenkinsProjectFlag)
+	getLastBuildRes, err := jenkinsAPI(getLastBuildUri, "GET", nil)
+	if err != nil {
+		printf(command.Stderr(), "%v\n", err)
+	} else {
+		// Get ongoing presubmit-test build.
+		defer getLastBuildRes.Body.Close()
+		build, err := ongoingOutdatedBuild(getLastBuildRes.Body, cl, curPatchSet)
+		if err != nil {
+			printf(command.Stderr(), "%v\n", err)
+			return
+		}
+		if build.buildNumber < 0 {
+			return
+		}
+
+		// Cancel it.
+		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestJenkinsProjectFlag, build.buildNumber)
+		cancelOngoingBuildRes, err := jenkinsAPI(cancelOngoingBuildUri, "POST", nil)
+		if err != nil {
+			printf(command.Stderr(), "%v\n", err)
+		} else {
+			printf(command.Stdout(), "Cancelled build %s as it is no longer current.\n", build.ref)
+			cancelOngoingBuildRes.Body.Close()
+		}
+	}
+}
+
+type queuedItem struct {
+	id  int
+	ref string
+}
+
+// queuedOutdatedBuilds returns the ids and refs of queued presubmit-test builds
+// that have the given cl number and equal or smaller patchset number.
+func queuedOutdatedBuilds(reader io.Reader, cl, curPatchSet int) ([]queuedItem, []error) {
+	r := bufio.NewReader(reader)
+	var items struct {
+		Items []struct {
+			Id     int
+			Params string `json:"params,omitempty"`
+			Task   struct {
+				Name string
+			}
+		}
+	}
+	if err := json.NewDecoder(r).Decode(&items); err != nil {
+		return nil, []error{fmt.Errorf("Decode() failed: %v", err)}
+	}
+
+	queuedItems := []queuedItem{}
+	errs := []error{}
+	for _, item := range items.Items {
+		if item.Task.Name != presubmitTestJenkinsProjectFlag {
+			continue
+		}
+		// Parse the ref, and append the id/ref of the build if it passes the checks.
+		// The param string is in the form of:
+		// "\nREF=ref/changes/12/3412/2\nREPO=test" or
+		// "\nREPO=test\nREF=ref/changes/12/3412/2"
+		parts := strings.Split(item.Params, "\n")
+		ref := ""
+		refPrefix := "REF="
+		for _, part := range parts {
+			if strings.HasPrefix(part, refPrefix) {
+				ref = strings.TrimPrefix(part, refPrefix)
+				break
+			}
+		}
+		if ref == "" {
+			errs = append(errs, fmt.Errorf("%s failed to find ref parameter: %q", outputPrefix, item.Params))
+			continue
+		}
+		itemCL, itemPatchSet, err := parseRefString(ref)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if itemCL == cl && itemPatchSet <= curPatchSet {
+			queuedItems = append(queuedItems, queuedItem{
+				id:  item.Id,
+				ref: ref,
+			})
+		}
+	}
+
+	return queuedItems, errs
+}
+
+type ongoingBuild struct {
+	buildNumber int
+	ref         string
+}
+
+// ongoingOutdatedBuild returns the build number/ref of the
+// last presubmit build if the following are both true:
+// - the build is still ongoing.
+// - the build has the given cl number and smaller patchset index.
+func ongoingOutdatedBuild(reader io.Reader, cl, curPatchSet int) (ongoingBuild, error) {
+	invalidOngoingBuild := ongoingBuild{buildNumber: -1}
+
+	r := bufio.NewReader(reader)
+	var build struct {
+		Actions []struct {
+			Parameters []struct {
+				Name  string
+				Value string
+			}
+		}
+		Building bool
+		Number   int
+	}
+	if err := json.NewDecoder(r).Decode(&build); err != nil {
+		return invalidOngoingBuild, fmt.Errorf("Decode() failed: %v", err)
+	}
+
+	if !build.Building {
+		return invalidOngoingBuild, nil
+	}
+
+	// Parse the ref, and return the build number if it passes the checks.
+	ref := ""
+loop:
+	for _, action := range build.Actions {
+		for _, param := range action.Parameters {
+			if param.Name == "REF" {
+				ref = param.Value
+				break loop
+			}
+		}
+	}
+	if ref != "" {
+		itemCL, itemPatchSet, err := parseRefString(ref)
+		if err != nil {
+			return invalidOngoingBuild, err
+		}
+		if itemCL == cl && itemPatchSet <= curPatchSet {
+			return ongoingBuild{
+				buildNumber: build.Number,
+				ref:         ref,
+			}, nil
+		} else {
+			return invalidOngoingBuild, nil
+		}
+	}
+
+	return ongoingBuild{}, fmt.Errorf("%s failed to find ref string", outputPrefix)
+}
+
+// parseRefString parses the cl and patchset number from the given ref string.
+func parseRefString(ref string) (int, int, error) {
+	parts := strings.Split(ref, "/")
+	if expected, got := 5, len(parts); expected != got {
+		return -1, -1, fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
+	}
+	cl, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return -1, -1, fmt.Errorf("Atoi(%q) failed: %v", parts[3], err)
+	}
+	patchset, err := strconv.Atoi(parts[4])
+	if err != nil {
+		return -1, -1, fmt.Errorf("Atoi(%q) failed: %v", parts[4], err)
+	}
+	return cl, patchset, nil
+}
+
+// jenkinsAPI calls the given REST API uri and gets the json response if available.
+func jenkinsAPI(uri, method string, params map[string][]string) (*http.Response, error) {
+	// Construct url.
+	apiURL, err := url.Parse(jenkinsHostFlag)
+	if err != nil {
+		return nil, fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
+	}
+	apiURL.Path = fmt.Sprintf("%s/%s", apiURL.Path, uri)
+	values := url.Values{
+		"token": {jenkinsTokenFlag},
+	}
+	if params != nil {
+		for name := range params {
+			values[name] = params[name]
+		}
+	}
+	apiURL.RawQuery = values.Encode()
+
+	// Get response.
+	var body io.Reader
+	url, body := apiURL.String(), nil
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+	}
+	req.Header.Add("Accept", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Do(%v) failed: %v", req, err)
+	}
+	return res, nil
 }
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for a given open CL to run presubmit tests.
@@ -419,7 +671,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() {
 		if err := cleanUpPresubmitTestBranch(command, run, dir); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+			printf(command.Stderr(), "%v\n", err)
 		}
 	}
 	defer cleanupFn()
@@ -435,12 +687,12 @@ func runTest(command *cmdline.Command, args []string) error {
 	results := &bytes.Buffer{}
 	fmt.Fprintf(results, "Test results:\n")
 	for _, test := range tests {
-		fmt.Fprintf(command.Stdout(), "\n### Running %q\n", test)
+		printf(command.Stdout(), "\n### Running %q\n", test)
 		// Get the status of the last completed build for this test from Jenkins.
 		lastStatus, err := lastCompletedBuildStatusForProject(test)
 		lastStatusString := "?"
 		if err != nil {
-			fmt.Fprintf(command.Stderr(), "%v\n", err)
+			printf(command.Stderr(), "%v\n", err)
 		} else {
 			if lastStatus {
 				lastStatusString = "✔"
@@ -454,7 +706,7 @@ func runTest(command *cmdline.Command, args []string) error {
 		var stderr bytes.Buffer
 		if err := run.Command(command.Stdout(), &stderr, nil, testScript); err != nil {
 			curStatusString = "✖"
-			fmt.Fprintf(command.Stderr(), "%v\n", stderr.String())
+			printf(command.Stderr(), "%v\n", stderr.String())
 		} else {
 			curStatusString = "✔"
 		}
@@ -476,7 +728,8 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Post test results.
 	reviewMessageFlag = results.String()
-	fmt.Fprintf(command.Stdout(), "\n### Posting test results to Gerrit\n")
+	fmt.Fprintln(command.Stdout())
+	printf(command.Stdout(), "### Posting test results to Gerrit\n")
 	if err := runPost(nil, nil); err != nil {
 		return err
 	}
@@ -491,8 +744,9 @@ func presubmitTestBranchName() string {
 
 // preparePresubmitTestBranch creates and checks out the presubmit test branch and pulls the CL there.
 func preparePresubmitTestBranch(command *cmdline.Command, run *runutil.Run, localRepoDir, cl string) error {
-	fmt.Fprintf(command.Stdout(),
-		"\n### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
+	fmt.Fprintln(command.Stdout())
+	printf(command.Stdout(),
+		"### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -520,7 +774,8 @@ func preparePresubmitTestBranch(command *cmdline.Command, run *runutil.Run, loca
 
 // cleanUpPresubmitTestBranch removes the presubmit test branch.
 func cleanUpPresubmitTestBranch(command *cmdline.Command, run *runutil.Run, localRepoDir string) error {
-	fmt.Fprintf(command.Stdout(), "\n### Cleaning up\n")
+	fmt.Fprintln(command.Stdout())
+	printf(command.Stdout(), "### Cleaning up\n")
 
 	if err := os.Chdir(localRepoDir); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
@@ -577,7 +832,7 @@ func testsForRepo(testsConfigContent []byte, repoName string, command *cmdline.C
 		return nil, fmt.Errorf("Unmarshal(%q) failed: %v", testsConfigContent, err)
 	}
 	if _, ok := repos[repoName]; !ok {
-		fmt.Fprintf(command.Stdout(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
+		printf(command.Stdout(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
 		return []string{}, nil
 	}
 	return repos[repoName], nil
@@ -641,13 +896,13 @@ func failedTestLinks(allTestNames []string, command *cmdline.Command) ([]string,
 		junitReportFile := filepath.Join(veyronRoot, "..", junitReportFileName)
 		fdReport, err := os.Open(junitReportFile)
 		if err != nil {
-			fmt.Fprintf(command.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
+			printf(command.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
 			continue
 		}
 		defer fdReport.Close()
 		curLinks, err := parseJUnitReportFileForFailedTestLinks(fdReport, seenTests)
 		if err != nil {
-			fmt.Fprintf(command.Stderr(), "%v\n", err)
+			printf(command.Stderr(), "%v\n", err)
 			continue
 		}
 		links = append(links, curLinks...)
@@ -769,6 +1024,6 @@ var cmdVersion = &cmdline.Command{
 var Version string = "manual-build"
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "presubmitter tool version %v\n", Version)
+	printf(command.Stdout(), "presubmitter tool version %v\n", Version)
 	return nil
 }

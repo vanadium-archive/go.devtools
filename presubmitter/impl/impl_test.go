@@ -159,6 +159,198 @@ func TestNewOpenCLs(t *testing.T) {
 	}
 }
 
+func TestQueuedOutdatedBuilds(t *testing.T) {
+	response := `
+{
+	"items" : [
+	  {
+			"id": 10,
+			"params": "\nREPO=veyron.js\nREF=refs/changes/78/4778/1",
+			"task" : {
+				"name": "veyron-presubmit-test"
+			}
+		},
+	  {
+			"id": 20,
+			"params": "\nREPO=veyron.js\nREF=refs/changes/99/4799/2",
+			"task" : {
+				"name": "veyron-presubmit-test"
+			}
+		},
+	  {
+			"id": 30,
+			"task" : {
+				"name": "veyron-go-test"
+			}
+		}
+	]
+}
+	`
+	type testCase struct {
+		cl       int
+		patchset int
+		expected []queuedItem
+	}
+	testCases := []testCase{
+		// Matching CL with larger patchset.
+		testCase{
+			cl:       4799,
+			patchset: 3,
+			expected: []queuedItem{queuedItem{
+				id:  20,
+				ref: "refs/changes/99/4799/2",
+			}},
+		},
+		// Matching CL with equal patchset.
+		testCase{
+			cl:       4799,
+			patchset: 2,
+			expected: []queuedItem{queuedItem{
+				id:  20,
+				ref: "refs/changes/99/4799/2",
+			}},
+		},
+		// Matching CL with smaller patchset.
+		testCase{
+			cl:       4799,
+			patchset: 1,
+			expected: []queuedItem{},
+		},
+		// Non-matching cl.
+		testCase{
+			cl:       1234,
+			patchset: 1,
+			expected: []queuedItem{},
+		},
+	}
+	for _, test := range testCases {
+		got, errs := queuedOutdatedBuilds(strings.NewReader(response), test.cl, test.patchset)
+		if len(errs) != 0 {
+			t.Fatalf("want no errors, got: %v", errs)
+		}
+		if !reflect.DeepEqual(test.expected, got) {
+			t.Fatalf("want %v, got %v", test.expected, got)
+		}
+	}
+}
+
+func TestOngoingOutdatedBuilds(t *testing.T) {
+	response := `
+	{
+		"actions": [
+			{
+				"parameters": [
+				  {
+						"name": "REPO",
+						"value": "veyron.go.core"
+					},
+					{
+						"name": "REF",
+						"value": "refs/changes/96/5396/3"
+					}
+				]
+			}
+		],
+		"building": true,
+		"number": 1234
+	}
+	`
+	type testCase struct {
+		cl       int
+		patchset int
+		expected ongoingBuild
+	}
+	testCases := []testCase{
+		// Matching CL with larger patchset.
+		testCase{
+			cl:       5396,
+			patchset: 4,
+			expected: ongoingBuild{
+				buildNumber: 1234,
+				ref:         "refs/changes/96/5396/3",
+			},
+		},
+		// Matching CL with equal patchset.
+		testCase{
+			cl:       5396,
+			patchset: 3,
+			expected: ongoingBuild{
+				buildNumber: 1234,
+				ref:         "refs/changes/96/5396/3",
+			},
+		},
+		// Matching CL with smaller patchset.
+		testCase{
+			cl:       5396,
+			patchset: 2,
+			expected: ongoingBuild{buildNumber: -1},
+		},
+		// Non-matching CL.
+		testCase{
+			cl:       1999,
+			patchset: 2,
+			expected: ongoingBuild{buildNumber: -1},
+		},
+	}
+	for _, test := range testCases {
+		got, err := ongoingOutdatedBuild(strings.NewReader(response), test.cl, test.patchset)
+		if err != nil {
+			t.Fatalf("want no errors, got: %v", err)
+		}
+		if !reflect.DeepEqual(test.expected, got) {
+			t.Fatalf("want %v, got %v", test.expected, got)
+		}
+	}
+}
+
+func TestParseRefString(t *testing.T) {
+	type testCase struct {
+		ref              string
+		expectErr        bool
+		expectedCL       int
+		expectedPatchSet int
+	}
+	testCases := []testCase{
+		// Normal case
+		testCase{
+			ref:              "ref/changes/12/3412/2",
+			expectedCL:       3412,
+			expectedPatchSet: 2,
+		},
+		// Error cases
+		testCase{
+			ref:       "ref/123",
+			expectErr: true,
+		},
+		testCase{
+			ref:       "ref/changes/12/a/2",
+			expectErr: true,
+		},
+		testCase{
+			ref:       "ref/changes/12/3412/a",
+			expectErr: true,
+		},
+	}
+	for _, test := range testCases {
+		cl, patchset, err := parseRefString(test.ref)
+		if test.expectErr {
+			if err == nil {
+				t.Fatalf("want errors, got: %v", err)
+			}
+		} else {
+			if err != nil {
+				t.Fatalf("want no errors, got: %v", err)
+			}
+			if cl != test.expectedCL {
+				t.Fatalf("want %v, got %v", test.expectedCL, cl)
+			}
+			if patchset != test.expectedPatchSet {
+				t.Fatalf("want %v, got %v", test.expectedPatchSet, patchset)
+			}
+		}
+	}
+}
+
 func TestTestsForRepo(t *testing.T) {
 	configFileContent := `
 {
