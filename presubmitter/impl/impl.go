@@ -687,7 +687,8 @@ func runTest(command *cmdline.Command, args []string) error {
 	results := &bytes.Buffer{}
 	fmt.Fprintf(results, "Test results:\n")
 	for _, test := range tests {
-		printf(command.Stdout(), "\n### Running %q\n", test)
+		fmt.Println()
+		printf(command.Stdout(), "### Running %q\n", test)
 		// Get the status of the last completed build for this test from Jenkins.
 		lastStatus, err := lastCompletedBuildStatusForProject(test)
 		lastStatusString := "?"
