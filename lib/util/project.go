@@ -35,16 +35,25 @@ type CL struct {
 	Description string
 }
 
-// Manifest represents a collection of veyron projects.
+// Manifest represents a list of veyron projects.
 type Manifest struct {
 	Projects []Project `xml:"project"`
 }
+
+// Projects represents a map of veyron projects, keyed by project
+// names.
+type Projects map[string]Project
 
 // Project represents a veyron project.
 type Project struct {
 	// Name is the URL at which the project is hosted.
 	Name string `xml:"name,attr"`
-	// Path is the relative path used to store the project locally.
+	// Path is the path used to store the project locally. Project
+	// manifest uses paths that relative to the VEYRON_ROOT
+	// environment variable. When a manifest is parsed (e.g. in
+	// LatestProjects), the program logic converts the relative
+	// paths to an absolute paths, using the current value of the
+	// VEYRON_ROOT environment variable as a prefix.
 	Path string `xml:"path,attr"`
 	// Protocol is the version control protocol used by the project.
 	Protocol string `xml:"protocol,attr"`
@@ -52,22 +61,50 @@ type Project struct {
 
 // LatestProjects parses the most recent version of the project
 // manifest to identify the latest projects.
-func LatestProjects(manifest string, git *gitutil.Git) (map[string]Project, error) {
-	projects := map[string]Project{}
-	if err := findLatestProjects(manifest, projects, git); err != nil {
+func LatestProjects(manifestFile string, git *gitutil.Git) (Projects, error) {
+	root, err := VeyronRoot()
+	if err != nil {
 		return nil, err
+	}
+	// Update the manifest.
+	project := Project{
+		Path:     filepath.Join(root, ".manifest"),
+		Protocol: "git",
+	}
+	if err := UpdateLocalProject(project, git, nil); err != nil {
+		return nil, err
+	}
+	// Parse the manifest.
+	path := filepath.Join(root, ".manifest", manifestFile+".xml")
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFile(%v) failed: %v", path, err)
+	}
+	var manifest Manifest
+	if err := xml.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(data), err)
+	}
+	projects := Projects{}
+	for _, project := range manifest.Projects {
+		// Replace the relative path with an absolute one.
+		project.Path = filepath.Join(root, project.Path)
+		// Use git as the default protocol.
+		if project.Protocol == "" {
+			project.Protocol = "git"
+		}
+		projects[project.Name] = project
 	}
 	return projects, nil
 }
 
 // LocalProjects scans the local filesystem to identify existing
 // projects.
-func LocalProjects(git *gitutil.Git, hg *hgutil.Hg) (map[string]Project, error) {
+func LocalProjects(git *gitutil.Git, hg *hgutil.Hg) (Projects, error) {
 	root, err := VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
-	projects := map[string]Project{}
+	projects := Projects{}
 	if err := findLocalProjects(root, projects, git, hg); err != nil {
 		return nil, err
 	}
@@ -135,43 +172,8 @@ func applyToLocalProject(project Project, git *gitutil.Git, hg *hgutil.Hg, fn fu
 	return fn()
 }
 
-// findLatestProjects implements LatestProjects.
-func findLatestProjects(manifestFile string, projects map[string]Project, git *gitutil.Git) error {
-	root, err := VeyronRoot()
-	if err != nil {
-		return err
-	}
-	// Update the manifest.
-	project := Project{
-		Path:     filepath.Join(root, ".manifest"),
-		Protocol: "git",
-	}
-	if err := UpdateLocalProject(project, git, nil); err != nil {
-		return err
-	}
-	// Parse the manifest.
-	path := filepath.Join(root, ".manifest", manifestFile+".xml")
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
-	}
-	var manifest Manifest
-	if err := xml.Unmarshal(data, &manifest); err != nil {
-		return fmt.Errorf("Unmarshal(%v) failed: %v", string(data), err)
-	}
-	for _, project := range manifest.Projects {
-		// git is the default protocol.
-		if project.Protocol == "" {
-			project.Protocol = "git"
-		}
-		project.Path = filepath.Join(root, project.Path)
-		projects[project.Name] = project
-	}
-	return nil
-}
-
 // findLocalProjects implements LocalProjects.
-func findLocalProjects(path string, projects map[string]Project, git *gitutil.Git, hg *hgutil.Hg) error {
+func findLocalProjects(path string, projects Projects, git *gitutil.Git, hg *hgutil.Hg) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
