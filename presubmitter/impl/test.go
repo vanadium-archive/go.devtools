@@ -338,9 +338,23 @@ func createTests(dep map[string][]string, tests []string) (testInfoMap, error) {
 		if deps, ok := dep[test]; ok {
 			depTests = deps
 		}
+		// Make sure the tests in depTests are in the given "tests".
+		deps := []string{}
+		for _, curDep := range depTests {
+			isDepInTests := false
+			for _, test := range tests {
+				if curDep == test {
+					isDepInTests = true
+					break
+				}
+			}
+			if isDepInTests {
+				deps = append(deps, curDep)
+			}
+		}
 		testNameToTestInfo[test] = &testInfo{
 			testStatus: testStatusNotExecuted,
-			deps:       depTests,
+			deps:       deps,
 		}
 	}
 

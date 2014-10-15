@@ -140,6 +140,19 @@ func TestCreateTests(t *testing.T) {
 				},
 			},
 		},
+		// A -> {B, C, D}, but A is the only given test to resolve dependency for.
+		testCase{
+			dep: map[string][]string{
+				"A": []string{"B", "C", "D"},
+			},
+			tests: []string{"A"},
+			expectedTests: testInfoMap{
+				"A": &testInfo{
+					deps:    []string{},
+					visited: true,
+				},
+			},
+		},
 		// A -> {B, C, D} -> E
 		testCase{
 			dep: map[string][]string{
