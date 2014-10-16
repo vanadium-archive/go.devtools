@@ -60,9 +60,6 @@ func VeyronConfig() (*Config, error) {
 // SetupVeyronEnvironment sets up the environment variables used by
 // veyron for the given platform.
 func SetupVeyronEnvironment(platform Platform) error {
-	if os.Getenv("VEYRON_ENV_SETUP") == "none" {
-		return nil
-	}
 	env, err := VeyronEnvironment(platform)
 	if err != nil {
 		return err
@@ -102,36 +99,41 @@ func VeyronEnvironment(platform Platform) (map[string]string, error) {
 			return nil, err
 		}
 	}
-	if platform.Arch == runtime.GOARCH && platform.OS == runtime.GOOS {
+	switch {
+	case platform.Arch == runtime.GOARCH && platform.OS == runtime.GOOS:
 		// If setting up the environment for the host, we are done.
-		return env, nil
-	}
-	// Otherwise, set up the cross-compilation environment.
-	if platform.Arch == "arm" && platform.OS == "linux" {
+	case platform.Arch == "arm" && platform.OS == "linux":
+		// Set up cross-compilation for arm / linux.
+		setArmLinuxEnv := setArmEnv
 		if platform.Environment == "android" {
-			if err := setAndroidEnv(platform, env); err != nil {
-				return nil, err
-			}
-			return env, nil
-		} else {
-			if err := setArmEnv(platform, env); err != nil {
-				return nil, err
-			}
-			return env, nil
+			setArmLinuxEnv = setAndroidEnv
 		}
-	}
-	if platform.Arch == "386" && platform.OS == "nacl" {
+		if err := setArmLinuxEnv(platform, env); err != nil {
+			return nil, err
+		}
+	case platform.Arch == "386" && platform.OS == "nacl":
+		// Set up cross-compilation for 386 / nacl.
 		if err := setNaclEnv(platform, env); err != nil {
 			return nil, err
 		}
-		return env, nil
+	default:
+		return nil, UnsupportedPlatformErr{platform}
 	}
-	return nil, UnsupportedPlatformErr{platform}
+	// If VEYRON_ENV_SETUP==none, we revert all of the changes to variable values,
+	// but keep the map populated so we know which variables are important.
+	//
+	// TODO(toddw): Remove this logic when "veyron clone" is implemented.
+	if baseEnv["VEYRON_ENV_SETUP"] == "none" {
+		for key := range env {
+			env[key] = baseEnv[key]
+		}
+	}
+	return env, nil
 }
 
 // VeyronRoot returns the root of the veyron universe.
 func VeyronRoot() (string, error) {
-	root := os.Getenv(rootEnv)
+	root := baseEnv[rootEnv]
 	if root == "" {
 		return "", fmt.Errorf("%v is not set", rootEnv)
 	}
