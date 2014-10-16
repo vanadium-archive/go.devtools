@@ -126,7 +126,7 @@ func VeyronEnvironment(platform Platform) (map[string]string, error) {
 		}
 		return env, nil
 	}
-	return nil, UnsupportedErr{platform}
+	return nil, UnsupportedPlatformErr{platform}
 }
 
 // VeyronRoot returns the root of the veyron universe.
