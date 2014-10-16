@@ -29,11 +29,11 @@ func (p Platform) String() string {
 	return fmt.Sprintf("%v%v-%v-%v", p.Arch, p.SubArch, p.OS, p.Environment)
 }
 
-type UnsupportedPlatformErr struct {
+type UnsupportedErr struct {
 	platform Platform
 }
 
-func (e UnsupportedPlatformErr) Error() string {
+func (e UnsupportedErr) Error() string {
 	return fmt.Sprintf("unsupported platform %s", e.platform)
 }
 

@@ -10,6 +10,8 @@ import (
 
 	"tools/lib/cmdline"
 	"tools/lib/gitutil"
+	"tools/lib/hgutil"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -28,8 +30,8 @@ func init() {
 	flag.StringVar(&hostGo, "host-go", "go", "Go command for the host platform.")
 	flag.StringVar(&targetGo, "target-go", "go", "Go command for the target platform.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
-	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
-	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "v2", "Name of the project manifest.")
+	cmdProjectUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
+	cmdProjectUpdate.Flags.StringVar(&manifestFlag, "manifest", "v1", "Name of the project manifest.")
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdXGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
@@ -50,12 +52,12 @@ var cmdRoot = &cmdline.Command{
 		cmdContributors,
 		cmdProfile,
 		cmdProject,
-		cmdUpdate,
 		cmdEnv,
 		cmdRun,
 		cmdGo,
 		cmdGoExt,
 		cmdXGo,
+		cmdSelfUpdate,
 		cmdVersion,
 	},
 }
@@ -76,8 +78,9 @@ considered by default.
 }
 
 func runContributors(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
-	projects, err := util.LocalProjects(ctx)
+	run := runutil.New(verboseFlag, command.Stdout())
+	git, hg := gitutil.New(run), hgutil.New(run)
+	projects, err := util.LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
@@ -100,7 +103,7 @@ func runContributors(command *cmdline.Command, args []string) error {
 		if err := os.Chdir(project.Path); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", project.Path, err)
 		}
-		lines, err := listCommitters(ctx.Git())
+		lines, err := listCommitters(git)
 		if err != nil {
 			return err
 		}
@@ -141,6 +144,18 @@ func listCommitters(git *gitutil.Git) ([]string, error) {
 	}
 	defer git.CheckoutBranch(branch, !gitutil.Force)
 	return git.Committers()
+}
+
+// cmdSelfUpdate represents the 'selfupdate' command of the veyron tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the veyron tool",
+	Long:  "Download and install the latest version of the veyron tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "veyron")
 }
 
 // cmdVersion represents the 'version' command of the veyron tool.

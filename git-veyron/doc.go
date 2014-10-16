@@ -12,6 +12,7 @@ Usage:
 The git-veyron commands are:
    cleanup     Clean up branches that have been merged
    review      Send a changelist from a local branch to Gerrit for review
+   selfupdate  Update the veyron tool
    status      Print a succint status of the veyron repositories
    version     Print version
    help        Display help for commands or topics
@@ -48,10 +49,18 @@ Usage:
 
 The review flags are:
    -cc=: Comma-seperated list of emails or LDAPs to cc.
-   -check-gofmt=true: Check that no go fmt violations exist.
-   -check-uncommitted=true: Check that no uncommitted changes exist.
    -d=false: Send a draft changelist.
    -r=: Comma-seperated list of emails or LDAPs to request review.
+
+Git-Veyron Selfupdate
+
+Download and install the latest version of the veyron tool.
+
+Usage:
+   git-veyron selfupdate [flags]
+
+The selfupdate flags are:
+   -manifest=absolute: Name of the project manifest.
 
 Git-Veyron Status
 

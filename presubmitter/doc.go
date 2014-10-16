@@ -11,6 +11,7 @@ The presubmitter commands are:
    query       Query open CLs from Gerrit
    post        Post review with the test results to Gerrit
    test        Run tests for a CL
+   selfupdate  Update the presubmitter tool
    version     Print version
    help        Display help for commands or topics
 Run "presubmitter help [command]" for command usage.
@@ -59,10 +60,20 @@ Usage:
 The test flags are:
    -build_number=-1: The number of the Jenkins build.
    -conf=$VEYRON_ROOT/tools/go/src/tools/presubmitter/presubmit_tests.conf: The config file for presubmit tests.
-   -manifest=v2: Name of the project manifest.
+   -manifest=absolute: Name of the project manifest.
    -ref=: The ref where the review is posted.
    -repo=: The URL of the repository containing the CL pointed by the ref.
    -tests_base_path=$VEYRON_ROOT/scripts/jenkins: The base path of all the test scripts.
+
+Presubmitter Selfupdate
+
+Download and install the latest version of the presubmitter tool.
+
+Usage:
+   presubmitter selfupdate [flags]
+
+The selfupdate flags are:
+   -manifest=absolute: Name of the project manifest.
 
 Presubmitter Version
 

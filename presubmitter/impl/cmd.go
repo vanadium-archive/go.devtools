@@ -3,7 +3,6 @@ package impl
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 
@@ -49,10 +48,11 @@ var (
 )
 
 func init() {
+	// Check VEYRON_ROOT.
 	var err error
 	veyronRoot, err = util.VeyronRoot()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
+		fmt.Errorf("%v", err)
 		return
 	}
 
@@ -70,7 +70,7 @@ func init() {
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "scripts", "jenkins"), "The base path of all the test scripts.")
-	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "v2", "Name of the project manifest.")
+	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "v1", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 }
 
@@ -90,7 +90,19 @@ var cmdRoot = &cmdline.Command{
 	Name:     "presubmitter",
 	Short:    "Tool for performing various presubmit related functions",
 	Long:     "The presubmitter tool performs various presubmit related functions.",
-	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdTest, cmdVersion},
+	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdTest, cmdSelfUpdate, cmdVersion},
+}
+
+// cmdSelfUpdate represents the 'selfupdate' command of the presubmitter tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the presubmitter tool",
+	Long:  "Download and install the latest version of the presubmitter tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "presubmitter")
 }
 
 // cmdVersion represent the 'version' command of the presubmitter tool.

@@ -11,7 +11,6 @@ import (
 	"tools/lib/gerrit"
 	"tools/lib/gitutil"
 	"tools/lib/runutil"
-	"tools/lib/util"
 )
 
 var (
@@ -295,9 +294,8 @@ func TestCreateReviewBranch(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, "", "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, "", "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -329,9 +327,8 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 	if err := git.CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("CreateAndCheckoutBranch(%v) failed: %v", branch, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, branch, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, branch, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -363,9 +360,8 @@ func main() {}
 	if err := git.CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -392,9 +388,8 @@ func main() {}
 	if err := git.CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("CommitFile(%v, %v) failed: %v", file, commitMessage, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -415,11 +410,10 @@ func TestSendReview(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
 	{
 		// Test with draft = false, no reviewiers, and no ccs.
-		draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -431,8 +425,8 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = true, no reviewers, and no ccs.
-		draft, edit, repo, reviewers, ccs := true, false, gerritPath, "", ""
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, verbose, repo, reviewers, ccs, stdout := true, false, true, gerritPath, "", "", os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -444,8 +438,9 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = false, reviewers, and no ccs.
-		draft, edit, repo, reviewers, ccs := false, false, gerritPath, "reviewer1,reviewer2@example.org", ""
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		reviewers := "reviewer1,reviewer2@example.org"
+		draft, edit, verbose, repo, ccs, stdout := false, false, true, gerritPath, "", os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -457,8 +452,9 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = true, reviewers, and ccs.
-		draft, edit, repo, reviewers, ccs := true, false, gerritPath, "reviewer3@example.org,reviewer4", "cc1@example.org,cc2"
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, reviewers, ccs := true, false, "reviewer3@example.org,reviewer4", "cc1@example.org,cc2"
+		verbose, repo, stdout := true, gerritPath, os.Stdout
+		review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -484,9 +480,8 @@ func TestSendReviewNoChangeID(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -511,9 +506,8 @@ func TestEndToEnd(t *testing.T) {
 	if err := commitFiles(files); err != nil {
 		t.Fatalf("commitFiles(%v) failed: %v", files, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -562,9 +556,8 @@ func TestDirtyBranch(t *testing.T) {
 	if err := writeFile(untrackedFile, untrackedFileContent); err != nil {
 		t.Fatalf("writeFile(%v, %t) failed: %v", untrackedFile, untrackedFileContent, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -607,9 +600,8 @@ func TestRunInSubdirectory(t *testing.T) {
 	if err := os.Chdir(subdir); err != nil {
 		t.Fatalf("os.Chdir(%v) failed: %v", subdir, err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, verbose, repo, reviewers, ccs, stdout := false, false, true, gerritPath, "", "", os.Stdout
+	review, err := NewReview(draft, edit, verbose, repo, reviewers, ccs, stdout)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"go/build"
 
 	"tools/lib/cmdline"
+	"tools/lib/util"
 )
 
 var (
@@ -58,7 +59,7 @@ GO.PACKAGE is a JSON file with a structure along the lines of:
      }
    }
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdList, cmdRevList, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdList, cmdRevList, cmdSelfUpdate, cmdVersion},
 }
 
 // cmdCheck represents the 'check' command of the go-depcop tool.
@@ -166,6 +167,19 @@ func runRevList(command *cmdline.Command, args []string) error {
 		}
 	}
 	return nil
+}
+
+// cmdSelfUpdate represents the 'selfupdate' command of the go-depcop
+// tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the go-depcop tool",
+	Long:  "Download and install the latest version of the go-depcop tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, _ []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "go-depcop")
 }
 
 // cmdVersion represent the 'version' command of the go-depcop tool.

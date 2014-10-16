@@ -2,6 +2,7 @@ package impl
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
 	"tools/lib/gitutil"
+	"tools/lib/hgutil"
 	"tools/lib/runutil"
 	"tools/lib/util"
 )
@@ -53,7 +55,7 @@ The git-veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changelists from a local branch
 to the Gerrit server.
 `,
-	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdStatus, cmdVersion},
+	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdSelfUpdate, cmdStatus, cmdVersion},
 }
 
 // Root returns a command that represents the root of the git-veyron tool.
@@ -142,8 +144,8 @@ func cleanupBranch(git *gitutil.Git, branch string) error {
 }
 
 func runCleanup(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
-	return cleanup(command, ctx.Git(), ctx.Run(), args)
+	run := runutil.New(verboseFlag, command.Stdout())
+	return cleanup(command, gitutil.New(run), run, args)
 }
 
 // cmdReview represent the 'review' command of the git-veyron tool.
@@ -228,8 +230,8 @@ var defaultMessageHeader = `
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(command *cmdline.Command, _ []string) error {
-	ctx, edit, repo := util.NewContext(verboseFlag, command.Stdout(), command.Stderr()), true, ""
-	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag)
+	edit, repo := true, ""
+	review, err := NewReview(draftFlag, edit, verboseFlag, repo, reviewersFlag, ccsFlag, command.Stdout())
 	if err != nil {
 		return err
 	}
@@ -246,9 +248,9 @@ type review struct {
 	draft bool
 	// edit indicates whether to edit the review message.
 	edit bool
-	// git is an instance of a git command executor.
+	// git is an instance of the git library.
 	git *gitutil.Git
-	// runner is an instance of a general purpose command executor.
+	// log is an instance of the log library.
 	runner *runutil.Run
 	// repo is the name of the gerrit repository.
 	repo string
@@ -259,8 +261,10 @@ type review struct {
 }
 
 // NewReview is the review factory.
-func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string) (*review, error) {
-	branch, err := ctx.Git().CurrentBranchName()
+func NewReview(draft, edit, verbose bool, repo, reviewers, ccs string, stdout io.Writer) (*review, error) {
+	runner := runutil.New(verbose, stdout)
+	git := gitutil.New(runner)
+	branch, err := git.CurrentBranchName()
 	if err != nil {
 		return nil, err
 	}
@@ -270,8 +274,8 @@ func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string)
 		ccs:          ccs,
 		draft:        draft,
 		edit:         edit,
-		git:          ctx.Git(),
-		runner:       ctx.Run(),
+		git:          git,
+		runner:       runner,
 		repo:         repo,
 		reviewBranch: reviewBranch,
 		reviewers:    reviewers,
@@ -552,6 +556,19 @@ func writeFileExecutable(filename, message string) error {
 	return ioutil.WriteFile(filename, []byte(message), 0777)
 }
 
+// cmdSelfUpdate represents the 'selfupdate' command of the veyron
+// tool.
+var cmdSelfUpdate = &cmdline.Command{
+	Run:   runSelfUpdate,
+	Name:  "selfupdate",
+	Short: "Update the veyron tool",
+	Long:  "Download and install the latest version of the veyron tool.",
+}
+
+func runSelfUpdate(command *cmdline.Command, args []string) error {
+	return util.SelfUpdate(verboseFlag, command.Stdout(), "git-veyron")
+}
+
 // cmdStatus represent the 'status' command of the git-veyron tool.
 var cmdStatus = &cmdline.Command{
 	Run:   runStatus,
@@ -566,8 +583,9 @@ indication of the status:
 }
 
 func runStatus(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
-	projects, err := util.LocalProjects(ctx)
+	run := runutil.New(verboseFlag, command.Stdout())
+	git, hg := gitutil.New(run), hgutil.New(run)
+	projects, err := util.LocalProjects(git, hg)
 	if err != nil {
 		return err
 	}
@@ -584,19 +602,19 @@ func runStatus(command *cmdline.Command, args []string) error {
 	}
 	defer os.Chdir(wd)
 	// Get the name of the current repository, if applicable.
-	currentRepo, _ := ctx.Git().RepoName()
+	currentRepo, _ := git.RepoName()
 	var statuses []string
 	for _, name := range names {
 		if err := os.Chdir(projects[name].Path); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", projects[name].Path, err)
 		}
-		branch, err := ctx.Git().CurrentBranchName()
+		branch, err := git.CurrentBranchName()
 		if err != nil {
 			return err
 		}
 		status := ""
 		if uncommittedFlag {
-			uncommitted, err := ctx.Git().HasUncommittedChanges()
+			uncommitted, err := git.HasUncommittedChanges()
 			if err != nil {
 				return err
 			}
@@ -605,7 +623,7 @@ func runStatus(command *cmdline.Command, args []string) error {
 			}
 		}
 		if untrackedFlag {
-			untracked, err := ctx.Git().HasUntrackedFiles()
+			untracked, err := git.HasUntrackedFiles()
 			if err != nil {
 				return err
 			}

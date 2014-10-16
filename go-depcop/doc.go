@@ -35,6 +35,7 @@ The go-depcop commands are:
    check       Check package dependency constraints
    list        List outgoing package dependencies
    rlist       List incoming package dependencies
+   selfupdate  Update the go-depcop tool
    version     Print version
    help        Display help for commands or topics
 Run "go-depcop help [command]" for command usage.
@@ -76,6 +77,16 @@ Usage:
    go-depcop rlist <packages>
 
 <packages> is a list of packages
+
+Go-Depcop Selfupdate
+
+Download and install the latest version of the go-depcop tool.
+
+Usage:
+   go-depcop selfupdate [flags]
+
+The selfupdate flags are:
+   -manifest=absolute: Name of the project manifest.
 
 Go-Depcop Version
 

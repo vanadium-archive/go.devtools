@@ -30,13 +30,8 @@ func New(verbose bool, stdout io.Writer) *Run {
 	}
 }
 
-// Command runs the given command and logs its outcome using the default verbosity.
+// Command runs the given command and logs its outcome.
 func (r *Run) Command(stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
-	return r.CommandWithVerbosity(r.Verbose, stdout, stderr, env, path, args...)
-}
-
-// CommandWithVerbosity runs the given command and logs its outcome using the given verbosity.
-func (r *Run) CommandWithVerbosity(verbose bool, stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
 	command := exec.Command(path, args...)
@@ -44,58 +39,45 @@ func (r *Run) CommandWithVerbosity(verbose bool, stdout, stderr io.Writer, env m
 	command.Stdout = stdout
 	command.Stderr = stderr
 	command.Env = envutil.ToSlice(env)
-	if verbose {
+	if r.Verbose {
 		r.printf(r.Stdout, strings.Join(command.Args, " "))
 	}
 	var err error
 	if err = command.Run(); err != nil {
-		if verbose {
+		if r.Verbose {
 			r.printf(r.Stdout, "FAILED")
 		}
 	} else {
-		if verbose {
+		if r.Verbose {
 			r.printf(r.Stdout, "OK")
 		}
 	}
 	return err
 }
 
-// Function runs the given function and logs its outcome using the
-// default verbosity.
+// Function runs the given function and logs its outcome.
 func (r *Run) Function(fn func() error, format string, args ...interface{}) error {
-	return r.FunctionWithVerbosity(r.Verbose, fn, format, args...)
-}
-
-// FunctionWithVerbosity runs the given function and logs its outcome
-// using the given verbosity.
-func (r *Run) FunctionWithVerbosity(verbose bool, fn func() error, format string, args ...interface{}) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
-	if verbose {
+	if r.Verbose {
 		r.printf(r.Stdout, format, args...)
 	}
 	err := fn()
 	if err != nil {
-		if verbose {
+		if r.Verbose {
 			r.printf(r.Stdout, "FAILED")
 		}
 	} else {
-		if verbose {
+		if r.Verbose {
 			r.printf(r.Stdout, "OK")
 		}
 	}
 	return err
 }
 
-// Output logs the given list of lines using the default verbosity.
+// Output logs the given list of lines.
 func (r *Run) Output(output []string) {
-	r.OutputWithVerbosity(r.Verbose, output)
-}
-
-// OutputWithVerbosity logs the given list of lines using the given
-// verbosity.
-func (r *Run) OutputWithVerbosity(verbose bool, output []string) {
-	if verbose {
+	if r.Verbose {
 		for _, line := range output {
 			r.logLine(line)
 		}

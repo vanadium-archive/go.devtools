@@ -23,6 +23,7 @@ Usage:
 The vloggy commands are:
    check       Check for log statements in public API implementations
    inject      Inject log statements in public API implementations
+   selfupdate  Update the vloggy tool
    version     Print version
    help        Display help for commands or topics
 Run "vloggy help [command]" for command usage.
@@ -57,6 +58,16 @@ Usage:
 The inject flags are:
    -gofmt=true: Automatically run gofmt on the modified files
    -interface=: Comma-separated list of interface packages (required)
+
+Vloggy Selfupdate
+
+Download and install the latest version of the vloggy tool.
+
+Usage:
+   vloggy selfupdate [flags]
+
+The selfupdate flags are:
+   -manifest=absolute: Name of the project manifest.
 
 Vloggy Version
 
