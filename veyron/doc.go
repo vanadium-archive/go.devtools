@@ -8,20 +8,37 @@ Usage:
    veyron [flags] <command>
 
 The veyron commands are:
+   contributors List veyron project contributors
    profile     Manage veyron profiles
    project     Manage veyron projects
+   update      Update all veyron tools and projects
    env         Print veyron environment variables
    run         Run an executable using the veyron environment
    go          Execute the go tool using the veyron environment
    goext       Veyron extensions of the go tool
    xgo         Execute the go tool using the veyron environment and cross-compilation
-   selfupdate  Update the veyron tool
    version     Print version
    help        Display help for commands or topics
 Run "veyron help [command]" for command usage.
 
 The veyron flags are:
    -v=false: Print verbose output.
+
+The global flags are:
+   -host-go=go: Go command for the host platform.
+   -target-go=go: Go command for the target platform.
+
+Veyron Contributors
+
+Lists veyron project contributors and the number of their
+commits. Veyron projects to consider can be specified as an
+argument. If no projects are specified, all veyron projects are
+considered by default.
+
+Usage:
+   veyron contributors <projects>
+
+<projects> is a list of projects to consider.
 
 Veyron Profile
 
@@ -63,7 +80,6 @@ Usage:
 The project commands are:
    list        List existing veyron projects
    poll        Poll existing veyron projects
-   update      Update veyron projects
 
 Veyron Project List
 
@@ -82,21 +98,19 @@ Poll existing veyron projects and report whether any new changes exist.
 Usage:
    veyron project poll
 
-Veyron Project Update
+Veyron Update
 
-Update the local projects to match the state of the remote projects
-identified by a project manifest. The projects to be updated are
-specified as a list of arguments. If no project is specified, the
-default behavior is to update all projects.
+Updates all veyron tools to their latest version, installing them
+into $VEYRON_ROOT/bin, and then updates all veyron projects. The
+sequence in which the individual updates happen guarantees that we
+end up with a consistent set of tools and source code.
 
 Usage:
-   veyron project update [flags] <projects>
-
-<projects> is a list of projects to update.
+   veyron update [flags]
 
 The update flags are:
    -gc=false: Garbage collect obsolete repositories.
-   -manifest=absolute: Name of the project manifest.
+   -manifest=v2: Name of the project manifest.
 
 Veyron Env
 
@@ -182,7 +196,7 @@ any go tool commands that compile veyron Go code:
 vdl generate -lang=go all
 
 Usage:
-   veyron xgo <platform> <arg ...>
+   veyron xgo [flags] <platform> <arg ...>
 
 <platform> is the cross-compilation target and has the general format
 <arch><sub>-<os> or <arch><sub>-<os>-<env> where:
@@ -193,15 +207,8 @@ Usage:
 
 <arg ...> is a list of arguments for the go tool."
 
-Veyron Selfupdate
-
-Download and install the latest version of the veyron tool.
-
-Usage:
-   veyron selfupdate [flags]
-
-The selfupdate flags are:
-   -manifest=absolute: Name of the project manifest.
+The xgo flags are:
+   -novdl=false: Disable automatic generation of vdl files.
 
 Veyron Version
 

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"tools/lib/cmdline"
-	"tools/lib/util"
 )
 
 var (
@@ -45,7 +44,7 @@ to another name makes vloggy ignore the calls.  Importing any
 other package with the name "` + logPackageIdentifier + `" will
 invoke undefined behavior.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdSelfUpdate, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdVersion},
 }
 
 // cmdCheck represents the 'check' command of the vloggy tool.
@@ -98,19 +97,6 @@ you can see the diff or revert the changes.
 // the log injector in injection mode.
 func runInject(command *cmdline.Command, args []string) error {
 	return executeInjector(command, false, splitCommaSeparatedValues(interfacesFlag), args)
-}
-
-// cmdSelfUpdate represents the 'selfupdate' command of the vloggy
-// tool.
-var cmdSelfUpdate = &cmdline.Command{
-	Run:   runSelfUpdate,
-	Name:  "selfupdate",
-	Short: "Update the vloggy tool",
-	Long:  "Download and install the latest version of the vloggy tool.",
-}
-
-func runSelfUpdate(command *cmdline.Command, _ []string) error {
-	return util.SelfUpdate(verboseFlag, command.Stdout(), "vloggy")
 }
 
 // cmdVersion represents the 'version' command of the vloggy tool.

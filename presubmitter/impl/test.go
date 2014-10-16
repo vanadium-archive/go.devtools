@@ -104,7 +104,8 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Parse the manifest file to get the local path for the repo.
-	projects, err := util.LatestProjects(manifestFlag, gitutil.New(run))
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	projects, _, err := util.ReadLatestManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
