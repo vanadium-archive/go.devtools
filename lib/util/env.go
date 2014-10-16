@@ -32,6 +32,10 @@ type Config struct {
 	// by the self-update logic invoked by various tools to
 	// identify the package path of the tools' implementation.
 	Tools map[string]string
+	// PollConfig maps jenkins project names to sets of repos.
+	// Given a set of projects, "veyron project poll" will poll changes from the
+	// corresponding repos.
+	PollConfig map[string][]string
 }
 
 func init() {
@@ -40,6 +44,7 @@ func init() {
 }
 
 // Config returns the config for veyron tools.
+// TODO(jsimsa): make it possible to override the default config file path.
 func VeyronConfig() (*Config, error) {
 	root, err := VeyronRoot()
 	if err != nil {
