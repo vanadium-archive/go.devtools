@@ -219,6 +219,11 @@ run:
 		}
 		fmt.Fprintf(results, "\nMore details at:\n%s/%s/%d/\n",
 			jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
+		reRunLink := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REF=%s&REPO=%s",
+			presubmitTestJenkinsProjectFlag,
+			url.QueryEscape(reviewTargetRefFlag),
+			url.QueryEscape(strings.TrimPrefix(repoFlag, "https://veyron.googlesource.com/")))
+		fmt.Fprintf(results, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", reRunLink)
 	}
 
 	// Post test results.
