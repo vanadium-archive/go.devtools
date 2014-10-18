@@ -21,7 +21,7 @@ import (
 	"tools/lib/util"
 )
 
-// cmdTest represents the 'test' command of the presubmitter tool.
+// cmdTest represents the 'test' command of the presubmit tool.
 var cmdTest = &cmdline.Command{
 	Name:  "test",
 	Short: "Run tests for a CL",

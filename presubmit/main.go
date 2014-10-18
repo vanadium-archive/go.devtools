@@ -6,7 +6,7 @@
 package main
 
 import (
-	"tools/presubmitter/impl"
+	"tools/presubmit/impl"
 )
 
 func main() {

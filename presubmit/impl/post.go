@@ -8,7 +8,7 @@ import (
 	"tools/lib/gerrit"
 )
 
-// cmdPost represents the 'post' command of the presubmitter tool.
+// cmdPost represents the 'post' command of the presubmit tool.
 var cmdPost = &cmdline.Command{
 	Name:  "post",
 	Short: "Post review with the test results to Gerrit",

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   This file will be used to generate a dummy test results file
-  just in case no tests presubmitter runs produces any results files.
+  in case the presubmit tests produce no test result files.
 -->
 <testsuites>
   <testsuite name="NO_TESTS" tests="1" errors="0" failures="0" skip="0">

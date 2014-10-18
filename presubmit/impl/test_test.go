@@ -257,7 +257,7 @@ func TestTestsConfigFile(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	presubmitTestsConfigFile := filepath.Join(veyronRoot, "tools", "go", "src", "tools", "presubmitter", "presubmit_tests.conf")
+	presubmitTestsConfigFile := filepath.Join(veyronRoot, "tools", "conf", "presubmit")
 	configFileContent, err := ioutil.ReadFile(presubmitTestsConfigFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%q) failed: %v", presubmitTestsConfigFile, err)
@@ -309,8 +309,8 @@ func TestParseJUnitReportFileWithFailedTests(t *testing.T) {
   <testsuite name="ts1" tests="1" errors="0" failures="1" skip="0">
     <testcase classname="package c1" name="n1" time="0">
 		  <failure message="error">
-# tools/presubmitter
-tools/go/src/tools/presubmitter/main.go:106: undefined: test
+# tools/presubmit
+tools/go/src/tools/presubmit/main.go:106: undefined: test
 		  </failure>
     </testcase>
   </testsuite>

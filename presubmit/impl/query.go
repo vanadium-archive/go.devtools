@@ -16,7 +16,7 @@ import (
 	"tools/lib/gerrit"
 )
 
-// cmdQuery represents the 'query' command of the presubmitter tool.
+// cmdQuery represents the 'query' command of the presubmit tool.
 var cmdQuery = &cmdline.Command{
 	Name:  "query",
 	Short: "Query open CLs from Gerrit",
