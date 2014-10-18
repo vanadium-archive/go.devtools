@@ -19,7 +19,6 @@ import (
 	"tools/lib/cmdline"
 	"tools/lib/envutil"
 	"tools/lib/gitutil"
-	"tools/lib/hgutil"
 	"tools/lib/runutil"
 )
 
@@ -93,8 +92,8 @@ func ListProjects(ctx *Context, listBranches bool) error {
 		project := projects[name]
 		fmt.Fprintf(ctx.Stdout(), "%q in %q\n", path.Base(name), project.Path)
 		if listBranches {
-			if err := os.Chdir(project.Path); err != nil {
-				return fmt.Errorf("Chdir(%v) failed: %v", project.Path, err)
+			if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+				return err
 			}
 			branches, current := []string{}, ""
 			switch project.Protocol {
@@ -131,7 +130,7 @@ func LocalProjects(ctx *Context) (Projects, error) {
 		return nil, err
 	}
 	projects := Projects{}
-	if err := findLocalProjects(root, projects, ctx.Git(), ctx.Hg()); err != nil {
+	if err := findLocalProjects(ctx, root, projects); err != nil {
 		return nil, err
 	}
 	return projects, nil
@@ -159,8 +158,8 @@ func PollProjects(ctx *Context, manifest string) (Update, error) {
 		if op.ty == updateOperation {
 			switch op.project.Protocol {
 			case "git":
-				if err := os.Chdir(op.destination); err != nil {
-					return nil, fmt.Errorf("Chdir(%v) failed: %v", op.destination, err)
+				if err := ctx.Run().Function(runutil.Chdir(op.destination)); err != nil {
+					return nil, err
 				}
 				if err := ctx.Git().Fetch("origin", "master"); err != nil {
 					return nil, err
@@ -192,7 +191,7 @@ func PollProjects(ctx *Context, manifest string) (Update, error) {
 // project manifest to identify the latest version of the veyron
 // projects and tools.
 func ReadLatestManifest(ctx *Context, manifest string) (Projects, Tools, error) {
-	m, err := readLatestManifest(manifest, ctx.Git())
+	m, err := readLatestManifest(ctx, manifest)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -245,46 +244,41 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 		return err
 	}
 	// 3. Install the tools into $VEYRON_ROOT/bin.
-	return installTools(tmpDir)
+	return installTools(ctx, tmpDir)
 }
 
 // applyToLocalMaster applies an operation expressed as the given
 // function to the local master branch of the given project.
-func applyToLocalMaster(project Project, git *gitutil.Git, hg *hgutil.Hg, fn func() error) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer os.Chdir(wd)
-	if err := os.Chdir(project.Path); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", project.Path, err)
+func applyToLocalMaster(ctx *Context, project Project, fn func() error) error {
+	if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+		return err
 	}
 	switch project.Protocol {
 	case "git":
-		branch, err := git.CurrentBranchName()
+		branch, err := ctx.Git().CurrentBranchName()
 		if err != nil {
 			return err
 		}
-		stashed, err := git.Stash()
+		stashed, err := ctx.Git().Stash()
 		if err != nil {
 			return err
 		}
 		if stashed {
-			defer git.StashPop()
+			defer ctx.Git().StashPop()
 		}
-		if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
+		if err := ctx.Git().CheckoutBranch("master", !gitutil.Force); err != nil {
 			return err
 		}
-		defer git.CheckoutBranch(branch, !gitutil.Force)
+		defer ctx.Git().CheckoutBranch(branch, !gitutil.Force)
 	case "hg":
-		branch, err := hg.CurrentBranchName()
+		branch, err := ctx.Hg().CurrentBranchName()
 		if err != nil {
 			return err
 		}
-		if err := hg.CheckoutBranch("default"); err != nil {
+		if err := ctx.Hg().CheckoutBranch("default"); err != nil {
 			return err
 		}
-		defer hg.CheckoutBranch(branch)
+		defer ctx.Hg().CheckoutBranch(branch)
 	default:
 		return UnsupportedProtocolErr(project.Protocol)
 	}
@@ -293,7 +287,7 @@ func applyToLocalMaster(project Project, git *gitutil.Git, hg *hgutil.Hg, fn fun
 
 // buildTool builds the given tool, placing the resulting binary into
 // the given directory.
-func buildTool(dir string, tool Tool, git *gitutil.Git, run *runutil.Run) error {
+func buildTool(ctx *Context, dir string, tool Tool) error {
 	venv, err := VeyronEnvironment(HostPlatform())
 	if err != nil {
 		return err
@@ -301,14 +295,14 @@ func buildTool(dir string, tool Tool, git *gitutil.Git, run *runutil.Run) error 
 	env := envutil.ToMap(os.Environ())
 	envutil.Replace(env, venv)
 	output := filepath.Join(dir, tool.Name)
-	count, err := git.CountCommits("HEAD", "")
+	count, err := ctx.Git().CountCommits("HEAD", "")
 	if err != nil {
 		return err
 	}
 	ldflags := fmt.Sprintf("-X %v/impl.Version %d", tool.Package, count)
 	args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
 	var stderr bytes.Buffer
-	if err := run.Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
+	if err := ctx.Run().Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
 		return fmt.Errorf("%v tool build failed\n%v", tool.Name, stderr.String())
 	}
 	return nil
@@ -340,10 +334,11 @@ func buildTools(ctx *Context, remoteTools Tools, dir string) error {
 		sort.Strings(names)
 		for _, name := range names {
 			tool := remoteTools[name]
-			updateFn := func() error { return buildTool(dir, tool, ctx.Git(), ctx.Run()) }
+			updateFn := func() error { return buildTool(ctx, dir, tool) }
 			// Always log the output of updateFn,
 			// irrespective of the value of the verbose flag.
 			if err := ctx.Run().FunctionWithVerbosity(true, updateFn, "build tool %q", tool.Name); err != nil {
+				// TODO(jsimsa): Switch this to Run().Output()?
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 				failed = true
 			}
@@ -353,22 +348,17 @@ func buildTools(ctx *Context, remoteTools Tools, dir string) error {
 		}
 		return nil
 	}
-	return applyToLocalMaster(project, ctx.Git(), ctx.Hg(), buildFn)
+	return applyToLocalMaster(ctx, project, buildFn)
 }
 
 // findLocalProjects implements LocalProjects.
-func findLocalProjects(path string, projects Projects, git *gitutil.Git, hg *hgutil.Hg) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer os.Chdir(wd)
-	if err := os.Chdir(path); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", path, err)
+func findLocalProjects(ctx *Context, path string, projects Projects) error {
+	if err := ctx.Run().Function(runutil.Chdir(path)); err != nil {
+		return err
 	}
 	gitDir := filepath.Join(path, ".git")
 	if _, err := os.Stat(gitDir); err == nil {
-		name, err := git.RepoName()
+		name, err := ctx.Git().RepoName()
 		if err != nil {
 			return err
 		}
@@ -386,7 +376,7 @@ func findLocalProjects(path string, projects Projects, git *gitutil.Git, hg *hgu
 	}
 	hgDir := filepath.Join(path, ".hg")
 	if _, err := os.Stat(hgDir); err == nil {
-		name, err := hg.RepoName()
+		name, err := ctx.Hg().RepoName()
 		if err != nil {
 			return err
 		}
@@ -422,7 +412,7 @@ func findLocalProjects(path string, projects Projects, git *gitutil.Git, hg *hgu
 	}
 	for _, fi := range fis {
 		if _, ignore := ignoreSet[fi.Name()]; fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") && !ignore {
-			if err := findLocalProjects(filepath.Join(path, fi.Name()), projects, git, hg); err != nil {
+			if err := findLocalProjects(ctx, filepath.Join(path, fi.Name()), projects); err != nil {
 				return err
 			}
 		}
@@ -432,7 +422,7 @@ func findLocalProjects(path string, projects Projects, git *gitutil.Git, hg *hgu
 
 // installTools installs the tools from the given directory into
 // $VEYRON_ROOT/bin.
-func installTools(dir string) error {
+func installTools(ctx *Context, dir string) error {
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
@@ -441,19 +431,30 @@ func installTools(dir string) error {
 	if err != nil {
 		return fmt.Errorf("ReadDir(%v) failed: %v", dir, err)
 	}
+	failed := false
 	for _, fi := range fis {
-		src := filepath.Join(dir, fi.Name())
-		dst := filepath.Join(root, "bin", fi.Name())
-		if err := os.Rename(src, dst); err != nil {
-			return fmt.Errorf("Rename(%v, %v) failed: %v", src, dst, err)
+		installFn := func() error {
+			src := filepath.Join(dir, fi.Name())
+			dst := filepath.Join(root, "bin", fi.Name())
+			if err := ctx.Run().Function(runutil.Rename(src, dst)); err != nil {
+				return err
+			}
+			return nil
 		}
+		if err := ctx.Run().FunctionWithVerbosity(true, installFn, "install tool %q", fi.Name()); err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			failed = true
+		}
+	}
+	if failed {
+		return cmdline.ErrExitCode(2)
 	}
 	return nil
 }
 
 // readLatestManifest reads the given manifest file into an in-memory
 // data structure.
-func readLatestManifest(manifest string, git *gitutil.Git) (*Manifest, error) {
+func readLatestManifest(ctx *Context, manifest string) (*Manifest, error) {
 	root, err := VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -463,7 +464,7 @@ func readLatestManifest(manifest string, git *gitutil.Git) (*Manifest, error) {
 		Path:     filepath.Join(root, ".manifest"),
 		Protocol: "git",
 	}
-	if err := pullProject(project, git, nil); err != nil {
+	if err := pullProject(ctx, project); err != nil {
 		return nil, err
 	}
 	// Parse the manifest.
@@ -481,18 +482,18 @@ func readLatestManifest(manifest string, git *gitutil.Git) (*Manifest, error) {
 
 // pullProject advances the local master branch of the given
 // project, which is expected to exist locally at project.Path.
-func pullProject(project Project, git *gitutil.Git, hg *hgutil.Hg) error {
+func pullProject(ctx *Context, project Project) error {
 	pullFn := func() error {
 		switch project.Protocol {
 		case "git":
-			return git.Pull("origin", "master")
+			return ctx.Git().Pull("origin", "master")
 		case "hg":
-			return hg.Pull()
+			return ctx.Hg().Pull()
 		default:
 			return UnsupportedProtocolErr(project.Protocol)
 		}
 	}
-	return applyToLocalMaster(project, git, hg, pullFn)
+	return applyToLocalMaster(ctx, project, pullFn)
 }
 
 // updateProjects updates all veyron projects.
@@ -510,10 +511,11 @@ func updateProjects(ctx *Context, remoteProjects Projects, gc bool) error {
 	}
 	failed := false
 	for _, op := range ops {
-		updateFn := func() error { return runOperation(ctx.Run(), ctx.Git(), ctx.Hg(), op) }
+		updateFn := func() error { return runOperation(ctx, op) }
 		// Always log the output of updateFn, irrespective of
 		// the value of the verbose flag.
 		if err := ctx.Run().FunctionWithVerbosity(true, updateFn, "%v", op); err != nil {
+			// TODO(jsimsa): Switch this to Run.Output()?
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			failed = true
 		}
@@ -674,16 +676,16 @@ exit 0
 // commit hooks for existing repositories. Overwriting the existing
 // hooks is not a good idea as developers might have customized the
 // hooks.
-func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operation) error {
+func runOperation(ctx *Context, op operation) error {
 	switch op.ty {
 	case createOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
-		if err := os.MkdirAll(path, perm); err != nil {
-			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
+		if err := ctx.Run().Function(runutil.MkdirAll(path, perm)); err != nil {
+			return err
 		}
 		switch op.project.Protocol {
 		case "git":
-			if err := git.Clone(op.project.Name, op.destination); err != nil {
+			if err := ctx.Git().Clone(op.project.Name, op.destination); err != nil {
 				return err
 			}
 			if strings.HasPrefix(op.project.Name, "https://veyron.googlesource.com/") {
@@ -692,7 +694,7 @@ func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operatio
 				url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
 				args := []string{"-Lo", file, url}
 				var stderr bytes.Buffer
-				if err := run.Command(ioutil.Discard, &stderr, nil, "curl", args...); err != nil {
+				if err := ctx.Run().Command(ioutil.Discard, &stderr, nil, "curl", args...); err != nil {
 					return fmt.Errorf("failed to download commit message hook: %v\n%v", err, stderr.String())
 				}
 				if err := os.Chmod(file, perm); err != nil {
@@ -708,29 +710,29 @@ func runOperation(run *runutil.Run, git *gitutil.Git, hg *hgutil.Hg, op operatio
 				}
 			}
 		case "hg":
-			if err := hg.Clone(op.project.Name, op.destination); err != nil {
+			if err := ctx.Hg().Clone(op.project.Name, op.destination); err != nil {
 				return err
 			}
 		default:
 			return UnsupportedProtocolErr(op.project.Protocol)
 		}
 	case deleteOperation:
-		if err := os.RemoveAll(op.source); err != nil {
-			return fmt.Errorf("RemoveAll(%v) failed: %v", op.source, err)
+		if err := ctx.Run().Function(runutil.RemoveAll(op.source)); err != nil {
+			return err
 		}
 	case moveOperation:
-		if err := pullProject(op.project, git, hg); err != nil {
+		if err := pullProject(ctx, op.project); err != nil {
 			return err
 		}
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
-		if err := os.MkdirAll(path, perm); err != nil {
-			return fmt.Errorf("MkdirAll(%v, %v) failed: %v", path, perm, err)
+		if err := ctx.Run().Function(runutil.MkdirAll(path, perm)); err != nil {
+			return err
 		}
-		if err := os.Rename(op.source, op.destination); err != nil {
-			return fmt.Errorf("Rename(%v, %v) failed: %v", op.source, op.destination, err)
+		if err := ctx.Run().Function(runutil.Rename(op.source, op.destination)); err != nil {
+			return err
 		}
 	case updateOperation:
-		if err := pullProject(op.project, git, hg); err != nil {
+		if err := pullProject(ctx, op.project); err != nil {
 			return err
 		}
 	default:

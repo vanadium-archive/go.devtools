@@ -3,13 +3,13 @@ package impl
 import (
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 
 	"tools/lib/cmdline"
 	"tools/lib/gitutil"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -97,8 +97,8 @@ func runContributors(command *cmdline.Command, args []string) error {
 		if !ok {
 			continue
 		}
-		if err := os.Chdir(project.Path); err != nil {
-			return fmt.Errorf("Chdir(%v) failed: %v", project.Path, err)
+		if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+			return err
 		}
 		lines, err := listCommitters(ctx.Git())
 		if err != nil {

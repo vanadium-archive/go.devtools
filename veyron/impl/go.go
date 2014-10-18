@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"tools/lib/cmdline"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -158,6 +159,7 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
 	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
 		return err
 	}
@@ -171,10 +173,8 @@ func runGoExtDistClean(command *cmdline.Command, _ []string) error {
 			dir := filepath.Join(workspace, name)
 			// TODO(jsimsa): Use the new logging library
 			// for this when it is checked in.
-			fmt.Fprintf(command.Stdout(), "Removing %v\n", dir)
-			if err := os.RemoveAll(dir); err != nil {
+			if err := ctx.Run().Function(runutil.RemoveAll(dir)); err != nil {
 				failed = true
-				fmt.Fprintf(command.Stderr(), "RemoveAll(%v) failed: %v", dir, err)
 			}
 		}
 	}
