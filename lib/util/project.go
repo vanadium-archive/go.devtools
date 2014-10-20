@@ -79,6 +79,11 @@ type Update map[string][]CL
 
 // ListProjects lists the existing local projects to stdout.
 func ListProjects(ctx *Context, listBranches bool) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(cwd)
 	projects, err := LocalProjects(ctx)
 	if err != nil {
 		return err
@@ -140,6 +145,11 @@ func LocalProjects(ctx *Context) (Projects, error) {
 // but not locally. Changes are grouped by veyron repositories and
 // contain author identification and a description of their content.
 func PollProjects(ctx *Context, manifest string) (Update, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	defer os.Chdir(cwd)
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
 		return nil, err
@@ -250,6 +260,11 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 // applyToLocalMaster applies an operation expressed as the given
 // function to the local master branch of the given project.
 func applyToLocalMaster(ctx *Context, project Project, fn func() error) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(cwd)
 	if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
 		return err
 	}
@@ -353,6 +368,11 @@ func buildTools(ctx *Context, remoteTools Tools, dir string) error {
 
 // findLocalProjects implements LocalProjects.
 func findLocalProjects(ctx *Context, path string, projects Projects) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(cwd)
 	if err := ctx.Run().Function(runutil.Chdir(path)); err != nil {
 		return err
 	}
