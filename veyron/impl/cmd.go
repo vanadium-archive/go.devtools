@@ -29,7 +29,7 @@ func init() {
 	flag.StringVar(&targetGo, "target-go", "go", "Go command for the target platform.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
-	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "v2", "Name of the project manifest.")
+	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "manifest/v1/default", "Name of the project manifest.")
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdXGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
