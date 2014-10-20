@@ -104,11 +104,16 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Parse the manifest file to get the local path for the repo.
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
 	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
 	projects, _, err := util.ReadLatestManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
+	os.Chdir(wd)
 	localRepo, ok := projects[repoFlag]
 	if !ok {
 		return fmt.Errorf("repo %q not found", repoFlag)
@@ -317,8 +322,10 @@ func resetRepo(git *gitutil.Git) error {
 		if branch == "master" {
 			continue
 		}
-		if err := git.DeleteBranch(branch, gitutil.Force); err != nil {
-			return nil
+		if strings.HasPrefix(branch, "presubmit_refs") {
+			if err := git.DeleteBranch(branch, gitutil.Force); err != nil {
+				return nil
+			}
 		}
 	}
 
