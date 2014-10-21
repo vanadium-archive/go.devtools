@@ -52,7 +52,8 @@ type Project struct {
 	// paths to an absolute paths, using the current value of the
 	// VEYRON_ROOT environment variable as a prefix.
 	Path string `xml:"path,attr"`
-	// Protocol is the version control protocol used by the project.
+	// Protocol is the version control protocol used by the
+	// project. If not set, "git" is used as the default.
 	Protocol string `xml:"protocol,attr"`
 }
 
@@ -65,6 +66,10 @@ type Tool struct {
 	Name string `xml:"name,attr"`
 	// Package is the package path of the tool.
 	Package string `xml:"package,attr"`
+	// Project identifies the project that contains the tool. If
+	// not set, "https://veyron.googlesource.com/tools" is used as
+	// the default.
+	Project string `xml:"project,attr"`
 }
 
 type UnsupportedProtocolErr string
@@ -221,6 +226,10 @@ func ReadLatestManifest(ctx *Context, manifest string) (Projects, Tools, error) 
 	}
 	tools := Tools{}
 	for _, tool := range m.Tools {
+		// Use the "tools" project as the default project.
+		if tool.Project == "" {
+			tool.Project = "https://veyron.googlesource.com/tools"
+		}
 		tools[tool.Name] = tool
 	}
 	return projects, tools, nil
@@ -302,68 +311,73 @@ func applyToLocalMaster(ctx *Context, project Project, fn func() error) error {
 
 // buildTool builds the given tool, placing the resulting binary into
 // the given directory.
-func buildTool(ctx *Context, dir string, tool Tool) error {
-	venv, err := VeyronEnvironment(HostPlatform())
-	if err != nil {
-		return err
+func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error {
+	buildFn := func() error {
+		venv, err := VeyronEnvironment(HostPlatform())
+		if err != nil {
+			return err
+		}
+		env := envutil.ToMap(os.Environ())
+		envutil.Replace(env, venv)
+		output := filepath.Join(outputDir, tool.Name)
+		var count int
+		switch project.Protocol {
+		case "git":
+			gitCount, err := ctx.Git().CountCommits("HEAD", "")
+			if err != nil {
+				return err
+			}
+			count = gitCount
+		default:
+			return UnsupportedProtocolErr(project.Protocol)
+		}
+		ldflags := fmt.Sprintf("-X %v/impl.Version %d", tool.Package, count)
+		args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
+		var stderr bytes.Buffer
+		if err := ctx.Run().Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
+			return fmt.Errorf("%v tool build failed\n%v", tool.Name, stderr.String())
+		}
+		return nil
 	}
-	env := envutil.ToMap(os.Environ())
-	envutil.Replace(env, venv)
-	output := filepath.Join(dir, tool.Name)
-	count, err := ctx.Git().CountCommits("HEAD", "")
-	if err != nil {
-		return err
-	}
-	ldflags := fmt.Sprintf("-X %v/impl.Version %d", tool.Package, count)
-	args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
-	var stderr bytes.Buffer
-	if err := ctx.Run().Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
-		return fmt.Errorf("%v tool build failed\n%v", tool.Name, stderr.String())
-	}
-	return nil
+	return applyToLocalMaster(ctx, project, buildFn)
 }
 
 // buildTools builds and installs all veyron tools using the version
 // available in the local master branch of the tools
 // repository. Notably, this function does not perform any version
 // control operation on the master branch.
-func buildTools(ctx *Context, remoteTools Tools, dir string) error {
+func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
 		return err
 	}
-	const url = "https://veyron.googlesource.com/tools"
-	project, ok := localProjects[url]
-	if !ok {
-		return fmt.Errorf("could not find project %v", url)
+	failed := false
+	names := []string{}
+	for name, _ := range remoteTools {
+		names = append(names, name)
 	}
-	if got, want := project.Protocol, "git"; got != want {
-		return fmt.Errorf("unexpected protocol: got %v, want %v", got, want)
-	}
-	buildFn := func() error {
-		failed := false
-		names := []string{}
-		for name, _ := range remoteTools {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		for _, name := range names {
-			tool := remoteTools[name]
-			updateFn := func() error { return buildTool(ctx, dir, tool) }
-			// Always log the output of updateFn,
-			// irrespective of the value of the verbose flag.
-			if err := ctx.Run().FunctionWithVerbosity(true, updateFn, "build tool %q", tool.Name); err != nil {
-				// TODO(jsimsa): Switch this to Run().Output()?
-				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-				failed = true
+	sort.Strings(names)
+	for _, name := range names {
+		tool := remoteTools[name]
+		updateFn := func() error {
+			project, ok := localProjects[tool.Project]
+			if !ok {
+				return fmt.Errorf("unknown project %v", tool.Project)
 			}
+			return buildTool(ctx, outputDir, tool, project)
 		}
-		if failed {
-			return cmdline.ErrExitCode(2)
+		// Always log the output of updateFn, irrespective of
+		// the value of the verbose flag.
+		if err := ctx.Run().FunctionWithVerbosity(true, updateFn, "build tool %q", tool.Name); err != nil {
+			// TODO(jsimsa): Switch this to Run().Output()?
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			failed = true
 		}
-		return nil
 	}
-	return applyToLocalMaster(ctx, project, buildFn)
+	if failed {
+		return cmdline.ErrExitCode(2)
+	}
+	return nil
 }
 
 // findLocalProjects implements LocalProjects.
