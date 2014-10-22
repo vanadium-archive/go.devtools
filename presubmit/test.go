@@ -40,8 +40,7 @@ const (
 	testStatusFailed
 )
 
-const timeoutReportTmpl = `
-<?xml version="1.0" encoding="utf-8"?>
+const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 <testsuites>
   <testsuite name="timeout" tests="1" errors="0" failures="1" skip="0">
     <testcase classname="timeout" name="{{.TestName}}" time="0">
