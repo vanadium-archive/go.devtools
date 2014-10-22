@@ -3,7 +3,6 @@ package impl
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -37,7 +36,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	return setupAndGo(util.HostPlatform(), command, args)
+	return runGoForPlatform(util.HostPlatform(), command, args)
 }
 
 // cmdXGo represents the 'xgo' command of the veyron tool.
@@ -78,34 +77,36 @@ func runXGo(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return setupAndGo(platform, command, args[1:])
+	return runGoForPlatform(platform, command, args[1:])
 }
 
-func setupAndGo(platform util.Platform, command *cmdline.Command, args []string) error {
-	// First set up the environment for the host platform, and run vdl.
-	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
-		return err
-	}
+func runGoForPlatform(platform util.Platform, command *cmdline.Command, args []string) error {
+	// Generate vdl files, if necessary.
 	switch args[0] {
 	case "build", "install", "run", "test":
 		if err := generateVDL(); err != nil {
 			return err
 		}
 	}
-	// Now set up the specified platform, and run go.
-	if err := util.SetupVeyronEnvironment(platform); err != nil {
+	// Run the go tool for the given platform.
+	targetEnv, err := util.VeyronEnvironment(platform)
+	if err != nil {
 		return err
 	}
-
 	goCmd := exec.Command(targetGo, args...)
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
+	goCmd.Env = targetEnv.Slice()
 	return translateExitCode(goCmd.Run())
 }
 
 func generateVDL() error {
 	if novdlFlag {
 		return nil
+	}
+	hostEnv, err := util.VeyronEnvironment(util.HostPlatform())
+	if err != nil {
+		return err
 	}
 	root, err := util.VeyronRoot()
 	if err != nil {
@@ -129,6 +130,7 @@ func generateVDL() error {
 	// then look for transitive vdl dependencies based on that set.
 	args = append(args, "generate", "-lang=go", "all")
 	vdlCmd := exec.Command(hostGo, args...)
+	vdlCmd.Env = hostEnv.Slice()
 	if out, err := vdlCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
 	}
@@ -160,15 +162,12 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
-	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
+	env, err := util.VeyronEnvironment(util.HostPlatform())
+	if err != nil {
 		return err
 	}
-	goPath := os.Getenv("GOPATH")
 	failed := false
-	for _, workspace := range strings.Split(goPath, ":") {
-		if workspace == "" {
-			continue
-		}
+	for _, workspace := range env.GetTokens("GOPATH", ":") {
 		for _, name := range []string{"bin", "pkg"} {
 			dir := filepath.Join(workspace, name)
 			// TODO(jsimsa): Use the new logging library

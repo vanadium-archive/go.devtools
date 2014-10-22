@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"tools/lib/cmdline"
-	"tools/lib/envutil"
 	"tools/lib/gitutil"
 	"tools/lib/runutil"
 )
@@ -313,12 +312,10 @@ func applyToLocalMaster(ctx *Context, project Project, fn func() error) error {
 // the given directory.
 func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error {
 	buildFn := func() error {
-		venv, err := VeyronEnvironment(HostPlatform())
+		env, err := VeyronEnvironment(HostPlatform())
 		if err != nil {
 			return err
 		}
-		env := envutil.ToMap(os.Environ())
-		envutil.Replace(env, venv)
 		output := filepath.Join(outputDir, tool.Name)
 		var count int
 		switch project.Protocol {
@@ -334,7 +331,7 @@ func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error
 		ldflags := fmt.Sprintf("-X %v/impl.Version %d", tool.Package, count)
 		args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
 		var stderr bytes.Buffer
-		if err := ctx.Run().Command(ioutil.Discard, &stderr, env, "go", args...); err != nil {
+		if err := ctx.Run().Command(ioutil.Discard, &stderr, env.Map(), "go", args...); err != nil {
 			return fmt.Errorf("%v tool build failed\n%v", tool.Name, stderr.String())
 		}
 		return nil

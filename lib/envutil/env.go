@@ -12,6 +12,7 @@
 package envutil
 
 import (
+	"os"
 	"sort"
 	"strings"
 )
@@ -74,10 +75,96 @@ func quoteForShell(s string) string {
 	return `"` + strings.Replace(s, `"`, `\"`, -1) + `"`
 }
 
+// Copy returns a copy of m.  The returned map is never nil.
+func Copy(env map[string]string) map[string]string {
+	envCopy := make(map[string]string, len(env))
+	for key, val := range env {
+		envCopy[key] = val
+	}
+	return envCopy
+}
+
 // Replace inserts (key,value) pairs from src into dst.  If a key in src already
-// exists in dst, the dst value is overwritten with the src value.
+// exists in dst, the dst value is replaced with the src value.
 func Replace(dst, src map[string]string) {
 	for key, val := range src {
 		dst[key] = val
 	}
+}
+
+// Snapshot manages a mutable snapshot of environment variables.
+//
+// Snapshot is initialized with a base environment, and may be mutated with
+// calls to Set or SetTokens.  The resulting environment is retrieved with calls
+// to Map or Slice.
+//
+// Mutations are tracked separately from the base environment; call DeltaMap to
+// retrieve only the environment variables that have changed.
+type Snapshot struct {
+	base, delta map[string]string
+}
+
+// NewSnapshot returns a new Snapshot with the given base environment.  The base
+// is copied so that the snapshot will ignore subsequent changes to base.
+func NewSnapshot(base map[string]string) *Snapshot {
+	return &Snapshot{Copy(base), make(map[string]string)}
+}
+
+// NewSnapshotFromOS returns a new Snapshot with the base environment from
+// os.Environ.
+func NewSnapshotFromOS() *Snapshot {
+	return NewSnapshot(ToMap(os.Environ()))
+}
+
+// Get returns the value for the given key.
+func (s *Snapshot) Get(key string) string {
+	if val, ok := s.delta[key]; ok {
+		return val
+	}
+	return s.base[key]
+}
+
+// GetTokens tokenizes the value for the given key with the given separator,
+// dropping empty tokens.
+func (s *Snapshot) GetTokens(key, separator string) []string {
+	var result []string
+	for _, token := range strings.Split(s.Get(key), separator) {
+		if token != "" {
+			result = append(result, token)
+		}
+	}
+	return result
+}
+
+// Set assigns the value to the given key.
+func (s *Snapshot) Set(key, value string) {
+	s.delta[key] = value
+}
+
+// SetTokens joins the tokens with the given separator, and assigns the
+// resulting value to the given key.
+func (s *Snapshot) SetTokens(key string, tokens []string, separator string) {
+	s.Set(key, strings.Join(tokens, separator))
+}
+
+// Map returns a copy of the environment as a map.
+func (s *Snapshot) Map() map[string]string {
+	dst := Copy(s.base)
+	Replace(dst, s.delta)
+	return dst
+}
+
+// Slice returns a copy of the environment as a slice.
+func (s *Snapshot) Slice() []string {
+	return ToSlice(s.Map())
+}
+
+// BaseMap returns a copy of the original base environment.
+func (s *Snapshot) BaseMap() map[string]string {
+	return Copy(s.base)
+}
+
+// DeltaMap returns a copy of the environment variables that have been mutated.
+func (s *Snapshot) DeltaMap() map[string]string {
+	return Copy(s.delta)
 }

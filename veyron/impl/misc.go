@@ -54,11 +54,11 @@ func runEnv(command *cmdline.Command, args []string) error {
 	}
 	if len(args) > 0 {
 		for _, name := range args {
-			fmt.Fprintf(command.Stdout(), "%s\n", env[name])
+			fmt.Fprintln(command.Stdout(), env.Get(name))
 		}
 		return nil
 	}
-	for _, entry := range envutil.ToQuotedSlice(env) {
+	for _, entry := range envutil.ToQuotedSlice(env.DeltaMap()) {
 		fmt.Fprintln(command.Stdout(), entry)
 	}
 	return nil
@@ -81,7 +81,8 @@ func runRun(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("no command to run")
 	}
-	if err := util.SetupVeyronEnvironment(util.HostPlatform()); err != nil {
+	env, err := util.VeyronEnvironment(util.HostPlatform())
+	if err != nil {
 		return err
 	}
 	// For certain commands, veyron uses specialized wrappers that do
@@ -95,5 +96,6 @@ func runRun(command *cmdline.Command, args []string) error {
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = command.Stdout()
 	execCmd.Stderr = command.Stderr()
+	execCmd.Env = env.Slice()
 	return translateExitCode(execCmd.Run())
 }

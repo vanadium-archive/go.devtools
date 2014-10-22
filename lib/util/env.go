@@ -19,10 +19,6 @@ const (
 	rootEnv = "VEYRON_ROOT"
 )
 
-var (
-	baseEnv map[string]string
-)
-
 // Config holds configuration for various veyron tools.
 type Config struct {
 	// GoRepos identifies top-level VEYRON_ROOT directories that
@@ -36,11 +32,6 @@ type Config struct {
 	// Given a set of projects, "veyron project poll" will poll changes from the
 	// corresponding repos.
 	PollConfig map[string][]string
-}
-
-func init() {
-	// Initialize baseEnv with a snapshot of the environment at startup.
-	baseEnv = envutil.ToMap(os.Environ())
 }
 
 // Config returns the config for veyron tools.
@@ -62,27 +53,13 @@ func VeyronConfig() (*Config, error) {
 	return &conf, nil
 }
 
-// SetupVeyronEnvironment sets up the environment variables used by
-// veyron for the given platform.
-func SetupVeyronEnvironment(platform Platform) error {
-	env, err := VeyronEnvironment(platform)
-	if err != nil {
-		return err
-	}
-	for key, value := range env {
-		if err := os.Setenv(key, value); err != nil {
-			return fmt.Errorf("Setenv(%v, %v) failed: %v", key, value, err)
-		}
-	}
-	return nil
-}
-
 // VeyronEnvironment returns the environment variables setting for
 // veyron. The util package captures the original state of the
 // relevant environment variables when the tool is initialized, and
 // every invocation of this function updates this original state
 // according to the current config of the veyron tool.
-func VeyronEnvironment(platform Platform) (map[string]string, error) {
+func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
+	env := envutil.NewSnapshotFromOS()
 	root, err := VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -91,7 +68,6 @@ func VeyronEnvironment(platform Platform) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	env := map[string]string{}
 	setGoPath(env, root, conf)
 	setVdlPath(env, root, conf)
 	archCmd := exec.Command("uname", "-m")
@@ -113,24 +89,25 @@ func VeyronEnvironment(platform Platform) (map[string]string, error) {
 		if platform.Environment == "android" {
 			setArmLinuxEnv = setAndroidEnv
 		}
-		if err := setArmLinuxEnv(platform, env); err != nil {
+		if err := setArmLinuxEnv(env, platform); err != nil {
 			return nil, err
 		}
 	case platform.Arch == "386" && platform.OS == "nacl":
 		// Set up cross-compilation for 386 / nacl.
-		if err := setNaclEnv(platform, env); err != nil {
+		if err := setNaclEnv(env, platform); err != nil {
 			return nil, err
 		}
 	default:
 		return nil, UnsupportedPlatformErr{platform}
 	}
-	// If VEYRON_ENV_SETUP==none, we revert all of the changes to variable values,
-	// but keep the map populated so we know which variables are important.
+	// If VEYRON_ENV_SETUP==none, revert all deltas to their original base value.
+	// We can't just skip the above logic or revert to the BaseMap completely,
+	// since we still need DeltaMap to tell us which variables we care about.
 	//
 	// TODO(toddw): Remove this logic when "veyron clone" is implemented.
-	if baseEnv["VEYRON_ENV_SETUP"] == "none" {
-		for key := range env {
-			env[key] = baseEnv[key]
+	if env.Get("VEYRON_ENV_SETUP") == "none" {
+		for key := range env.DeltaMap() {
+			env.Set(key, env.BaseMap()[key])
 		}
 	}
 	return env, nil
@@ -138,93 +115,75 @@ func VeyronEnvironment(platform Platform) (map[string]string, error) {
 
 // VeyronRoot returns the root of the veyron universe.
 func VeyronRoot() (string, error) {
-	root := baseEnv[rootEnv]
+	root := os.Getenv(rootEnv)
 	if root == "" {
 		return "", fmt.Errorf("%v is not set", rootEnv)
 	}
 	return root, nil
 }
 
-// getEnvTokens fetches a value for the environment variable identified by
-// the given key from the given map, or if it does not exist there,
-// from the baseEnv map. The value is then tokenized using the given
-// separator and returned as a slice of string tokens.
-func getEnvTokens(env map[string]string, key, separator string) []string {
-	tokens, ok := env[key]
-	if !ok {
-		tokens = baseEnv[key]
-	}
-	result := []string{}
-	for _, token := range strings.Split(tokens, separator) {
-		if token != "" {
-			result = append(result, token)
-		}
-	}
-	return result
-}
-
 // setAndroidEnv sets the environment variables used for android
 // cross-compilation.
-func setAndroidEnv(platform Platform, env map[string]string) error {
+func setAndroidEnv(env *envutil.Snapshot, platform Platform) error {
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
 	}
 	// Set CC specific environment variables.
-	env["CC"] = filepath.Join(root, "environment", "android", "ndk-toolchain", "bin", "arm-linux-androideabi-gcc")
+	env.Set("CC", filepath.Join(root, "environment", "android", "ndk-toolchain", "bin", "arm-linux-androideabi-gcc"))
 	// Set Go specific environment variables.
-	env["GOARCH"] = platform.Arch
-	env["GOARM"] = strings.TrimPrefix(platform.SubArch, "v")
-	env["GOOS"] = platform.OS
+	env.Set("GOARCH", platform.Arch)
+	env.Set("GOARM", strings.TrimPrefix(platform.SubArch, "v"))
+	env.Set("GOOS", platform.OS)
 	if err := setJniCgoEnv(env, root, "android"); err != nil {
 		return err
 	}
 	// Add the paths to veyron cross-compilation tools to the PATH.
-	path := getEnvTokens(env, "PATH", ":")
+	path := env.GetTokens("PATH", ":")
 	path = append([]string{
 		filepath.Join(root, "environment", "android", "go", "bin"),
 	}, path...)
-	env["PATH"] = strings.Join(path, ":")
+	env.SetTokens("PATH", path, ":")
 	return nil
 }
 
 // setArmEnv sets the environment variables used for android
 // cross-compilation.
-func setArmEnv(platform Platform, env map[string]string) error {
+func setArmEnv(env *envutil.Snapshot, platform Platform) error {
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
 	}
 	// Set Go specific environment variables.
-	env["GOARCH"] = platform.Arch
-	env["GOARM"] = strings.TrimPrefix(platform.SubArch, "v")
-	env["GOOS"] = platform.OS
+	env.Set("GOARCH", platform.Arch)
+	env.Set("GOARM", strings.TrimPrefix(platform.SubArch, "v"))
+	env.Set("GOOS", platform.OS)
 
 	// Add the paths to veyron cross-compilation tools to the PATH.
-	path := getEnvTokens(env, "PATH", ":")
+	path := env.GetTokens("PATH", ":")
 	path = append([]string{
 		filepath.Join(root, "environment", "cout", "xgcc", "cross_arm"),
 		filepath.Join(root, "environment", "go", "linux", "arm", "go", "bin"),
 	}, path...)
-	env["PATH"] = strings.Join(path, ":")
+	env.SetTokens("PATH", path, ":")
 	return nil
 }
 
 // setGoPath adds the paths to veyron Go workspaces to the GOPATH
 // variable.
-func setGoPath(env map[string]string, root string, conf *Config) {
-	gopath := getEnvTokens(env, "GOPATH", ":")
+func setGoPath(env *envutil.Snapshot, root string, conf *Config) {
+	gopath := env.GetTokens("GOPATH", ":")
 	// Append an entry to gopath for each veyron go repo.
 	for _, repo := range conf.GoRepos {
 		gopath = append(gopath, filepath.Join(root, repo, "go"))
 	}
-	env["GOPATH"] = strings.Join(gopath, ":")
+	env.SetTokens("GOPATH", gopath, ":")
 }
 
 // setVdlPath adds the paths to veyron Go workspaces to the VDLPATH
 // variable.
-func setVdlPath(env map[string]string, root string, conf *Config) {
-	vdlpath := getEnvTokens(env, "VDLPATH", ":")
+func setVdlPath(env *envutil.Snapshot, root string, conf *Config) {
+	vdlpath := env.GetTokens("VDLPATH", ":")
 	// Append an entry to vdlpath for each veyron go repo.
 	//
 	// TODO(toddw): This logic will change when we pull vdl into a
@@ -232,15 +191,15 @@ func setVdlPath(env map[string]string, root string, conf *Config) {
 	for _, repo := range conf.GoRepos {
 		vdlpath = append(vdlpath, filepath.Join(root, repo, "go"))
 	}
-	env["VDLPATH"] = strings.Join(vdlpath, ":")
+	env.SetTokens("VDLPATH", vdlpath, ":")
 }
 
 // setBluetoothCgoEnv sets the CGO_ENABLED variable and adds the
 // bluetooth third-party C libraries veyron Go code depends on to the
 // CGO_CFLAGS and CGO_LDFLAGS variables.
-func setBluetoothCgoEnv(env map[string]string, root, arch string) error {
+func setBluetoothCgoEnv(env *envutil.Snapshot, root, arch string) error {
 	// Set the CGO_* variables for the veyron proximity component.
-	env["CGO_ENABLED"] = "1"
+	env.Set("CGO_ENABLED", "1")
 	libs := []string{
 		"dbus-1.6.14",
 		"expat-2.1.0",
@@ -248,8 +207,8 @@ func setBluetoothCgoEnv(env map[string]string, root, arch string) error {
 		"libusb-1.0.16-rc10",
 		"libusb-compat-0.1.5",
 	}
-	cflags := getEnvTokens(env, "CGO_CFLAGS", " ")
-	ldflags := getEnvTokens(env, "CGO_LDFLAGS", " ")
+	cflags := env.GetTokens("CGO_CFLAGS", " ")
+	ldflags := env.GetTokens("CGO_LDFLAGS", " ")
 	for _, lib := range libs {
 		dir := filepath.Join(root, "environment", "cout", lib, arch)
 		if _, err := os.Stat(dir); err != nil {
@@ -265,18 +224,18 @@ func setBluetoothCgoEnv(env map[string]string, root, arch string) error {
 			ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"), "-Wl,-rpath", filepath.Join(dir, "lib"))
 		}
 	}
-	env["CGO_CFLAGS"] = strings.Join(cflags, " ")
-	env["CGO_LDFLAGS"] = strings.Join(ldflags, " ")
+	env.SetTokens("CGO_CFLAGS", cflags, " ")
+	env.SetTokens("CGO_LDFLAGS", ldflags, " ")
 	return nil
 }
 
 // setJniCgoEnv sets the CGO_ENABLED variable and adds the JNI
 // third-party C libraries veyron Go code depends on to the CGO_CFLAGS
 // and CGO_LDFLAGS variables.
-func setJniCgoEnv(env map[string]string, root, arch string) error {
-	env["CGO_ENABLED"] = "1"
-	cflags := getEnvTokens(env, "CGO_CFLAGS", " ")
-	ldflags := getEnvTokens(env, "CGO_LDFLAGS", " ")
+func setJniCgoEnv(env *envutil.Snapshot, root, arch string) error {
+	env.Set("CGO_ENABLED", "1")
+	cflags := env.GetTokens("CGO_CFLAGS", " ")
+	ldflags := env.GetTokens("CGO_LDFLAGS", " ")
 	dir := filepath.Join(root, "environment", "cout", "jni-wrapper-1.0", arch)
 	if _, err := os.Stat(dir); err != nil {
 		if !os.IsNotExist(err) {
@@ -286,15 +245,15 @@ func setJniCgoEnv(env map[string]string, root, arch string) error {
 		cflags = append(cflags, filepath.Join("-I"+dir, "include"))
 		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"), "-Wl,-rpath", filepath.Join(dir, "lib"))
 	}
-	env["CGO_CFLAGS"] = strings.Join(cflags, " ")
-	env["CGO_LDFLAGS"] = strings.Join(ldflags, " ")
+	env.SetTokens("CGO_CFLAGS", cflags, " ")
+	env.SetTokens("CGO_LDFLAGS", ldflags, " ")
 	return nil
 }
 
 // setNaclEnv sets the environment variables used for nacl
 // cross-compilation.
-func setNaclEnv(platform Platform, env map[string]string) error {
-	env["GOARCH"] = platform.Arch
-	env["GOOS"] = platform.OS
+func setNaclEnv(env *envutil.Snapshot, platform Platform) error {
+	env.Set("GOARCH", platform.Arch)
+	env.Set("GOOS", platform.OS)
 	return nil
 }

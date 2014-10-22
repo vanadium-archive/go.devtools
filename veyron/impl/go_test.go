@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"tools/lib/cmdline"
 	"tools/lib/util"
 )
 
@@ -15,7 +14,7 @@ import (
 // 'veyron go' command sets up the veyron environment and then
 // dispatches calls to the go tool.
 func TestGoVeyronEnvironment(t *testing.T) {
-	testCmd := cmdline.Command{}
+	testCmd := *cmdGo
 	var out, errOut bytes.Buffer
 	testCmd.Init(nil, &out, &errOut)
 	if err := os.Setenv("GOPATH", ""); err != nil {
@@ -28,8 +27,8 @@ func TestGoVeyronEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := env["GOPATH"], strings.TrimSpace(out.String()); expected != got {
-		t.Fatalf("unexpected GOPATH: expected %v, got %v", expected, got)
+	if got, want := strings.TrimSpace(out.String()), env.Get("GOPATH"); got != want {
+		t.Fatalf("GOPATH got %v, want %v", got, want)
 	}
 }
 
@@ -37,7 +36,7 @@ func TestGoVeyronEnvironment(t *testing.T) {
 // go' command generates up-to-date VDL files for select go tool
 // commands before dispatching these commands to the go tool.
 func TestGoVDLGeneration(t *testing.T) {
-	testCmd := cmdline.Command{}
+	testCmd := *cmdGo
 	var out, errOut bytes.Buffer
 	testCmd.Init(nil, &out, &errOut)
 	root, err := util.VeyronRoot()
