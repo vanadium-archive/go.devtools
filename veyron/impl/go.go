@@ -1,13 +1,17 @@
 package impl
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"tools/lib/cmdline"
+	"tools/lib/envutil"
 	"tools/lib/runutil"
 	"tools/lib/util"
 )
@@ -83,8 +87,8 @@ func runXGo(command *cmdline.Command, args []string) error {
 func runGoForPlatform(platform util.Platform, command *cmdline.Command, args []string) error {
 	// Generate vdl files, if necessary.
 	switch args[0] {
-	case "build", "install", "run", "test":
-		if err := generateVDL(); err != nil {
+	case "build", "generate", "install", "run", "test":
+		if err := generateVDL(args); err != nil {
 			return err
 		}
 	}
@@ -100,7 +104,7 @@ func runGoForPlatform(platform util.Platform, command *cmdline.Command, args []s
 	return translateExitCode(goCmd.Run())
 }
 
-func generateVDL() error {
+func generateVDL(cmdArgs []string) error {
 	if novdlFlag {
 		return nil
 	}
@@ -112,8 +116,8 @@ func generateVDL() error {
 	if err != nil {
 		return err
 	}
-	// Initialize args with the *.go files under the vdl directory to run.
-	args := []string{"run"}
+	// Initialize vdlGenArgs with the *.go files under the vdl directory to run.
+	vdlGenArgs := []string{"run"}
 	vdlDir := filepath.Join(root, "veyron", "go", "src", "veyron.io", "veyron", "veyron2", "vdl", "vdl")
 	fis, err := ioutil.ReadDir(vdlDir)
 	if err != nil {
@@ -121,20 +125,190 @@ func generateVDL() error {
 	}
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".go") {
-			args = append(args, filepath.Join(vdlDir, fi.Name()))
+			vdlGenArgs = append(vdlGenArgs, filepath.Join(vdlDir, fi.Name()))
 		}
 	}
-	// TODO(toddw): We should probably only generate vdl for the packages
-	// specified for the corresponding "go" command.  This isn't trivial; we'd
-	// need to grab the transitive go dependencies for the specified packages, and
-	// then look for transitive vdl dependencies based on that set.
-	args = append(args, "generate", "-lang=go", "all")
-	vdlCmd := exec.Command(hostGo, args...)
-	vdlCmd.Env = hostEnv.Slice()
-	if out, err := vdlCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlCmd.Args, " "), out)
+	// Generate VDL for the transitive Go package dependencies.
+	//
+	// Note that the vdl tool takes VDL packages as input, but we're supplying Go
+	// packages.  We're assuming the package paths for the VDL packages we want to
+	// generate have the same path names as the Go package paths.  Some of the Go
+	// package paths may not correspond to a valid VDL package, so we provide the
+	// -ignore_unknown flag to silently ignore these paths.
+	//
+	// It's fine if the VDL packages have dependencies not reflected in the Go
+	// packages; the vdl tool will compute the transitive closure of VDL package
+	// dependencies, as usual.
+	//
+	// TODO(toddw): Change the vdl tool to return vdl packages given the full Go
+	// dependencies, after vdl config files are implemented.
+	goPkgs, goFiles := extractGoPackagesOrFiles(cmdArgs[0], cmdArgs[1:])
+	goDeps, err := computeGoDeps(hostEnv, append(goPkgs, goFiles...))
+	if err != nil {
+		return err
+	}
+	vdlGenArgs = append(vdlGenArgs, "-ignore_unknown", "generate", "-lang=go")
+	vdlGenArgs = append(vdlGenArgs, goDeps...)
+	vdlGenCmd := exec.Command(hostGo, vdlGenArgs...)
+	vdlGenCmd.Env = hostEnv.Slice()
+	if out, err := vdlGenCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlGenCmd.Args, " "), out)
 	}
 	return nil
+}
+
+// extractGoPackagesOrFiles is given the cmd and args for the go tool, filters
+// out flags, and returns the PACKAGES or GOFILES that were specified in args.
+// Note that all commands that accept PACKAGES also accept GOFILES.
+//
+//   go build    [build flags]              [-o out]      [PACKAGES]
+//   go generate                            [-run regexp] [PACKAGES]
+//   go install  [build flags]                            [PACKAGES]
+//   go run      [build flags]              [-exec prog]  [GOFILES]  [run args]
+//   go test     [build flags] [test flags] [-exec prog]  [PACKAGES] [testbin flags]
+//
+// Sadly there's no way to do this syntactically.  It's easy for single token
+// -flag and -flag=x, but non-boolean flags may be two tokens "-flag x".
+//
+// We keep track of all non-boolean flags F, and skip every token that starts
+// with - or --, and also skip the next token if the flag is in F and isn't of
+// the form -flag=x.  If we forget to update F, we'll still handle the -flag and
+// -flag=x cases correctly, but we'll get "-flag x" wrong.
+func extractGoPackagesOrFiles(cmd string, args []string) ([]string, []string) {
+	var nonBool map[string]bool
+	switch cmd {
+	case "build":
+		nonBool = nonBoolGoBuild
+	case "generate":
+		nonBool = nonBoolGoGenerate
+	case "install":
+		nonBool = nonBoolGoInstall
+	case "run":
+		nonBool = nonBoolGoRun
+	case "test":
+		nonBool = nonBoolGoTest
+	}
+	// Move start to the start of PACKAGES or GOFILES, by skipping flags.
+	start := 0
+	for start < len(args) {
+		// Handle special-case terminator --
+		if args[start] == "--" {
+			start++
+			break
+		}
+		match := goFlagRE.FindStringSubmatch(args[start])
+		if match == nil {
+			break
+		}
+		// Skip this flag, and maybe skip the next token for the "-flag x" case.
+		//   match[1] is the flag name
+		//   match[2] is the optional "=" for the -flag=x case
+		start++
+		if nonBool[match[1]] && match[2] == "" {
+			start++
+		}
+	}
+	// Move end to the end of PACKAGES or GOFILES.
+	var end int
+	switch cmd {
+	case "test":
+		// Any arg starting with - is a testbin flag.
+		// https://golang.org/cmd/go/#hdr-Test_packages
+		for end = start; end < len(args); end++ {
+			if strings.HasPrefix(args[end], "-") {
+				break
+			}
+		}
+	case "run":
+		// Go run takes gofiles, which are defined as a file ending in ".go".
+		// https://golang.org/cmd/go/#hdr-Compile_and_run_Go_program
+		for end = start; end < len(args); end++ {
+			if !strings.HasSuffix(args[end], ".go") {
+				break
+			}
+		}
+	default:
+		end = len(args)
+	}
+	// Decide whether these are packages or files.
+	switch {
+	case start == end:
+		return nil, nil
+	case (start < len(args) && strings.HasSuffix(args[start], ".go")):
+		return nil, args[start:end]
+	default:
+		return args[start:end], nil
+	}
+}
+
+var (
+	goFlagRE     = regexp.MustCompile(`^--?([^=]+)(=?)`)
+	nonBoolBuild = []string{
+		"p", "ccflags", "compiler", "gccgoflags", "gcflags", "installsuffix", "ldflags", "tags",
+	}
+	nonBoolTest = []string{
+		"bench", "benchtime", "blockprofile", "blockprofilerate", "covermode", "coverpkg", "coverprofile", "cpu", "cpuprofile", "memprofile", "memprofilerate", "outputdir", "parallel", "run", "timeout",
+	}
+	nonBoolGoBuild    = makeStringSet(append(nonBoolBuild, "o"))
+	nonBoolGoGenerate = makeStringSet([]string{"run"})
+	nonBoolGoInstall  = makeStringSet(nonBoolBuild)
+	nonBoolGoRun      = makeStringSet(append(nonBoolBuild, "exec"))
+	nonBoolGoTest     = makeStringSet(append(append(nonBoolBuild, nonBoolTest...), "exec"))
+)
+
+func makeStringSet(values []string) map[string]bool {
+	ret := make(map[string]bool)
+	for _, v := range values {
+		ret[v] = true
+	}
+	return ret
+}
+
+// computeGoDeps computes the transitive Go package dependencies for the given
+// set of pkgs.  The strategy is to run "go list <pkgs>" with a special format
+// string that dumps the specified pkgs and all deps as space / newline
+// separated tokens.  The pkgs may be in any format recognized by "go list"; dir
+// paths, import paths, or go files.
+func computeGoDeps(env *envutil.Snapshot, pkgs []string) ([]string, error) {
+	var stderr bytes.Buffer
+	goListArgs := []string{`list`, `-f`, `{{.ImportPath}} {{join .Deps " "}}`}
+	goListArgs = append(goListArgs, pkgs...)
+	goListCmd := exec.Command(hostGo, goListArgs...)
+	goListCmd.Stderr = &stderr
+	goListCmd.Env = env.Slice()
+	makeErr := func(phase string, err error) error {
+		return fmt.Errorf("failed to compute go deps (%s): %v\n%v\n%s", phase, err, strings.Join(goListCmd.Args, " "), stderr.String())
+	}
+	depsPipe, err := goListCmd.StdoutPipe()
+	if err != nil {
+		return nil, makeErr("stdout pipe", err)
+	}
+	if err := goListCmd.Start(); err != nil {
+		return nil, makeErr("start", err)
+	}
+	scanner := bufio.NewScanner(depsPipe)
+	scanner.Split(bufio.ScanWords)
+	depsMap := make(map[string]bool)
+	for scanner.Scan() {
+		depsMap[scanner.Text()] = true
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, makeErr("scan", err)
+	}
+	if err := goListCmd.Wait(); err != nil {
+		return nil, makeErr("wait", err)
+	}
+	var deps []string
+	for dep, _ := range depsMap {
+		// Filter out bad packages:
+		//   command-line-arguments is the dummy import path for "go run".
+		switch dep {
+		case "command-line-arguments":
+			continue
+		}
+		deps = append(deps, dep)
+	}
+	return deps, nil
 }
 
 // cmdGoExt represents the 'goext' command of the veyron tool.
