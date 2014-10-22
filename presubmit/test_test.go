@@ -262,11 +262,18 @@ func TestTestsConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q) failed: %v", presubmitTestsConfigFile, err)
 	}
-	var testsConfig map[string]map[string][]string
-	if err := json.Unmarshal(configFileContent, &testsConfig); err != nil {
+	var testConfig struct {
+		// Tests maps repository URLs to a list of test to execute for the given test.
+		Tests map[string][]string `json:"tests"`
+		// Dependencies maps tests to a list of tests that the test depends on.
+		Dependencies map[string][]string `json:"dependencies"`
+		// Timeouts maps tests to their timeout value.
+		Timeouts map[string]string `json:"timeouts"`
+	}
+	if err := json.Unmarshal(configFileContent, &testConfig); err != nil {
 		t.Fatalf("Unmarshal(%q) failed: %v", configFileContent, err)
 	}
-	_, err = testsForRepo(testsConfig["tests"], repoFlag, cmdTmp)
+	_, err = testsForRepo(testConfig.Tests, repoFlag, cmdTmp)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

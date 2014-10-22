@@ -8,12 +8,18 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
+	"time"
 
 	"tools/lib/envutil"
 )
 
 const (
 	prefix = ">>"
+)
+
+var (
+	CommandTimedoutErr = fmt.Errorf("command timed out")
 )
 
 type Run struct {
@@ -32,11 +38,20 @@ func New(verbose bool, stdout io.Writer) *Run {
 
 // Command runs the given command and logs its outcome using the default verbosity.
 func (r *Run) Command(stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
-	return r.CommandWithVerbosity(r.Verbose, stdout, stderr, env, path, args...)
+	return r.command(r.Verbose, stdout, stderr, env, path, 0, args...)
+}
+
+// CommandWithTimeout runs the given command with timeout and logs its outcome using the default verbosity.
+func (r *Run) CommandWithTimeout(stdout, stderr io.Writer, env map[string]string, path string, timeout time.Duration, args ...string) error {
+	return r.command(r.Verbose, stdout, stderr, env, path, timeout, args...)
 }
 
 // CommandWithVerbosity runs the given command and logs its outcome using the given verbosity.
 func (r *Run) CommandWithVerbosity(verbose bool, stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
+	return r.command(verbose, stdout, stderr, env, path, 0, args...)
+}
+
+func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]string, path string, timeout time.Duration, args ...string) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
 	command := exec.Command(path, args...)
@@ -44,20 +59,71 @@ func (r *Run) CommandWithVerbosity(verbose bool, stdout, stderr io.Writer, env m
 	command.Stdout = stdout
 	command.Stderr = stderr
 	command.Env = envutil.ToSlice(env)
+	// Make the process of this command the session leader with a new process group associated with it.
+	// The process group ID and session ID are set to the PID of command's process.
+	// All the spawned processes will be in the same process group.
+	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if verbose {
 		r.printf(r.Stdout, strings.Join(command.Args, " "))
 	}
-	var err error
-	if err = command.Run(); err != nil {
+
+	if timeout == 0 {
+		// No timeout.
+		var err error
+		if err = command.Run(); err != nil {
+			if verbose {
+				r.printf(r.Stdout, "FAILED")
+			}
+		} else {
+			if verbose {
+				r.printf(r.Stdout, "OK")
+			}
+		}
+		return err
+	}
+	// Has timeout.
+	if err := command.Start(); err != nil {
 		if verbose {
 			r.printf(r.Stdout, "FAILED")
 		}
-	} else {
-		if verbose {
-			r.printf(r.Stdout, "OK")
-		}
+		return err
 	}
-	return err
+	done := make(chan error, 1)
+	go func() {
+		done <- command.Wait()
+	}()
+	select {
+	case <-time.After(timeout):
+		// The command has timed out.
+		// Sending SIGTERM to the process group (the negative value of the process's pid)
+		// will kill all the processes in that group.
+		if err := syscall.Kill(-command.Process.Pid, syscall.SIGTERM); err != nil {
+			fmt.Fprintf(r.Stdout, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGTERM, err)
+		}
+		time.Sleep(10 * time.Second)
+		if err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL); err != nil {
+			fmt.Fprintf(r.Stdout, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGKILL, err)
+		}
+		// Allow goroutine to exit.
+		<-done
+		if verbose {
+			r.printf(r.Stdout, "TIMED OUT")
+		}
+		return CommandTimedoutErr
+	case err := <-done:
+		if err != nil {
+			if verbose {
+				r.printf(r.Stdout, "FAILED")
+			}
+		} else {
+			if verbose {
+				r.printf(r.Stdout, "OK")
+			}
+		}
+		return err
+	}
+
+	return nil
 }
 
 // Function runs the given function and logs its outcome using the

@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/template"
+	"time"
 
 	"tools/lib/cmdline"
 	"tools/lib/gitutil"
@@ -37,6 +39,23 @@ const (
 	testStatusPassed
 	testStatusFailed
 )
+
+const timeoutReportTmpl = `
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="timeout" tests="1" errors="0" failures="1" skip="0">
+    <testcase classname="timeout" name="{{.TestName}}" time="0">
+      <failure type="timeout">
+<![CDATA[
+{{.ErrorMessage}}
+]]>
+      </failure>
+    </testcase>
+  </testsuite>
+</testsuites>
+`
+
+var defaultTestTimeoutValue = 6 * time.Minute
 
 type testInfo struct {
 	// A list of its dependencies.
@@ -86,6 +105,8 @@ func runTest(command *cmdline.Command, args []string) error {
 		Tests map[string][]string `json:"tests"`
 		// Dependencies maps tests to a list of tests that the test depends on.
 		Dependencies map[string][]string `json:"dependencies"`
+		// Timeouts maps tests to their timeout value.
+		Timeouts map[string]string `json:"timeouts"`
 	}
 	if err := json.Unmarshal(configFileContent, &testConfig); err != nil {
 		return fmt.Errorf("Unmarshal(%q) failed: %v", configFileContent, err)
@@ -130,6 +151,16 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Prepare presubmit test branch.
 	if err := preparePresubmitTestBranch(command, run, dir, cl); err != nil {
+		// When "git pull" fails, post a review to let the CL author know about the possible merge conflicts.
+		if strings.HasPrefix(err.Error(), "Pull") {
+			reviewMessageFlag = "Possible merge conflict detected.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted.\n"
+			printf(command.Stdout(), "### Posting message to Gerrit\n")
+			if err := runPost(nil, nil); err != nil {
+				printf(command.Stderr(), "%v\n", err)
+			}
+			printf(command.Stderr(), "%v\n", err)
+			return nil
+		}
 		return err
 	}
 
@@ -181,15 +212,31 @@ run:
 			testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
 			var curStatusString string
 			var stderr bytes.Buffer
-			if err := run.Command(command.Stdout(), &stderr, nil, testScript); err != nil {
+			finished := true
+			if err := run.CommandWithTimeout(command.Stdout(), &stderr, nil, testScript, defaultTestTimeoutValue); err != nil {
 				curStatusString = "✖"
-				printf(command.Stderr(), "%v\n", stderr.String())
 				testInfo.testStatus = testStatusFailed
+				if err == runutil.CommandTimedoutErr {
+					finished = false
+					printf(command.Stderr(), "%s TIMED OUT after %s\n", test, defaultTestTimeoutValue)
+					err := generateReportForHangingTest(test, defaultTestTimeoutValue)
+					if err != nil {
+						printf(command.Stderr(), "%v\n", err)
+					}
+				} else {
+					printf(command.Stderr(), "%v\n", stderr.String())
+				}
 			} else {
 				curStatusString = "✔"
 				testInfo.testStatus = testStatusPassed
 			}
-			fmt.Fprintf(results, "%s ➔ %s: %s\n", lastStatusString, curStatusString, test)
+			fmt.Fprintf(results, "%s ➔ %s: %s", lastStatusString, curStatusString, test)
+			if !finished {
+				fmt.Fprintf(results, " [TIMED OUT after %s]\n", defaultTestTimeoutValue)
+			} else {
+				fmt.Fprintln(results)
+			}
+
 			executedTests = append(executedTests, test)
 
 			// Start another iteration of the main loop.
@@ -561,4 +608,28 @@ func safePackageOrClassName(name string) string {
 // The original implementation in junit jenkins plugin can be found here: http://git.io/8X9o7Q
 func safeTestName(name string) string {
 	return reNotIdentifierChars.ReplaceAllString(name, "_")
+}
+
+// generateReportForHangingTest generates a xunit test report file for the given test that timed out.
+func generateReportForHangingTest(testName string, timeout time.Duration) error {
+	type tmplData struct {
+		TestName     string
+		ErrorMessage string
+	}
+	tmpl, err := template.New("timeout").Parse(timeoutReportTmpl)
+	if err != nil {
+		return fmt.Errorf("Parse(%q) failed: %v", timeoutReportTmpl, err)
+	}
+	reportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
+	reportFile := filepath.Join(veyronRoot, "..", reportFileName)
+	f, err := os.Create(reportFile)
+	if err != nil {
+		return fmt.Errorf("Create(%q) failed: %v", reportFile, err)
+	}
+	defer f.Close()
+	return tmpl.Execute(f, tmplData{
+		TestName: testName,
+		ErrorMessage: fmt.Sprintf("The test timed out after %s.\nOpen console log and search for \"%s timed out\".",
+			timeout, testName),
+	})
 }
