@@ -1,0 +1,12 @@
+{
+	"dependencies": {
+		"incoming": [
+			    {"allow": "tools/go-depcop/testdata/test-internal/..."},
+			    {"deny": "..."}
+		],
+		"outgoing": [
+			    {"allow": "tools/go-depcop/testdata/test-internal/..."},
+			    {"deny": "..."}
+		]
+	}
+}

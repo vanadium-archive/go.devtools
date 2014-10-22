@@ -59,7 +59,7 @@ Usage:
 The test flags are:
    -build_number=-1: The number of the Jenkins build.
    -conf=$VEYRON_ROOT/tools/conf/presubmit: The config file for presubmit tests.
-   -manifest=v2: Name of the project manifest.
+   -manifest=manifest/v1/default: Name of the project manifest.
    -ref=: The ref where the review is posted.
    -repo=: The URL of the repository containing the CL pointed by the ref.
    -tests_base_path=$VEYRON_ROOT/scripts/jenkins: The base path of all the test scripts.

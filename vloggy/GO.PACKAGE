@@ -1,0 +1,12 @@
+{
+	"dependencies": {
+		"incoming": [
+			    {"deny": "..."}
+		],
+		"outgoing": [
+			    {"allow": "tools/lib/..."},
+			    {"allow": "code.google.com/p/go.tools/..."},
+			    {"deny": "..."}
+		]
+	}
+}

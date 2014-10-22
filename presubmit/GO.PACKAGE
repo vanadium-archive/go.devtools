@@ -1,0 +1,11 @@
+{
+	"dependencies": {
+		"incoming": [
+			    {"deny": "..."}
+		],
+		"outgoing": [
+			    {"allow": "tools/lib/..."},
+			    {"deny": "..."}
+		]
+	}
+}

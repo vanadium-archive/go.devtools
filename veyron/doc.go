@@ -94,9 +94,13 @@ The list flags are:
 Veyron Project Poll
 
 Poll existing veyron projects and report whether any new changes exist.
+Projects to poll can be specified as command line arguments.
+If no projects are specified, all projects are polled by default.
 
 Usage:
-   veyron project poll
+   veyron project poll <project ...>
+
+<project ...> is a list of projects to poll.
 
 Veyron Update
 
@@ -110,7 +114,7 @@ Usage:
 
 The update flags are:
    -gc=false: Garbage collect obsolete repositories.
-   -manifest=v2: Name of the project manifest.
+   -manifest=manifest/v1/default: Name of the project manifest.
 
 Veyron Env
 

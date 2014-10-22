@@ -328,7 +328,7 @@ func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error
 		default:
 			return UnsupportedProtocolErr(project.Protocol)
 		}
-		ldflags := fmt.Sprintf("-X %v/impl.Version %d", tool.Package, count)
+		ldflags := fmt.Sprintf("-X tools/lib/version.Version %d", tool.Package, count)
 		args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
 		var stderr bytes.Buffer
 		if err := ctx.Run().Command(ioutil.Discard, &stderr, env.Map(), "go", args...); err != nil {

@@ -5,10 +5,6 @@
 
 package main
 
-import (
-	"tools/presubmit/impl"
-)
-
 func main() {
-	impl.Root().Main()
+	root().Main()
 }
