@@ -119,7 +119,11 @@ func VeyronRoot() (string, error) {
 	if root == "" {
 		return "", fmt.Errorf("%v is not set", rootEnv)
 	}
-	return root, nil
+	result, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", fmt.Errorf("EvalSymlinks(%v) failed: %v", root)
+	}
+	return result, nil
 }
 
 // setAndroidEnv sets the environment variables used for android
