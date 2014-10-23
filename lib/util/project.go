@@ -488,6 +488,29 @@ func installTools(ctx *Context, dir string) error {
 	return nil
 }
 
+// reportNonMaster checks if the given project is on master branch and
+// if not, reports this fact along with information on how to update it.
+func reportNonMaster(ctx *Context, project Project) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(cwd)
+	if err := os.Chdir(project.Path); err != nil {
+		return err
+	}
+	current, err := ctx.Git().CurrentBranchName()
+	if err != nil {
+		return err
+	}
+	if current != "master" {
+		line1 := fmt.Sprintf(`NOTE: "veyron update" only updates the "master" branch and the current branch is %q`, current)
+		line2 := fmt.Sprintf(`to update the %q branch once the master branch is updated, run "git merge master"`, current)
+		ctx.Run().OutputWithVerbosity(true, []string{line1, line2})
+	}
+	return nil
+}
+
 // readLatestManifest reads the given manifest file into an in-memory
 // data structure.
 func readLatestManifest(ctx *Context, manifest string) (*Manifest, error) {
@@ -757,6 +780,9 @@ func runOperation(ctx *Context, op operation) error {
 			return err
 		}
 	case moveOperation:
+		if err := reportNonMaster(ctx, op.project); err != nil {
+			return err
+		}
 		if err := pullProject(ctx, op.project); err != nil {
 			return err
 		}
@@ -768,6 +794,9 @@ func runOperation(ctx *Context, op operation) error {
 			return err
 		}
 	case updateOperation:
+		if err := reportNonMaster(ctx, op.project); err != nil {
+			return err
+		}
 		if err := pullProject(ctx, op.project); err != nil {
 			return err
 		}

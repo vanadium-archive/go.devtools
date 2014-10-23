@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -116,22 +115,6 @@ func generateVDL(cmdArgs []string) error {
 	if err != nil {
 		return err
 	}
-	root, err := util.VeyronRoot()
-	if err != nil {
-		return err
-	}
-	// Initialize vdlGenArgs with the *.go files under the vdl directory to run.
-	vdlGenArgs := []string{"run"}
-	vdlDir := filepath.Join(root, "veyron", "go", "src", "veyron.io", "veyron", "veyron2", "vdl", "vdl")
-	fis, err := ioutil.ReadDir(vdlDir)
-	if err != nil {
-		return fmt.Errorf("ReadDir(%v) failed: %v", vdlDir, err)
-	}
-	for _, fi := range fis {
-		if strings.HasSuffix(fi.Name(), ".go") {
-			vdlGenArgs = append(vdlGenArgs, filepath.Join(vdlDir, fi.Name()))
-		}
-	}
 	// Generate VDL for the transitive Go package dependencies.
 	//
 	// Note that the vdl tool takes VDL packages as input, but we're supplying Go
@@ -151,9 +134,13 @@ func generateVDL(cmdArgs []string) error {
 	if err != nil {
 		return err
 	}
-	vdlGenArgs = append(vdlGenArgs, "-ignore_unknown", "generate", "-lang=go")
-	vdlGenArgs = append(vdlGenArgs, goDeps...)
-	vdlGenCmd := exec.Command(hostGo, vdlGenArgs...)
+	vdlArgs := []string{"-ignore_unknown", "generate", "-lang=go"}
+	vdlArgs = append(vdlArgs, goDeps...)
+	vdlBin, err := hostEnv.LookPath("vdl")
+	if err != nil {
+		return err
+	}
+	vdlGenCmd := exec.Command(vdlBin, vdlArgs...)
 	vdlGenCmd.Env = hostEnv.Slice()
 	if out, err := vdlGenCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlGenCmd.Args, " "), out)
