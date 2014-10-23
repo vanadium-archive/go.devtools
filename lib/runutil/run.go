@@ -61,7 +61,7 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 	command.Env = envutil.ToSlice(env)
 	// Make the process of this command a new process group leader
 	// to facilitate clean up of processes that time out.
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if verbose {
 		r.printf(r.Stdout, strings.Join(command.Args, " "))
 	}
