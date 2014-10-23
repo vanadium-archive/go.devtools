@@ -341,8 +341,8 @@ tools/go/src/tools/presubmit/main.go:106: undefined: test
 		"v::c2::n2":      2,
 	}
 	expected := []string{
-		"- package c1::n1\n  http://goto.google.com/vpst/10/testReport/%28root%29/package%20c1/n1",
-		"- v::c2::n2\n  http://goto.google.com/vpst/10/testReport/v/c2/n2_2",
+		"- package c1::n1\nhttp://goto.google.com/vpst/10/testReport/%28root%29/package%20c1/n1",
+		"- v::c2::n2\nhttp://goto.google.com/vpst/10/testReport/v/c2/n2_2",
 	}
 	got, err := parseJUnitReportFileForFailedTestLinks(strings.NewReader(reportFileContent), seenTests)
 	if err != nil {
