@@ -73,8 +73,8 @@ func runTest(command *cmdline.Command, args []string) error {
 	run := runutil.New(verboseFlag, command.Stdout())
 	// Basic sanity checks.
 	manifestFilePath := filepath.Join(veyronRoot, ".manifest", manifestFlag+".xml")
-	if _, err := os.Stat(testsConfigFileFlag); err != nil {
-		return fmt.Errorf("Stat(%q) failed: %v", testsConfigFileFlag, err)
+	if _, err := os.Stat(configFileFlag); err != nil {
+		return fmt.Errorf("Stat(%q) failed: %v", configFileFlag, err)
 	}
 	if _, err := os.Stat(manifestFilePath); err != nil {
 		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
@@ -95,9 +95,9 @@ func runTest(command *cmdline.Command, args []string) error {
 	cl := parts[3]
 
 	// Parse tests and dependencies from tests config file.
-	configFileContent, err := ioutil.ReadFile(testsConfigFileFlag)
+	configFileContent, err := ioutil.ReadFile(configFileFlag)
 	if err != nil {
-		return fmt.Errorf("ReadFile(%q) failed: %v", testsConfigFileFlag)
+		return fmt.Errorf("ReadFile(%q) failed: %v", configFileFlag)
 	}
 	var testConfig struct {
 		// Tests maps repository URLs to a list of test to execute for the given test.

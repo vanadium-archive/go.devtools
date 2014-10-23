@@ -6,5 +6,6 @@
 package main
 
 func main() {
+	substituteVarsInFlags()
 	root().Main()
 }

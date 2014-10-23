@@ -13,12 +13,13 @@ import (
 )
 
 const (
+	defaultConfigFile                  = "$VEYRON_ROOT/tools/conf/presubmit"
 	defaultGerritBaseUrl               = "https://veyron-review.googlesource.com"
-	defaultNetRcFilePath               = "/var/veyron/.netrc"
-	defaultQueryString                 = "(status:open -project:experimental)"
-	defaultLogFilePath                 = "/var/veyron/tmp/presubmit_log"
+	defaultLogFilePath                 = "$HOME/tmp/presubmit_log"
+	defaultNetRcFilePath               = "$HOME/.netrc"
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
-	defaultTestReportPath              = "/var/veyron/tmp/test_report"
+	defaultQueryString                 = "(status:open -project:experimental)"
+	defaultTestScriptsBase             = "$VEYRON_ROOT/scripts/jenkins/"
 	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
 	outputPrefix                       = "[VEYRON PRESUBMIT]"
 )
@@ -29,34 +30,29 @@ type credential struct {
 }
 
 var (
+	// flags
+	configFileFlag                  string
 	gerritBaseUrlFlag               string
-	netRcFilePathFlag               string
-	verboseFlag                     bool
-	queryStringFlag                 string
-	logFilePathFlag                 string
+	jenkinsBuildNumberFlag          int
 	jenkinsHostFlag                 string
-	presubmitTestJenkinsProjectFlag string
 	jenkinsTokenFlag                string
+	logFilePathFlag                 string
+	manifestFlag                    string
+	netRcFilePathFlag               string
+	presubmitTestJenkinsProjectFlag string
+	queryStringFlag                 string
+	repoFlag                        string
 	reviewMessageFlag               string
 	reviewTargetRefFlag             string
-	testsConfigFileFlag             string
-	repoFlag                        string
 	testScriptsBasePathFlag         string
-	manifestFlag                    string
-	jenkinsBuildNumberFlag          int
-	veyronRoot                      string
-	reURLUnsafeChars                *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
-	reNotIdentifierChars            *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
+	verboseFlag                     bool
+
+	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
+	reNotIdentifierChars *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
+	veyronRoot           string
 )
 
 func init() {
-	var err error
-	veyronRoot, err = util.VeyronRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
-		return
-	}
-
 	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
 	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
@@ -67,10 +63,10 @@ func init() {
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
 	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
 	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
-	cmdTest.Flags.StringVar(&testsConfigFileFlag, "conf", filepath.Join(veyronRoot, "tools", "conf", "presubmit"), "The config file for presubmit tests.")
+	cmdTest.Flags.StringVar(&configFileFlag, "conf", defaultConfigFile, "The config file for presubmit tests.")
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
-	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", filepath.Join(veyronRoot, "scripts", "jenkins"), "The base path of all the test scripts.")
+	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", defaultTestScriptsBase, "The base path of all the test scripts.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "manifest/v1/default", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 }
@@ -79,6 +75,28 @@ func init() {
 func printf(out io.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(out, "%s ", outputPrefix)
 	fmt.Fprintf(out, format, args...)
+}
+
+// substituteVarsInFlags substitutes environment variables in default
+// values of relevant flags.
+func substituteVarsInFlags() {
+	veyronRoot, err := util.VeyronRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+		os.Exit(1)
+	}
+	if configFileFlag == defaultConfigFile {
+		configFileFlag = filepath.Join(veyronRoot, "tools", "conf", "presubmit")
+	}
+	if logFilePathFlag == defaultLogFilePath {
+		logFilePathFlag = filepath.Join(os.Getenv("HOME"), "tmp", "presubmit_log")
+	}
+	if netRcFilePathFlag == defaultNetRcFilePath {
+		netRcFilePathFlag = filepath.Join(os.Getenv("HOME"), ".netrc")
+	}
+	if testScriptsBasePathFlag == defaultTestScriptsBase {
+		testScriptsBasePathFlag = filepath.Join(veyronRoot, "scripts", "jenkins")
+	}
 }
 
 // root returns a command that represents the root of the presubmit tool.
