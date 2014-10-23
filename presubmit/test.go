@@ -578,7 +578,7 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 				testResultUrl, err := url.Parse(fmt.Sprintf("http://goto.google.com/vpst/%d/testReport/%s/%s/%s",
 					jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestName))
 				if err == nil {
-					link = fmt.Sprintf("- %s\n  %s", testFullName, testResultUrl.String())
+					link = fmt.Sprintf("- %s\n%s", testFullName, testResultUrl.String())
 					if seenTests[testFullName] > 1 {
 						link = fmt.Sprintf("%s_%d", link, seenTests[testFullName])
 					}
