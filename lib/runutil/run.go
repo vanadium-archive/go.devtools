@@ -59,9 +59,6 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 	command.Stdout = stdout
 	command.Stderr = stderr
 	command.Env = envutil.ToSlice(env)
-	// Make the process of this command a new process group leader
-	// to facilitate clean up of processes that time out.
-	// command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if verbose {
 		r.printf(r.Stdout, strings.Join(command.Args, " "))
 	}
@@ -81,6 +78,9 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 		return err
 	}
 	// Has timeout.
+	// Make the process of this command a new process group leader
+	// to facilitate clean up of processes that time out.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := command.Start(); err != nil {
 		if verbose {
 			r.printf(r.Stdout, "FAILED")
