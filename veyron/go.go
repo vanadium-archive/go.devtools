@@ -97,7 +97,11 @@ func runGoForPlatform(platform util.Platform, command *cmdline.Command, args []s
 	if err != nil {
 		return err
 	}
-	goCmd := exec.Command(targetGo, args...)
+	bin, err := targetEnv.LookPath(targetGo)
+	if err != nil {
+		return err
+	}
+	goCmd := exec.Command(bin, args...)
 	goCmd.Stdout = command.Stdout()
 	goCmd.Stderr = command.Stderr()
 	goCmd.Env = targetEnv.Slice()

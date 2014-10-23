@@ -12,7 +12,9 @@
 package envutil
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 )
@@ -134,6 +136,24 @@ func (s *Snapshot) GetTokens(key, separator string) []string {
 		}
 	}
 	return result
+}
+
+// LookPath searches for an executable binary named file in the
+// directories named by the PATH environment variable of the snapshot.
+//
+// NOTE: This function temporarily modifies the global environment and
+// therefore is not thread-safe.
+func (s *Snapshot) LookPath(file string) (string, error) {
+	oldPath := os.Getenv("PATH")
+	if err := os.Setenv("PATH", s.Get("PATH")); err != nil {
+		return "", fmt.Errorf("Setenv(%q, %q) failed: %v", "PATH", s.Get("PATH"), err)
+	}
+	defer os.Setenv("PATH", oldPath)
+	path, err := exec.LookPath(file)
+	if err != nil {
+		return "", fmt.Errorf("LookPath(%q) failed: %v", file, err)
+	}
+	return path, nil
 }
 
 // Set assigns the value to the given key.
