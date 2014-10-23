@@ -80,7 +80,8 @@ func printf(out io.Writer, format string, args ...interface{}) {
 // substituteVarsInFlags substitutes environment variables in default
 // values of relevant flags.
 func substituteVarsInFlags() {
-	veyronRoot, err := util.VeyronRoot()
+	var err error
+	veyronRoot, err = util.VeyronRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 		os.Exit(1)
