@@ -59,10 +59,9 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 	command.Stdout = stdout
 	command.Stderr = stderr
 	command.Env = envutil.ToSlice(env)
-	// Make the process of this command the session leader with a new process group associated with it.
-	// The process group ID and session ID are set to the PID of command's process.
-	// All the spawned processes will be in the same process group.
-	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	// Make the process of this command a new process group leader
+	// to facilitate clean up of processes that time out.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if verbose {
 		r.printf(r.Stdout, strings.Join(command.Args, " "))
 	}
