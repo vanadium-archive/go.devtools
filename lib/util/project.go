@@ -488,27 +488,20 @@ func installTools(ctx *Context, dir string) error {
 	return nil
 }
 
-// reportNonMaster checks if the given project is on master branch and
-// if not, reports this fact along with information on how to update it.
-func reportNonMaster(ctx *Context, project Project) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
+// pullProject advances the local master branch of the given
+// project, which is expected to exist locally at project.Path.
+func pullProject(ctx *Context, project Project) error {
+	pullFn := func() error {
+		switch project.Protocol {
+		case "git":
+			return ctx.Git().Pull("origin", "master")
+		case "hg":
+			return ctx.Hg().Pull()
+		default:
+			return UnsupportedProtocolErr(project.Protocol)
+		}
 	}
-	defer os.Chdir(cwd)
-	if err := os.Chdir(project.Path); err != nil {
-		return err
-	}
-	current, err := ctx.Git().CurrentBranchName()
-	if err != nil {
-		return err
-	}
-	if current != "master" {
-		line1 := fmt.Sprintf(`NOTE: "veyron update" only updates the "master" branch and the current branch is %q`, current)
-		line2 := fmt.Sprintf(`to update the %q branch once the master branch is updated, run "git merge master"`, current)
-		ctx.Run().OutputWithVerbosity(true, []string{line1, line2})
-	}
-	return nil
+	return applyToLocalMaster(ctx, project, pullFn)
 }
 
 // readLatestManifest reads the given manifest file into an in-memory
@@ -539,20 +532,34 @@ func readLatestManifest(ctx *Context, manifest string) (*Manifest, error) {
 	return m, err
 }
 
-// pullProject advances the local master branch of the given
-// project, which is expected to exist locally at project.Path.
-func pullProject(ctx *Context, project Project) error {
-	pullFn := func() error {
-		switch project.Protocol {
-		case "git":
-			return ctx.Git().Pull("origin", "master")
-		case "hg":
-			return ctx.Hg().Pull()
-		default:
-			return UnsupportedProtocolErr(project.Protocol)
-		}
+// reportNonMaster checks if the given project is on master branch and
+// if not, reports this fact along with information on how to update it.
+func reportNonMaster(ctx *Context, project Project) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
 	}
-	return applyToLocalMaster(ctx, project, pullFn)
+	defer os.Chdir(cwd)
+	if err := os.Chdir(project.Path); err != nil {
+		return err
+	}
+	switch project.Protocol {
+	case "git":
+		current, err := ctx.Git().CurrentBranchName()
+		if err != nil {
+			return err
+		}
+		if current != "master" {
+			line1 := fmt.Sprintf(`NOTE: "veyron update" only updates the "master" branch and the current branch is %q`, current)
+			line2 := fmt.Sprintf(`to update the %q branch once the master branch is updated, run "git merge master"`, current)
+			ctx.Run().OutputWithVerbosity(true, []string{line1, line2})
+		}
+		return nil
+	case "hg":
+		return nil
+	default:
+		return UnsupportedProtocolErr(project.Protocol)
+	}
 }
 
 // updateProjects updates all veyron projects.
