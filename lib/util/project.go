@@ -31,10 +31,21 @@ type CL struct {
 	Description string
 }
 
-// Manifest represents a list of veyron projects.
+// Manifest represents a setting used for updating the veyron universe.
 type Manifest struct {
+	Imports  []Import  `xml:imports>import`
 	Projects []Project `xml:"projects>project"`
 	Tools    []Tool    `xml:"tools>tool"`
+}
+
+// Imports maps manifest import names to their detailed description.
+type Imports map[string]Import
+
+// Import represnts a manifest import.
+type Import struct {
+	// Name is the name under which the manifest can be found the
+	// manifest repository.
+	Name string `xml:"name,attr"`
 }
 
 // Projects maps veyron project names to their detailed description.
@@ -42,6 +53,8 @@ type Projects map[string]Project
 
 // Project represents a veyron project.
 type Project struct {
+	// Exclude is flag used to exclude previously included projects.
+	Exclude bool `xml:exclude,attr`
 	// Name is the URL at which the project is hosted.
 	Name string `xml:"name,attr"`
 	// Path is the path used to store the project locally. Project
@@ -54,6 +67,10 @@ type Project struct {
 	// Protocol is the version control protocol used by the
 	// project. If not set, "git" is used as the default.
 	Protocol string `xml:"protocol,attr"`
+	// Revision is the revision the project should be advanced to
+	// during "veyron update". If not set, "HEAD" is used as the
+	// default.
+	Revision string `xml:"revision,attr"`
 }
 
 // Tools maps veyron tool names, to their detailed description.
@@ -61,6 +78,8 @@ type Tools map[string]Tool
 
 // Tool represents a veyron tool.
 type Tool struct {
+	// Exclude is flag used to exclude previously included projects.
+	Exclude bool `xml:exclude,attr`
 	// Name is the name of the tool binary.
 	Name string `xml:"name,attr"`
 	// Package is the package path of the tool.
@@ -158,7 +177,7 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	if err != nil {
 		return nil, err
 	}
-	remoteProjects, _, err := ReadLatestManifest(ctx, manifest)
+	remoteProjects, _, err := ReadManifest(ctx, manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -206,35 +225,38 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	return update, nil
 }
 
-// ReadLatestManifest retrieves and parses the latest version of the
-// project manifest to identify the latest version of the veyron
-// projects and tools.
-func ReadLatestManifest(ctx *Context, manifest string) (Projects, Tools, error) {
-	m, err := readLatestManifest(ctx, manifest)
-	if err != nil {
-		return nil, nil, err
-	}
-	projects := Projects{}
+// ReadManifest retrieves and parses the manifest(s) that determine
+// what projects and tools are to be updated.
+func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
+	// Update the manifest repository.
 	root, err := VeyronRoot()
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, project := range m.Projects {
-		// Replace the relative path with an absolute one.
-		project.Path = filepath.Join(root, project.Path)
-		// Use git as the default protocol.
-		if project.Protocol == "" {
-			project.Protocol = "git"
-		}
-		projects[project.Name] = project
+	project := Project{
+		Path:     filepath.Join(root, ".manifest"),
+		Protocol: "git",
+		Revision: "HEAD",
 	}
-	tools := Tools{}
-	for _, tool := range m.Tools {
-		// Use the "tools" project as the default project.
-		if tool.Project == "" {
-			tool.Project = "https://veyron.googlesource.com/tools"
+	if err := pullProject(ctx, project); err != nil {
+		return nil, nil, err
+	}
+	// Read either the local manifest, if it exists, or the remote
+	// manifest specified by the given name.
+	path, err := LocalManifestPath()
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			path, err = RemoteManifestPath(manifest)
+		} else {
+			return nil, nil, fmt.Errorf("Stat(%v) failed: %v", err)
 		}
-		tools[tool.Name] = tool
+	}
+	projects, tools, stack := Projects{}, Tools{}, map[string]struct{}{}
+	if err := readManifest(path, projects, tools, stack); err != nil {
+		return nil, nil, err
 	}
 	return projects, tools, nil
 }
@@ -244,7 +266,7 @@ func ReadLatestManifest(ctx *Context, manifest string) (Projects, Tools, error) 
 // the 'gc' flag can be used to indicate that local projects that no
 // longer exist remotely should be removed.
 func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
-	remoteProjects, remoteTools, err := ReadLatestManifest(ctx, manifest)
+	remoteProjects, remoteTools, err := ReadManifest(ctx, manifest)
 	if err != nil {
 		return err
 	}
@@ -494,9 +516,15 @@ func pullProject(ctx *Context, project Project) error {
 	pullFn := func() error {
 		switch project.Protocol {
 		case "git":
-			return ctx.Git().Pull("origin", "master")
+			if err := ctx.Git().Pull("origin", "master"); err != nil {
+				return err
+			}
+			return ctx.Git().Reset(project.Revision)
 		case "hg":
-			return ctx.Hg().Pull()
+			if err := ctx.Hg().Pull(); err != nil {
+				return err
+			}
+			return ctx.Hg().CheckoutRevision(project.Revision)
 		default:
 			return UnsupportedProtocolErr(project.Protocol)
 		}
@@ -504,32 +532,71 @@ func pullProject(ctx *Context, project Project) error {
 	return applyToLocalMaster(ctx, project, pullFn)
 }
 
-// readLatestManifest reads the given manifest file into an in-memory
-// data structure.
-func readLatestManifest(ctx *Context, manifest string) (*Manifest, error) {
-	root, err := VeyronRoot()
-	if err != nil {
-		return nil, err
-	}
-	// Update the manifest.
-	project := Project{
-		Path:     filepath.Join(root, ".manifest"),
-		Protocol: "git",
-	}
-	if err := pullProject(ctx, project); err != nil {
-		return nil, err
-	}
-	// Parse the manifest.
-	path := filepath.Join(root, ".manifest", manifest+".xml")
+// readManifest reads the given manifest, processing all of its
+// imports, projects and tools settings.
+func readManifest(path string, projects Projects, tools Tools, stack map[string]struct{}) error {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("ReadFile(%v) failed: %v", path, err)
+		return fmt.Errorf("ReadFile(%v) failed: %v", path, err)
 	}
 	m := &Manifest{}
 	if err := xml.Unmarshal(data, m); err != nil {
-		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(data), err)
+		return fmt.Errorf("Unmarshal(%v) failed: %v", string(data), err)
 	}
-	return m, err
+	// Process all imports.
+	for _, manifest := range m.Imports {
+		if _, ok := stack[manifest.Name]; ok {
+			return fmt.Errorf("import cycle encountered")
+		}
+		path, err := RemoteManifestPath(manifest.Name)
+		if err != nil {
+			return err
+		}
+		stack[manifest.Name] = struct{}{}
+		if err := readManifest(path, projects, tools, stack); err != nil {
+			return err
+		}
+		delete(stack, manifest.Name)
+	}
+	// Process all projects.
+	root, err := VeyronRoot()
+	if err != nil {
+		return err
+	}
+	for _, project := range m.Projects {
+		if project.Exclude {
+			// Exclude the project in case it was
+			// previously included.
+			delete(projects, project.Name)
+			continue
+		}
+		// Replace the relative path with an absolute one.
+		project.Path = filepath.Join(root, project.Path)
+		// Use git as the default protocol.
+		if project.Protocol == "" {
+			project.Protocol = "git"
+		}
+		// Use HEAD as the default revision.
+		if project.Revision == "" {
+			project.Revision = "HEAD"
+		}
+		projects[project.Name] = project
+	}
+	// Process all tools.
+	for _, tool := range m.Tools {
+		if tool.Exclude {
+			// Exclude the tool in case it was previously
+			// included.
+			delete(tools, tool.Name)
+			continue
+		}
+		// Use the "tools" project as the default project.
+		if tool.Project == "" {
+			tool.Project = "https://veyron.googlesource.com/tools"
+		}
+		tools[tool.Name] = tool
+	}
+	return nil
 }
 
 // reportNonMaster checks if the given project is on master branch and
@@ -607,16 +674,16 @@ type operation struct {
 }
 
 func (op operation) String() string {
-	name := filepath.Base(op.project.Name)
+	name := path.Base(op.project.Name)
 	switch op.ty {
 	case createOperation:
-		return fmt.Sprintf("create project %q in %q", name, op.destination)
+		return fmt.Sprintf("create project %q in %q and advance it to %q", name, op.destination, op.project.Revision)
 	case deleteOperation:
 		return fmt.Sprintf("delete project %q from %q", name, op.source)
 	case moveOperation:
-		return fmt.Sprintf("move project %q from %q to %q and update it", name, op.source, op.destination)
+		return fmt.Sprintf("move project %q located in %q to %q and advance it to %q", name, op.source, op.destination, op.project.Revision)
 	case updateOperation:
-		return fmt.Sprintf("update project %q in %q", name, op.source)
+		return fmt.Sprintf("advance project %q located in %q to %q", name, op.source, op.project.Revision)
 	default:
 		return fmt.Sprintf("unknown operation type: %v", op.ty)
 	}
@@ -676,15 +743,35 @@ func computeOperations(localProjects, remoteProjects Projects, gc bool) (operati
 		if localProject, ok := localProjects[name]; ok {
 			if remoteProject, ok := remoteProjects[name]; ok {
 				if localProject.Path == remoteProject.Path {
-					result = append(result, operation{localProject, remoteProject.Path, localProject.Path, updateOperation})
+					result = append(result, operation{
+						project:     remoteProject,
+						destination: remoteProject.Path,
+						source:      localProject.Path,
+						ty:          updateOperation,
+					})
 				} else {
-					result = append(result, operation{localProject, remoteProject.Path, localProject.Path, moveOperation})
+					result = append(result, operation{
+						project:     remoteProject,
+						destination: remoteProject.Path,
+						source:      localProject.Path,
+						ty:          moveOperation,
+					})
 				}
 			} else if gc {
-				result = append(result, operation{localProject, "", localProject.Path, deleteOperation})
+				result = append(result, operation{
+					project:     localProject,
+					destination: "",
+					source:      localProject.Path,
+					ty:          deleteOperation,
+				})
 			}
 		} else if remoteProject, ok := remoteProjects[name]; ok {
-			result = append(result, operation{remoteProject, remoteProject.Path, "", createOperation})
+			result = append(result, operation{
+				project:     remoteProject,
+				destination: remoteProject.Path,
+				source:      "",
+				ty:          createOperation,
+			})
 		} else {
 			return nil, fmt.Errorf("project %v does not exist", name)
 		}
@@ -775,8 +862,22 @@ func runOperation(ctx *Context, op operation) error {
 					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
 				}
 			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			defer os.Chdir(cwd)
+			if err := ctx.Run().Function(runutil.Chdir(op.destination)); err != nil {
+				return err
+			}
+			if err := ctx.Git().Reset(op.project.Revision); err != nil {
+				return err
+			}
 		case "hg":
 			if err := ctx.Hg().Clone(op.project.Name, op.destination); err != nil {
+				return err
+			}
+			if err := ctx.Hg().CheckoutRevision(op.project.Revision); err != nil {
 				return err
 			}
 		default:
@@ -787,17 +888,17 @@ func runOperation(ctx *Context, op operation) error {
 			return err
 		}
 	case moveOperation:
-		if err := reportNonMaster(ctx, op.project); err != nil {
-			return err
-		}
-		if err := pullProject(ctx, op.project); err != nil {
-			return err
-		}
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
 		if err := ctx.Run().Function(runutil.MkdirAll(path, perm)); err != nil {
 			return err
 		}
 		if err := ctx.Run().Function(runutil.Rename(op.source, op.destination)); err != nil {
+			return err
+		}
+		if err := reportNonMaster(ctx, op.project); err != nil {
+			return err
+		}
+		if err := pullProject(ctx, op.project); err != nil {
 			return err
 		}
 	case updateOperation:

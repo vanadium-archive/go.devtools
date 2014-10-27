@@ -129,7 +129,7 @@ func runTest(command *cmdline.Command, args []string) error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
-	projects, _, err := util.ReadLatestManifest(ctx, manifestFlag)
+	projects, _, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,8 @@ func resetRepo(git *gitutil.Git) error {
 	if err := git.RemoveUntrackedFiles(); err != nil {
 		return err
 	}
-	if err := git.RemoveUncommittedChanges(); err != nil {
+	// Discard any uncommitted changes.
+	if err := git.Reset("HEAD"); err != nil {
 		return err
 	}
 

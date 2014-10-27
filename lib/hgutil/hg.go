@@ -47,6 +47,11 @@ func (h *Hg) CheckoutBranch(branch string) error {
 	return h.run("update", branch)
 }
 
+// CheckoutRevision switches the revision for the current repository.
+func (h *Hg) CheckoutRevision(revision string) error {
+	return h.run("update", "-r", revision)
+}
+
 // Clone clones the given repository to the given local path.
 func (h *Hg) Clone(repo, path string) error {
 	return h.run("clone", repo, path)

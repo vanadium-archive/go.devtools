@@ -88,16 +88,6 @@ func (g *Git) CheckoutBranch(branchName string, force bool) error {
 	}
 }
 
-// RemoveUncommittedChanges removes uncommitted changes.
-func (g *Git) RemoveUncommittedChanges() error {
-	return g.run("reset", "--hard", "HEAD")
-}
-
-// RemoveUntrackedFiles removes untracked files and directories.
-func (g *Git) RemoveUntrackedFiles() error {
-	return g.run("clean", "-d", "-f")
-}
-
 // Clone clones the given repository to the given local path.
 func (g *Git) Clone(repo, path string) error {
 	return g.run("clone", repo, path)
@@ -399,6 +389,11 @@ func (g *Git) Remove(fileName string) error {
 	return g.run("rm", fileName)
 }
 
+// RemoveUntrackedFiles removes untracked files and directories.
+func (g *Git) RemoveUntrackedFiles() error {
+	return g.run("clean", "-d", "-f")
+}
+
 // RepoName gets the name of the current repository.
 func (g *Git) RepoName() (string, error) {
 	out, err := g.runOutput("config", "--get", "remote.origin.url")
@@ -409,6 +404,12 @@ func (g *Git) RepoName() (string, error) {
 		return "", fmt.Errorf("unexpected length of %v: expected %v, got %v", out, expected, got)
 	}
 	return out[0], nil
+}
+
+// Reset resets the current branch to the target, discarding any
+// uncommitted changes.
+func (g *Git) Reset(target string) error {
+	return g.run("reset", "--hard", target)
 }
 
 // Stash attempts to stash any unsaved changes. It returns true if anything was

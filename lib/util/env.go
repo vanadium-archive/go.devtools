@@ -34,6 +34,25 @@ type Config struct {
 	PollConfig map[string][]string
 }
 
+// LocalManifestPath returns a local path to the local manifest.
+func LocalManifestPath() (string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, ".local_manifest"), nil
+}
+
+// RemoteManifestPath returns a local path to the manifest file with
+// the given name.
+func RemoteManifestPath(name string) (string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, ".manifest", "v1", name+".xml"), nil
+}
+
 // Config returns the config for veyron tools.
 // TODO(jsimsa): make it possible to override the default config file path.
 func VeyronConfig() (*Config, error) {
