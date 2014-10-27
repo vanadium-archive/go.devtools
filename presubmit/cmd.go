@@ -67,7 +67,7 @@ func init() {
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", defaultTestScriptsBase, "The base path of all the test scripts.")
-	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "manifest/v1/default", "Name of the project manifest.")
+	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 }
 
