@@ -72,7 +72,10 @@ type testInfoMap map[string]*testInfo
 func runTest(command *cmdline.Command, args []string) error {
 	run := runutil.New(verboseFlag, command.Stdout())
 	// Basic sanity checks.
-	manifestFilePath := filepath.Join(veyronRoot, ".manifest", manifestFlag+".xml")
+	manifestFilePath, err := util.RemoteManifestPath(manifestFlag)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(configFileFlag); err != nil {
 		return fmt.Errorf("Stat(%q) failed: %v", configFileFlag, err)
 	}
