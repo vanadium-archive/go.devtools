@@ -46,7 +46,7 @@ var binPackages = []string{
 	"veyron.io/playground/builder",
 	"veyron.io/veyron/veyron/runtimes/google/rt/sectransition",
 	"veyron.io/veyron/veyron/security/agent/agentd",
-	"veyron.io/veyron/veyron/security/agent/test",
+	"veyron.io/veyron/veyron/security/agent/pingpong",
 	"veyron.io/veyron/veyron/services/mgmt/application/applicationd",
 	"veyron.io/veyron/veyron/services/mgmt/binary/binaryd",
 	"veyron.io/veyron/veyron/services/mgmt/build/buildd",
@@ -64,12 +64,6 @@ var binPackages = []string{
 	"veyron.io/veyron/veyron/tools/naming/simulator",
 	"veyron.io/veyron/veyron2/vdl/vdl",
 	"veyron.io/wspr/veyron/services/wsprd",
-}
-
-// A map from package name to its custom output name.
-var binOutput = map[string]string{
-	// TODO(jingjin): rename this package to "pingpong".
-	"veyron.io/veyron/veyron/security/agent/test": "pingpong",
 }
 
 func init() {
@@ -182,11 +176,7 @@ func buildBinaries(command *cmdline.Command) error {
 func buildWorker(command *cmdline.Command, env map[string]string, jobs <-chan string, results chan<- error) {
 	for pkg := range jobs {
 		run := runutil.New(verboseFlag, command.Stdout())
-		// Get output name from package name and binOutput map.
 		output := path.Base(pkg)
-		if o, ok := binOutput[pkg]; ok {
-			output = o
-		}
 		// Build.
 		var stdout, stderr bytes.Buffer
 		buildArgs := []string{"go", "build", "-o", filepath.Join(binDirFlag, output), pkg}
