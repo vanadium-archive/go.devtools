@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -150,6 +151,18 @@ func runTest(command *cmdline.Command, args []string) error {
 		}
 	}
 	defer cleanupFn()
+
+	// Trap sigint signal when the program is aborted on Jenkins.
+	go func() {
+		sigchan := make(chan os.Signal, 1)
+		signal.Notify(sigchan, os.Interrupt)
+		<-sigchan
+		cleanupFn()
+		// Linux convention is to use 128+signal as the exit code.
+		// We use exit(0) here to let Jenkins properly mark a run as "Aborted"
+		// instead of "Failed".
+		os.Exit(0)
+	}()
 
 	// Prepare presubmit test branch.
 	if err := preparePresubmitTestBranch(command, run, dir, cl); err != nil {
