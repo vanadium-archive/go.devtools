@@ -7,11 +7,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"tools/lib/cmdline"
@@ -222,6 +224,28 @@ func runTestScripts(command *cmdline.Command) error {
 		go testWorker(command, env, jobs, results)
 	}
 
+	// Output unfinished tests when the program is terminated.
+	unfinishedTests := map[string]struct{}{}
+	for _, testScript := range testScripts {
+		unfinishedTests[testName(testScript)] = struct{}{}
+	}
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		s := (<-sigchan).(syscall.Signal)
+		tests := []string{}
+		for test := range unfinishedTests {
+			tests = append(tests, test)
+		}
+		sort.Strings(tests)
+		fmt.Fprintf(command.Stdout(), "\n\n")
+		printf(command.Stdout(), "Unfinished tests:\n")
+		for _, test := range tests {
+			printf(command.Stdout(), "%s\n", test)
+		}
+		os.Exit(128 + int(s))
+	}()
+
 	// Send test scripts to free workers in the pool.
 	for _, testScript := range testScripts {
 		jobs <- testScript
@@ -237,6 +261,7 @@ func runTestScripts(command *cmdline.Command) error {
 		if !result.passed {
 			failedTests = append(failedTests, result)
 		}
+		delete(unfinishedTests, result.testName)
 	}
 	sort.Sort(failedTests)
 	sort.Sort(allTests)
@@ -268,15 +293,14 @@ func runTestScripts(command *cmdline.Command) error {
 // testWorker waits for test script on "jobs" channel and run it.
 func testWorker(command *cmdline.Command, env map[string]string, jobs <-chan string, results chan<- testResult) {
 	for testScript := range jobs {
-		testName := strings.TrimPrefix(testScript, veyronRoot+string(os.PathSeparator))
-		testName = strings.TrimSuffix(testName, string(os.PathSeparator)+"test.sh")
+		name := testName(testScript)
 		run := runutil.New(verboseFlag, command.Stdout())
 		var stdout, stderr bytes.Buffer
 		startTime := time.Now()
 		if err := run.CommandWithVerbosity(verboseFlag, &stdout, &stderr, env, testScript); err != nil {
-			printf(command.Stdout(), "FAIL: %s\n", testName)
+			printf(command.Stdout(), "FAIL: %s\n", name)
 			results <- testResult{
-				testName: testName,
+				testName: name,
 				passed:   false,
 				err:      err,
 				stdout:   stdout.String(),
@@ -284,9 +308,9 @@ func testWorker(command *cmdline.Command, env map[string]string, jobs <-chan str
 				duration: int(time.Now().Sub(startTime).Seconds()),
 			}
 		} else {
-			printf(command.Stdout(), "PASS: %s\n", testName)
+			printf(command.Stdout(), "PASS: %s\n", name)
 			results <- testResult{
-				testName: testName,
+				testName: name,
 				passed:   true,
 				duration: int(time.Now().Sub(startTime).Seconds()),
 			}
@@ -387,6 +411,12 @@ func outputXUnitReport(allResults testResults, failedResults testResults) (strin
 	}
 
 	return strOutput, nil
+}
+
+// testName trims VEYRON_ROOT and test.sh from the given test script path.
+func testName(testScript string) string {
+	testName := strings.TrimPrefix(testScript, veyronRoot+string(os.PathSeparator))
+	return strings.TrimSuffix(testName, string(os.PathSeparator)+"test.sh")
 }
 
 // printf outputs the given message prefixed by outputPrefix.
