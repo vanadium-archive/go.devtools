@@ -57,6 +57,7 @@ var cmdRoot = &cmdline.Command{
 		cmdGo,
 		cmdGoExt,
 		cmdXGo,
+		cmdIntegrationTest,
 		cmdVersion,
 	},
 }
