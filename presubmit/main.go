@@ -1,7 +1,6 @@
 // The following enables go generate to generate the doc.go file.
 //
-//go:generate ./gendoc.sh
-//
+//go:generate go run ../lib/cmdline/testdata/gendoc.go .
 
 package main
 

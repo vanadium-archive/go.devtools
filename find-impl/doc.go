@@ -32,15 +32,17 @@ can be implemented using the type found in the first pass. This
 appears to be fast enough for our immediate needs.
 
 Usage:
-   veyron [flags] <command>
-   veyron [flags]
+   find-impl [flags] <command>
+   find-impl [flags] <pkg ...>
 
-The veyron commands are:
+The find-impl commands are:
    version     Print version
    help        Display help for commands or topics
-Run "veyron help [command]" for command usage.
+Run "find-impl help [command]" for command usage.
 
-The veyron flags are:
+<pkg ...> a list of packages to search
+
+The find-impl flags are:
    -debug=false: Toggle debugging.
    -interface=: Name of the interface.
    -only-files=false: Show only files.
@@ -48,21 +50,21 @@ The veyron flags are:
    -regexp=: Look for implementations in packages matching this filter.
    -v=false: Print verbose output.
 
-Veyron Version
+Find-Impl Version
 
 Print version of the veyron tool.
 
 Usage:
-   veyron version
+   find-impl version
 
-Veyron Help
+Find-Impl Help
 
 Help with no args displays the usage of the parent command.
 Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   veyron help [flags] [command/topic ...]
+   find-impl help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 

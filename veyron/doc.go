@@ -8,6 +8,7 @@ Usage:
    veyron [flags] <command>
 
 The veyron commands are:
+   build       Tool for managing veyron builds
    contributors List veyron project contributors
    profile     Manage veyron profiles
    project     Manage veyron projects
@@ -17,6 +18,7 @@ The veyron commands are:
    go          Execute the go tool using the veyron environment
    goext       Veyron extensions of the go tool
    xgo         Execute the go tool using the veyron environment and cross-compilation
+   integration-test Manage integration tests
    version     Print version
    help        Display help for commands or topics
 Run "veyron help [command]" for command usage.
@@ -27,6 +29,70 @@ The veyron flags are:
 The global flags are:
    -host-go=go: Go command for the host platform.
    -target-go=go: Go command for the target platform.
+
+Veyron Build
+
+The build command can be used to manage veyron builds. In particular,
+it can be used to list known builds and generate new builds.
+
+The builds are represented as manifests and are revisioned using the
+manifest repository located in $VEYRON_ROOT/.manifest. Each build is
+identified with a tag, which the $VEYRON_ROOT/tools/conf/veyron
+configuration file associates with a set of jenkins projects that
+determine the stability of the build.
+
+Internally, build manifests are currently organized as follows:
+
+ <manifest-dir>/
+   builds/
+     <tag1>/
+       <tag1-build1>
+       <tag1-build2>
+       ...
+     <tag2>/
+       <tag2-build1>
+       <tag2-build2>
+       ...
+     <tag3>/
+     ...
+   <tag1> # a symlink to a one of <tag1-build*>
+   <tag2> # a symlink to a one of <tag2-build*>
+   ...
+
+NOTE: Unlike the veyron tool commands, the above internal organization
+is not an API. It is an implementation and can change without notice.
+
+Usage:
+   veyron build <command>
+
+The build commands are:
+   generate    Generate a new veyron build
+   list        List existing veyron builds
+
+Veyron Build Generate
+
+Given a build tag, the "buildbot generate" command checks whether all
+tests associated with the tag in the $VEYRON_ROOT/tools/conf/buildbot
+config file pass. If so, the tool creates a new manifest that captures
+the current state of the veyron universe repositories, commits this
+manifest to the manifest repository, and updates the build "symlink"
+to point to the latest build.
+
+Usage:
+   veyron build generate <tag>
+
+<tag> is a build tag.
+
+Veyron Build List
+
+The "buildbot list" command lists existing veyron builds for the tags
+specified as command-line arguments. If no arguments are provided, the
+command lists builds for all known tags.
+
+Usage:
+   veyron build list <tag ...>
+
+<tag ...> is a list of build tags.
 
 Veyron Contributors
 
@@ -104,17 +170,57 @@ Usage:
 
 Veyron Update
 
-Updates all veyron tools to their latest version, installing them
-into $VEYRON_ROOT/bin, and then updates all veyron projects. The
-sequence in which the individual updates happen guarantees that we
-end up with a consistent set of tools and source code.
+Updates all veyron projects, builds the latest version of veyron
+tools, and installs the resulting binaries into $VEYRON_ROOT/bin. The
+sequence in which the individual updates happen guarantees that we end
+up with a consistent set of tools and source code.
+
+The set of project and tools to update is describe by a
+manifest. Veyron manifests are revisioned and stored in a "manifest"
+repository, that is available locally in $VEYRON_ROOT/.manifest. The
+manifest uses the following XML schema:
+
+ <manifest>
+   <imports>
+     <import name="default"/>
+     ...
+   </imports>
+   <projects>
+     <project name="https://veyron.googlesource.com/veyrong.go"
+              path="veyron/go/src/veyron.io/veyron"
+              protocol="git"
+              revision="HEAD"/>
+     ...
+   </projects>
+   <tools>
+     <tool name="veyron" package="tools/veyron"/>
+     ...
+   </tools>
+ </manifest>
+
+The <import> element can be used to share settings across multiple
+manifests. Import names are interpreted relative to the
+$VEYRON_ROOT/.manifest/v1 directory. Import cycles are not allowed and
+if a project or a tool is specified multiple times, the last
+specification takes effect. In particular, the elements <project
+name="foo" exclude="true"/> and <tool name="bar" exclude="true"/> can
+be used to exclude previously included projects and tools.
+
+The tool identifies which manifest to use using the following
+algorithm. If the $VEYRON_ROOT/.local_manifest file exists, then it is
+used. Otherwise, the $VEYRON_ROOT/.manifest/v1/<manifest>.xml file is
+used, which <manifest> is the value of the -manifest command-line
+flag, which defaults to "default".
+
+NOTE: Unlike the veyron tool commands, the above manifest file format
+is not an API. It is an implementation and can change without notice.
 
 Usage:
    veyron update [flags]
 
 The update flags are:
    -gc=false: Garbage collect obsolete repositories.
-   -manifest=manifest/v1/default: Name of the project manifest.
+   -manifest=default: Name of the project manifest.
 
 Veyron Env
 
@@ -213,6 +319,23 @@ Usage:
 
 The xgo flags are:
    -novdl=false: Disable automatic generation of vdl files.
+
+Veyron Integration-Test
+
+Manage integration tests.
+
+Usage:
+   veyron integration-test <command>
+
+The integration-test commands are:
+   run         Run integration tests
+
+Veyron Integration-Test Run
+
+Run integration tests.
+
+Usage:
+   veyron integration-test run
 
 Veyron Version
 

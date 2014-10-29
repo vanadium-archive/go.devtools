@@ -39,7 +39,7 @@ func root() *cmdline.Command {
 // cmdRoot represents the root of the find-impl tool.
 var cmdRoot = &cmdline.Command{
 	Run:   runRoot,
-	Name:  "veyron",
+	Name:  "find-impl",
 	Short: "Tool for finding interface implementations",
 	Long: `
 A simple tool to find implementations of a specified interface.
