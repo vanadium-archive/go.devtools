@@ -223,6 +223,7 @@ func TestExtractGoPackagesOrFiles(t *testing.T) {
 // TestComputeGoDeps tests the internal function that calls "go list" to get
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
+	ctx := util.NewContext(true, os.Stdout, os.Stderr)
 	hostEnv, err := util.VeyronEnvironment(util.HostPlatform())
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -239,7 +240,7 @@ func TestComputeGoDeps(t *testing.T) {
 		{[]string{"tools/veyron/..."}, []string{"tools/veyron", "fmt"}},
 	}
 	for _, test := range tests {
-		got, err := computeGoDeps(hostEnv, test.Pkgs)
+		got, err := computeGoDeps(ctx, hostEnv, test.Pkgs)
 		if err != nil {
 			t.Errorf("%v failed: %v", test.Pkgs, err)
 		}

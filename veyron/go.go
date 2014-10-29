@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,7 +38,8 @@ func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	return runGoForPlatform(util.HostPlatform(), command, args)
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	return runGoForPlatform(ctx, util.HostPlatform(), command, args)
 }
 
 // cmdXGo represents the 'xgo' command of the veyron tool.
@@ -76,18 +76,19 @@ func runXGo(command *cmdline.Command, args []string) error {
 	if len(args) < 2 {
 		return command.UsageErrorf("not enough arguments")
 	}
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
 	platform, err := util.ParsePlatform(args[0])
 	if err != nil {
 		return err
 	}
-	return runGoForPlatform(platform, command, args[1:])
+	return runGoForPlatform(ctx, platform, command, args[1:])
 }
 
-func runGoForPlatform(platform util.Platform, command *cmdline.Command, args []string) error {
+func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdline.Command, args []string) error {
 	// Generate vdl files, if necessary.
 	switch args[0] {
 	case "build", "generate", "install", "run", "test":
-		if err := generateVDL(args); err != nil {
+		if err := generateVDL(ctx, args); err != nil {
 			return err
 		}
 	}
@@ -100,14 +101,10 @@ func runGoForPlatform(platform util.Platform, command *cmdline.Command, args []s
 	if err != nil {
 		return err
 	}
-	goCmd := exec.Command(bin, args...)
-	goCmd.Stdout = command.Stdout()
-	goCmd.Stderr = command.Stderr()
-	goCmd.Env = targetEnv.Slice()
-	return translateExitCode(goCmd.Run())
+	return translateExitCode(ctx.Run().Command(command.Stdout(), command.Stderr(), targetEnv.Map(), bin, args...))
 }
 
-func generateVDL(cmdArgs []string) error {
+func generateVDL(ctx *util.Context, cmdArgs []string) error {
 	if novdlFlag {
 		return nil
 	}
@@ -130,7 +127,7 @@ func generateVDL(cmdArgs []string) error {
 	// TODO(toddw): Change the vdl tool to return vdl packages given the full Go
 	// dependencies, after vdl config files are implemented.
 	goPkgs, goFiles := extractGoPackagesOrFiles(cmdArgs[0], cmdArgs[1:])
-	goDeps, err := computeGoDeps(hostEnv, append(goPkgs, goFiles...))
+	goDeps, err := computeGoDeps(ctx, hostEnv, append(goPkgs, goFiles...))
 	if err != nil {
 		return err
 	}
@@ -140,10 +137,9 @@ func generateVDL(cmdArgs []string) error {
 	if err != nil {
 		return err
 	}
-	vdlGenCmd := exec.Command(vdlBin, vdlArgs...)
-	vdlGenCmd.Env = hostEnv.Slice()
-	if out, err := vdlGenCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to generate vdl: %v\n%v\n%s", err, strings.Join(vdlGenCmd.Args, " "), out)
+	var out bytes.Buffer
+	if err := ctx.Run().Command(&out, &out, hostEnv.Map(), vdlBin, vdlArgs...); err != nil {
+		return fmt.Errorf("failed to generate vdl: %v\n%s", err, out.String())
 	}
 	return nil
 }
@@ -260,34 +256,25 @@ func makeStringSet(values []string) map[string]bool {
 // string that dumps the specified pkgs and all deps as space / newline
 // separated tokens.  The pkgs may be in any format recognized by "go list"; dir
 // paths, import paths, or go files.
-func computeGoDeps(env *envutil.Snapshot, pkgs []string) ([]string, error) {
-	var stderr bytes.Buffer
+func computeGoDeps(ctx *util.Context, env *envutil.Snapshot, pkgs []string) ([]string, error) {
 	goListArgs := []string{`list`, `-f`, `{{.ImportPath}} {{join .Deps " "}}`}
 	goListArgs = append(goListArgs, pkgs...)
-	goListCmd := exec.Command(hostGo, goListArgs...)
-	goListCmd.Stderr = &stderr
-	goListCmd.Env = env.Slice()
-	makeErr := func(phase string, err error) error {
-		return fmt.Errorf("failed to compute go deps (%s): %v\n%v\n%s", phase, err, strings.Join(goListCmd.Args, " "), stderr.String())
+	var stdout, stderr bytes.Buffer
+	// TODO(jsimsa): Avoid buffering all of the output in memory
+	// either by extending the runutil API to support piping of
+	// output, or by writing the output to a temporary file
+	// instead of an in-memory buffer.
+	if err := ctx.Run().Command(&stdout, &stderr, env.Map(), hostGo, goListArgs...); err != nil {
+		return nil, fmt.Errorf("failed to compute go deps: %v\n%s", err, stderr.String())
 	}
-	depsPipe, err := goListCmd.StdoutPipe()
-	if err != nil {
-		return nil, makeErr("stdout pipe", err)
-	}
-	if err := goListCmd.Start(); err != nil {
-		return nil, makeErr("start", err)
-	}
-	scanner := bufio.NewScanner(depsPipe)
+	scanner := bufio.NewScanner(&stdout)
 	scanner.Split(bufio.ScanWords)
 	depsMap := make(map[string]bool)
 	for scanner.Scan() {
 		depsMap[scanner.Text()] = true
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, makeErr("scan", err)
-	}
-	if err := goListCmd.Wait(); err != nil {
-		return nil, makeErr("wait", err)
+		return nil, fmt.Errorf("Scan() failed: %v", err)
 	}
 	var deps []string
 	for dep, _ := range depsMap {

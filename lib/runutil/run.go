@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -60,7 +61,16 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 	command.Stderr = stderr
 	command.Env = envutil.ToSlice(env)
 	if verbose {
-		r.printf(r.Stdout, strings.Join(command.Args, " "))
+		args := []string{}
+		for _, arg := range command.Args {
+			// Quote any arguments that contain '"', ''', or ' '.
+			if strings.IndexAny(arg, "\"' ") != -1 {
+				args = append(args, strconv.Quote(arg))
+			} else {
+				args = append(args, arg)
+			}
+		}
+		r.printf(r.Stdout, strings.Join(args, " "))
 	}
 
 	if timeout == 0 {
