@@ -17,7 +17,7 @@ Run "presubmit help [command]" for command usage.
 
 The presubmit flags are:
    -host=: The Jenkins host. Presubmit will not send any CLs to an empty host.
-   -netrc=/var/veyron/.netrc: The path to the .netrc file that stores Gerrit's credentials.
+   -netrc=$HOME/.netrc: The path to the .netrc file that stores Gerrit's credentials.
    -token=: The Jenkins API token.
    -url=https://veyron-review.googlesource.com: The base url of the gerrit instance.
    -v=false: Print verbose output.
@@ -33,7 +33,7 @@ Usage:
    presubmit query [flags]
 
 The query flags are:
-   -log_file=/var/veyron/tmp/presubmit_log: The file that stores the refs from the previous Gerrit query.
+   -log_file=$HOME/tmp/presubmit_log: The file that stores the refs from the previous Gerrit query.
    -project=veyron-presubmit-test: The name of the Jenkins project to add presubmit-test builds to.
    -query=(status:open -project:experimental): The string used to query Gerrit for open CLs.
 
@@ -59,10 +59,10 @@ Usage:
 The test flags are:
    -build_number=-1: The number of the Jenkins build.
    -conf=$VEYRON_ROOT/tools/conf/presubmit: The config file for presubmit tests.
-   -manifest=manifest/v1/default: Name of the project manifest.
+   -manifest=default: Name of the project manifest.
    -ref=: The ref where the review is posted.
    -repo=: The URL of the repository containing the CL pointed by the ref.
-   -tests_base_path=$VEYRON_ROOT/scripts/jenkins: The base path of all the test scripts.
+   -tests_base_path=$VEYRON_ROOT/scripts/jenkins/: The base path of all the test scripts.
 
 Presubmit Version
 
