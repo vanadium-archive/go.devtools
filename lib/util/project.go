@@ -708,7 +708,13 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 		}
 		// Use HEAD as the default revision.
 		if project.Revision == "" {
-			project.Revision = "HEAD"
+			switch project.Protocol {
+			case "git":
+				project.Revision = "HEAD"
+			case "hg":
+				project.Revision = "tip"
+			default:
+			}
 		}
 		projects[project.Name] = project
 	}
