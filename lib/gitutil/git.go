@@ -51,7 +51,7 @@ func (g *Git) Add(fileName string) error {
 	return g.run("add", fileName)
 }
 
-// AddRemote adds a new remote repository with the given name and path.
+// AddRemote adds a new remote with the given name and path.
 func (g *Git) AddRemote(name, path string) error {
 	return g.run("remote", "add", name, path)
 }
@@ -173,8 +173,8 @@ func (g *Git) CountCommits(branch, base string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if expected, got := 1, len(out); expected != got {
-		return 0, err
+	if got, want := len(out), 1; got != want {
+		return 0, fmt.Errorf("unexpected length of %v: got %v, want %v", out, got, want)
 	}
 	count, err := strconv.Atoi(out[0])
 	if err != nil {
@@ -206,13 +206,13 @@ func (g *Git) CurrentBranchName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if expected, got := 1, len(out); expected != got {
-		return "", fmt.Errorf("unexpected length of %v: expected %v, got %v", out, expected, got)
+	if got, want := len(out), 1; got != want {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", out, got, want)
 	}
 	return out[0], nil
 }
 
-// Fetch fetches refs and tags from the remote repository.
+// Fetch fetches refs and tags from the given remote.
 func (g *Git) Fetch(remote, branch string) error {
 	return g.run("fetch", remote, branch)
 }
@@ -299,7 +299,10 @@ func (g *Git) LatestCommitID() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.Join(out, "\n"), nil
+	if got, want := len(out), 1; got != want {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", out, got, want)
+	}
+	return out[0], nil
 }
 
 // LatestCommitMessage returns the latest commit message on the current branch.
@@ -358,7 +361,7 @@ func (g *Git) ModifiedFiles(baseBranch, currentBranch string) ([]string, error) 
 	return out, nil
 }
 
-// Pull pulls the given branch from the given remote repository.
+// Pull pulls the given branch from the given remote.
 func (g *Git) Pull(remote, branch string) error {
 	if out, err := g.runOutput("pull", remote, branch); err != nil {
 		g.run("reset", "--merge")
@@ -377,6 +380,11 @@ func (g *Git) Pull(remote, branch string) error {
 		command.Run()
 	}
 	return nil
+}
+
+// Push pushes the given branch to the given remote.
+func (g *Git) Push(remote, branch string) error {
+	return g.run("push", remote, branch)
 }
 
 // RebaseAbort aborts an in-progress rebase operation.
@@ -400,8 +408,8 @@ func (g *Git) RepoName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if expected, got := 1, len(out); expected != got {
-		return "", fmt.Errorf("unexpected length of %v: expected %v, got %v", out, expected, got)
+	if got, want := len(out), 1; got != want {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", out, got, want)
 	}
 	return out[0], nil
 }
@@ -474,16 +482,16 @@ func (g *Git) Version() (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	if expected, got := 1, len(out); expected != got {
-		return 0, 0, fmt.Errorf("unexpected number of lines in %v: got %v, expected %v", out, got, expected)
+	if got, want := len(out), 1; got != want {
+		return 0, 0, fmt.Errorf("unexpected length of %v: got %v, want %v", out, got, want)
 	}
 	words := strings.Split(out[0], " ")
-	if expected, got := 3, len(words); expected > got {
-		return 0, 0, fmt.Errorf("unexpected number of tokens in %v: got %v, expected at least %v", words, got, expected)
+	if got, want := len(words), 3; got < want {
+		return 0, 0, fmt.Errorf("unexpected length of %v: got %v, want at least %v", words, got, want)
 	}
 	version := strings.Split(words[2], ".")
-	if expected, got := 3, len(version); expected > got {
-		return 0, 0, fmt.Errorf("unexpected number of tokens in %v: got %v, expected at least %v", version, got, expected)
+	if got, want := len(version), 3; got < want {
+		return 0, 0, fmt.Errorf("unexpected length of %v: got %v, want at least %v", version, got, want)
 	}
 	major, err := strconv.Atoi(version[0])
 	if err != nil {

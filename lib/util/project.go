@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"tools/lib/cmdline"
 	"tools/lib/gitutil"
@@ -99,6 +100,135 @@ func (e UnsupportedProtocolErr) Error() string {
 // Update represents an update of veyron projects as a map from
 // project names to a collections of commits.
 type Update map[string][]CL
+
+// CreateBuildManifest creates a manifest that encodes the current
+// state of all projects and commits this manifest to the manifest
+// repository, associating it with the given build tag.
+func CreateBuildManifest(ctx *Context, tag string) error {
+	// Create an in-memory representation of the build manifest.
+	manifest, err := snapshotLocalProjects(ctx)
+	if err != nil {
+		return err
+	}
+
+	// createFn either atomically succeeds writing the manifest to
+	// the disk and pushing it to the remote repository, or fails
+	// and has no effect.
+	createFn := func() error {
+		revision, err := ctx.Git().LatestCommitID()
+		if err != nil {
+			return err
+		}
+		if err := createBuildManifest(ctx, manifest, tag); err != nil {
+			// Clean up on all errors
+			ctx.Git().Reset(revision)
+			ctx.Git().RemoveUntrackedFiles()
+			return err
+		}
+		return nil
+	}
+
+	// Execute the above function in the local manifest directory.
+	root, err := VeyronRoot()
+	if err != nil {
+		return err
+	}
+	project := Project{
+		Path:     filepath.Join(root, ".manifest"),
+		Protocol: "git",
+		Revision: "HEAD",
+	}
+	if err := applyToLocalMaster(ctx, project, createFn); err != nil {
+		return err
+	}
+	return nil
+}
+
+// createBuildManifest is creates a build manifest in the local
+// manifest repository and pushes it to the remote manifest
+// repository.
+func createBuildManifest(ctx *Context, manifest *Manifest, tag string) error {
+	manifestDir, err := RemoteManifestDir()
+	if err != nil {
+		return err
+	}
+	manifestFile := filepath.Join(manifestDir, "builds", tag, time.Now().Format(time.RFC3339))
+	if err := writeBuildManifest(ctx, manifest, tag, manifestFile); err != nil {
+		return err
+	}
+	if err := commitBuildManifest(ctx, tag, manifestFile); err != nil {
+		return err
+	}
+	return nil
+}
+
+// commitBuildManifest commits the changes in the local manifest directory
+// to the remote manifest repository.
+func commitBuildManifest(ctx *Context, tag, manifestFile string) error {
+	root, err := VeyronRoot()
+	if err != nil {
+		return err
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(cwd)
+	if err := ctx.Run().Function(runutil.Chdir(filepath.Join(root, ".manifest"))); err != nil {
+		return err
+	}
+	if err := ctx.Git().Add(manifestFile); err != nil {
+		return err
+	}
+	manifestDir, err := RemoteManifestDir()
+	if err != nil {
+		return err
+	}
+	if err := ctx.Git().Add(filepath.Join(manifestDir, tag)); err != nil {
+		return err
+	}
+	name := strings.TrimPrefix(manifestFile, manifestDir)
+	if err := ctx.Git().CommitWithMessage(fmt.Sprintf("adding build manifest %q", name)); err != nil {
+		return err
+	}
+	if err := ctx.Git().Push("origin", "master"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// writeManifest writes the given build manifest to the disk and updates the
+// build tag symlink to point to it.
+func writeBuildManifest(ctx *Context, manifest *Manifest, tag, manifestFile string) error {
+	perm := os.FileMode(0755)
+	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(manifestFile), perm)); err != nil {
+		return err
+	}
+	data, err := xml.Marshal(manifest)
+	if err != nil {
+		return err
+	}
+	perm = os.FileMode(0644)
+	if err := ioutil.WriteFile(manifestFile, data, perm); err != nil {
+		return fmt.Errorf("WriteFile(%v, %v) failed: %v", manifestFile, err, perm)
+	}
+	manifestDir, err := RemoteManifestDir()
+	if err != nil {
+		return err
+	}
+	symlink := filepath.Join(manifestDir, tag)
+	newSymlink := symlink + ".new"
+	if err := ctx.Run().Function(runutil.RemoveAll(newSymlink)); err != nil {
+		return err
+	}
+	if err := ctx.Run().Function(runutil.Symlink(manifestFile, newSymlink)); err != nil {
+		return err
+	}
+	if err := ctx.Run().Function(runutil.Rename(newSymlink, symlink)); err != nil {
+		return err
+	}
+	return nil
+}
 
 // ListProjects lists the existing local projects to stdout.
 func ListProjects(ctx *Context, listBranches bool) error {
@@ -243,13 +373,13 @@ func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
 	}
 	// Read either the local manifest, if it exists, or the remote
 	// manifest specified by the given name.
-	path, err := LocalManifestPath()
+	path, err := LocalManifestFile()
 	if err != nil {
 		return nil, nil, err
 	}
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			path, err = RemoteManifestPath(manifest)
+			path, err = RemoteManifestFile(manifest)
 		} else {
 			return nil, nil, fmt.Errorf("Stat(%v) failed: %v", err)
 		}
@@ -548,7 +678,7 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 		if _, ok := stack[manifest.Name]; ok {
 			return fmt.Errorf("import cycle encountered")
 		}
-		path, err := RemoteManifestPath(manifest.Name)
+		path, err := RemoteManifestFile(manifest.Name)
 		if err != nil {
 			return err
 		}
@@ -627,6 +757,45 @@ func reportNonMaster(ctx *Context, project Project) error {
 	default:
 		return UnsupportedProtocolErr(project.Protocol)
 	}
+}
+
+// snapshotLocalProjects returns an in-memory representation of the
+// current state of all local projects
+func snapshotLocalProjects(ctx *Context) (*Manifest, error) {
+	localProjects, err := LocalProjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	root, err := VeyronRoot()
+	if err != nil {
+		return nil, err
+	}
+	manifest := Manifest{}
+	for _, project := range localProjects {
+		revision := ""
+		revisionFn := func() error {
+			switch project.Protocol {
+			case "git":
+				gitRevision, err := ctx.Git().LatestCommitID()
+				if err != nil {
+					return err
+				}
+				revision = gitRevision
+				return nil
+			case "hg":
+				return nil
+			default:
+				return UnsupportedProtocolErr(project.Protocol)
+			}
+		}
+		if err := applyToLocalMaster(ctx, project, revisionFn); err != nil {
+			return nil, err
+		}
+		project.Revision = revision
+		project.Path = strings.TrimPrefix(project.Path, root)
+		manifest.Projects = append(manifest.Projects, project)
+	}
+	return &manifest, nil
 }
 
 // updateProjects updates all veyron projects.

@@ -62,7 +62,7 @@ func root() *cmdline.Command {
 	return cmdRoot
 }
 
-// cmmCleanup represent the 'cleanup' command of the git-veyron tool.
+// cmmCleanup represents the 'cleanup' command of the git-veyron tool.
 var cmdCleanup = &cmdline.Command{
 	Run:   runCleanup,
 	Name:  "cleanup",
@@ -147,7 +147,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	return cleanup(command, ctx.Git(), ctx.Run(), args)
 }
 
-// cmdReview represent the 'review' command of the git-veyron tool.
+// cmdReview represents the 'review' command of the git-veyron tool.
 var cmdReview = &cmdline.Command{
 	Run:   runReview,
 	Name:  "review",
@@ -553,7 +553,7 @@ func writeFileExecutable(filename, message string) error {
 	return ioutil.WriteFile(filename, []byte(message), 0777)
 }
 
-// cmdStatus represent the 'status' command of the git-veyron tool.
+// cmdStatus represents the 'status' command of the git-veyron tool.
 var cmdStatus = &cmdline.Command{
 	Run:   runStatus,
 	Name:  "status",
@@ -632,7 +632,7 @@ func runStatus(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// cmdVersion represent the 'version' command of the review tool.
+// cmdVersion represents the 'version' command of the git-veyron tool.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",

@@ -42,7 +42,7 @@ func checkReadme(t *testing.T, ctx *Context, project, message string) {
 
 func createLocalManifestCopy(t *testing.T, ctx *Context, rootDir, manifestDir string) {
 	// Load the remote manifest.
-	manifestFile := filepath.Join(manifestDir, "v1", "default.xml")
+	manifestFile := filepath.Join(manifestDir, "v1", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -101,7 +101,7 @@ func commitManifest(t *testing.T, ctx *Context, manifest *Manifest, manifestDir 
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	manifestFile, perm := filepath.Join(manifestDir, "v1", "default.xml"), os.FileMode(0644)
+	manifestFile, perm := filepath.Join(manifestDir, "v1", "default"), os.FileMode(0644)
 	if err := ioutil.WriteFile(manifestFile, data, perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", manifestFile, err, perm)
 	}
@@ -119,7 +119,7 @@ func commitManifest(t *testing.T, ctx *Context, manifest *Manifest, manifestDir 
 }
 
 func deleteProject(t *testing.T, ctx *Context, manifestDir, project string) {
-	manifestFile := filepath.Join(manifestDir, "v1", "default.xml")
+	manifestFile := filepath.Join(manifestDir, "v1", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -142,20 +142,13 @@ func holdProjectBack(t *testing.T, ctx *Context, manifestDir, project string) {
 	if err := ctx.Run().Function(runutil.Chdir(project)); err != nil {
 		t.Fatalf("%v", err)
 	}
-	revisions, err := ctx.Git().Log("HEAD", "HEAD^", "%H")
+	revision, err := ctx.Git().LatestCommitID()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if got, want := len(revisions), 1; got != want {
-		t.Fatalf("unexpected length of %v: got %v, want %v", revisions, got, want)
-	}
-	if got, want := len(revisions[0]), 1; got != want {
-		t.Fatalf("unexpected length of %v: got %v, want %v", revisions[0], got, want)
-	}
-	revision := revisions[0][0]
 
 	// Fix the revision in the manifest file.
-	manifestFile := filepath.Join(manifestDir, "v1", "default.xml")
+	manifestFile := filepath.Join(manifestDir, "v1", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -195,7 +188,7 @@ func localProjectName(i int) string {
 }
 
 func moveProject(t *testing.T, ctx *Context, manifestDir, project, dst string) {
-	manifestFile := filepath.Join(manifestDir, "v1", "default.xml")
+	manifestFile := filepath.Join(manifestDir, "v1", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -266,11 +259,10 @@ func writeReadme(t *testing.T, ctx *Context, projectDir, message string) {
 // TestUpdateUniverse is a comprehensive test of the "veyron update"
 // logic that handles projects.
 //
-// TODO(jsimsa): Add tests for the logic that imports manifests and
-// updates tools.
+// TODO(jsimsa): Add tests for the logic that updates tools.
 func TestUpdateUniverse(t *testing.T) {
 	// Setup an instance of veyron universe, creating the remote
-	// repositories for the manifest and two projects under the
+	// repositories for the manifest and projects under the
 	// "remote" directory, which is ignored from the consideration
 	// of LocalProjects().
 	ctx := NewContext(true, os.Stdout, os.Stderr)
@@ -425,5 +417,87 @@ func TestUpdateUniverse(t *testing.T) {
 	}
 	for i, _ := range remoteProjects {
 		checkDeleteFn(i, "revision 3")
+	}
+}
+
+// TestCreateBuildManifest checks the logic that creates build manifests.
+func TestCreateBuildManifest(t *testing.T) {
+	// Setup an instance of veyron universe, creating the remote
+	// repositories for the manifest and projects under the
+	// "remote" directory, which is ignored from the consideration
+	// of LocalProjects().
+	ctx := NewContext(true, os.Stdout, os.Stderr)
+	dir, prefix := "", ""
+	rootDir, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+	}
+	defer os.RemoveAll(rootDir)
+	remoteDir := filepath.Join(rootDir, "remote")
+	localManifest := setupNewProject(t, ctx, rootDir, ".manifest")
+	remoteManifest := setupNewProject(t, ctx, remoteDir, "test-remote-manifest")
+	addRemote(t, ctx, localManifest, "origin", remoteManifest)
+	numProjects, remoteProjects := 2, []string{}
+	for i := 0; i < numProjects; i++ {
+		remoteProject := setupNewProject(t, ctx, remoteDir, remoteProjectName(i))
+		remoteProjects = append(remoteProjects, remoteProject)
+	}
+	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
+	ignoreDirs(t, rootDir, []string{"remote"})
+	oldRoot := os.Getenv("VEYRON_ROOT")
+	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("VEYRON_ROOT", oldRoot)
+
+	// Create initial commits in the remote projects and use
+	// UpdateUniverse() to mirror them locally.
+	for _, remoteProject := range remoteProjects {
+		writeReadme(t, ctx, remoteProject, "revision 1")
+	}
+	if err := UpdateUniverse(ctx, "default", true); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	// Change the branch of the remote manifest repository away
+	// from the "master" branch, so that we can push changes to it
+	// from the local manifest repository in the course of
+	// CreateBuildManifest().
+	if err := ctx.Run().Function(runutil.Chdir(remoteManifest)); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := ctx.Git().CreateAndCheckoutBranch("non-master"); err != nil {
+		t.Fatalf("%v", err)
+
+	}
+
+	// Create a build manifest using the current state of the
+	// local project repositories and push it to the remote
+	// manifest repository.
+	if err := CreateBuildManifest(ctx, "test-build"); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	// Remove the local project repositories.
+	for i, _ := range remoteProjects {
+		localProject := filepath.Join(rootDir, localProjectName(i))
+		if err := ctx.Run().Function(runutil.RemoveAll(localProject)); err != nil {
+			t.Fatalf("%v", err)
+		}
+	}
+
+	// Add more commits to the remote project repositories, and
+	// check that invoking UpdateUniverse() using the build
+	// manifest we just creates restores the local project
+	// repositories to the state just before they were deleted.
+	for _, remoteProject := range remoteProjects {
+		writeReadme(t, ctx, remoteProject, "revision 2")
+	}
+	if err := UpdateUniverse(ctx, "test-build", true); err != nil {
+		t.Fatalf("%v", err)
+	}
+	for i, _ := range remoteProjects {
+		localProject := filepath.Join(rootDir, localProjectName(i))
+		checkReadme(t, ctx, localProject, "revision 1")
 	}
 }

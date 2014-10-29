@@ -74,7 +74,7 @@ type testInfoMap map[string]*testInfo
 func runTest(command *cmdline.Command, args []string) error {
 	run := runutil.New(verboseFlag, command.Stdout())
 	// Basic sanity checks.
-	manifestFilePath, err := util.RemoteManifestPath(manifestFlag)
+	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
 	if err != nil {
 		return err
 	}

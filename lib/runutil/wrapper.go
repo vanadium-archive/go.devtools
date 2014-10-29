@@ -28,3 +28,9 @@ func RemoveAll(dir string) (func() error, string) {
 func Rename(src, dst string) (func() error, string) {
 	return func() error { return os.Rename(src, dst) }, fmt.Sprintf("mv %v %v", src, dst)
 }
+
+// Symlink returns a closure for os.Symlink() that can be passed to the
+// Function() method.
+func Symlink(src, dst string) (func() error, string) {
+	return func() error { return os.Symlink(src, dst) }, fmt.Sprintf("ln -s %v %v", src, dst)
+}

@@ -19,23 +19,26 @@ const (
 	rootEnv = "VEYRON_ROOT"
 )
 
-// Config holds configuration for various veyron tools.
+// Config holds configuration for the veyron tool.
+//
+// TODO(jsimsa): Remove "GoRepos" from conf/veyron config file once
+// everyone has update past the CL that introduces this TODO.
 type Config struct {
 	// GoRepos identifies top-level VEYRON_ROOT directories that
 	// host Go repositories.
-	GoRepos []string
-	// Tools maps tool names to package paths. This map is used
-	// by the self-update logic invoked by various tools to
-	// identify the package path of the tools' implementation.
-	Tools map[string]string
-	// PollConfig maps jenkins project names to sets of repos.
-	// Given a set of projects, "veyron project poll" will poll changes from the
-	// corresponding repos.
-	PollConfig map[string][]string
+	GoRepos []string `json:"go-repos"`
+	// PollMap maps jenkins project names to sets of repos. Given
+	// a set of projects, "veyron project poll" will poll changes
+	// from the corresponding repos.
+	PollMap map[string][]string `json:"poll-map"`
+	// TestMap maps build tag names to sets of jenkins projects
+	// that determine the stability of the build with the given
+	// tag.
+	TestMap map[string][]string `json:"test-map"`
 }
 
-// LocalManifestPath returns a local path to the local manifest.
-func LocalManifestPath() (string, error) {
+// LocalManifestFile returns the local path of the local manifest.
+func LocalManifestFile() (string, error) {
 	root, err := VeyronRoot()
 	if err != nil {
 		return "", err
@@ -43,18 +46,26 @@ func LocalManifestPath() (string, error) {
 	return filepath.Join(root, ".local_manifest"), nil
 }
 
-// RemoteManifestPath returns a local path to the manifest file with
-// the given name.
-func RemoteManifestPath(name string) (string, error) {
+// RemoteManifestDir returns the local path of the manifest directory.
+func RemoteManifestDir() (string, error) {
 	root, err := VeyronRoot()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, ".manifest", "v1", name+".xml"), nil
+	return filepath.Join(root, ".manifest", "v1"), nil
 }
 
-// Config returns the config for veyron tools.
-// TODO(jsimsa): make it possible to override the default config file path.
+// RemoteManifestFile returns the local path of the manifest file with
+// the given name.
+func RemoteManifestFile(name string) (string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, ".manifest", "v1", name), nil
+}
+
+// VeyronConfig returns the config for veyron tools.
 func VeyronConfig() (*Config, error) {
 	root, err := VeyronRoot()
 	if err != nil {
@@ -119,11 +130,13 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 	default:
 		return nil, UnsupportedPlatformErr{platform}
 	}
-	// If VEYRON_ENV_SETUP==none, revert all deltas to their original base value.
-	// We can't just skip the above logic or revert to the BaseMap completely,
-	// since we still need DeltaMap to tell us which variables we care about.
+	// If VEYRON_ENV_SETUP==none, revert all deltas to their
+	// original base value. We can't just skip the above logic or
+	// revert to the BaseMap completely, since we still need
+	// DeltaMap to tell us which variables we care about.
 	//
-	// TODO(toddw): Remove this logic when "veyron clone" is implemented.
+	// TODO(toddw): Remove this logic when Cos' old setup stops
+	// depending on it.
 	if env.Get("VEYRON_ENV_SETUP") == "none" {
 		for key := range env.DeltaMap() {
 			env.Set(key, env.BaseMap()[key])

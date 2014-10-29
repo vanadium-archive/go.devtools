@@ -57,9 +57,9 @@ func runProjectPoll(command *cmdline.Command, args []string) error {
 			return err
 		}
 		for _, arg := range args {
-			curProjects, ok := config.PollConfig[arg]
+			curProjects, ok := config.PollMap[arg]
 			if !ok {
-				return fmt.Errorf("failed to find the key %q in %#v", arg, config.PollConfig)
+				return fmt.Errorf("failed to find the key %q in %#v", arg, config.PollMap)
 			}
 			for _, project := range curProjects {
 				projectSet[project] = struct{}{}
@@ -106,23 +106,23 @@ manifest. Veyron manifests are revisioned and stored in a "manifest"
 repository, that is available locally in $VEYRON_ROOT/.manifest. The
 manifest uses the following XML schema:
 
-<manifest>
-  <imports>
-    <import name="default"/>
-    ...
-  </imports>
-  <projects>
-    <project name="https://veyron.googlesource.com/veyrong.go"
-             path="veyron/go/src/veyron.io/veyron"
-             protocol="git"
-             revision="HEAD"/>
-    ...
-  </projects>
-  <tools>
-    <tool name="veyron" package="tools/veyron"/>
-    ...
-  </tools>
-</manifest>
+ <manifest>
+   <imports>
+     <import name="default"/>
+     ...
+   </imports>
+   <projects>
+     <project name="https://veyron.googlesource.com/veyrong.go"
+              path="veyron/go/src/veyron.io/veyron"
+              protocol="git"
+              revision="HEAD"/>
+     ...
+   </projects>
+   <tools>
+     <tool name="veyron" package="tools/veyron"/>
+     ...
+   </tools>
+ </manifest>
 
 The <import> element can be used to share settings across multiple
 manifests. Import names are interpreted relative to the
@@ -137,6 +137,9 @@ algorithm. If the $VEYRON_ROOT/.local_manifest file exists, then it is
 used. Otherwise, the $VEYRON_ROOT/.manifest/v1/<manifest>.xml file is
 used, which <manifest> is the value of the -manifest command-line
 flag, which defaults to "default".
+
+NOTE: Unlike the veyron tool commands, the above manifest file format
+is not an API. It is an implementation and can change without notice.
 `,
 }
 
