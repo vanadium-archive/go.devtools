@@ -44,7 +44,6 @@ var binPackages = []string{
 	"veyron.io/apps/tunnel/tunneld",
 	"veyron.io/apps/tunnel/vsh",
 	"veyron.io/playground/builder",
-	"veyron.io/veyron/veyron/runtimes/google/rt/sectransition",
 	"veyron.io/veyron/veyron/security/agent/agentd",
 	"veyron.io/veyron/veyron/security/agent/pingpong",
 	"veyron.io/veyron/veyron/services/mgmt/application/applicationd",
@@ -161,12 +160,9 @@ func buildBinaries(command *cmdline.Command) error {
 	close(jobs)
 
 	// Gather results.
-	// We stop the program when there are any build errors.
+	// We simply ignore any build errors because they are likely caused by outdated packages.
 	for i := 0; i < numPkgs; i++ {
-		if err := <-results; err != nil {
-			close(results)
-			return err
-		}
+		<-results
 	}
 	close(results)
 	return nil
@@ -263,6 +259,9 @@ func runTestScripts(command *cmdline.Command) error {
 		return fmt.Errorf("WriteFile(%q, %q, %v) failed: %v", xunitReportFile, output, fileMode, err)
 	}
 
+	if len(failedTests) > 0 {
+		return fmt.Errorf("some tests failed: %v", failedTests)
+	}
 	return nil
 }
 
