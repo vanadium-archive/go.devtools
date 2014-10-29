@@ -103,17 +103,21 @@ func runContributors(command *cmdline.Command, args []string) error {
 		if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
 			return err
 		}
-		lines, err := listCommitters(ctx.Git())
-		if err != nil {
-			return err
-		}
-		for _, line := range lines {
-			tokens := strings.SplitN(line, "\t", 2)
-			n, err := strconv.Atoi(strings.TrimSpace(tokens[0]))
+		switch project.Protocol {
+		case "git":
+			lines, err := listCommitters(ctx.Git())
 			if err != nil {
-				return fmt.Errorf("Atoi(%v) failed: %v", tokens[0], err)
+				return err
 			}
-			contributors[strings.TrimSpace(tokens[1])] += n
+			for _, line := range lines {
+				tokens := strings.SplitN(line, "\t", 2)
+				n, err := strconv.Atoi(strings.TrimSpace(tokens[0]))
+				if err != nil {
+					return fmt.Errorf("Atoi(%v) failed: %v", tokens[0], err)
+				}
+				contributors[strings.TrimSpace(tokens[1])] += n
+			}
+		default:
 		}
 	}
 	names := []string{}
