@@ -321,7 +321,7 @@ func numWorkers(numJobs int) int {
 func outputXUnitReport(allResults testResults, failedResults testResults) (string, error) {
 	type failure struct {
 		Type    string `xml:"type,attr"`
-		Message string `xml:"error,attr"`
+		Message string `xml:"message,attr"`
 		Data    string `xml:",chardata"`
 	}
 	type testcase struct {
