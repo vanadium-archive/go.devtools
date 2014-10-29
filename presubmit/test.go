@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -155,7 +156,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	// Trap sigint signal when the program is aborted on Jenkins.
 	go func() {
 		sigchan := make(chan os.Signal, 1)
-		signal.Notify(sigchan, os.Interrupt)
+		signal.Notify(sigchan, syscall.SIGTERM)
 		<-sigchan
 		cleanupFn()
 		// Linux convention is to use 128+signal as the exit code.
