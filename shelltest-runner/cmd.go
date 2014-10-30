@@ -58,7 +58,6 @@ var binPackages = []string{
 	"veyron.io/veyron/veyron/tools/binary",
 	"veyron.io/veyron/veyron/tools/build",
 	"veyron.io/veyron/veyron/tools/debug",
-	"veyron.io/veyron/veyron/tools/identity",
 	"veyron.io/veyron/veyron/tools/mounttable",
 	"veyron.io/veyron/veyron/tools/principal",
 	"veyron.io/veyron/veyron/tools/profile",
