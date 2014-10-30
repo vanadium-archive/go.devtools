@@ -25,8 +25,11 @@ const (
 // everyone has update past the CL that introduces this TODO.
 type Config struct {
 	// GoRepos identifies top-level VEYRON_ROOT directories that
-	// host Go repositories.
+	// contain a Go workspace.
 	GoRepos []string `json:"go-repos"`
+	// VDLRepos identifies top-level VEYRON_ROOT directories that
+	// contain a VDL workspace.
+	VDLRepos []string `json:"vdl-repos"`
 	// PollMap maps jenkins project names to sets of repos. Given
 	// a set of projects, "veyron project poll" will poll changes
 	// from the corresponding repos.
@@ -224,7 +227,7 @@ func setVdlPath(env *envutil.Snapshot, root string, conf *Config) {
 	//
 	// TODO(toddw): This logic will change when we pull vdl into a
 	// separate repo.
-	for _, repo := range conf.GoRepos {
+	for _, repo := range conf.VDLRepos {
 		vdlpath = append(vdlpath, filepath.Join(root, repo, "go"))
 	}
 	env.SetTokens("VDLPATH", vdlpath, ":")
