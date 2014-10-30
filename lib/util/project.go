@@ -1052,6 +1052,14 @@ func runOperation(ctx *Context, op operation) error {
 			if err := ctx.Hg().Clone(op.project.Name, op.destination); err != nil {
 				return err
 			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			defer os.Chdir(cwd)
+			if err := ctx.Run().Function(runutil.Chdir(op.destination)); err != nil {
+				return err
+			}
 			if err := ctx.Hg().CheckoutRevision(op.project.Revision); err != nil {
 				return err
 			}
