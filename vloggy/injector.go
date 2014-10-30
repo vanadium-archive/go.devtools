@@ -8,9 +8,10 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
+
+	"tools/lib/util"
 
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/types"
@@ -18,8 +19,8 @@ import (
 )
 
 const (
-	// logPackageIdentifier is the identifier through which the log package
-	// is imported.
+	// logPackageIdentifier is the identifier through which the
+	// log package is imported.
 	logPackageIdentifier = "vlog"
 	// logPackageImportPath is the import path for the log package.
 	logPackageImportPath = "veyron.io/veyron/veyron2/vlog"
@@ -31,8 +32,8 @@ const (
 	nologComment = "nologcall"
 )
 
+// TODO(jsimsa): expand "..." in package names in command line
 func load(interfaces, implementations, tags []string) (prog *loader.Program, err error) {
-	// TODO: expand "..." in package names in command line
 	buildContext := build.Default
 	buildContext.BuildTags = tags
 	conf := loader.Config{SourceImports: true, Build: &buildContext}
@@ -62,8 +63,8 @@ func findPackages(prog *loader.Program, interfaces, implementations []string) (i
 	return iPackages, mPackages
 }
 
-// exists is used as the value to indicate existence for maps
-// that function as sets.
+// exists is used as the value to indicate existence for maps that
+// function as sets.
 var exists = struct{}{}
 
 // newStringSet creates a new set out of a slice of strings.
@@ -76,7 +77,7 @@ func newStringSet(values []string) map[string]struct{} {
 }
 
 // run runs the log injector.
-func run(interfaceList, implementationList []string, checkOnly bool) error {
+func run(ctx *util.Context, interfaceList, implementationList []string, checkOnly bool) error {
 	prog, err := load(interfaceList, implementationList, nil)
 	if err != nil {
 		return err
@@ -89,14 +90,14 @@ func run(interfaceList, implementationList []string, checkOnly bool) error {
 	needsInjection := checkMethods(methods)
 
 	if checkOnly {
-		reportResults(prog.Fset, needsInjection)
+		reportResults(ctx, prog.Fset, needsInjection)
 		if len(needsInjection) > 0 {
 			os.Exit(1)
 		}
 		return nil
 	}
 
-	return inject(prog.Fset, needsInjection)
+	return inject(ctx, prog.Fset, needsInjection)
 }
 
 // funcDeclRef stores a reference to a function declaration, paired
@@ -107,8 +108,8 @@ type funcDeclRef struct {
 }
 
 // methodSetVisibleThroughInterfaces returns intersection of all
-// exported method names implemented by t and the union of all
-// method names declared by interfaces.
+// exported method names implemented by t and the union of all method
+// names declared by interfaces.
 func methodSetVisibleThroughInterfaces(t types.Type, interfaces []*types.Interface) map[string]struct{} {
 	set := map[string]struct{}{}
 	for _, iface := range interfaces {
@@ -126,8 +127,8 @@ func methodSetVisibleThroughInterfaces(t types.Type, interfaces []*types.Interfa
 }
 
 // functionDeclarationsAtPositions returns references to function
-// declarations in packages where the position of the identifier
-// token representing the name of the function is in positions.
+// declarations in packages where the position of the identifier token
+// representing the name of the function is in positions.
 func functionDeclarationsAtPositions(packages []*loader.PackageInfo, positions map[token.Pos]struct{}) []funcDeclRef {
 	result := []funcDeclRef{}
 	for _, pkg := range packages {
@@ -135,7 +136,7 @@ func functionDeclarationsAtPositions(packages []*loader.PackageInfo, positions m
 			for _, decl := range file.Decls {
 				if decl, ok := decl.(*ast.FuncDecl); ok {
 					// for each function declaration in packages:
-
+					//
 					// it's important not to use decl.Pos() here
 					// as it gives us the position of the "func"
 					// token, whereas positions has collected
@@ -223,9 +224,9 @@ func (p patchSorter) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// logPackageQuotedImportPath is the quoted identifier for the import path
-// of the logging library.  It is used to check for existence of an
-// import statement for the vlog runtime library or to inject a new
+// logPackageQuotedImportPath is the quoted identifier for the import
+// path of the logging library. It is used to check for existence of
+// an import statement for the vlog runtime library or to inject a new
 // import statement.
 const logPackageQuotedImportPath = `"` + logPackageImportPath + `"`
 
@@ -236,8 +237,9 @@ func countOverlap(a, b string) (i int) {
 	return
 }
 
-// ensureImportLogPackage will make sure that the file includes an import declaration
-// to the log package, and adds one if it does not already.
+// ensureImportLogPackage will make sure that the file includes an
+// import declaration to the log package, and adds one if it does not
+// already.
 func ensureImportLogPackage(fset *token.FileSet, file *ast.File) (patch, bool) {
 	maxOverlap := 0
 	var candidate token.Pos
@@ -245,8 +247,9 @@ func ensureImportLogPackage(fset *token.FileSet, file *ast.File) (patch, bool) {
 	for _, d := range file.Decls {
 		d, ok := d.(*ast.GenDecl)
 		if !ok || d.Tok != token.IMPORT {
-			// We encountered a non-import declaration. As imports always
-			// precede other declarations, we are done with our search.
+			// We encountered a non-import declaration. As
+			// imports always precede other declarations,
+			// we are done with our search.
 			break
 		}
 
@@ -254,8 +257,9 @@ func ensureImportLogPackage(fset *token.FileSet, file *ast.File) (patch, bool) {
 			s := s.(*ast.ImportSpec)
 			overlap := countOverlap(s.Path.Value, logPackageQuotedImportPath)
 			if overlap == len(logPackageQuotedImportPath) && (s.Name == nil || s.Name.Name == logPackageIdentifier) {
-				// We found a valid import for the logging package.
-				// No need to inject a duplicate one.
+				// We found a valid import for the
+				// logging package. No need to inject
+				// a duplicate one.
 				return patch{}, false
 			}
 			if d.Lparen.IsValid() && overlap > maxOverlap {
@@ -269,13 +273,13 @@ func ensureImportLogPackage(fset *token.FileSet, file *ast.File) (patch, bool) {
 		return patch{Offset: fset.Position(candidate).Offset, Text: logPackageQuotedImportPath + "\n"}, true
 	}
 
-	// No import declaration found with parenthesis; create a new one
-	// and add it to the beginning of the file
+	// No import declaration found with parenthesis; create a new
+	// one and add it to the beginning of the file.
 	return patch{Offset: fset.Position(file.Decls[0].Pos()).Offset, Text: "import " + logPackageQuotedImportPath + "\n"}, true
 }
 
-// methodBeginsWithNoLogComment returns true if method has a "nologcall"
-// comment before any non-whitespace or non-comment token.
+// methodBeginsWithNoLogComment returns true if method has a
+// "nologcall" comment before any non-whitespace or non-comment token.
 func methodBeginsWithNoLogComment(m funcDeclRef) bool {
 	method := m.Decl
 	lbound := method.Body.Lbrace
@@ -321,25 +325,24 @@ func checkMethod(method funcDeclRef) error {
 }
 
 // gofmt runs "gofmt -w files...".
-func gofmt(files []string) error {
+func gofmt(ctx *util.Context, files []string) error {
 	if !gofmtFlag {
 		return nil
 	}
-	cmd := exec.Command("gofmt", append([]string{"-w"}, files...)...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Run()
+	return ctx.Run().Command(ctx.Stdout(), ctx.Stderr(), nil, "gofmt", append([]string{"-w"}, files...)...)
 }
 
 // inject injects a log call at the beginning of each method in methods.
-func inject(fset *token.FileSet, methods map[funcDeclRef]error) error {
-	// Warn the user for methods that already have something at their beginning
-	// that looks like a logging construct, but it is invalid for some reason.
+func inject(ctx *util.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
+	// Warn the user for methods that already have something at
+	// their beginning that looks like a logging construct, but it
+	// is invalid for some reason.
 	for m, err := range methods {
 		if _, ok := err.(*errInvalid); ok {
 			method := m.Decl
 			position := fset.Position(method.Pos())
 			methodName := method.Name.Name
-			fmt.Printf("Warning: %v: %s: %v\n", position, methodName, err)
+			fmt.Fprintf(ctx.Stdout(), "Warning: %v: %s: %v\n", position, methodName, err)
 		}
 	}
 
@@ -376,14 +379,14 @@ func inject(fset *token.FileSet, methods map[funcDeclRef]error) error {
 		ioutil.WriteFile(filename, patchedSrc, 644)
 	}
 
-	return gofmt(filesToFormat)
+	return gofmt(ctx, filesToFormat)
 }
 
 // reportResults prints out the validation results from checkMethods
 // in a human-readable form.
-func reportResults(fset *token.FileSet, methods map[funcDeclRef]error) {
+func reportResults(ctx *util.Context, fset *token.FileSet, methods map[funcDeclRef]error) {
 	for m, err := range methods {
-		fmt.Printf("%v: %s: %v\n", fset.Position(m.Decl.Pos()), m.Decl.Name.Name, err)
+		fmt.Fprintf(ctx.Stdout(), "%v: %s: %v\n", fset.Position(m.Decl.Pos()), m.Decl.Name.Name, err)
 	}
 }
 
@@ -444,15 +447,16 @@ func validateLogStatement(method *ast.FuncDecl) error {
 	return &errNotExists{}
 }
 
-// isAddressOfExpression checks if expr is an expression in the form of
-// `&expression`
+// isAddressOfExpression checks if expr is an expression in the form
+// of `&expression`
 func isAddressOfExpression(expr ast.Expr) (isAddrExpr bool) {
 	// TODO: support (&x) as well as &x
 	unaryExpr, ok := expr.(*ast.UnaryExpr)
 	return ok && unaryExpr.Op == token.AND
 }
 
-// findPublicInterfaces returns all the public interfaces defined in packages
+// findPublicInterfaces returns all the public interfaces defined in
+// packages
 func findPublicInterfaces(packages []*loader.PackageInfo) (interfaces []*types.Interface) {
 	for _, pkg := range packages {
 		for _, file := range pkg.Files {

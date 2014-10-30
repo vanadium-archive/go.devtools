@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"tools/lib/gitutil"
-	"tools/lib/runutil"
+	"tools/lib/util"
 )
 
 var (
@@ -193,21 +193,21 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 // repoName returns the URL of the veyron Gerrit repository with
 // respect to the repository identified by the current working
 // directory.
-func repoName(run *runutil.Run) (string, error) {
+func repoName(ctx *util.Context) (string, error) {
 	args := []string{"config", "--get", "remote.origin.url"}
 	var stdout, stderr bytes.Buffer
-	if err := run.Command(&stdout, &stderr, nil, "git", args...); err != nil {
+	if err := ctx.Run().Command(&stdout, &stderr, nil, "git", args...); err != nil {
 		return "", gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
 	return "https://veyron-review.googlesource.com/" + filepath.Base(strings.TrimSpace(stdout.String())), nil
 }
 
 // Review pushes the branch to Gerrit.
-func Review(run *runutil.Run, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
+func Review(ctx *util.Context, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
 	repoPath := repoPathArg
 	if repoPathArg == "" {
 		var err error
-		repoPath, err = repoName(run)
+		repoPath, err = repoName(ctx)
 		if err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func Review(run *runutil.Run, repoPathArg string, draft bool, reviewers, ccs, br
 	refspec := "HEAD:" + Reference(draft, reviewers, ccs, branch)
 	args := []string{"push", repoPath, refspec}
 	var stdout, stderr bytes.Buffer
-	if err := run.Command(&stdout, &stderr, nil, "git", args...); err != nil {
+	if err := ctx.Run().Command(&stdout, &stderr, nil, "git", args...); err != nil {
 		return gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
 	for _, line := range strings.Split(stderr.String(), "\n") {

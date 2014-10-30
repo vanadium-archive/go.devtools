@@ -71,8 +71,11 @@ type testInfo struct {
 type testInfoMap map[string]*testInfo
 
 // runTest implements the 'test' subcommand.
+//
+// TODO(jingjin): Refactor this function so that it does not span 200+ lines.
 func runTest(command *cmdline.Command, args []string) error {
-	run := runutil.New(verboseFlag, command.Stdout())
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+
 	// Basic sanity checks.
 	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
 	if err != nil {
@@ -115,7 +118,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	if err := json.Unmarshal(configFileContent, &testConfig); err != nil {
 		return fmt.Errorf("Unmarshal(%q) failed: %v", configFileContent, err)
 	}
-	tests, err := testsForRepo(testConfig.Tests, repoFlag, command)
+	tests, err := testsForRepo(ctx, testConfig.Tests, repoFlag)
 	if err != nil {
 		return err
 	}
@@ -129,16 +132,10 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Parse the manifest file to get the local path for the repo.
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
 	projects, _, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
-	os.Chdir(wd)
 	localRepo, ok := projects[repoFlag]
 	if !ok {
 		return fmt.Errorf("repo %q not found", repoFlag)
@@ -147,7 +144,7 @@ func runTest(command *cmdline.Command, args []string) error {
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() {
-		if err := cleanUpPresubmitTestBranch(command, run, dir); err != nil {
+		if err := cleanupPresubmitTestBranch(ctx, dir); err != nil {
 			printf(command.Stderr(), "%v\n", err)
 		}
 	}
@@ -159,15 +156,16 @@ func runTest(command *cmdline.Command, args []string) error {
 		signal.Notify(sigchan, syscall.SIGTERM)
 		<-sigchan
 		cleanupFn()
-		// Linux convention is to use 128+signal as the exit code.
-		// We use exit(0) here to let Jenkins properly mark a run as "Aborted"
-		// instead of "Failed".
+		// Linux convention is to use 128+signal as the exit
+		// code. We use exit(0) here to let Jenkins properly
+		// mark a run as "Aborted" instead of "Failed".
 		os.Exit(0)
 	}()
 
 	// Prepare presubmit test branch.
-	if err := preparePresubmitTestBranch(command, run, dir, cl); err != nil {
-		// When "git pull" fails, post a review to let the CL author know about the possible merge conflicts.
+	if err := preparePresubmitTestBranch(ctx, dir, cl); err != nil {
+		// When "git pull" fails, post a review to let the CL
+		// author know about the possible merge conflicts.
 		if strings.HasPrefix(err.Error(), "Pull") {
 			reviewMessageFlag = "Possible merge conflict detected.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted.\n"
 			printf(command.Stdout(), "### Posting message to Gerrit\n")
@@ -181,19 +179,21 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Run tests.
+	//
+	// TODO(jingjin) parallelize the top-level scheduling loop so
+	// that tests do not need to run serially.
 	results := &bytes.Buffer{}
 	executedTests := []string{}
 	fmt.Fprintf(results, "Test results:\n")
-	// TODO(jingjin) parallelize the top-level scheduling loop so that tests
-	// do not need to run serially.
 run:
 	for i := 0; i < len(testInfoMap); i++ {
 		// Find a test that can execute.
 		for _, test := range tests {
 			testInfo := testInfoMap[test]
 
-			// Check if the test has not been executed yet and all its dependencies
-			// have been executed and passed.
+			// Check if the test has not been executed yet
+			// and all its dependencies have been executed
+			// and passed.
 			if testInfo.testStatus != testStatusNotExecuted {
 				continue
 			}
@@ -208,11 +208,13 @@ run:
 				continue
 			}
 
-			// Found a test. Run it, printing a blank line to visually separate the output of
-			// this test from the output of previous tests.
+			// Found a test. Run it, printing a blank line
+			// to visually separate the output of this
+			// test from the output of previous tests.
 			fmt.Fprintln(command.Stdout())
 			printf(command.Stdout(), "### Running %q\n", test)
-			// Get the status of the last completed build for this test from Jenkins.
+			// Get the status of the last completed build
+			// for this test from Jenkins.
 			lastStatus, err := lastCompletedBuildStatusForProject(test)
 			lastStatusString := "?"
 			if err != nil {
@@ -229,7 +231,7 @@ run:
 			var curStatusString string
 			var stderr bytes.Buffer
 			finished := true
-			if err := run.CommandWithTimeout(command.Stdout(), &stderr, nil, testScript, defaultTestTimeoutValue); err != nil {
+			if err := ctx.Run().CommandWithTimeout(command.Stdout(), &stderr, nil, testScript, defaultTestTimeoutValue); err != nil {
 				curStatusString = "✖"
 				testInfo.testStatus = testStatusFailed
 				if err == runutil.CommandTimedoutErr {
@@ -258,10 +260,11 @@ run:
 			// Start another iteration of the main loop.
 			continue run
 		}
-		// No tests can be executed in this iteration.
-		// Stop the search.
+		// No tests can be executed in this iteration. Stop
+		// the search.
 		break
 	}
+
 	// Output skipped tests.
 	skippedTests := []string{}
 	for test, testInfo := range testInfoMap {
@@ -277,7 +280,7 @@ run:
 	}
 	if jenkinsBuildNumberFlag >= 0 {
 		sort.Strings(executedTests)
-		links, err := failedTestLinks(executedTests, command)
+		links, err := failedTestLinks(ctx, executedTests, command)
 		if err != nil {
 			return err
 		}
@@ -301,19 +304,20 @@ run:
 	if err := runPost(nil, nil); err != nil {
 		return err
 	}
-
 	return nil
 }
 
-// presubmitTestBranchName returns the name of the branch where the cl content is pulled.
+// presubmitTestBranchName returns the name of the branch where the cl
+// content is pulled.
 func presubmitTestBranchName() string {
 	return "presubmit_" + reviewTargetRefFlag
 }
 
-// preparePresubmitTestBranch creates and checks out the presubmit test branch and pulls the CL there.
-func preparePresubmitTestBranch(command *cmdline.Command, run *runutil.Run, localRepoDir, cl string) error {
-	fmt.Fprintln(command.Stdout())
-	printf(command.Stdout(),
+// preparePresubmitTestBranch creates and checks out the presubmit
+// test branch and pulls the CL there.
+func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) error {
+	fmt.Fprintln(ctx.Stdout())
+	printf(ctx.Stdout(),
 		"### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
 
 	wd, err := os.Getwd()
@@ -321,64 +325,62 @@ func preparePresubmitTestBranch(command *cmdline.Command, run *runutil.Run, loca
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	if err := os.Chdir(localRepoDir); err != nil {
+	if err := ctx.Run().Function(runutil.Chdir(localRepoDir)); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
-	git := gitutil.New(run)
 
-	if err := resetRepo(git); err != nil {
+	if err := resetRepo(ctx); err != nil {
 		return err
 	}
 	branchName := presubmitTestBranchName()
-	if err := git.CreateAndCheckoutBranch(branchName); err != nil {
-		return fmt.Errorf("CreateAndCheckoutBranch(%q) failed: %v", branchName, err)
+	if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
+		return err
 	}
 	origin := "origin"
-	if err := git.Pull(origin, reviewTargetRefFlag); err != nil {
-		return fmt.Errorf("Pull(%q, %q) failed: %v", origin, reviewTargetRefFlag, err)
-	}
-	return nil
-}
-
-// cleanUpPresubmitTestBranch removes the presubmit test branch.
-func cleanUpPresubmitTestBranch(command *cmdline.Command, run *runutil.Run, localRepoDir string) error {
-	fmt.Fprintln(command.Stdout())
-	printf(command.Stdout(), "### Cleaning up\n")
-
-	if err := os.Chdir(localRepoDir); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
-	}
-	git := gitutil.New(run)
-	if err := resetRepo(git); err != nil {
+	if err := ctx.Git().Pull(origin, reviewTargetRefFlag); err != nil {
 		return err
 	}
 	return nil
 }
 
-// resetRepo cleans up untracked files and uncommitted changes of the current branch,
-// checks out the master branch, and deletes all the other branches.
-func resetRepo(git *gitutil.Git) error {
+// cleanupPresubmitTestBranch removes the presubmit test branch.
+func cleanupPresubmitTestBranch(ctx *util.Context, localRepoDir string) error {
+	fmt.Fprintln(ctx.Stdout())
+	printf(ctx.Stdout(), "### Cleaning up\n")
+	if err := ctx.Run().Function(runutil.Chdir(localRepoDir)); err != nil {
+		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+	}
+	if err := resetRepo(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// resetRepo cleans up untracked files and uncommitted changes of the
+// current branch, checks out the master branch, and deletes all the
+// other branches.
+func resetRepo(ctx *util.Context) error {
 	// Clean up changes and check out master.
-	curBranchName, err := git.CurrentBranchName()
+	curBranchName, err := ctx.Git().CurrentBranchName()
 	if err != nil {
 		return err
 	}
 	if curBranchName != "master" {
-		if err := git.CheckoutBranch("master", gitutil.Force); err != nil {
+		if err := ctx.Git().CheckoutBranch("master", gitutil.Force); err != nil {
 			return err
 		}
 	}
-	if err := git.RemoveUntrackedFiles(); err != nil {
+	if err := ctx.Git().RemoveUntrackedFiles(); err != nil {
 		return err
 	}
 	// Discard any uncommitted changes.
-	if err := git.Reset("HEAD"); err != nil {
+	if err := ctx.Git().Reset("HEAD"); err != nil {
 		return err
 	}
 
 	// Delete all the other branches.
 	// At this point we should be at the master branch.
-	branches, _, err := git.GetBranches()
+	branches, _, err := ctx.Git().GetBranches()
 	if err != nil {
 		return err
 	}
@@ -387,7 +389,7 @@ func resetRepo(git *gitutil.Git) error {
 			continue
 		}
 		if strings.HasPrefix(branch, "presubmit_refs") {
-			if err := git.DeleteBranch(branch, gitutil.Force); err != nil {
+			if err := ctx.Git().DeleteBranch(branch, gitutil.Force); err != nil {
 				return nil
 			}
 		}
@@ -396,26 +398,28 @@ func resetRepo(git *gitutil.Git) error {
 	return nil
 }
 
-// testsForRepo returns all the tests for the given repo by querying the presubmit tests config file.
-func testsForRepo(repos map[string][]string, repoName string, command *cmdline.Command) ([]string, error) {
+// testsForRepo returns all the tests for the given repo by querying
+// the presubmit tests config file.
+func testsForRepo(ctx *util.Context, repos map[string][]string, repoName string) ([]string, error) {
 	if _, ok := repos[repoName]; !ok {
-		printf(command.Stdout(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
+		printf(ctx.Stdout(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
 		return []string{}, nil
 	}
 	return repos[repoName], nil
 }
 
 func createTests(dep map[string][]string, tests []string) (testInfoMap, error) {
-	// For the given list of tests, build a map from the test name to its testInfo
-	// object using the dependency data extracted from the given dependency
-	// config data "dep".
+	// For the given list of tests, build a map from the test name
+	// to its testInfo object using the dependency data extracted
+	// from the given dependency config data "dep".
 	testNameToTestInfo := testInfoMap{}
 	for _, test := range tests {
 		depTests := []string{}
 		if deps, ok := dep[test]; ok {
 			depTests = deps
 		}
-		// Make sure the tests in depTests are in the given "tests".
+		// Make sure the tests in depTests are in the given
+		// "tests".
 		deps := []string{}
 		for _, curDep := range depTests {
 			isDepInTests := false
@@ -467,7 +471,8 @@ func findCycle(name string, tests testInfoMap) bool {
 	return false
 }
 
-// lastCompletedBuildStatusForProject gets the status of the last completed build for a given jenkins project.
+// lastCompletedBuildStatusForProject gets the status of the last
+// completed build for a given jenkins project.
 func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
 	// Construct rest API url to get build status.
 	statusUrl, err := url.Parse(jenkinsHostFlag)
@@ -496,7 +501,8 @@ func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
 	return parseLastCompletedBuildStatusJsonResponse(res.Body)
 }
 
-// parseLastCompletedBuildStatusJsonResponse parses whether the last completed build was successful or not.
+// parseLastCompletedBuildStatusJsonResponse parses whether the last
+// completed build was successful or not.
 func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (bool, error) {
 	r := bufio.NewReader(reader)
 	var status struct {
@@ -509,29 +515,34 @@ func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (bool, error) {
 	return status.Result == "SUCCESS", nil
 }
 
-// failedTestLinks returns a list of Jenkins test report links for the failed tests.
-func failedTestLinks(allTestNames []string, command *cmdline.Command) ([]string, error) {
+// failedTestLinks returns a list of Jenkins test report links for the
+// failed tests.
+func failedTestLinks(ctx *util.Context, allTestNames []string, command *cmdline.Command) ([]string, error) {
 	links := []string{}
-	// seenTests maps the test full names to number of times they have been seen in the test reports.
-	// This will be used to properly generate links to failed tests.
-	// For example, if TestA is tested multiple times, then their links will look like:
-	// http://.../TestA
-	// http://.../TestA_2
-	// http://.../TestA_3
+	// seenTests maps the test full names to number of times they
+	// have been seen in the test reports. This will be used to
+	// properly generate links to failed tests.
+	//
+	// For example, if TestA is tested multiple times, then their
+	// links will look like:
+	//   http://.../TestA
+	//   http://.../TestA_2
+	//   http://.../TestA_3
 	seenTests := map[string]int{}
 	for _, testName := range allTestNames {
-		// For a given test script this-is-a-test.sh, its test report file is: tests_this_is_a_test.xml.
+		// For a given test script this-is-a-test.sh, its test
+		// report file is: tests_this_is_a_test.xml.
 		junitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
 		junitReportFile := filepath.Join(veyronRoot, "..", junitReportFileName)
 		fdReport, err := os.Open(junitReportFile)
 		if err != nil {
-			printf(command.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
+			printf(ctx.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
 			continue
 		}
 		defer fdReport.Close()
 		curLinks, err := parseJUnitReportFileForFailedTestLinks(fdReport, seenTests)
 		if err != nil {
-			printf(command.Stderr(), "%v\n", err)
+			printf(ctx.Stderr(), "%v\n", err)
 			continue
 		}
 		links = append(links, curLinks...)
@@ -564,11 +575,13 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 	for _, curTestSuite := range testSuites.Testsuites {
 		for _, curTestCase := range curTestSuite.Testcases {
 			testFullName := fmt.Sprintf("%s.%s", curTestCase.Classname, curTestCase.Name)
-			// Replace the period "." in testFullName with "::" to stop gmail from turning
-			// it into a link automatically.
+			// Replace the period "." in testFullName with
+			// "::" to stop gmail from turning it into a
+			// link automatically.
 			testFullName = strings.Replace(testFullName, ".", "::", -1)
-			// Remove the prefixes introduced by the test scripts to distinguish between
-			// different failed builds/tests.
+			// Remove the prefixes introduced by the test
+			// scripts to distinguish between different
+			// failed builds/tests.
 			prefixesToRemove := []string{"go-build::", "build::", "android-test::"}
 			for _, prefix := range prefixesToRemove {
 				testFullName = strings.TrimPrefix(testFullName, prefix)
@@ -610,24 +623,27 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 	return links, nil
 }
 
-// safePackageOrClassName gets the safe name of the package or class name which
-// will be used to construct the url to a test case.
+// safePackageOrClassName gets the safe name of the package or class
+// name which will be used to construct the url to a test case.
 //
-// The original implementation in junit jenkins plugin can be found here: http://git.io/iVD0yw
+// The original implementation in junit jenkins plugin can be found
+// here: http://git.io/iVD0yw
 func safePackageOrClassName(name string) string {
 	return reURLUnsafeChars.ReplaceAllString(name, "_")
 }
 
-// safeTestName gets the safe name of the test name which will be used to construct
-// the url to a test case. Note that this is different from getting the safe name
-// for package or class.
+// safeTestName gets the safe name of the test name which will be used
+// to construct the url to a test case. Note that this is different
+// from getting the safe name for package or class.
 //
-// The original implementation in junit jenkins plugin can be found here: http://git.io/8X9o7Q
+// The original implementation in junit jenkins plugin can be found
+// here: http://git.io/8X9o7Q
 func safeTestName(name string) string {
 	return reNotIdentifierChars.ReplaceAllString(name, "_")
 }
 
-// generateReportForHangingTest generates a xunit test report file for the given test that timed out.
+// generateReportForHangingTest generates a xunit test report file for
+// the given test that timed out.
 func generateReportForHangingTest(testName string, timeout time.Duration) error {
 	type tmplData struct {
 		TestName     string

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -30,18 +31,18 @@ const (
 )
 
 var (
-	// flags.
+	// Flags.
 	binDirFlag  string
 	verboseFlag bool
 
 	// Other vars.
-	numCPU     int
-	veyronRoot string
+	numCPU int
 )
 
 // All the GO binaries needed in shell test scripts.
-// TODO(jingjin): move all the test scripts to GO programs, and make them talk
-// to a build service to request binaries (with caching).
+//
+// TODO(jingjin): move all the test scripts to GO programs, and make
+// them talk to a build service to request binaries (with caching).
 var binPackages = []string{
 	"veyron.io/apps/tunnel/tunneld",
 	"veyron.io/apps/tunnel/vsh",
@@ -70,7 +71,8 @@ func init() {
 	cmdRoot.Flags.StringVar(&binDirFlag, "bin_dir", defaultBinDir, "The binary directory.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 
-	// Set the number of OS threads that can run Go code simultaneously to the number of cpu cores.
+	// Set the number of OS threads that can run Go code
+	// simultaneously to the number of cpu cores.
 	numCPU = runtime.NumCPU()
 	runtime.GOMAXPROCS(numCPU)
 }
@@ -78,18 +80,13 @@ func init() {
 // substituteVarsInFlags substitutes environment variables in default
 // values of relevant flags.
 func substituteVarsInFlags() {
-	var err error
-	veyronRoot, err = util.VeyronRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
-		os.Exit(1)
-	}
 	if binDirFlag == defaultBinDir {
 		binDirFlag = filepath.Join(os.TempDir(), "bin")
 	}
 }
 
-// root returns a command that represents the root of the shelltest-runner tool.
+// root returns a command that represents the root of the
+// shelltest-runner tool.
 func root() *cmdline.Command {
 	return cmdRoot
 }
@@ -104,29 +101,18 @@ var cmdRoot = &cmdline.Command{
 }
 
 func runRoot(command *cmdline.Command, _ []string) error {
-	// Get VEYRON_ROOT.
-	var err error
-	veyronRoot, err = util.VeyronRoot()
-	if err != nil {
-		return err
-	}
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
 
-	// Build all GO binaries used in test scripts.
-	// The reasons we do this before running any test scripts are:
-	// - We can build these binaries in parallel using goroutines to speed
-	//   things up.
-	// - We can avoid race conditions where multiple test scripts try to build
-	//   the same binaries. The location where the binaries are built will be
-	//   passed to all test scripts. They will check this location to see whether
-	//   a binary exists before building it. If we build all the required binaries
-	//   now, the scripts won't need to build anything.
-	if err := buildBinaries(command); err != nil {
+	// Builds all GO binaries used in test scripts and then runs
+	// the integration tests. This allows us to build these
+	// binaries in parallel using goroutines to speed things up
+	// and all tests can share these binaries.
+	if err := buildBinaries(ctx); err != nil {
 		return err
 	}
 
 	// Run test scripts.
-	fmt.Fprintln(command.Stdout())
-	if err := runTestScripts(command); err != nil {
+	if err := runTestScripts(ctx); err != nil {
 		return err
 	}
 
@@ -134,24 +120,25 @@ func runRoot(command *cmdline.Command, _ []string) error {
 }
 
 // buildBinaries builds GO binaries specified by binPackages list.
-func buildBinaries(command *cmdline.Command) error {
+func buildBinaries(ctx *util.Context) error {
 	// Prepare output dir for binaries.
-	if err := os.RemoveAll(binDirFlag); err != nil {
+	if err := ctx.Run().Function(runutil.RemoveAll(binDirFlag)); err != nil {
 		return fmt.Errorf("RemoveAll(%q) failed: %v", binDirFlag, err)
 	}
-	if err := os.MkdirAll(binDirFlag, 0700); err != nil {
+	if err := ctx.Run().Function(runutil.MkdirAll(binDirFlag, 0700)); err != nil {
 		return fmt.Errorf("MkdirAll(%q) failed: %v", binDirFlag, err)
 	}
 
 	// Create a worker pool for building binaries in parallel.
-	printf(command.Stdout(), "Building binaries...\n")
+	printf(ctx.Stdout(), "Building binaries...\n")
 	numPkgs := len(binPackages)
+
 	// We are going to send package name to the jobs channel.
 	jobs := make(chan string, numPkgs)
 	results := make(chan error, numPkgs)
 	env := envutil.ToMap(os.Environ())
 	for i := 0; i < numWorkers(numPkgs); i++ {
-		go buildWorker(command, env, jobs, results)
+		go buildWorker(ctx, env, jobs, results)
 	}
 
 	// Send packages to free workers in the pool.
@@ -160,8 +147,8 @@ func buildBinaries(command *cmdline.Command) error {
 	}
 	close(jobs)
 
-	// Gather results.
-	// We simply ignore any build errors because they are likely caused by outdated packages.
+	// Gather results ignoring any build errors because they are
+	// likely caused by outdated packages.
 	for i := 0; i < numPkgs; i++ {
 		<-results
 	}
@@ -170,18 +157,18 @@ func buildBinaries(command *cmdline.Command) error {
 }
 
 // buildWorker waits for a package on the "jobs" channel and builds it.
-func buildWorker(command *cmdline.Command, env map[string]string, jobs <-chan string, results chan<- error) {
+func buildWorker(ctx *util.Context, env map[string]string, jobs <-chan string, results chan<- error) {
 	for pkg := range jobs {
-		run := runutil.New(verboseFlag, command.Stdout())
 		output := path.Base(pkg)
-		// Build.
 		var stdout, stderr bytes.Buffer
 		buildArgs := []string{"go", "build", "-o", filepath.Join(binDirFlag, output), pkg}
-		if err := run.CommandWithVerbosity(verboseFlag, &stdout, &stderr, env, "veyron", buildArgs...); err != nil {
-			printf(command.Stdout(), "FAIL: %s (%s)\n%v\n", output, pkg, stderr.String())
+		cmd := exec.Command("veyron", buildArgs...)
+		cmd.Stdout, cmd.Stderr, cmd.Env = &stdout, &stderr, envutil.ToSlice(env)
+		if err := cmd.Run(); err != nil {
+			printf(ctx.Stdout(), "FAIL: %s (%s)\n%v\n", output, pkg, stderr.String())
 			results <- err
 		} else {
-			printf(command.Stdout(), "OK: %s (%s)\n", output, pkg)
+			printf(ctx.Stdout(), "OK: %s (%s)\n", output, pkg)
 			results <- nil
 		}
 	}
@@ -203,7 +190,12 @@ func (r testResults) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r testResults) Less(i, j int) bool { return r[i].testName < r[j].testName }
 
 // runTestScripts runs all test.sh scripts found under given root dirs.
-func runTestScripts(command *cmdline.Command) error {
+func runTestScripts(ctx *util.Context) error {
+	veyronRoot, err := util.VeyronRoot()
+	if err != nil {
+		return err
+	}
+
 	// Find all test.sh scripts.
 	testScripts := findTestScripts([]string{
 		filepath.Join(veyronRoot, "veyron", "go", "src"),
@@ -211,22 +203,24 @@ func runTestScripts(command *cmdline.Command) error {
 	})
 
 	// Create a worker pool to run tests in parallel.
-	printf(command.Stdout(), "Running tests...\n")
+	printf(ctx.Stdout(), "Running tests...\n")
 	numTests := len(testScripts)
+
 	// We are going to send test script path to the jobs channel.
 	jobs := make(chan string, numTests)
 	results := make(chan testResult, numTests)
 	env := envutil.ToMap(os.Environ())
+
 	// Pass binDirFlag to test scripts through shell_test_BIN_DIR.
 	env["shell_test_BIN_DIR"] = binDirFlag
 	for i := 0; i < numWorkers(numTests); i++ {
-		go testWorker(command, env, jobs, results)
+		go testWorker(ctx, veyronRoot, env, jobs, results)
 	}
 
 	// Output unfinished tests when the program is terminated.
 	unfinishedTests := map[string]struct{}{}
 	for _, testScript := range testScripts {
-		unfinishedTests[testName(testScript)] = struct{}{}
+		unfinishedTests[testName(veyronRoot, testScript)] = struct{}{}
 	}
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
@@ -237,10 +231,10 @@ func runTestScripts(command *cmdline.Command) error {
 			tests = append(tests, test)
 		}
 		sort.Strings(tests)
-		fmt.Fprintf(command.Stdout(), "\n\n")
-		printf(command.Stdout(), "Unfinished tests:\n")
+		fmt.Fprintf(ctx.Stdout(), "\n\n")
+		printf(ctx.Stdout(), "Unfinished tests:\n")
 		for _, test := range tests {
-			printf(command.Stdout(), "%s\n", test)
+			printf(ctx.Stdout(), "%s\n", test)
 		}
 		os.Exit(128 + int(s))
 	}()
@@ -268,8 +262,8 @@ func runTestScripts(command *cmdline.Command) error {
 
 	// Output details for failed tests.
 	for _, failedTest := range failedTests {
-		fmt.Fprintln(command.Stdout())
-		printf(command.Stdout(), "Failed test: %s\n%v\n%s\n%s\n",
+		fmt.Fprintln(ctx.Stdout())
+		printf(ctx.Stdout(), "Failed test: %s\n%v\n%s\n%s\n",
 			failedTest.testName, failedTest.err, failedTest.stdout, failedTest.stderr)
 	}
 
@@ -290,14 +284,15 @@ func runTestScripts(command *cmdline.Command) error {
 }
 
 // testWorker waits for test script on "jobs" channel and run it.
-func testWorker(command *cmdline.Command, env map[string]string, jobs <-chan string, results chan<- testResult) {
+func testWorker(ctx *util.Context, root string, env map[string]string, jobs <-chan string, results chan<- testResult) {
 	for testScript := range jobs {
-		name := testName(testScript)
-		run := runutil.New(verboseFlag, command.Stdout())
+		name := testName(root, testScript)
 		var stdout, stderr bytes.Buffer
+		cmd := exec.Command(testScript)
+		cmd.Stdout, cmd.Stderr, cmd.Env = &stdout, &stderr, envutil.ToSlice(env)
 		startTime := time.Now()
-		if err := run.CommandWithVerbosity(verboseFlag, &stdout, &stderr, env, testScript); err != nil {
-			printf(command.Stdout(), "FAIL: %s\n", name)
+		if err := cmd.Run(); err != nil {
+			printf(ctx.Stdout(), "FAIL: %s\n", name)
 			results <- testResult{
 				testName: name,
 				passed:   false,
@@ -307,7 +302,7 @@ func testWorker(command *cmdline.Command, env map[string]string, jobs <-chan str
 				duration: int(time.Now().Sub(startTime).Seconds()),
 			}
 		} else {
-			printf(command.Stdout(), "PASS: %s\n", name)
+			printf(ctx.Stdout(), "PASS: %s\n", name)
 			results <- testResult{
 				testName: name,
 				passed:   true,
@@ -331,7 +326,8 @@ func findTestScripts(rootDirs []string) []string {
 	return matchedFiles
 }
 
-// numWorkers gets number of workers in worker pool based on number of jobs and cpu cores.
+// numWorkers gets number of workers in worker pool based on number of
+// jobs and CPU cores.
 func numWorkers(numJobs int) int {
 	numWorkers := numCPU
 	if numJobs < numWorkers {
@@ -340,7 +336,8 @@ func numWorkers(numJobs int) int {
 	return numWorkers
 }
 
-// outputXUnitReport outputs xunit xml report for the test results to the current directory.
+// outputXUnitReport outputs xunit xml report for the test results to
+// the current directory.
 func outputXUnitReport(allResults testResults, failedResults testResults) (string, error) {
 	type failure struct {
 		Type    string `xml:"type,attr"`
@@ -382,10 +379,11 @@ func outputXUnitReport(allResults testResults, failedResults testResults) (strin
 			Time:      fmt.Sprintf("%d", result.duration),
 		}
 		if !result.passed {
+			// Use __{testName}__ as a place holder which
+			// will be replaced by stdout/stderr wrapped
+			// in CDATA later to prevent xml.Marshal will
+			// encode line breaks/tabs etc.
 			testCase.Failure = &failure{
-				// Use __{testName}__ as a place holder which will be replaced by
-				// stdout/stderr wrapped in CDATA later. This replacement is necessary
-				// because xml.Marshal will encode line breaks/tabs etc.
 				Data:    fmt.Sprintf("___%s___", result.testName),
 				Type:    "bash.error",
 				Message: "error",
@@ -413,8 +411,8 @@ func outputXUnitReport(allResults testResults, failedResults testResults) (strin
 }
 
 // testName trims VEYRON_ROOT and test.sh from the given test script path.
-func testName(testScript string) string {
-	testName := strings.TrimPrefix(testScript, veyronRoot+string(os.PathSeparator))
+func testName(root, testScript string) string {
+	testName := strings.TrimPrefix(testScript, root+string(os.PathSeparator))
 	return strings.TrimSuffix(testName, string(os.PathSeparator)+"test.sh")
 }
 

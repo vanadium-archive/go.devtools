@@ -91,13 +91,13 @@ func runCheck(command *cmdline.Command, args []string) error {
 	for _, v := range violations {
 		switch v.Direction {
 		case outgoingDependency:
-			fmt.Printf("%q violates its outgoing rule by depending on %q:\n    {\"deny\": %q} (in %s)\n",
+			fmt.Fprintf(command.Stdout(), "%q violates its outgoing rule by depending on %q:\n    {\"deny\": %q} (in %s)\n",
 				v.Package.ImportPath, v.MatchingPackage.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
 		case incomingDependency:
 			if v.InternalPackage {
-				fmt.Printf("%q is inaccessible by package %q because it is internal\n", v.Package.ImportPath, v.MatchingPackage.ImportPath)
+				fmt.Fprintf(command.Stdout(), "%q is inaccessible by package %q because it is internal\n", v.Package.ImportPath, v.MatchingPackage.ImportPath)
 			} else {
-				fmt.Printf("%q violates incoming rule of package %q:\n    {\"deny\": %q} (in %s)\n",
+				fmt.Fprintf(command.Stdout(), "%q violates incoming rule of package %q:\n    {\"deny\": %q} (in %s)\n",
 					v.MatchingPackage.ImportPath, v.Package.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
 			}
 		}
@@ -130,7 +130,7 @@ func runList(command *cmdline.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := printDependencyHierarchy(p, map[*build.Package]bool{}, 0); err != nil {
+		if err := printDependencyHierarchy(command.Stdout(), p, map[*build.Package]bool{}, 0); err != nil {
 			return err
 		}
 	}

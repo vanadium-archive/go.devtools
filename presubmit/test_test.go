@@ -9,29 +9,18 @@ import (
 	"strings"
 	"testing"
 
-	"tools/lib/cmdline"
 	"tools/lib/util"
 )
-
-var cmdTmp = &cmdline.Command{
-	Name:  "tmp",
-	Short: "For testing",
-	Long:  "For testing",
-	Run:   func(*cmdline.Command, []string) error { return nil },
-}
-
-func init() {
-	cmdTmp.Init(nil, os.Stdout, os.Stderr)
-}
 
 func TestTestsForRepo(t *testing.T) {
 	repos := map[string][]string{
 		"veyron":  []string{"veyron-go-build", "veyron-go-test"},
 		"default": []string{"tools-go-build", "tools-go-test"},
 	}
+	ctx := util.NewContext(true, os.Stdout, os.Stderr)
 
 	// Get tests for a repo that is in the config file.
-	got, err := testsForRepo(repos, "veyron", cmdTmp)
+	got, err := testsForRepo(ctx, repos, "veyron")
 	expected := []string{
 		"veyron-go-build",
 		"veyron-go-test",
@@ -45,7 +34,7 @@ func TestTestsForRepo(t *testing.T) {
 
 	// Get tests for a repo that is NOT in the config file.
 	// This should return empty tests.
-	got, err = testsForRepo(repos, "non-exist-repo", cmdTmp)
+	got, err = testsForRepo(ctx, repos, "non-exist-repo")
 	expected = []string{}
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
@@ -256,6 +245,7 @@ func TestTestsConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+	ctx := util.NewContext(true, os.Stdout, os.Stderr)
 
 	presubmitTestsConfigFile := filepath.Join(veyronRoot, "tools", "conf", "presubmit")
 	configFileContent, err := ioutil.ReadFile(presubmitTestsConfigFile)
@@ -273,7 +263,7 @@ func TestTestsConfigFile(t *testing.T) {
 	if err := json.Unmarshal(configFileContent, &testConfig); err != nil {
 		t.Fatalf("Unmarshal(%q) failed: %v", configFileContent, err)
 	}
-	_, err = testsForRepo(testConfig.Tests, repoFlag, cmdTmp)
+	_, err = testsForRepo(ctx, testConfig.Tests, repoFlag)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

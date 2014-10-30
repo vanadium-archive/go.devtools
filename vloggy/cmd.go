@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"tools/lib/cmdline"
+	"tools/lib/util"
 	"tools/lib/version"
 )
 
@@ -77,7 +78,17 @@ func splitCommaSeparatedValues(s string) []string {
 // runCheck handles the "check" command and executes
 // the log injector in check-only mode.
 func runCheck(command *cmdline.Command, args []string) error {
-	return executeInjector(command, true, splitCommaSeparatedValues(interfacesFlag), args)
+	interfacePackageList := splitCommaSeparatedValues(interfacesFlag)
+	implementationPackageList := args
+	if len(interfacePackageList) == 0 {
+		return command.UsageErrorf("no interface packages listed")
+	}
+
+	if len(implementationPackageList) == 0 {
+		return command.UsageErrorf("no implementation package listed")
+	}
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	return executeInjector(ctx, interfacePackageList, implementationPackageList, true)
 }
 
 // cmdInject represents the 'inject' command of the vloggy tool.
@@ -97,7 +108,8 @@ you can see the diff or revert the changes.
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
 func runInject(command *cmdline.Command, args []string) error {
-	return executeInjector(command, false, splitCommaSeparatedValues(interfacesFlag), args)
+	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	return executeInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 
 // cmdVersion represents the 'version' command of the vloggy tool.
@@ -114,14 +126,6 @@ func runVersion(command *cmdline.Command, _ []string) error {
 }
 
 // executeInjector creates a new LogInjector instance and runs it.
-func executeInjector(command *cmdline.Command, checkOnly bool, interfacePackageList, implementationPackageList []string) error {
-	if len(interfacePackageList) == 0 {
-		return command.UsageErrorf("no interface packages listed")
-	}
-
-	if len(implementationPackageList) == 0 {
-		return command.UsageErrorf("no implementation package listed")
-	}
-
-	return run(interfacePackageList, implementationPackageList, checkOnly)
+func executeInjector(ctx *util.Context, interfacePackageList, implementationPackageList []string, checkOnly bool) error {
+	return run(ctx, interfacePackageList, implementationPackageList, checkOnly)
 }

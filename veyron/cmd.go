@@ -126,7 +126,7 @@ func runContributors(command *cmdline.Command, args []string) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Printf("%4d %v\n", contributors[name], name)
+		fmt.Fprintf(command.Stdout(), "%4d %v\n", contributors[name], name)
 	}
 	return nil
 }

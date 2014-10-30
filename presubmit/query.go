@@ -64,7 +64,8 @@ func runQuery(command *cmdline.Command, args []string) error {
 		return err
 	}
 
-	// Send the new open CLs one by one to the given Jenkins project to run presubmit-test builds.
+	// Send the new open CLs one by one to the given Jenkins
+	// project to run presubmit-test builds.
 	newCLsCount := len(newCLs)
 	if newCLsCount == 0 {
 		return nil
@@ -98,8 +99,8 @@ func runQuery(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// checkGerritBaseUrl performs basic sanity checks for Gerrit base url.
-// It returns the gerrit host.
+// checkGerritBaseUrl performs basic sanity checks for Gerrit base
+// url. It returns the gerrit host.
 func checkGerritBaseUrl() (string, error) {
 	gerritURL, err := url.Parse(gerritBaseUrlFlag)
 	if err != nil {
@@ -130,7 +131,8 @@ func gerritHostCredential(gerritHost string) (credential, error) {
 	return gerritCred, nil
 }
 
-// parseNetRcFile parses the content of the .netrc file and returns credentials stored in the file indexed by hosts.
+// parseNetRcFile parses the content of the .netrc file and returns
+// credentials stored in the file indexed by hosts.
 func parseNetRcFile(reader io.Reader) (map[string]credential, error) {
 	creds := make(map[string]credential)
 	scanner := bufio.NewScanner(reader)
@@ -171,7 +173,8 @@ func readLog() (map[string]bool, error) {
 	return refs, nil
 }
 
-// writeLog writes the refs (from the given QueryResult entries) to the log file.
+// writeLog writes the refs (from the given QueryResult entries) to
+// the log file.
 func writeLog(queryResults []gerrit.QueryResult) error {
 	fd, err := os.OpenFile(logFilePathFlag, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
@@ -186,8 +189,9 @@ func writeLog(queryResults []gerrit.QueryResult) error {
 	return w.Flush()
 }
 
-// newOpenCLs returns the "new" CLs whose refs are not in the CLs from previous query.
-// Note that the same CLs with different patch sets have different refs.
+// newOpenCLs returns the "new" CLs whose refs are not in the CLs from
+// previous query. Note that the same CLs with different patch sets
+// have different refs.
 func newOpenCLs(prevRefs map[string]bool, curQueryResults []gerrit.QueryResult) []gerrit.QueryResult {
 	newCLs := []gerrit.QueryResult{}
 	for _, curQueryResult := range curQueryResults {
@@ -202,8 +206,8 @@ func newOpenCLs(prevRefs map[string]bool, curQueryResults []gerrit.QueryResult) 
 	return newCLs
 }
 
-// outputOpenCLs prints out the given QueryResult entries line by line.
-// Each line shows the link to the CL and its related info.
+// outputOpenCLs prints out the given QueryResult entries line by
+// line. Each line shows the link to the CL and its related info.
 func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) {
 	if len(queryResults) == 0 {
 		printf(command.Stdout(), "No new open CLs\n")
@@ -217,18 +221,20 @@ func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) 
 	}
 	printf(command.Stdout(), "%s\n", buf.String())
 	for _, queryResult := range queryResults {
-		// The ref string is in the form of /refs/12/3412/1 where "3412" is the CL number and "1" is the patch set number.
+		// The ref string is in the form of /refs/12/3412/1
+		// where "3412" is the CL number and "1" is the patch
+		// set number.
 		parts := strings.Split(queryResult.Ref, "/")
 		printf(command.Stdout(), "http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
 	}
 }
 
-// removeOutdatedBuilds removes all the outdated presubmit-test builds that have
-// the given cl number and equal or smaller patchset number. Outdated builds
-// include queued builds and ongoing build.
+// removeOutdatedBuilds removes all the outdated presubmit-test builds
+// that have the given cl number and equal or smaller patchset
+// number. Outdated builds include queued builds and ongoing build.
 //
-// Since this is not a critical operation, we simply print out the errors if
-// we see any.
+// Since this is not a critical operation, we simply print out the
+// errors if we see any.
 func removeOutdatedBuilds(cl, curPatchSet int, command *cmdline.Command) {
 	// Queued presubmit-test builds.
 	getQueuedBuildsRes, err := jenkinsAPI("queue/api/json", "GET", nil)
@@ -292,8 +298,9 @@ type queuedItem struct {
 	ref string
 }
 
-// queuedOutdatedBuilds returns the ids and refs of queued presubmit-test builds
-// that have the given cl number and equal or smaller patchset number.
+// queuedOutdatedBuilds returns the ids and refs of queued
+// presubmit-test builds that have the given cl number and equal or
+// smaller patchset number.
 func queuedOutdatedBuilds(reader io.Reader, cl, curPatchSet int) ([]queuedItem, []error) {
 	r := bufio.NewReader(reader)
 	var items struct {
@@ -315,8 +322,9 @@ func queuedOutdatedBuilds(reader io.Reader, cl, curPatchSet int) ([]queuedItem, 
 		if item.Task.Name != presubmitTestJenkinsProjectFlag {
 			continue
 		}
-		// Parse the ref, and append the id/ref of the build if it passes the checks.
-		// The param string is in the form of:
+		// Parse the ref, and append the id/ref of the build
+		// if it passes the checks.  The param string is in
+		// the form of:
 		// "\nREF=ref/changes/12/3412/2\nREPO=test" or
 		// "\nREPO=test\nREF=ref/changes/12/3412/2"
 		parts := strings.Split(item.Params, "\n")
@@ -353,10 +361,9 @@ type ongoingBuild struct {
 	ref         string
 }
 
-// ongoingOutdatedBuild returns the build number/ref of the
-// last presubmit build if the following are both true:
-// - the build is still ongoing.
-// - the build has the given cl number and smaller patchset index.
+// ongoingOutdatedBuild returns the build number/ref of the last
+// presubmit build if the build is still ongoing and the build has the
+// given cl number and a smaller patchset index.
 func ongoingOutdatedBuild(reader io.Reader, cl, curPatchSet int) (ongoingBuild, error) {
 	invalidOngoingBuild := ongoingBuild{buildNumber: -1}
 

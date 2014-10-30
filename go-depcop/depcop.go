@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/build"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -200,20 +201,20 @@ func validateDependencyRelationship(p, x *build.Package, direction dependencyDir
 	return dependencyRuleReference{}, nil
 }
 
-func printDependencyHierarchy(p *build.Package, visited map[*build.Package]bool, depth int) error {
+func printDependencyHierarchy(stdout io.Writer, p *build.Package, visited map[*build.Package]bool, depth int) error {
 	if prettyFlag {
 		for i := 0; i < depth-1; i++ {
-			fmt.Print(" │")
+			fmt.Fprintf(stdout, " │")
 		}
 		if depth > 0 {
-			fmt.Print(" ├─")
+			fmt.Fprintf(stdout, " ├─")
 		} else {
-			fmt.Print("#")
+			fmt.Fprintf(stdout, "#")
 		}
-		fmt.Println(p.ImportPath)
+		fmt.Fprintln(stdout, p.ImportPath)
 	} else {
 		if depth > 0 {
-			fmt.Println(p.ImportPath)
+			fmt.Fprintln(stdout, p.ImportPath)
 		}
 	}
 
@@ -228,7 +229,7 @@ func printDependencyHierarchy(p *build.Package, visited map[*build.Package]bool,
 			return err
 		}
 		if gorootFlag || !pkg.Goroot {
-			if err := printDependencyHierarchy(pkg, visited, depth+1); err != nil {
+			if err := printDependencyHierarchy(stdout, pkg, visited, depth+1); err != nil {
 				return err
 			}
 		}

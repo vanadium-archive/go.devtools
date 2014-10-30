@@ -10,7 +10,8 @@ import (
 	"tools/lib/util"
 )
 
-// cmdIntegrationTest represents the 'integration-test' command of the veyron tool.
+// cmdIntegrationTest represents the 'integration-test' command of the
+// veyron tool.
 var cmdIntegrationTest = &cmdline.Command{
 	Name:     "integration-test",
 	Short:    "Manage integration tests",
@@ -20,7 +21,9 @@ var cmdIntegrationTest = &cmdline.Command{
 
 // cmdIntegrationTestRun represents the 'run' sub-command of the
 // 'integration-test' command of the veyron tool.
-// TODO(jingjin): implement the "list" sub-command and the ability to run individual tests.
+//
+// TODO(jingjin): implement the "list" sub-command and the ability to
+// run individual tests.
 var cmdIntegrationTestRun = &cmdline.Command{
 	Run:   runIntegrationTestRun,
 	Name:  "run",
@@ -33,7 +36,6 @@ func runIntegrationTestRun(command *cmdline.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-
 	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
 	dir, prefix := "", "integration_test_bin_dir"
 	binDir, err := ioutil.TempDir(dir, prefix)
@@ -41,6 +43,7 @@ func runIntegrationTestRun(command *cmdline.Command, _ []string) error {
 		return fmt.Errorf("TempDir(%q, %q) failed: %v", dir, prefix, err)
 	}
 	runArgs := []string{"go", "run"}
+
 	// TODO(jingjin): rename shelltest-runner to integration-tester.
 	runnerDir := filepath.Join(root, "tools", "go", "src", "tools", "shelltest-runner")
 	fileInfoList, err := ioutil.ReadDir(runnerDir)

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tools/lib/cmdline"
 	"tools/lib/gerrit"
 	"tools/lib/gitutil"
 	"tools/lib/runutil"
@@ -34,22 +33,28 @@ func assertCommitCount(t *testing.T, branch, baseBranch string, expectedCount in
 
 // assertFileContent asserts that the content of the given file
 // matches the expected content.
-func assertFileContent(t *testing.T, file, expectedContent string) {
-	actualContent := readFile(file)
-	if expectedContent != actualContent {
-		t.Fatalf("Expected file %v to contain %v, but it actually contains %v", file, expectedContent, actualContent)
+func assertFileContent(t *testing.T, file, want string) {
+	got, err := ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatalf("ReadFile(%v) failed: %v", file, err)
+	}
+	if string(got) != want {
+		t.Fatalf("Expected file %v to contain %v, but it actually contains %v", file, want, got)
 	}
 }
 
 // assertFilesCommitted asserts that the files exist and are committed
 // in the current branch.
 func assertFilesCommitted(t *testing.T, files []string) {
-	for _, fileName := range files {
-		if !fileExists(fileName) {
-			t.Fatalf("Expected file %v to exist but it did not.", fileName)
+	for _, file := range files {
+		if _, err := os.Stat(file); err != nil {
+			if os.IsNotExist(err) {
+				t.Fatalf("Expected file %v to exist but it did not.", file)
+			}
+			t.Fatalf("%v", err)
 		}
-		if !git.IsFileCommitted(fileName) {
-			t.Fatalf("Expected file %v to be committed but it is not.", fileName)
+		if !git.IsFileCommitted(file) {
+			t.Fatalf("Expected file %v to be committed but it is not.", file)
 		}
 	}
 }
@@ -57,12 +62,15 @@ func assertFilesCommitted(t *testing.T, files []string) {
 // assertFilesNotCommitted asserts that the files exist and are *not*
 // committed in the current branch.
 func assertFilesNotCommitted(t *testing.T, files []string) {
-	for _, fileName := range files {
-		if !fileExists(fileName) {
-			t.Fatalf("Expected file %v to exist but it did not.", fileName)
+	for _, file := range files {
+		if _, err := os.Stat(file); err != nil {
+			if os.IsNotExist(err) {
+				t.Fatalf("Expected file %v to exist but it did not.", file)
+			}
+			t.Fatalf("%v", err)
 		}
-		if git.IsFileCommitted(fileName) {
-			t.Fatalf("Expected file %v not to be committed but it is.", fileName)
+		if git.IsFileCommitted(file) {
+			t.Fatalf("Expected file %v not to be committed but it is.", file)
 		}
 	}
 }
@@ -100,7 +108,7 @@ func commitFiles(fileNames []string) error {
 	// Create and commit the files one at a time.
 	for _, fileName := range fileNames {
 		fileContent := "This is file " + fileName
-		if err := writeFile(fileName, fileContent); err != nil {
+		if err := ioutil.WriteFile(fileName, []byte(fileContent), 0644); err != nil {
 			return err
 		}
 		commitMessage := "Commit " + fileName
@@ -136,7 +144,7 @@ echo "Change-Id: I0000000000000000000000000000000000000000" >> $MSG
 // installCommitMsgHook links the gerrit commit-msg hook into a different repo.
 func installCommitMsgHook(repoPath string) error {
 	hookLocation := path.Join(repoPath, ".git/hooks/commit-msg")
-	return writeFileExecutable(hookLocation, commitMsgHook)
+	return ioutil.WriteFile(hookLocation, []byte(commitMsgHook), 0755)
 }
 
 // createTestRepos sets up three local repositories: origin, gerrit,
@@ -245,9 +253,8 @@ func TestCleanupClean(t *testing.T) {
 	if err := git.Commit(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	testCmd := cmdline.Command{}
-	testCmd.Init(nil, os.Stdout, os.Stderr)
-	if err := cleanup(&testCmd, git, run, []string{branch}); err != nil {
+	ctx := util.NewContext(true, os.Stdout, os.Stderr)
+	if err := cleanup(ctx, []string{branch}); err != nil {
 		t.Fatalf("cleanup() failed: %v", err)
 	}
 	if git.BranchExists(branch) {
@@ -271,9 +278,8 @@ func TestCleanupDirty(t *testing.T) {
 	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		t.Fatalf("%v", err)
 	}
-	testCmd := cmdline.Command{}
-	testCmd.Init(nil, os.Stdout, os.Stderr)
-	if err := cleanup(&testCmd, git, run, []string{branch}); err == nil {
+	ctx := util.NewContext(true, os.Stdout, os.Stderr)
+	if err := cleanup(ctx, []string{branch}); err == nil {
 		t.Fatalf("cleanup did not fail when it should")
 	}
 	if err := git.CheckoutBranch(branch, !gitutil.Force); err != nil {
@@ -356,8 +362,8 @@ func TestGoFormatError(t *testing.T) {
 
 func main() {}
 `
-	if err := writeFile(file, fileContent); err != nil {
-		t.Fatalf("writeFile(%v, %v) failed: %v", file, fileContent, err)
+	if err := ioutil.WriteFile(file, []byte(fileContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %v) failed: %v", file, fileContent, err)
 	}
 	commitMessage := "Commit " + file
 	if err := git.CommitFile(file, commitMessage); err != nil {
@@ -385,8 +391,8 @@ func TestGoFormatOK(t *testing.T) {
 
 func main() {}
 `
-	if err := writeFile(file, fileContent); err != nil {
-		t.Fatalf("writeFile(%v, %v) failed: %v", file, fileContent, err)
+	if err := ioutil.WriteFile(file, []byte(fileContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %v) failed: %v", file, fileContent, err)
 	}
 	commitMessage := "Commit " + file
 	if err := git.CommitFile(file, commitMessage); err != nil {
@@ -537,8 +543,8 @@ func TestDirtyBranch(t *testing.T) {
 	}
 	assertStashSize(t, 0)
 	stashedFile, stashedFileContent := "stashed-file", "stashed-file content"
-	if err := writeFile(stashedFile, stashedFileContent); err != nil {
-		t.Fatalf("writeFile(%v, %v) failed: %v", stashedFile, stashedFileContent, err)
+	if err := ioutil.WriteFile(stashedFile, []byte(stashedFileContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %v) failed: %v", stashedFile, stashedFileContent, err)
 	}
 	if err := git.Add(stashedFile); err != nil {
 		t.Fatalf("Add(%v) failed: %v", stashedFile, err)
@@ -548,19 +554,19 @@ func TestDirtyBranch(t *testing.T) {
 	}
 	assertStashSize(t, 1)
 	modifiedFile, modifiedFileContent := "modified-file", "modified-file content"
-	if err := writeFile(modifiedFile, modifiedFileContent); err != nil {
-		t.Fatalf("writeFile(%v, %v) failed: %v", modifiedFile, modifiedFileContent, err)
+	if err := ioutil.WriteFile(modifiedFile, []byte(modifiedFileContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %v) failed: %v", modifiedFile, modifiedFileContent, err)
 	}
 	stagedFile, stagedFileContent := "staged-file", "staged-file content"
-	if err := writeFile(stagedFile, stagedFileContent); err != nil {
-		t.Fatalf("writeFile(%v, %v) failed: %v", stagedFile, stagedFileContent, err)
+	if err := ioutil.WriteFile(stagedFile, []byte(stagedFileContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %v) failed: %v", stagedFile, stagedFileContent, err)
 	}
 	if err := git.Add(stagedFile); err != nil {
 		t.Fatalf("Add(%v) failed: %v", stagedFile, err)
 	}
 	untrackedFile, untrackedFileContent := "untracked-file", "untracked-file content"
-	if err := writeFile(untrackedFile, untrackedFileContent); err != nil {
-		t.Fatalf("writeFile(%v, %t) failed: %v", untrackedFile, untrackedFileContent, err)
+	if err := ioutil.WriteFile(untrackedFile, []byte(untrackedFileContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %t) failed: %v", untrackedFile, untrackedFileContent, err)
 	}
 	ctx := util.NewContext(true, os.Stdout, os.Stderr)
 	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""

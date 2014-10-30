@@ -104,6 +104,22 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 	return translateExitCode(ctx.Run().Command(command.Stdout(), command.Stderr(), targetEnv.Map(), bin, args...))
 }
 
+// generateVDL generates VDL for the transitive Go package
+// dependencies.
+//
+// Note that the vdl tool takes VDL packages as input, but we're
+// supplying Go packages.  We're assuming the package paths for the
+// VDL packages we want to generate have the same path names as the Go
+// package paths.  Some of the Go package paths may not correspond to
+// a valid VDL package, so we provide the -ignore_unknown flag to
+// silently ignore these paths.
+//
+// It's fine if the VDL packages have dependencies not reflected in
+// the Go packages; the vdl tool will compute the transitive closure
+// of VDL package dependencies, as usual.
+//
+// TODO(toddw): Change the vdl tool to return vdl packages given the
+// full Go dependencies, after vdl config files are implemented.
 func generateVDL(ctx *util.Context, cmdArgs []string) error {
 	if novdlFlag {
 		return nil
@@ -112,20 +128,6 @@ func generateVDL(ctx *util.Context, cmdArgs []string) error {
 	if err != nil {
 		return err
 	}
-	// Generate VDL for the transitive Go package dependencies.
-	//
-	// Note that the vdl tool takes VDL packages as input, but we're supplying Go
-	// packages.  We're assuming the package paths for the VDL packages we want to
-	// generate have the same path names as the Go package paths.  Some of the Go
-	// package paths may not correspond to a valid VDL package, so we provide the
-	// -ignore_unknown flag to silently ignore these paths.
-	//
-	// It's fine if the VDL packages have dependencies not reflected in the Go
-	// packages; the vdl tool will compute the transitive closure of VDL package
-	// dependencies, as usual.
-	//
-	// TODO(toddw): Change the vdl tool to return vdl packages given the full Go
-	// dependencies, after vdl config files are implemented.
 	goPkgs, goFiles := extractGoPackagesOrFiles(cmdArgs[0], cmdArgs[1:])
 	goDeps, err := computeGoDeps(ctx, hostEnv, append(goPkgs, goFiles...))
 	if err != nil {
@@ -175,6 +177,7 @@ func extractGoPackagesOrFiles(cmd string, args []string) ([]string, []string) {
 	case "test":
 		nonBool = nonBoolGoTest
 	}
+
 	// Move start to the start of PACKAGES or GOFILES, by skipping flags.
 	start := 0
 	for start < len(args) {
@@ -195,6 +198,7 @@ func extractGoPackagesOrFiles(cmd string, args []string) ([]string, []string) {
 			start++
 		}
 	}
+
 	// Move end to the end of PACKAGES or GOFILES.
 	var end int
 	switch cmd {
@@ -217,6 +221,7 @@ func extractGoPackagesOrFiles(cmd string, args []string) ([]string, []string) {
 	default:
 		end = len(args)
 	}
+
 	// Decide whether these are packages or files.
 	switch {
 	case start == end:

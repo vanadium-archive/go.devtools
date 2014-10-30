@@ -76,46 +76,43 @@ reports the difference and stops. Otherwise, it deletes the branch.
 	ArgsLong: "<branches> is a list of branches to cleanup.",
 }
 
-func cleanup(command *cmdline.Command, git *gitutil.Git, run *runutil.Run, branches []string) error {
-	if len(branches) == 0 {
-		return command.UsageErrorf("cleanup requires at least one argument")
-	}
-	currentBranch, err := git.CurrentBranchName()
+func cleanup(ctx *util.Context, branches []string) error {
+	currentBranch, err := ctx.Git().CurrentBranchName()
 	if err != nil {
 		return err
 	}
-	stashed, err := git.Stash()
+	stashed, err := ctx.Git().Stash()
 	if err != nil {
 		return err
 	}
 	if stashed {
-		defer git.StashPop()
+		defer ctx.Git().StashPop()
 	}
-	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
+	if err := ctx.Git().CheckoutBranch("master", !gitutil.Force); err != nil {
 		return err
 	}
-	defer git.CheckoutBranch(currentBranch, !gitutil.Force)
-	if err := git.Pull("origin", "master"); err != nil {
+	defer ctx.Git().CheckoutBranch(currentBranch, !gitutil.Force)
+	if err := ctx.Git().Pull("origin", "master"); err != nil {
 		return err
 	}
 	for _, branch := range branches {
-		cleanupFn := func() error { return cleanupBranch(git, branch) }
-		if err := run.Function(cleanupFn, "Cleaning up branch %q", branch); err != nil {
+		cleanupFn := func() error { return cleanupBranch(ctx, branch) }
+		if err := ctx.Run().Function(cleanupFn, "Cleaning up branch %q", branch); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func cleanupBranch(git *gitutil.Git, branch string) error {
-	if err := git.CheckoutBranch(branch, !gitutil.Force); err != nil {
+func cleanupBranch(ctx *util.Context, branch string) error {
+	if err := ctx.Git().CheckoutBranch(branch, !gitutil.Force); err != nil {
 		return err
 	}
 	if !forceFlag {
-		if err := git.Merge("master", false); err != nil {
+		if err := ctx.Git().Merge("master", false); err != nil {
 			return err
 		}
-		files, err := git.ModifiedFiles("master", branch)
+		files, err := ctx.Git().ModifiedFiles("master", branch)
 		if err != nil {
 			return err
 		}
@@ -127,15 +124,15 @@ func cleanupBranch(git *gitutil.Git, branch string) error {
 			return fmt.Errorf("unmerged changes in\n%s", strings.Join(files, "\n"))
 		}
 	}
-	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
+	if err := ctx.Git().CheckoutBranch("master", !gitutil.Force); err != nil {
 		return err
 	}
-	if err := git.DeleteBranch(branch, gitutil.Force); err != nil {
+	if err := ctx.Git().DeleteBranch(branch, gitutil.Force); err != nil {
 		return err
 	}
 	reviewBranch := branch + "-REVIEW"
-	if git.BranchExists(reviewBranch) {
-		if err := git.DeleteBranch(reviewBranch, gitutil.Force); err != nil {
+	if ctx.Git().BranchExists(reviewBranch) {
+		if err := ctx.Git().DeleteBranch(reviewBranch, gitutil.Force); err != nil {
 			return err
 		}
 	}
@@ -143,8 +140,11 @@ func cleanupBranch(git *gitutil.Git, branch string) error {
 }
 
 func runCleanup(command *cmdline.Command, args []string) error {
+	if len(args) == 0 {
+		return command.UsageErrorf("cleanup requires at least one argument")
+	}
 	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
-	return cleanup(command, ctx.Git(), ctx.Run(), args)
+	return cleanup(ctx, args)
 }
 
 // cmdReview represents the 'review' command of the git-veyron tool.
@@ -243,14 +243,12 @@ type review struct {
 	branch string
 	// ccs is the list of LDAPs or emails to cc on the review.
 	ccs string
+	// ctx is an instance of the command-line tool context.
+	ctx *util.Context
 	// draft indicates whether to create a draft review.
 	draft bool
 	// edit indicates whether to edit the review message.
 	edit bool
-	// git is an instance of a git command executor.
-	git *gitutil.Git
-	// runner is an instance of a general purpose command executor.
-	runner *runutil.Run
 	// repo is the name of the gerrit repository.
 	repo string
 	// reviewBranch is the name of the temporary git branch used to send the review.
@@ -269,10 +267,9 @@ func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string)
 	return &review{
 		branch:       branch,
 		ccs:          ccs,
+		ctx:          ctx,
 		draft:        draft,
 		edit:         edit,
-		git:          ctx.Git(),
-		runner:       ctx.Run(),
 		repo:         repo,
 		reviewBranch: reviewBranch,
 		reviewers:    reviewers,
@@ -285,10 +282,10 @@ var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcde
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat() error {
-	if err := r.git.Fetch("origin", "master"); err != nil {
+	if err := r.ctx.Git().Fetch("origin", "master"); err != nil {
 		return err
 	}
-	files, err := r.git.ModifiedFiles("FETCH_HEAD", r.branch)
+	files, err := r.ctx.Git().ModifiedFiles("FETCH_HEAD", r.branch)
 	if err != nil {
 		return err
 	}
@@ -297,11 +294,13 @@ func (r *review) checkGoFormat() error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	topLevel, err := r.git.TopLevel()
+	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return err
 	}
-	os.Chdir(topLevel)
+	if err := r.ctx.Run().Function(runutil.Chdir(topLevel)); err != nil {
+		return err
+	}
 	ill := make([]string, 0)
 	for _, file := range files {
 		path := filepath.Join(topLevel, file)
@@ -330,17 +329,17 @@ func (r *review) checkGoFormat() error {
 
 // cleanup cleans up after the review.
 func (r *review) cleanup(stashed bool) {
-	if err := r.git.CheckoutBranch(r.branch, !gitutil.Force); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+	if err := r.ctx.Git().CheckoutBranch(r.branch, !gitutil.Force); err != nil {
+		fmt.Fprintf(r.ctx.Stderr(), "%v\n", err)
 	}
-	if r.git.BranchExists(r.reviewBranch) {
-		if err := r.git.DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+	if r.ctx.Git().BranchExists(r.reviewBranch) {
+		if err := r.ctx.Git().DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
+			fmt.Fprintf(r.ctx.Stderr(), "%v\n", err)
 		}
 	}
 	if stashed {
-		if err := r.git.StashPop(); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+		if err := r.ctx.Git().StashPop(); err != nil {
+			fmt.Fprintf(r.ctx.Stderr(), "%v\n", err)
 		}
 	}
 }
@@ -348,20 +347,20 @@ func (r *review) cleanup(stashed bool) {
 // createReviewBranch creates a clean review branch from master and
 // squashes the commits into one, with the supplied message.
 func (r *review) createReviewBranch(message string) error {
-	if err := r.git.Fetch("origin", "master"); err != nil {
+	if err := r.ctx.Git().Fetch("origin", "master"); err != nil {
 		return err
 	}
-	if r.git.BranchExists(r.reviewBranch) {
-		if err := r.git.DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
+	if r.ctx.Git().BranchExists(r.reviewBranch) {
+		if err := r.ctx.Git().DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
 			return err
 		}
 	}
 	upstream := "origin/master"
-	if err := r.git.CreateBranchWithUpstream(r.reviewBranch, upstream); err != nil {
+	if err := r.ctx.Git().CreateBranchWithUpstream(r.reviewBranch, upstream); err != nil {
 		return err
 	}
 	{
-		hasDiff, err := r.git.BranchesDiffer(r.branch, r.reviewBranch)
+		hasDiff, err := r.ctx.Git().BranchesDiffer(r.branch, r.reviewBranch)
 		if err != nil {
 			return err
 		}
@@ -377,13 +376,13 @@ func (r *review) createReviewBranch(message string) error {
 			return err
 		}
 	}
-	if err := r.git.CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
+	if err := r.ctx.Git().CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
 		return err
 	}
-	if err := r.git.Merge(r.branch, true); err != nil {
+	if err := r.ctx.Git().Merge(r.branch, true); err != nil {
 		return changeConflictError(err.Error())
 	}
-	c := r.git.NewCommitter(r.edit)
+	c := r.ctx.Git().NewCommitter(r.edit)
 	if err := c.Commit(message); err != nil {
 		return err
 	}
@@ -393,7 +392,7 @@ func (r *review) createReviewBranch(message string) error {
 // defaultCommitMessage creates the default commit message from the list of
 // commits on the branch.
 func (r *review) defaultCommitMessage() (string, error) {
-	commitMessages, err := r.git.CommitMessages(r.branch, r.reviewBranch)
+	commitMessages, err := r.ctx.Git().CommitMessages(r.branch, r.reviewBranch)
 	if err != nil {
 		return "", err
 	}
@@ -408,7 +407,7 @@ func (r *review) defaultCommitMessage() (string, error) {
 // ensureChangeID makes sure that the last commit contains a Change-Id, and
 // returns an error if it does not.
 func (r *review) ensureChangeID() error {
-	latestCommitMessage, err := r.git.LatestCommitMessage()
+	latestCommitMessage, err := r.ctx.Git().LatestCommitMessage()
 	if err != nil {
 		return err
 	}
@@ -422,7 +421,7 @@ func (r *review) ensureChangeID() error {
 // run implements the end-to-end functionality of the review command.
 func (r *review) run() error {
 	if uncommittedFlag {
-		changes, err := r.git.FilesWithUncommittedChanges()
+		changes, err := r.ctx.Git().FilesWithUncommittedChanges()
 		if err != nil {
 			return err
 		}
@@ -442,7 +441,7 @@ func (r *review) run() error {
 	if err != nil {
 		return err
 	}
-	stashed, err := r.git.Stash()
+	stashed, err := r.ctx.Git().Stash()
 	if err != nil {
 		return err
 	}
@@ -451,13 +450,22 @@ func (r *review) run() error {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer os.Chdir(wd)
-	topLevel, err := r.git.TopLevel()
+	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return err
 	}
-	os.Chdir(topLevel)
+	if err := r.ctx.Run().Function(runutil.Chdir(topLevel)); err != nil {
+		return err
+	}
 	defer r.cleanup(stashed)
-	if err := r.createReviewBranch(readFile(filename)); err != nil {
+	message := ""
+	data, err := ioutil.ReadFile(filename)
+	if err == nil {
+		message = string(data)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := r.createReviewBranch(message); err != nil {
 		return err
 	}
 	if err := r.updateReviewMessage(filename); err != nil {
@@ -474,7 +482,7 @@ func (r *review) send() error {
 	if err := r.ensureChangeID(); err != nil {
 		return err
 	}
-	if err := gerrit.Review(r.runner, r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
+	if err := gerrit.Review(r.ctx, r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
 		return gerritError(err.Error())
 	}
 	return nil
@@ -484,73 +492,47 @@ func (r *review) send() error {
 // file. It then adds that file to the original branch, and makes sure
 // it is not on the review branch.
 func (r *review) updateReviewMessage(filename string) error {
-	if err := r.git.CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
+	if err := r.ctx.Git().CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
 		return err
 	}
-	newMessage, err := r.git.LatestCommitMessage()
+	newMessage, err := r.ctx.Git().LatestCommitMessage()
 	if err != nil {
 		return err
 	}
-	if err := r.git.CheckoutBranch(r.branch, !gitutil.Force); err != nil {
+	if err := r.ctx.Git().CheckoutBranch(r.branch, !gitutil.Force); err != nil {
 		return err
 	}
-	if err := writeFile(filename, newMessage); err != nil {
-		return fmt.Errorf("writeFile(%v, %v) failed: %v", filename, newMessage, err)
+	if err := ioutil.WriteFile(filename, []byte(newMessage), 0644); err != nil {
+		return fmt.Errorf("WriteFile(%v, %v) failed: %v", filename, newMessage, err)
 	}
-	if err := r.git.CommitFile(filename, "Update gerrit commit message."); err != nil {
+	if err := r.ctx.Git().CommitFile(filename, "Update gerrit commit message."); err != nil {
 		return err
 	}
 	// Delete the commit message from review branch.
-	if err := r.git.CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
+	if err := r.ctx.Git().CheckoutBranch(r.reviewBranch, !gitutil.Force); err != nil {
 		return err
 	}
-	if fileExists(filename) {
-		if err := r.git.Remove(filename); err != nil {
+	if _, err := os.Stat(filename); err == nil {
+		if err := r.ctx.Git().Remove(filename); err != nil {
 			return err
 		}
-		if err := r.git.CommitAmend(newMessage); err != nil {
+		if err := r.ctx.Git().CommitAmend(newMessage); err != nil {
 			return err
 		}
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 	return nil
-}
-
-// fileExists returns true iff the file exists.
-func fileExists(filename string) bool {
-	if _, err := os.Stat(filename); err == nil {
-		return true
-	}
-	return false
 }
 
 // getCommitMessageFilename returns the name of the file that will get
 // used for the Gerrit commit message.
 func (r *review) getCommitMessageFilename() (string, error) {
-	topLevel, err := r.git.TopLevel()
+	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(topLevel, ".gerrit_commit_message"), nil
-}
-
-// readFile returns the data in a file as a string. Returns empty
-// string if the file does not exist.
-func readFile(filename string) string {
-	if fileExists(filename) {
-		contents, _ := ioutil.ReadFile(filename)
-		return string(contents)
-	}
-	return ""
-}
-
-// writeFile writes the message string to the file.
-func writeFile(filename, message string) error {
-	return ioutil.WriteFile(filename, []byte(message), 0644)
-}
-
-// writeFileExecutable writes the message string to the file and makes it executable.
-func writeFileExecutable(filename, message string) error {
-	return ioutil.WriteFile(filename, []byte(message), 0777)
 }
 
 // cmdStatus represents the 'status' command of the git-veyron tool.
@@ -588,7 +570,7 @@ func runStatus(command *cmdline.Command, args []string) error {
 	currentRepo, _ := ctx.Git().RepoName()
 	var statuses []string
 	for _, name := range names {
-		if err := os.Chdir(projects[name].Path); err != nil {
+		if err := ctx.Run().Function(runutil.Chdir(projects[name].Path)); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", projects[name].Path, err)
 		}
 		branch, err := ctx.Git().CurrentBranchName()
