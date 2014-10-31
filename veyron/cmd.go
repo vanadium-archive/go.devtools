@@ -15,14 +15,15 @@ import (
 )
 
 var (
-	hostGo       string
-	targetGo     string
-	branchesFlag bool
-	gcFlag       bool
-	manifestFlag string
-	novdlFlag    bool
-	platformFlag string
-	verboseFlag  bool
+	hostGo             string
+	targetGo           string
+	branchesFlag       bool
+	gcFlag             bool
+	manifestFlag       string
+	novdlFlag          bool
+	platformFlag       string
+	numTestWorkersFlag int
+	verboseFlag        bool
 )
 
 func init() {
@@ -34,6 +35,7 @@ func init() {
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdXGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
+	cmdIntegrationTestRun.Flags.IntVar(&numTestWorkersFlag, "workers", 0, "Number of test workers. The default 0 matches the number of CPUs.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 }
 

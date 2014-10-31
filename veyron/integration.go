@@ -73,7 +73,8 @@ func runIntegrationTestRun(command *cmdline.Command, args []string) error {
 				runArgs = append(runArgs, filepath.Join(runnerDir, fileInfo.Name()))
 			}
 		}
-		runArgs = append(runArgs, ([]string{"-bin_dir", binDir})...)
+		runArgs = append(runArgs,
+			([]string{"-bin_dir", binDir, fmt.Sprintf("-workers=%d", numTestWorkersFlag)})...)
 		if err := ctx.Run().Command(command.Stdout(), command.Stderr(), nil, "veyron", runArgs...); err != nil {
 			return err
 		}

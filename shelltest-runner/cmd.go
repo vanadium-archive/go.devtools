@@ -32,8 +32,9 @@ const (
 
 var (
 	// Flags.
-	binDirFlag  string
-	verboseFlag bool
+	binDirFlag         string
+	numTestWorkersFlag int
+	verboseFlag        bool
 
 	// Other vars.
 	numCPU int
@@ -69,6 +70,7 @@ var binPackages = []string{
 
 func init() {
 	cmdRoot.Flags.StringVar(&binDirFlag, "bin_dir", defaultBinDir, "The binary directory.")
+	cmdRoot.Flags.IntVar(&numTestWorkersFlag, "workers", 0, "Number of test workers. The default 0 matches the number of CPUs.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 
 	// Set the number of OS threads that can run Go code
@@ -209,12 +211,16 @@ func runTestScripts(ctx *util.Context) error {
 	// We are going to send test script path to the jobs channel.
 	jobs := make(chan string, numTests)
 	results := make(chan testResult, numTests)
-	env := envutil.ToMap(os.Environ())
+	env := envutil.NewSnapshotFromOS()
 
 	// Pass binDirFlag to test scripts through shell_test_BIN_DIR.
-	env["shell_test_BIN_DIR"] = binDirFlag
-	for i := 0; i < numWorkers(numTests); i++ {
-		go testWorker(ctx, veyronRoot, env, jobs, results)
+	env.Set("shell_test_BIN_DIR", binDirFlag)
+	numTestWorkers := numWorkers(numTests)
+	if numTestWorkersFlag > 0 {
+		numTestWorkers = numTestWorkersFlag
+	}
+	for i := 0; i < numTestWorkers; i++ {
+		go testWorker(ctx, veyronRoot, env.Map(), jobs, results)
 	}
 
 	// Output unfinished tests when the program is terminated.
