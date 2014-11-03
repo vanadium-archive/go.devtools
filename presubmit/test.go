@@ -166,7 +166,7 @@ func runTest(command *cmdline.Command, args []string) error {
 	if err := preparePresubmitTestBranch(ctx, dir, cl); err != nil {
 		// When "git pull" fails, post a review to let the CL
 		// author know about the possible merge conflicts.
-		if strings.HasPrefix(err.Error(), "Pull") {
+		if strings.Contains(err.Error(), "git pull") {
 			reviewMessageFlag = "Possible merge conflict detected.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted.\n"
 			printf(command.Stdout(), "### Posting message to Gerrit\n")
 			if err := runPost(nil, nil); err != nil {
@@ -338,8 +338,7 @@ func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) erro
 	}
 	origin := "origin"
 	if err := ctx.Git().Pull(origin, reviewTargetRefFlag); err != nil {
-		// Format the error in this way so the caller of this function knows the error is from "git pull".
-		return fmt.Errorf("Pull(%q, %q) failed: %v", origin, reviewTargetRefFlag, err)
+		return err
 	}
 	return nil
 }
