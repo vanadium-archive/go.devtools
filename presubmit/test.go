@@ -338,7 +338,8 @@ func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) erro
 	}
 	origin := "origin"
 	if err := ctx.Git().Pull(origin, reviewTargetRefFlag); err != nil {
-		return err
+		// Format the error in this way so the caller of this function knows the error is from "git pull".
+		return fmt.Errorf("Pull(%q, %q) failed: %v", origin, reviewTargetRefFlag, err)
 	}
 	return nil
 }
