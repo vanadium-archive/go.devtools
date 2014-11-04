@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -312,12 +312,14 @@ func (r *review) checkGoFormat() error {
 			}
 			// Check if the formatting of <file> differs
 			// from gofmt.
-			fmtCmd := exec.Command("veyron", "go", "fmt", path)
-			out, err := fmtCmd.Output()
-			if err != nil {
-				return fmt.Errorf("failed to check Go format: %v\n%v\n%s", err, strings.Join(fmtCmd.Args, " "), out)
+			var out bytes.Buffer
+			opts := r.ctx.Run().Opts()
+			opts.Stdout = &out
+			opts.Stderr = &out
+			if err := r.ctx.Run().CommandWithOpts(opts, "veyron", "go", "fmt", path); err != nil {
+				return err
 			}
-			if len(out) != 0 {
+			if out.Len() != 0 {
 				ill = append(ill, file)
 			}
 		}

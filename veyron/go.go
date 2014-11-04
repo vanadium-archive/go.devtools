@@ -90,16 +90,16 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 	// Generate vdl files, if necessary.
 	switch args[0] {
 	case "build", "generate", "install", "run", "test":
+		// Check that all non-master branches have merged the
+		// master branch to make sure the vdl tool is not run
+		// against out-of-date code base.
+		if err := reportOutdatedBranches(ctx); err != nil {
+			return err
+		}
+
 		if err := generateVDL(ctx, args); err != nil {
 			return err
 		}
-	}
-
-	// Check that all non-master branches have merged the master
-	// branch to make sure the vdl tool is not run against
-	// out-of-date code base.
-	if err := reportOutdatedBranches(ctx); err != nil {
-		return err
 	}
 
 	// Run the go tool for the given platform.
