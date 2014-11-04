@@ -220,7 +220,7 @@ run:
 			if err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
 			} else {
-				if lastStatus {
+				if lastStatus == "SUCCESS" {
 					lastStatusString = "✔"
 				} else {
 					lastStatusString = "✖"
@@ -474,11 +474,11 @@ func findCycle(name string, tests testInfoMap) bool {
 
 // lastCompletedBuildStatusForProject gets the status of the last
 // completed build for a given jenkins project.
-func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
+func lastCompletedBuildStatusForProject(projectName string) (string, error) {
 	// Construct rest API url to get build status.
 	statusUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
-		return false, fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
+		return "", fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
 	statusUrl.Path = fmt.Sprintf("%s/job/%s/lastCompletedBuild/api/json", statusUrl.Path, projectName)
 	statusUrl.RawQuery = url.Values{
@@ -490,12 +490,12 @@ func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
 	method, url, body := "GET", statusUrl.String(), nil
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return false, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+		return "", fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
 	}
 	req.Header.Add("Accept", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("Do(%v) failed: %v", req, err)
+		return "", fmt.Errorf("Do(%v) failed: %v", req, err)
 	}
 	defer res.Body.Close()
 
@@ -504,16 +504,16 @@ func lastCompletedBuildStatusForProject(projectName string) (bool, error) {
 
 // parseLastCompletedBuildStatusJsonResponse parses whether the last
 // completed build was successful or not.
-func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (bool, error) {
+func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (string, error) {
 	r := bufio.NewReader(reader)
 	var status struct {
 		Result string
 	}
 	if err := json.NewDecoder(r).Decode(&status); err != nil {
-		return false, fmt.Errorf("Decode() failed: %v", err)
+		return "", fmt.Errorf("Decode() failed: %v", err)
 	}
 
-	return status.Result == "SUCCESS", nil
+	return status.Result, nil
 }
 
 // failedTestLinks returns a list of Jenkins test report links for the

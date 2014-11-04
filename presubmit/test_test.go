@@ -212,7 +212,7 @@ func TestParseLastCompletedBuildStatusJsonResponse(t *testing.T) {
 		"result": "SUCCESS"
 	}
 	`
-	expected := true
+	expected := "SUCCESS"
 	got, err := parseLastCompletedBuildStatusJsonResponse(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
@@ -229,7 +229,7 @@ func TestParseLastCompletedBuildStatusJsonResponse(t *testing.T) {
 		"result": "FAILURE"
 	}
 	`
-	expected = false
+	expected = "FAILURE"
 	got, err = parseLastCompletedBuildStatusJsonResponse(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)

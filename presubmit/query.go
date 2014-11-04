@@ -42,7 +42,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 	if err != nil {
 		fmt.Fprintf(command.Stderr(), "%v\n", err)
 	} else {
-		if !lastStatus {
+		if lastStatus == "FAILURE" {
 			fmt.Fprintf(command.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJenkinsProjectFlag)
 			return nil
 		}
