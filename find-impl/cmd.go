@@ -24,8 +24,8 @@ var (
 
 func init() {
 	cmdRoot.Flags.BoolVar(&debug, "debug", false, "Toggle debugging.")
-	cmdRoot.Flags.BoolVar(&onlyFiles, "only-files", false, "Show only files.")
-	cmdRoot.Flags.BoolVar(&onlyTypes, "only-types", false, "Show only types, takes precedence over only-files.")
+	cmdRoot.Flags.BoolVar(&onlyFiles, "only_files", false, "Show only files.")
+	cmdRoot.Flags.BoolVar(&onlyTypes, "only_types", false, "Show only types, takes precedence over only_files.")
 	cmdRoot.Flags.StringVar(&interfaceName, "interface", "", "Name of the interface.")
 	cmdRoot.Flags.StringVar(&regexpArg, "regexp", "", "Look for implementations in packages matching this filter.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
@@ -62,7 +62,7 @@ no attempt is made to sort or dedup this output, rather existing tools
 such as awk, sort, uniq should be used.
 
 spaces in package names will confound simple scripts and the flags
---only-files, --only-types should be used in such cases to produce
+--only_files, --only_types should be used in such cases to produce
 output with one type or one filename per line.
 
 The implementation is a brute force approach, taking two passes the
