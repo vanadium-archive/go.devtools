@@ -329,7 +329,7 @@ func gofmt(ctx *util.Context, files []string) error {
 	if !gofmtFlag {
 		return nil
 	}
-	return ctx.Run().Command(ctx.Stdout(), ctx.Stderr(), nil, "gofmt", append([]string{"-w"}, files...)...)
+	return ctx.Run().Command("gofmt", append([]string{"-w"}, files...)...)
 }
 
 // inject injects a log call at the beginning of each method in methods.

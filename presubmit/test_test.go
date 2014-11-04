@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -17,7 +16,7 @@ func TestTestsForRepo(t *testing.T) {
 		"veyron":  []string{"veyron-go-build", "veyron-go-test"},
 		"default": []string{"tools-go-build", "tools-go-test"},
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
+	ctx := util.DefaultContext()
 
 	// Get tests for a repo that is in the config file.
 	got, err := testsForRepo(ctx, repos, "veyron")
@@ -245,8 +244,7 @@ func TestTestsConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	ctx := util.NewContext(true, os.Stdout, os.Stderr)
-
+	ctx := util.DefaultContext()
 	presubmitTestsConfigFile := filepath.Join(veyronRoot, "tools", "conf", "presubmit")
 	configFileContent, err := ioutil.ReadFile(presubmitTestsConfigFile)
 	if err != nil {

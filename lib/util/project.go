@@ -488,7 +488,11 @@ func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error
 		ldflags := fmt.Sprintf("-X tools/lib/version.Version %d", count)
 		args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
 		var stderr bytes.Buffer
-		if err := ctx.Run().Command(ioutil.Discard, &stderr, env.Map(), "go", args...); err != nil {
+		opts := ctx.Run().Opts()
+		opts.Env = env.Map()
+		opts.Stdout = ioutil.Discard
+		opts.Stderr = &stderr
+		if err := ctx.Run().CommandWithOpts(opts, "go", args...); err != nil {
 			return fmt.Errorf("%v tool build failed\n%v", tool.Name, stderr.String())
 		}
 		return nil
@@ -522,7 +526,8 @@ func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 		}
 		// Always log the output of updateFn, irrespective of
 		// the value of the verbose flag.
-		if err := ctx.Run().FunctionWithVerbosity(true, updateFn, "build tool %q", tool.Name); err != nil {
+		opts := runutil.Opts{Verbose: true}
+		if err := ctx.Run().FunctionWithOpts(opts, updateFn, "build tool %q", tool.Name); err != nil {
 			// TODO(jsimsa): Switch this to Run().Output()?
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			failed = true
@@ -629,7 +634,8 @@ func installTools(ctx *Context, dir string) error {
 			}
 			return nil
 		}
-		if err := ctx.Run().FunctionWithVerbosity(true, installFn, "install tool %q", fi.Name()); err != nil {
+		opts := runutil.Opts{Verbose: true}
+		if err := ctx.Run().FunctionWithOpts(opts, installFn, "install tool %q", fi.Name()); err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			failed = true
 		}
@@ -755,7 +761,8 @@ func reportNonMaster(ctx *Context, project Project) error {
 		if current != "master" {
 			line1 := fmt.Sprintf(`NOTE: "veyron update" only updates the "master" branch and the current branch is %q`, current)
 			line2 := fmt.Sprintf(`to update the %q branch once the master branch is updated, run "git merge master"`, current)
-			ctx.Run().OutputWithVerbosity(true, []string{line1, line2})
+			opts := runutil.Opts{Verbose: true}
+			ctx.Run().OutputWithOpts(opts, []string{line1, line2})
 		}
 		return nil
 	case "hg":
@@ -822,7 +829,8 @@ func updateProjects(ctx *Context, remoteProjects Projects, gc bool) error {
 		updateFn := func() error { return runOperation(ctx, op) }
 		// Always log the output of updateFn, irrespective of
 		// the value of the verbose flag.
-		if err := ctx.Run().FunctionWithVerbosity(true, updateFn, "%v", op); err != nil {
+		opts := runutil.Opts{Verbose: true}
+		if err := ctx.Run().FunctionWithOpts(opts, updateFn, "%v", op); err != nil {
 			// TODO(jsimsa): Switch this to Run.Output()?
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			failed = true
@@ -1022,7 +1030,10 @@ func runOperation(ctx *Context, op operation) error {
 				url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
 				args := []string{"-Lo", file, url}
 				var stderr bytes.Buffer
-				if err := ctx.Run().Command(ioutil.Discard, &stderr, nil, "curl", args...); err != nil {
+				opts := ctx.Run().Opts()
+				opts.Stdout = ioutil.Discard
+				opts.Stderr = &stderr
+				if err := ctx.Run().CommandWithOpts(opts, "curl", args...); err != nil {
 					return fmt.Errorf("failed to download commit message hook: %v\n%v", err, stderr.String())
 				}
 				if err := os.Chmod(file, perm); err != nil {

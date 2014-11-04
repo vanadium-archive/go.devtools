@@ -81,7 +81,7 @@ considered by default.
 }
 
 func runContributors(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err

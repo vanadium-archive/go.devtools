@@ -81,7 +81,7 @@ func runBuildGenerate(command *cmdline.Command, args []string) error {
 
 	// Create a manifest that encodes the current state of all of
 	// the projects.
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	if err := util.CreateBuildManifest(ctx, args[0]); err != nil {
 		return err
 	}

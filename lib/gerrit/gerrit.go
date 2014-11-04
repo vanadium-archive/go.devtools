@@ -196,7 +196,10 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 func repoName(ctx *util.Context) (string, error) {
 	args := []string{"config", "--get", "remote.origin.url"}
 	var stdout, stderr bytes.Buffer
-	if err := ctx.Run().Command(&stdout, &stderr, nil, "git", args...); err != nil {
+	opts := ctx.Run().Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	if err := ctx.Run().CommandWithOpts(opts, "git", args...); err != nil {
 		return "", gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
 	return "https://veyron-review.googlesource.com/" + filepath.Base(strings.TrimSpace(stdout.String())), nil
@@ -215,7 +218,10 @@ func Review(ctx *util.Context, repoPathArg string, draft bool, reviewers, ccs, b
 	refspec := "HEAD:" + Reference(draft, reviewers, ccs, branch)
 	args := []string{"push", repoPath, refspec}
 	var stdout, stderr bytes.Buffer
-	if err := ctx.Run().Command(&stdout, &stderr, nil, "git", args...); err != nil {
+	opts := ctx.Run().Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	if err := ctx.Run().CommandWithOpts(opts, "git", args...); err != nil {
 		return gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
 	for _, line := range strings.Split(stderr.String(), "\n") {

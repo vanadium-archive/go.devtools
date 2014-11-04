@@ -36,10 +36,9 @@ type Hg struct {
 	runner *runutil.Run
 }
 
+// New is the Hg factory.
 func New(runner *runutil.Run) *Hg {
-	return &Hg{
-		runner: runner,
-	}
+	return &Hg{runner: runner}
 }
 
 // CheckoutBranch switches the current repository to the given branch.
@@ -106,7 +105,10 @@ func (h *Hg) RepoName() (string, error) {
 
 func (h *Hg) run(args ...string) error {
 	var stdout, stderr bytes.Buffer
-	if err := h.runner.Command(&stdout, &stderr, nil, "hg", args...); err != nil {
+	opts := h.runner.Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	if err := h.runner.CommandWithOpts(opts, "hg", args...); err != nil {
 		return Error(stdout.String(), stderr.String(), args...)
 	}
 	return nil
@@ -114,7 +116,10 @@ func (h *Hg) run(args ...string) error {
 
 func (h *Hg) runOutput(args ...string) ([]string, error) {
 	var stdout, stderr bytes.Buffer
-	if err := h.runner.Command(&stdout, &stderr, nil, "hg", args...); err != nil {
+	opts := h.runner.Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	if err := h.runner.CommandWithOpts(opts, "hg", args...); err != nil {
 		return nil, Error(stdout.String(), stderr.String(), args...)
 	}
 	output := strings.TrimSpace(stdout.String())

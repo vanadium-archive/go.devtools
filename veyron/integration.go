@@ -53,7 +53,7 @@ func runIntegrationTestRun(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	dir, prefix := "", "integration_test_bin_dir"
 	binDir, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
@@ -75,7 +75,7 @@ func runIntegrationTestRun(command *cmdline.Command, args []string) error {
 		}
 		runArgs = append(runArgs,
 			([]string{"-bin_dir", binDir, fmt.Sprintf("-workers=%d", numTestWorkersFlag)})...)
-		if err := ctx.Run().Command(command.Stdout(), command.Stderr(), nil, "veyron", runArgs...); err != nil {
+		if err := ctx.Run().Command("veyron", runArgs...); err != nil {
 			return err
 		}
 	} else {
@@ -95,7 +95,11 @@ func runIntegrationTestRun(command *cmdline.Command, args []string) error {
 			// Pass binDir to test scripts through shell_test_BIN_DIR.
 			env.Set("shell_test_BIN_DIR", binDir)
 			testName := trimTestScriptPath(root, testScript)
-			if err := ctx.Run().Command(&stdout, &stderr, env.Map(), testScript); err != nil {
+			opts := ctx.Run().Opts()
+			opts.Stdout = &stdout
+			opts.Stderr = &stderr
+			opts.Env = env.Map()
+			if err := ctx.Run().CommandWithOpts(opts, testScript); err != nil {
 				fmt.Fprintf(command.Stdout(), "FAIL: %s\n", testName)
 				fmt.Fprintf(command.Stderr(), "%s\n%s\n", stdout.String(), stderr.String())
 			} else {
@@ -122,7 +126,6 @@ func runIntegrationTestList(command *cmdline.Command, _ []string) error {
 	for _, shortTestName := range shortTestNames {
 		fmt.Fprintf(command.Stdout(), "%s (%s)\n", shortTestName, trimTestScriptPath(root, tests[shortTestName]))
 	}
-
 	return nil
 }
 

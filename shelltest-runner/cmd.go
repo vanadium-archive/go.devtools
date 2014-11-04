@@ -103,7 +103,7 @@ var cmdRoot = &cmdline.Command{
 }
 
 func runRoot(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 
 	// Builds all GO binaries used in test scripts and then runs
 	// the integration tests. This allows us to build these

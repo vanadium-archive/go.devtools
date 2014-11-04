@@ -56,7 +56,7 @@ const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 </testsuites>
 `
 
-var defaultTestTimeoutValue = 6 * time.Minute
+var defaultTestTimeout = 6 * time.Minute
 
 type testInfo struct {
 	// A list of its dependencies.
@@ -74,7 +74,7 @@ type testInfoMap map[string]*testInfo
 //
 // TODO(jingjin): Refactor this function so that it does not span 200+ lines.
 func runTest(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 
 	// Basic sanity checks.
 	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
@@ -168,11 +168,11 @@ func runTest(command *cmdline.Command, args []string) error {
 		// author know about the possible merge conflicts.
 		if strings.Contains(err.Error(), "git pull") {
 			reviewMessageFlag = "Possible merge conflict detected.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted.\n"
-			printf(command.Stdout(), "### Posting message to Gerrit\n")
+			printf(ctx.Stdout(), "### Posting message to Gerrit\n")
 			if err := runPost(nil, nil); err != nil {
-				printf(command.Stderr(), "%v\n", err)
+				printf(ctx.Stderr(), "%v\n", err)
 			}
-			printf(command.Stderr(), "%v\n", err)
+			printf(ctx.Stderr(), "%v\n", err)
 			return nil
 		}
 		return err
@@ -218,7 +218,7 @@ run:
 			lastStatus, err := lastCompletedBuildStatusForProject(test)
 			lastStatusString := "?"
 			if err != nil {
-				printf(command.Stderr(), "%v\n", err)
+				printf(ctx.Stderr(), "%v\n", err)
 			} else {
 				if lastStatus {
 					lastStatusString = "✔"
@@ -231,18 +231,20 @@ run:
 			var curStatusString string
 			var stderr bytes.Buffer
 			finished := true
-			if err := ctx.Run().CommandWithTimeout(command.Stdout(), &stderr, nil, testScript, defaultTestTimeoutValue); err != nil {
+			opts := ctx.Run().Opts()
+			opts.Stderr = &stderr
+			if err := ctx.Run().TimedCommandWithOpts(defaultTestTimeout, opts, testScript); err != nil {
 				curStatusString = "✖"
 				testInfo.testStatus = testStatusFailed
 				if err == runutil.CommandTimedoutErr {
 					finished = false
-					printf(command.Stderr(), "%s TIMED OUT after %s\n", test, defaultTestTimeoutValue)
-					err := generateReportForHangingTest(test, defaultTestTimeoutValue)
+					printf(ctx.Stderr(), "%s TIMED OUT after %s\n", test, defaultTestTimeout)
+					err := generateReportForHangingTest(test, defaultTestTimeout)
 					if err != nil {
-						printf(command.Stderr(), "%v\n", err)
+						printf(ctx.Stderr(), "%v\n", err)
 					}
 				} else {
-					printf(command.Stderr(), "%v\n", stderr.String())
+					printf(ctx.Stderr(), "%v\n", stderr.String())
 				}
 			} else {
 				curStatusString = "✔"
@@ -250,7 +252,7 @@ run:
 			}
 			fmt.Fprintf(results, "%s ➔ %s: %s", lastStatusString, curStatusString, test)
 			if !finished {
-				fmt.Fprintf(results, " [TIMED OUT after %s]\n", defaultTestTimeoutValue)
+				fmt.Fprintf(results, " [TIMED OUT after %s]\n", defaultTestTimeout)
 			} else {
 				fmt.Fprintln(results)
 			}
@@ -280,7 +282,7 @@ run:
 	}
 	if jenkinsBuildNumberFlag >= 0 {
 		sort.Strings(executedTests)
-		links, err := failedTestLinks(ctx, executedTests, command)
+		links, err := failedTestLinks(ctx, executedTests)
 		if err != nil {
 			return err
 		}
@@ -299,8 +301,8 @@ run:
 
 	// Post test results.
 	reviewMessageFlag = results.String()
-	fmt.Fprintln(command.Stdout())
-	printf(command.Stdout(), "### Posting test results to Gerrit\n")
+	fmt.Fprintln(ctx.Stdout())
+	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
 	if err := runPost(nil, nil); err != nil {
 		return err
 	}
@@ -328,7 +330,6 @@ func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) erro
 	if err := ctx.Run().Function(runutil.Chdir(localRepoDir)); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
-
 	if err := resetRepo(ctx); err != nil {
 		return err
 	}
@@ -517,7 +518,7 @@ func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (bool, error) {
 
 // failedTestLinks returns a list of Jenkins test report links for the
 // failed tests.
-func failedTestLinks(ctx *util.Context, allTestNames []string, command *cmdline.Command) ([]string, error) {
+func failedTestLinks(ctx *util.Context, allTestNames []string) ([]string, error) {
 	links := []string{}
 	// seenTests maps the test full names to number of times they
 	// have been seen in the test reports. This will be used to

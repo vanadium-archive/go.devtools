@@ -265,11 +265,10 @@ func TestUpdateUniverse(t *testing.T) {
 	// repositories for the manifest and projects under the
 	// "remote" directory, which is ignored from the consideration
 	// of LocalProjects().
-	ctx := NewContext(true, os.Stdout, os.Stderr)
-	dir, prefix := "", ""
-	rootDir, err := ioutil.TempDir(dir, prefix)
+	ctx := DefaultContext()
+	rootDir, err := ioutil.TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer os.RemoveAll(rootDir)
 	remoteDir := filepath.Join(rootDir, "remote")
@@ -426,11 +425,10 @@ func TestCreateBuildManifest(t *testing.T) {
 	// repositories for the manifest and projects under the
 	// "remote" directory, which is ignored from the consideration
 	// of LocalProjects().
-	ctx := NewContext(true, os.Stdout, os.Stderr)
-	dir, prefix := "", ""
-	rootDir, err := ioutil.TempDir(dir, prefix)
+	ctx := DefaultContext()
+	rootDir, err := ioutil.TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer os.RemoveAll(rootDir)
 	remoteDir := filepath.Join(rootDir, "remote")

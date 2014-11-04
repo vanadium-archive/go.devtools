@@ -40,7 +40,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	return runGoForPlatform(ctx, util.HostPlatform(), command, args)
 }
 
@@ -78,7 +78,7 @@ func runXGo(command *cmdline.Command, args []string) error {
 	if len(args) < 2 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	platform, err := util.ParsePlatform(args[0])
 	if err != nil {
 		return err
@@ -111,7 +111,9 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 	if err != nil {
 		return err
 	}
-	return translateExitCode(ctx.Run().Command(command.Stdout(), command.Stderr(), targetEnv.Map(), bin, args...))
+	opts := ctx.Run().Opts()
+	opts.Env = targetEnv.Map()
+	return translateExitCode(ctx.Run().CommandWithOpts(opts, bin, args...))
 }
 
 // generateVDL generates VDL for the transitive Go package
@@ -154,7 +156,11 @@ func generateVDL(ctx *util.Context, cmdArgs []string) error {
 		return err
 	}
 	var out bytes.Buffer
-	if err := ctx.Run().Command(&out, &out, hostEnv.Map(), vdlBin, vdlArgs...); err != nil {
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	opts.Env = hostEnv.Map()
+	if err := ctx.Run().CommandWithOpts(opts, vdlBin, vdlArgs...); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%s", err, out.String())
 	}
 	return nil
@@ -321,7 +327,11 @@ func computeGoDeps(ctx *util.Context, env *envutil.Snapshot, pkgs []string) ([]s
 	// either by extending the runutil API to support piping of
 	// output, or by writing the output to a temporary file
 	// instead of an in-memory buffer.
-	if err := ctx.Run().Command(&stdout, &stderr, env.Map(), hostGo, goListArgs...); err != nil {
+	opts := ctx.Run().Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	opts.Env = env.Map()
+	if err := ctx.Run().CommandWithOpts(opts, hostGo, goListArgs...); err != nil {
 		return nil, fmt.Errorf("failed to compute go deps: %v\n%s", err, stderr.String())
 	}
 	scanner := bufio.NewScanner(&stdout)
@@ -370,7 +380,7 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	env, err := util.VeyronEnvironment(util.HostPlatform())
 	if err != nil {
 		return err

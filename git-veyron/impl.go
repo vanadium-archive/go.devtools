@@ -143,7 +143,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("cleanup requires at least one argument")
 	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	return cleanup(ctx, args)
 }
 
@@ -229,7 +229,8 @@ var defaultMessageHeader = `
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(command *cmdline.Command, _ []string) error {
-	ctx, edit, repo := util.NewContext(verboseFlag, command.Stdout(), command.Stderr()), true, ""
+	ctx := util.NewContextFromCommand(command, verboseFlag)
+	edit, repo := true, ""
 	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag)
 	if err != nil {
 		return err
@@ -549,7 +550,7 @@ indication of the status:
 }
 
 func runStatus(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err

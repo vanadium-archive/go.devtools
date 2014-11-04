@@ -87,7 +87,7 @@ func runCheck(command *cmdline.Command, args []string) error {
 	if len(implementationPackageList) == 0 {
 		return command.UsageErrorf("no implementation package listed")
 	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	return executeInjector(ctx, interfacePackageList, implementationPackageList, true)
 }
 
@@ -108,7 +108,7 @@ you can see the diff or revert the changes.
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
 func runInject(command *cmdline.Command, args []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	return executeInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 

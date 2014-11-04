@@ -40,10 +40,9 @@ type Git struct {
 	runner *runutil.Run
 }
 
+// New is the Git factory.
 func New(runner *runutil.Run) *Git {
-	return &Git{
-		runner: runner,
-	}
+	return &Git{runner: runner}
 }
 
 // Add adds a file to staging.
@@ -111,7 +110,10 @@ func (g *Git) CommitAndEdit() error {
 	var stderr bytes.Buffer
 	// In order for the editing to work correctly with
 	// terminal-based editors, notably "vim", use os.Stdout.
-	if err := g.runner.Command(os.Stdout, &stderr, nil, "git", args...); err != nil {
+	opts := g.runner.Opts()
+	opts.Stdout = os.Stdout
+	opts.Stderr = &stderr
+	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
 		return Error("", stderr.String(), args...)
 	}
 	return nil
@@ -147,7 +149,10 @@ func (g *Git) CommitWithMessageAndEdit(message string) error {
 	var stderr bytes.Buffer
 	// In order for the editing to work correctly with
 	// terminal-based editors, notably "vim", use os.Stdout.
-	if err := g.runner.Command(os.Stdout, &stderr, nil, "git", args...); err != nil {
+	opts := g.runner.Opts()
+	opts.Stdout = os.Stdout
+	opts.Stderr = &stderr
+	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
 		return Error("", stderr.String(), args...)
 	}
 	return nil
@@ -509,7 +514,10 @@ func (g *Git) Version() (int, int, error) {
 
 func (g *Git) run(args ...string) error {
 	var stdout, stderr bytes.Buffer
-	if err := g.runner.Command(&stdout, &stderr, nil, "git", args...); err != nil {
+	opts := g.runner.Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
 		return Error(stdout.String(), stderr.String(), args...)
 	}
 	return nil
@@ -517,7 +525,10 @@ func (g *Git) run(args ...string) error {
 
 func (g *Git) runOutput(args ...string) ([]string, error) {
 	var stdout, stderr bytes.Buffer
-	if err := g.runner.Command(&stdout, &stderr, nil, "git", args...); err != nil {
+	opts := g.runner.Opts()
+	opts.Stdout = &stdout
+	opts.Stderr = &stderr
+	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
 		return nil, Error(stdout.String(), stderr.String(), args...)
 	}
 	output := strings.TrimSpace(stdout.String())

@@ -28,7 +28,7 @@ var cmdProjectList = &cmdline.Command{
 // runProjectList generates a human-readable description of
 // existing projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	return util.ListProjects(ctx, branchesFlag)
 }
 
@@ -66,7 +66,7 @@ func runProjectPoll(command *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	update, err := util.PollProjects(ctx, manifestFlag, projectSet)
 	if err != nil {
 		return err
@@ -144,6 +144,6 @@ is not an API. It is an implementation and can change without notice.
 }
 
 func runUpdate(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContext(verboseFlag, command.Stdout(), command.Stderr())
+	ctx := util.NewContextFromCommand(command, verboseFlag)
 	return util.UpdateUniverse(ctx, manifestFlag, gcFlag)
 }

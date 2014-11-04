@@ -5,7 +5,6 @@ package runutil
 import (
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -24,43 +23,65 @@ var (
 )
 
 type Run struct {
-	indent  int
+	indent int
+	opts   Opts
+}
+
+type Opts struct {
+	Env     map[string]string
+	Stdin   io.Reader
 	Stdout  io.Writer
+	Stderr  io.Writer
 	Verbose bool
 }
 
-func New(verbose bool, stdout io.Writer) *Run {
+// New is the Run factory.
+func New(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, verbose bool) *Run {
 	return &Run{
-		indent:  0,
-		Stdout:  stdout,
-		Verbose: verbose,
+		indent: 0,
+		opts: Opts{
+			Env:     env,
+			Stdin:   stdin,
+			Stdout:  stdout,
+			Stderr:  stderr,
+			Verbose: verbose,
+		},
 	}
 }
 
-// Command runs the given command and logs its outcome using the default verbosity.
-func (r *Run) Command(stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
-	return r.command(r.Verbose, stdout, stderr, env, path, 0, args...)
+// Command runs the given command and logs its outcome using the
+// default options.
+func (r *Run) Command(path string, args ...string) error {
+	return r.CommandWithOpts(r.opts, path, args...)
 }
 
-// CommandWithTimeout runs the given command with timeout and logs its outcome using the default verbosity.
-func (r *Run) CommandWithTimeout(stdout, stderr io.Writer, env map[string]string, path string, timeout time.Duration, args ...string) error {
-	return r.command(r.Verbose, stdout, stderr, env, path, timeout, args...)
+// CommandWithOpts runs the given command and logs its outcome using
+// the given options.
+func (r *Run) CommandWithOpts(opts Opts, path string, args ...string) error {
+	return r.command(0, opts, path, args...)
 }
 
-// CommandWithVerbosity runs the given command and logs its outcome using the given verbosity.
-func (r *Run) CommandWithVerbosity(verbose bool, stdout, stderr io.Writer, env map[string]string, path string, args ...string) error {
-	return r.command(verbose, stdout, stderr, env, path, 0, args...)
+// TimedCommand runs the given command with a timeout and logs its
+// outcome using the default options.
+func (r *Run) TimedCommand(timeout time.Duration, path string, args ...string) error {
+	return r.TimedCommandWithOpts(timeout, r.opts, path, args...)
 }
 
-func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]string, path string, timeout time.Duration, args ...string) error {
+// TimedCommandWithOpts runs the given command with a timeout and logs
+// its outcome using the given options.
+func (r *Run) TimedCommandWithOpts(timeout time.Duration, opts Opts, path string, args ...string) error {
+	return r.command(timeout, opts, path, args...)
+}
+
+func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...string) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
 	command := exec.Command(path, args...)
-	command.Stdin = os.Stdin
-	command.Stdout = stdout
-	command.Stderr = stderr
-	command.Env = envutil.ToSlice(env)
-	if verbose {
+	command.Stdin = opts.Stdin
+	command.Stdout = opts.Stdout
+	command.Stderr = opts.Stderr
+	command.Env = envutil.ToSlice(opts.Env)
+	if opts.Verbose {
 		args := []string{}
 		for _, arg := range command.Args {
 			// Quote any arguments that contain '"', ''', or ' '.
@@ -70,19 +91,19 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 				args = append(args, arg)
 			}
 		}
-		r.printf(r.Stdout, strings.Join(args, " "))
+		r.printf(r.opts.Stdout, strings.Join(args, " "))
 	}
 
 	if timeout == 0 {
 		// No timeout.
 		var err error
 		if err = command.Run(); err != nil {
-			if verbose {
-				r.printf(r.Stdout, "FAILED")
+			if opts.Verbose {
+				r.printf(r.opts.Stdout, "FAILED")
 			}
 		} else {
-			if verbose {
-				r.printf(r.Stdout, "OK")
+			if opts.Verbose {
+				r.printf(r.opts.Stdout, "OK")
 			}
 		}
 		return err
@@ -92,8 +113,8 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 	// to facilitate clean up of processes that time out.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := command.Start(); err != nil {
-		if verbose {
-			r.printf(r.Stdout, "FAILED")
+		if opts.Verbose {
+			r.printf(r.opts.Stdout, "FAILED")
 		}
 		return err
 	}
@@ -107,26 +128,26 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 		// Sending SIGTERM to the process group (the negative value of the process's pid)
 		// will kill all the processes in that group.
 		if err := syscall.Kill(-command.Process.Pid, syscall.SIGTERM); err != nil {
-			fmt.Fprintf(r.Stdout, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGTERM, err)
+			fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGTERM, err)
 		}
 		time.Sleep(10 * time.Second)
 		if err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL); err != nil {
-			fmt.Fprintf(r.Stdout, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGKILL, err)
+			fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGKILL, err)
 		}
 		// Allow goroutine to exit.
 		<-done
-		if verbose {
-			r.printf(r.Stdout, "TIMED OUT")
+		if opts.Verbose {
+			r.printf(r.opts.Stdout, "TIMED OUT")
 		}
 		return CommandTimedoutErr
 	case err := <-done:
 		if err != nil {
-			if verbose {
-				r.printf(r.Stdout, "FAILED")
+			if opts.Verbose {
+				r.printf(r.opts.Stdout, "FAILED")
 			}
 		} else {
-			if verbose {
-				r.printf(r.Stdout, "OK")
+			if opts.Verbose {
+				r.printf(r.opts.Stdout, "OK")
 			}
 		}
 		return err
@@ -138,25 +159,25 @@ func (r *Run) command(verbose bool, stdout, stderr io.Writer, env map[string]str
 // Function runs the given function and logs its outcome using the
 // default verbosity.
 func (r *Run) Function(fn func() error, format string, args ...interface{}) error {
-	return r.FunctionWithVerbosity(r.Verbose, fn, format, args...)
+	return r.FunctionWithOpts(r.opts, fn, format, args...)
 }
 
-// FunctionWithVerbosity runs the given function and logs its outcome
-// using the given verbosity.
-func (r *Run) FunctionWithVerbosity(verbose bool, fn func() error, format string, args ...interface{}) error {
+// FunctionWithOpts runs the given function and logs its outcome using
+// the given options.
+func (r *Run) FunctionWithOpts(opts Opts, fn func() error, format string, args ...interface{}) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
-	if verbose {
-		r.printf(r.Stdout, format, args...)
+	if opts.Verbose {
+		r.printf(r.opts.Stdout, format, args...)
 	}
 	err := fn()
 	if err != nil {
-		if verbose {
-			r.printf(r.Stdout, "FAILED")
+		if opts.Verbose {
+			r.printf(r.opts.Stdout, "FAILED")
 		}
 	} else {
-		if verbose {
-			r.printf(r.Stdout, "OK")
+		if opts.Verbose {
+			r.printf(r.opts.Stdout, "OK")
 		}
 	}
 	return err
@@ -164,17 +185,22 @@ func (r *Run) FunctionWithVerbosity(verbose bool, fn func() error, format string
 
 // Output logs the given list of lines using the default verbosity.
 func (r *Run) Output(output []string) {
-	r.OutputWithVerbosity(r.Verbose, output)
+	r.OutputWithOpts(r.opts, output)
 }
 
-// OutputWithVerbosity logs the given list of lines using the given
-// verbosity.
-func (r *Run) OutputWithVerbosity(verbose bool, output []string) {
-	if verbose {
+// OutputWithOpts logs the given list of lines using the given
+// options.
+func (r *Run) OutputWithOpts(opts Opts, output []string) {
+	if opts.Verbose {
 		for _, line := range output {
 			r.logLine(line)
 		}
 	}
+}
+
+// Opts returns the options of the run instance.
+func (r *Run) Opts() Opts {
+	return r.opts
 }
 
 func (r *Run) decreaseIndent() {
@@ -190,7 +216,7 @@ func (r *Run) logLine(line string) {
 		r.increaseIndent()
 		defer r.decreaseIndent()
 	}
-	r.printf(r.Stdout, "%v", line)
+	r.printf(r.opts.Stdout, "%v", line)
 }
 
 func (r *Run) printf(stdout io.Writer, format string, args ...interface{}) {
