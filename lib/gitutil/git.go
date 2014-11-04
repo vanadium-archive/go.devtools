@@ -237,9 +237,12 @@ func (g *Git) DeleteBranch(branchName string, force bool) error {
 }
 
 // GetBranches returns a slice of the local branches of the current
-// repository, followed by the name of the current branch.
-func (g *Git) GetBranches() ([]string, string, error) {
-	out, err := g.runOutput("branch")
+// repository, followed by the name of the current branch. The
+// behavior can be customized by providing optional arguments
+// (e.g. --merged).
+func (g *Git) GetBranches(args ...string) ([]string, string, error) {
+	args = append([]string{"branch"}, args...)
+	out, err := g.runOutput(args...)
 	if err != nil {
 		return nil, "", err
 	}

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -92,6 +94,14 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 			return err
 		}
 	}
+
+	// Check that all non-master branches have merged the master
+	// branch to make sure the vdl tool is not run against
+	// out-of-date code base.
+	if err := reportOutdatedBranches(ctx); err != nil {
+		return err
+	}
+
 	// Run the go tool for the given platform.
 	targetEnv, err := util.VeyronEnvironment(platform)
 	if err != nil {
@@ -128,11 +138,15 @@ func generateVDL(ctx *util.Context, cmdArgs []string) error {
 	if err != nil {
 		return err
 	}
+
+	// Compute which VDL-based Go packages might need to be regenerated.
 	goPkgs, goFiles := extractGoPackagesOrFiles(cmdArgs[0], cmdArgs[1:])
 	goDeps, err := computeGoDeps(ctx, hostEnv, append(goPkgs, goFiles...))
 	if err != nil {
 		return err
 	}
+
+	// Regenerate the VDL-based Go packages.
 	vdlArgs := []string{"-ignore_unknown", "generate", "-lang=go"}
 	vdlArgs = append(vdlArgs, goDeps...)
 	vdlBin, err := hostEnv.LookPath("vdl")
@@ -142,6 +156,44 @@ func generateVDL(ctx *util.Context, cmdArgs []string) error {
 	var out bytes.Buffer
 	if err := ctx.Run().Command(&out, &out, hostEnv.Map(), vdlBin, vdlArgs...); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%s", err, out.String())
+	}
+	return nil
+}
+
+// reportOutdatedProjects checks if the currently checked out branches
+// are up-to-date with respect to the local master branch. For each
+// branch that is not, a notification is printed.
+func reportOutdatedBranches(ctx *util.Context) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(cwd)
+	projects, err := util.LocalProjects(ctx)
+	for _, project := range projects {
+		if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+			return err
+		}
+		switch project.Protocol {
+		case "git":
+			branches, _, err := ctx.Git().GetBranches("--merged")
+			if err != nil {
+				return err
+			}
+			found := false
+			for _, branch := range branches {
+				if branch == "master" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				fmt.Fprintf(ctx.Stdout(), "NOTE: project=%q path=%q\n", path.Base(project.Name), project.Path)
+				fmt.Fprintf(ctx.Stdout(), "This project is on a non-master branch that is out of date.\n")
+				fmt.Fprintf(ctx.Stdout(), "Please update this branch using %q.\n", "git merge master")
+				fmt.Fprintf(ctx.Stdout(), "Until then the %q tool might not function properly.\n", "veyron")
+			}
+		}
 	}
 	return nil
 }
