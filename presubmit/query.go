@@ -37,6 +37,17 @@ func runQuery(command *cmdline.Command, args []string) error {
 		return err
 	}
 
+	// Don't query anything if the last "presubmit-test" build failed.
+	lastStatus, err := lastCompletedBuildStatusForProject(presubmitTestJenkinsProjectFlag)
+	if err != nil {
+		fmt.Fprintf(command.Stderr(), "%v\n", err)
+	} else {
+		if !lastStatus {
+			fmt.Fprintf(command.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJenkinsProjectFlag)
+			return nil
+		}
+	}
+
 	// Parse .netrc file to get Gerrit credential.
 	gerritCred, err := gerritHostCredential(gerritHost)
 	if err != nil {
