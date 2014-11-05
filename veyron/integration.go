@@ -8,10 +8,16 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"tools/lib/cmdline"
 	"tools/lib/envutil"
 	"tools/lib/util"
+)
+
+const (
+	allTestsTimeout = time.Minute * 4
+	oneTestTimeout  = time.Minute * 2
 )
 
 // cmdIntegrationTest represents the 'integration-test' command of the
@@ -75,7 +81,7 @@ func runIntegrationTestRun(command *cmdline.Command, args []string) error {
 		}
 		runArgs = append(runArgs,
 			([]string{"-bin_dir", binDir, fmt.Sprintf("-workers=%d", numTestWorkersFlag)})...)
-		if err := ctx.Run().Command("veyron", runArgs...); err != nil {
+		if err := ctx.Run().TimedCommand(allTestsTimeout, "veyron", runArgs...); err != nil {
 			return err
 		}
 	} else {
@@ -99,14 +105,13 @@ func runIntegrationTestRun(command *cmdline.Command, args []string) error {
 			opts.Stdout = &stdout
 			opts.Stderr = &stderr
 			opts.Env = env.Map()
-			if err := ctx.Run().CommandWithOpts(opts, testScript); err != nil {
+			if err := ctx.Run().TimedCommandWithOpts(oneTestTimeout, opts, testScript); err != nil {
 				fmt.Fprintf(command.Stdout(), "FAIL: %s\n", testName)
 				fmt.Fprintf(command.Stderr(), "%s\n%s\n", stdout.String(), stderr.String())
 			} else {
 				fmt.Fprintf(command.Stdout(), "PASS: %s\n", testName)
 			}
 		}
-
 	}
 	return nil
 }

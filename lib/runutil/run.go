@@ -5,7 +5,9 @@ package runutil
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -112,6 +114,13 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 	// Make the process of this command a new process group leader
 	// to facilitate clean up of processes that time out.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Kill this process group explicitly when receiving SIGTERM or SIGINT signals.
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-sigchan
+		r.terminateProcessGroup(command)
+	}()
 	if err := command.Start(); err != nil {
 		if opts.Verbose {
 			r.printf(r.opts.Stdout, "FAILED")
@@ -125,15 +134,8 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 	select {
 	case <-time.After(timeout):
 		// The command has timed out.
-		// Sending SIGTERM to the process group (the negative value of the process's pid)
-		// will kill all the processes in that group.
-		if err := syscall.Kill(-command.Process.Pid, syscall.SIGTERM); err != nil {
-			fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGTERM, err)
-		}
-		time.Sleep(10 * time.Second)
-		if err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL); err != nil {
-			fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", -command.Process.Pid, syscall.SIGKILL, err)
-		}
+		// Kill itself and its children.
+		r.terminateProcessGroup(command)
 		// Allow goroutine to exit.
 		<-done
 		if opts.Verbose {
@@ -154,6 +156,22 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 	}
 
 	return nil
+}
+
+// terminateProcessGroup sends SIGTERM followed by SIGKILL to the process group
+// (the negative value of the process's pid).
+func (r *Run) terminateProcessGroup(command *exec.Cmd) {
+	pid := -command.Process.Pid
+	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+		fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", pid, syscall.SIGTERM, err)
+	}
+	fmt.Fprintf(r.opts.Stderr, "Waiting for command to exit: %q\n", command.Path)
+	time.Sleep(10 * time.Second)
+	if err := syscall.Kill(pid, 0); err == nil {
+		if err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL); err != nil {
+			fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", pid, syscall.SIGKILL, err)
+		}
+	}
 }
 
 // Function runs the given function and logs its outcome using the
