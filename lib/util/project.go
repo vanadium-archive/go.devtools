@@ -34,7 +34,7 @@ type CL struct {
 
 // Manifest represents a setting used for updating the veyron universe.
 type Manifest struct {
-	Imports  []Import  `xml:imports>import`
+	Imports  []Import  `xml:"imports>import"`
 	Projects []Project `xml:"projects>project"`
 	Tools    []Tool    `xml:"tools>tool"`
 }
