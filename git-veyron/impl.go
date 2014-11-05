@@ -38,12 +38,12 @@ func init() {
 	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
-	cmdReview.Flags.BoolVar(&uncommittedFlag, "check-uncommitted", true, "Check that no uncommitted changes exist.")
-	cmdReview.Flags.BoolVar(&gofmtFlag, "check-gofmt", true, "Check that no go fmt violations exist.")
-	cmdStatus.Flags.BoolVar(&masterFlag, "show-master", false, "Show master branches in the status.")
-	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show-uncommitted", true, "Indicate if there are any uncommitted changes.")
-	cmdStatus.Flags.BoolVar(&untrackedFlag, "show-untracked", true, "Indicate if there are any untracked files.")
-	cmdStatus.Flags.BoolVar(&currentFlag, "show-current", false, "Show the name of the current repo.")
+	cmdReview.Flags.BoolVar(&uncommittedFlag, "check_uncommitted", true, "Check that no uncommitted changes exist.")
+	cmdReview.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
+	cmdStatus.Flags.BoolVar(&masterFlag, "show_master", false, "Show master branches in the status.")
+	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show_uncommitted", true, "Indicate if there are any uncommitted changes.")
+	cmdStatus.Flags.BoolVar(&untrackedFlag, "show_untracked", true, "Indicate if there are any untracked files.")
+	cmdStatus.Flags.BoolVar(&currentFlag, "show_current", false, "Show the name of the current repo.")
 }
 
 var cmdRoot = &cmdline.Command{

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"sort"
 	"strconv"
@@ -27,16 +26,17 @@ var (
 )
 
 func init() {
-	flag.StringVar(&hostGo, "host-go", "go", "Go command for the host platform.")
-	flag.StringVar(&targetGo, "target-go", "go", "Go command for the target platform.")
+	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
+	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
+	cmdGo.Flags.StringVar(&hostGo, "host_go", "go", "Go command for the host platform.")
+	cmdGo.Flags.StringVar(&targetGo, "target_go", "go", "Go command for the target platform.")
+	cmdIntegrationTestRun.Flags.IntVar(&numTestWorkersFlag, "workers", 0, "Number of test workers. The default 0 matches the number of CPUs.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
-	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
-	cmdXGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
-	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
-	cmdIntegrationTestRun.Flags.IntVar(&numTestWorkersFlag, "workers", 0, "Number of test workers. The default 0 matches the number of CPUs.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	// The "veyron xgo" commands has the same flags as "veyron go".
+	cmdXGo.Flags = cmdGo.Flags
 }
 
 // root returns a command that represents the root of the veyron tool.
