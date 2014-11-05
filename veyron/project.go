@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path"
+	"sort"
 
 	"tools/lib/cmdline"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -25,11 +28,50 @@ var cmdProjectList = &cmdline.Command{
 	Long:  "Inspect the local filesystem and list the existing projects.",
 }
 
-// runProjectList generates a human-readable description of
-// existing projects.
+// runProjectList generates a listing of local projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContextFromCommand(command, verboseFlag)
-	return util.ListProjects(ctx, branchesFlag)
+	projects, err := util.LocalProjects(ctx)
+	if err != nil {
+		return err
+	}
+	names := []string{}
+	for name := range projects {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		project := projects[name]
+		fmt.Fprintf(ctx.Stdout(), "project=%q path=%q\n", path.Base(name), project.Path)
+		if branchesFlag {
+			if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+				return err
+			}
+			branches, current := []string{}, ""
+			switch project.Protocol {
+			case "git":
+				branches, current, err = ctx.Git().GetBranches()
+				if err != nil {
+					return err
+				}
+			case "hg":
+				branches, current, err = ctx.Hg().GetBranches()
+				if err != nil {
+					return err
+				}
+			default:
+				return util.UnsupportedProtocolErr(project.Protocol)
+			}
+			for _, branch := range branches {
+				if branch == current {
+					fmt.Fprintf(ctx.Stdout(), "  * %v\n", branch)
+				} else {
+					fmt.Fprintf(ctx.Stdout(), "  %v\n", branch)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // cmdProjectPoll represents the 'poll' sub-command of the 'project'

@@ -230,56 +230,6 @@ func writeBuildManifest(ctx *Context, manifest *Manifest, tag, manifestFile stri
 	return nil
 }
 
-// ListProjects lists the existing local projects to stdout.
-func ListProjects(ctx *Context, listBranches bool) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	defer os.Chdir(cwd)
-	projects, err := LocalProjects(ctx)
-	if err != nil {
-		return err
-	}
-	names := []string{}
-	for name := range projects {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		project := projects[name]
-		fmt.Fprintf(ctx.Stdout(), "%q in %q\n", path.Base(name), project.Path)
-		if listBranches {
-			if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
-				return err
-			}
-			branches, current := []string{}, ""
-			switch project.Protocol {
-			case "git":
-				branches, current, err = ctx.Git().GetBranches()
-				if err != nil {
-					return err
-				}
-			case "hg":
-				branches, current, err = ctx.Hg().GetBranches()
-				if err != nil {
-					return err
-				}
-			default:
-				return UnsupportedProtocolErr(project.Protocol)
-			}
-			for _, branch := range branches {
-				if branch == current {
-					fmt.Fprintf(ctx.Stdout(), "  * %v\n", branch)
-				} else {
-					fmt.Fprintf(ctx.Stdout(), "  %v\n", branch)
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // LocalProjects scans the local filesystem to identify existing
 // projects.
 func LocalProjects(ctx *Context) (Projects, error) {
