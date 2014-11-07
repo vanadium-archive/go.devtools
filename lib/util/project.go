@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"tools/lib/cmdline"
 	"tools/lib/gitutil"
@@ -101,107 +100,17 @@ func (e UnsupportedProtocolErr) Error() string {
 // project names to a collections of commits.
 type Update map[string][]CL
 
-// CreateBuildManifest creates a manifest that encodes the current
-// state of all projects and commits this manifest to the manifest
-// repository, associating it with the given build tag.
-func CreateBuildManifest(ctx *Context, tag string) error {
+// CreateSnapshot creates a manifest that encodes the current state of
+// master branches of all projects and writes this snapshot out to the
+// given file.
+func CreateSnapshot(ctx *Context, path string) error {
 	// Create an in-memory representation of the build manifest.
 	manifest, err := snapshotLocalProjects(ctx)
 	if err != nil {
 		return err
 	}
-
-	// createFn either atomically succeeds writing the manifest to
-	// the disk and pushing it to the remote repository, or fails
-	// and has no effect.
-	createFn := func() error {
-		revision, err := ctx.Git().LatestCommitID()
-		if err != nil {
-			return err
-		}
-		if err := createBuildManifest(ctx, manifest, tag); err != nil {
-			// Clean up on all errors
-			ctx.Git().Reset(revision)
-			ctx.Git().RemoveUntrackedFiles()
-			return err
-		}
-		return nil
-	}
-
-	// Execute the above function in the local manifest directory.
-	root, err := VeyronRoot()
-	if err != nil {
-		return err
-	}
-	project := Project{
-		Path:     filepath.Join(root, ".manifest"),
-		Protocol: "git",
-		Revision: "HEAD",
-	}
-	if err := applyToLocalMaster(ctx, project, createFn); err != nil {
-		return err
-	}
-	return nil
-}
-
-// createBuildManifest is creates a build manifest in the local
-// manifest repository and pushes it to the remote manifest
-// repository.
-func createBuildManifest(ctx *Context, manifest *Manifest, tag string) error {
-	manifestDir, err := RemoteManifestDir()
-	if err != nil {
-		return err
-	}
-	manifestFile := filepath.Join(manifestDir, "builds", tag, time.Now().Format(time.RFC3339))
-	if err := writeBuildManifest(ctx, manifest, tag, manifestFile); err != nil {
-		return err
-	}
-	if err := commitBuildManifest(ctx, tag, manifestFile); err != nil {
-		return err
-	}
-	return nil
-}
-
-// commitBuildManifest commits the changes in the local manifest directory
-// to the remote manifest repository.
-func commitBuildManifest(ctx *Context, tag, manifestFile string) error {
-	root, err := VeyronRoot()
-	if err != nil {
-		return err
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(filepath.Join(root, ".manifest"))); err != nil {
-		return err
-	}
-	if err := ctx.Git().Add(manifestFile); err != nil {
-		return err
-	}
-	manifestDir, err := RemoteManifestDir()
-	if err != nil {
-		return err
-	}
-	if err := ctx.Git().Add(filepath.Join(manifestDir, tag)); err != nil {
-		return err
-	}
-	name := strings.TrimPrefix(manifestFile, manifestDir)
-	if err := ctx.Git().CommitWithMessage(fmt.Sprintf("adding build manifest %q", name)); err != nil {
-		return err
-	}
-	if err := ctx.Git().Push("origin", "master"); err != nil {
-		return err
-	}
-	return nil
-}
-
-// writeManifest writes the given build manifest to the disk and updates the
-// build tag symlink to point to it.
-func writeBuildManifest(ctx *Context, manifest *Manifest, tag, manifestFile string) error {
 	perm := os.FileMode(0755)
-	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(manifestFile), perm)); err != nil {
+	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(path), perm)); err != nil {
 		return err
 	}
 	data, err := xml.Marshal(manifest)
@@ -209,23 +118,8 @@ func writeBuildManifest(ctx *Context, manifest *Manifest, tag, manifestFile stri
 		return err
 	}
 	perm = os.FileMode(0644)
-	if err := ioutil.WriteFile(manifestFile, data, perm); err != nil {
-		return fmt.Errorf("WriteFile(%v, %v) failed: %v", manifestFile, err, perm)
-	}
-	manifestDir, err := RemoteManifestDir()
-	if err != nil {
-		return err
-	}
-	symlink := filepath.Join(manifestDir, tag)
-	newSymlink := symlink + ".new"
-	if err := ctx.Run().Function(runutil.RemoveAll(newSymlink)); err != nil {
-		return err
-	}
-	if err := ctx.Run().Function(runutil.Symlink(manifestFile, newSymlink)); err != nil {
-		return err
-	}
-	if err := ctx.Run().Function(runutil.Rename(newSymlink, symlink)); err != nil {
-		return err
+	if err := ioutil.WriteFile(path, data, perm); err != nil {
+		return fmt.Errorf("WriteFile(%v, %v) failed: %v", path, err, perm)
 	}
 	return nil
 }
@@ -329,7 +223,7 @@ func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
 	}
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			path, err = RemoteManifestFile(manifest)
+			path, err = ResolveManifestPath(manifest)
 		} else {
 			return nil, nil, fmt.Errorf("Stat(%v) failed: %v", err)
 		}
@@ -372,9 +266,9 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 	return installTools(ctx, tmpDir)
 }
 
-// applyToLocalMaster applies an operation expressed as the given
+// ApplyToLocalMaster applies an operation expressed as the given
 // function to the local master branch of the given project.
-func applyToLocalMaster(ctx *Context, project Project, fn func() error) error {
+func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -447,7 +341,7 @@ func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error
 		}
 		return nil
 	}
-	return applyToLocalMaster(ctx, project, buildFn)
+	return ApplyToLocalMaster(ctx, project, buildFn)
 }
 
 // buildTools builds and installs all veyron tools using the version
@@ -615,7 +509,7 @@ func pullProject(ctx *Context, project Project) error {
 			return UnsupportedProtocolErr(project.Protocol)
 		}
 	}
-	return applyToLocalMaster(ctx, project, pullFn)
+	return ApplyToLocalMaster(ctx, project, pullFn)
 }
 
 // readManifest reads the given manifest, processing all of its
@@ -634,7 +528,7 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 		if _, ok := stack[manifest.Name]; ok {
 			return fmt.Errorf("import cycle encountered")
 		}
-		path, err := RemoteManifestFile(manifest.Name)
+		path, err := ResolveManifestPath(manifest.Name)
 		if err != nil {
 			return err
 		}
@@ -751,7 +645,7 @@ func snapshotLocalProjects(ctx *Context) (*Manifest, error) {
 				return UnsupportedProtocolErr(project.Protocol)
 			}
 		}
-		if err := applyToLocalMaster(ctx, project, revisionFn); err != nil {
+		if err := ApplyToLocalMaster(ctx, project, revisionFn); err != nil {
 			return nil, err
 		}
 		project.Revision = revision

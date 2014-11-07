@@ -40,7 +40,7 @@ type Config struct {
 	TestMap map[string][]string `json:"test-map"`
 }
 
-// LocalManifestFile returns the local path of the local manifest.
+// LocalManifestFile returns the path to the local manifest.
 func LocalManifestFile() (string, error) {
 	root, err := VeyronRoot()
 	if err != nil {
@@ -49,7 +49,16 @@ func LocalManifestFile() (string, error) {
 	return filepath.Join(root, ".local_manifest"), nil
 }
 
-// RemoteManifestDir returns the local path of the manifest directory.
+// LocalSnapshotDir returns the path to the local snapshots directory.
+func LocalSnapshotDir() (string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, ".snapshots"), nil
+}
+
+// RemoteManifestDir returns the path to the local manifest directory.
 func RemoteManifestDir() (string, error) {
 	root, err := VeyronRoot()
 	if err != nil {
@@ -58,14 +67,25 @@ func RemoteManifestDir() (string, error) {
 	return filepath.Join(root, ".manifest", "v1"), nil
 }
 
-// RemoteManifestFile returns the local path of the manifest file with
-// the given name.
+// RemoteManifestFile returns the path to the manifest file with the
+// given relative path.
 func RemoteManifestFile(name string) (string, error) {
-	root, err := VeyronRoot()
+	dir, err := RemoteManifestDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, ".manifest", "v1", name), nil
+	return filepath.Join(dir, name), nil
+}
+
+// ResolveManifestPath resolves the given path to an absolute path in
+// the local filesystem. If the input is already an absolute path,
+// this operation is a no-op. Otherwise, the relative path is rooted
+// in the local manifest directory.
+func ResolveManifestPath(path string) (string, error) {
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+	return RemoteManifestFile(path)
 }
 
 // VeyronConfig returns the config for veyron tools.

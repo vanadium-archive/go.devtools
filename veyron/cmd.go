@@ -23,6 +23,7 @@ var (
 	platformFlag       string
 	numTestWorkersFlag int
 	verboseFlag        bool
+	remoteFlag         bool
 )
 
 func init() {
@@ -33,6 +34,7 @@ func init() {
 	cmdIntegrationTestRun.Flags.IntVar(&numTestWorkersFlag, "workers", 0, "Number of test workers. The default 0 matches the number of CPUs.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdSnapshot.Flags.BoolVar(&remoteFlag, "remote", false, "Manage remote snapshots.")
 	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	// The "veyron xgo" commands has the same flags as "veyron go".
@@ -50,18 +52,18 @@ var cmdRoot = &cmdline.Command{
 	Short: "Tool for managing veyron development",
 	Long:  "The veyron tool helps manage veyron development.",
 	Children: []*cmdline.Command{
-		cmdBuild,
 		cmdContributors,
-		cmdProfile,
-		cmdProject,
-		cmdUpdate,
 		cmdEnv,
-		cmdRun,
 		cmdGo,
 		cmdGoExt,
-		cmdXGo,
 		cmdIntegrationTest,
+		cmdProfile,
+		cmdProject,
+		cmdRun,
+		cmdSnapshot,
+		cmdUpdate,
 		cmdVersion,
+		cmdXGo,
 	},
 }
 

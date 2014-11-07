@@ -8,91 +8,23 @@ Usage:
    veyron [flags] <command>
 
 The veyron commands are:
-   build       Tool for managing veyron builds
    contributors List veyron project contributors
-   profile     Manage veyron profiles
-   project     Manage veyron projects
-   update      Update all veyron tools and projects
    env         Print veyron environment variables
-   run         Run an executable using the veyron environment
    go          Execute the go tool using the veyron environment
    goext       Veyron extensions of the go tool
-   xgo         Execute the go tool using the veyron environment and cross-compilation
    integration-test Manage integration tests
+   profile     Manage veyron profiles
+   project     Manage veyron projects
+   run         Run an executable using the veyron environment
+   snapshot    Manage snapshots of the veyron project
+   update      Update all veyron tools and projects
    version     Print version
+   xgo         Execute the go tool using the veyron environment and cross-compilation
    help        Display help for commands or topics
 Run "veyron help [command]" for command usage.
 
 The veyron flags are:
    -v=false: Print verbose output.
-
-The global flags are:
-   -host-go=go: Go command for the host platform.
-   -target-go=go: Go command for the target platform.
-
-Veyron Build
-
-The build command can be used to manage veyron builds. In particular,
-it can be used to list known builds and generate new builds.
-
-The builds are represented as manifests and are revisioned using the
-manifest repository located in $VEYRON_ROOT/.manifest. Each build is
-identified with a tag, which the $VEYRON_ROOT/tools/conf/veyron
-configuration file associates with a set of jenkins projects that
-determine the stability of the build.
-
-Internally, build manifests are currently organized as follows:
-
- <manifest-dir>/
-   builds/
-     <tag1>/
-       <tag1-build1>
-       <tag1-build2>
-       ...
-     <tag2>/
-       <tag2-build1>
-       <tag2-build2>
-       ...
-     <tag3>/
-     ...
-   <tag1> # a symlink to a one of <tag1-build*>
-   <tag2> # a symlink to a one of <tag2-build*>
-   ...
-
-NOTE: Unlike the veyron tool commands, the above internal organization
-is not an API. It is an implementation and can change without notice.
-
-Usage:
-   veyron build <command>
-
-The build commands are:
-   generate    Generate a new veyron build
-   list        List existing veyron builds
-
-Veyron Build Generate
-
-Given a build tag, the "buildbot generate" command checks whether all
-tests associated with the tag in the $VEYRON_ROOT/tools/conf/buildbot
-config file pass. If so, the tool creates a new manifest that captures
-the current state of the veyron universe repositories, commits this
-manifest to the manifest repository, and updates the build "symlink"
-to point to the latest build.
-
-Usage:
-   veyron build generate <tag>
-
-<tag> is a build tag.
-
-Veyron Build List
-
-The "buildbot list" command lists existing veyron builds for the tags
-specified as command-line arguments. If no arguments are provided, the
-command lists builds for all known tags.
-
-Usage:
-   veyron build list <tag ...>
-
-<tag ...> is a list of build tags.
 
 Veyron Contributors
 
@@ -106,6 +38,102 @@ Usage:
 
 <projects> is a list of projects to consider.
 
+Veyron Env
+
+Print veyron environment variables.
+
+If no arguments are given, prints all variables in NAME="VALUE" format,
+each on a separate line ordered by name.  This format makes it easy to set
+all vars by running the following bash command (or similar for other shells):
+   eval $(veyron env)
+
+If arguments are given, prints only the value of each named variable,
+each on a separate line in the same order as the arguments.
+
+Usage:
+   veyron env [flags] [name ...]
+
+[name ...] is an optional list of variable names.
+
+The env flags are:
+   -platform=: Target platform.
+
+Veyron Go
+
+Wrapper around the 'go' tool that can be used for compilation of
+veyron Go sources. It takes care of veyron-specific setup, such as
+setting up the Go specific environment variables or making sure that
+VDL generated files are regenerated before compilation.
+
+In particular, the tool invokes the following command before invoking
+any go tool commands that compile veyron Go code:
+
+vdl generate -lang=go all
+
+Usage:
+   veyron go [flags] <arg ...>
+
+<arg ...> is a list of arguments for the go tool.
+
+The go flags are:
+   -host_go=go: Go command for the host platform.
+   -novdl=false: Disable automatic generation of vdl files.
+   -target_go=go: Go command for the target platform.
+
+Veyron Goext
+
+Veyron extension of the go tool.
+
+Usage:
+   veyron goext <command>
+
+The goext commands are:
+   distclean   Restore the veyron Go repositories to their pristine state
+
+Veyron Goext Distclean
+
+Unlike the 'go clean' command, which only removes object files for
+packages in the source tree, the 'goext disclean' command removes all
+object files from veyron Go workspaces. This functionality is needed
+to avoid accidental use of stale object files that correspond to
+packages that no longer exist in the source tree.
+
+Usage:
+   veyron goext distclean
+
+Veyron Integration-Test
+
+Manage integration tests.
+
+Usage:
+   veyron integration-test <command>
+
+The integration-test commands are:
+   run         Run integration tests
+   list        List available integration tests
+
+Veyron Integration-Test Run
+
+Run integration tests.
+
+Usage:
+   veyron integration-test run [flags] <test names>
+
+<test names> is a list of short names of tests (e.g. mounttabled, playground) to
+run. To see a list of tests, run the "veyron integration-test list" command.
+
+The run flags are:
+   -workers=0: Number of test workers. The default 0 matches the number of CPUs.
+
+Veyron Integration-Test List
+
+List available integration tests. Each line consists of the short test name and
+the test script path relative to VEYRON_ROOT. The short test names can be used
+to run individual tests in "veyron integration-test run <test names>" command.
+
+Usage:
+   veyron integration-test list
+
 Veyron Profile
 
 To facilitate development across different platforms, veyron defines
@@ -117,12 +145,12 @@ Usage:
    veyron profile <command>
 
 The profile commands are:
-   list        List supported veyron profiles
+   list        List known veyron profiles
    setup       Set up the given veyron profiles
 
 Veyron Profile List
 
-Inspect the host platform and list supported profiles.
+List known veyron profiles.
 
 Usage:
    veyron profile list
@@ -167,6 +195,85 @@ Usage:
    veyron project poll <project ...>
 
 <project ...> is a list of projects to poll.
+
+Veyron Run
+
+Run an executable using the veyron environment.
+
+Usage:
+   veyron run <executable> [arg ...]
+
+<executable> [arg ...] is the executable to run and any arguments to pass
+verbatim to the executable.
+
+Veyron Snapshot
+
+The "veyron snapshot" command can be used to manage snapshots of the
+veyron project. In particular, it can be used to create new snapshots
+and to list existing snapshots.
+
+The command-line flag "-remote" determines whether the command
+pertains to "local" snapshots that are only stored locally or "remote"
+snapshots the are revisioned in the manifest repository.
+
+Usage:
+   veyron snapshot [flags] <command>
+
+The snapshot commands are:
+   create      Create a new snapshot of the veyron project
+   list        List existing snapshots of veyron builds
+
+The snapshot flags are:
+   -remote=false: Manage remote snapshots.
+
+Veyron Snapshot Create
+
+The "veyron snapshot create <label>" command first checks whether the
+veyron tool configuration associates the given label with any
+tests. If so, the command checks that all of these tests pass.
+
+Next, the command captures the current state of the veyron project as a
+manifest and, depending on the value of the -remote flag, the command
+either stores the manifest in the local $VEYRON_ROOT/.snapshots
+directory, or in the manifest repository, pushing the change to the
+remote repository and thus making it available globally.
+
+Internally, snapshots are organized as follows:
+
+ <snapshot-dir>/
+   labels/
+     <label1>/
+       <label1-snapshot1>
+       <label1-snapshot2>
+       ...
+     <label2>/
+       <label2-snapshot1>
+       <label2-snapshot2>
+       ...
+     <label3>/
+     ...
+   <label1> # a symlink to the latest <label1-snapshot*>
+   <label2> # a symlink to the latest <label2-snapshot*>
+   ...
+
+NOTE: Unlike the veyron tool commands, the above internal organization
+is not an API. It is an implementation and can change without notice.
+
+Usage:
+   veyron snapshot create <label>
+
+<label> is the snapshot label.
+
+Veyron Snapshot List
+
+The "snapshot list" command lists existing snapshots of the labels
+specified as command-line arguments. If no arguments are provided, the
+command lists snapshots for all known labels.
+
+Usage:
+   veyron snapshot list <label ...>
+
+<label ...> is a list of snapshot labels.
 
 Veyron Update
 
@@ -222,76 +329,12 @@ The update flags are:
    -gc=false: Garbage collect obsolete repositories.
    -manifest=default: Name of the project manifest.
 
-Veyron Env
+Veyron Version
 
-Print veyron environment variables.
-
-If no arguments are given, prints all variables in NAME="VALUE" format,
-each on a separate line ordered by name.  This format makes it easy to set
-all vars by running the following bash command (or similar for other shells):
-   eval $(veyron env)
-
-If arguments are given, prints only the value of each named variable,
-each on a separate line in the same order as the arguments.
+Print version of the veyron tool.
 
 Usage:
-   veyron env [flags] [name ...]
-
-[name ...] is an optional list of variable names.
-
-The env flags are:
-   -platform=: Target platform.
-
-Veyron Run
-
-Run an executable using the veyron environment.
-
-Usage:
-   veyron run <executable> [arg ...]
-
-<executable> [arg ...] is the executable to run and any arguments to pass
-verbatim to the executable.
-
-Veyron Go
-
-Wrapper around the 'go' tool that can be used for compilation of
-veyron Go sources. It takes care of veyron-specific setup, such as
-setting up the Go specific environment variables or making sure that
-VDL generated files are regenerated before compilation.
-
-In particular, the tool invokes the following command before invoking
-any go tool commands that compile veyron Go code:
-
-vdl generate -lang=go all
-
-Usage:
-   veyron go [flags] <arg ...>
-
-<arg ...> is a list of arguments for the go tool.
-
-The go flags are:
-   -novdl=false: Disable automatic generation of vdl files.
-
-Veyron Goext
-
-Veyron extension of the go tool.
-
-Usage:
-   veyron goext <command>
-
-The goext commands are:
-   distclean   Restore the veyron Go repositories to their pristine state
-
-Veyron Goext Distclean
-
-Unlike the 'go clean' command, which only removes object files for
-packages in the source tree, the 'goext disclean' command removes all
-object files from veyron Go workspaces. This functionality is needed
-to avoid accidental use of stale object files that correspond to
-packages that no longer exist in the source tree.
-
-Usage:
-   veyron goext distclean
+   veyron version
 
 Veyron Xgo
 
@@ -318,31 +361,9 @@ Usage:
 <arg ...> is a list of arguments for the go tool."
 
 The xgo flags are:
+   -host_go=go: Go command for the host platform.
    -novdl=false: Disable automatic generation of vdl files.
-
-Veyron Integration-Test
-
-Manage integration tests.
-
-Usage:
-   veyron integration-test <command>
-
-The integration-test commands are:
-   run         Run integration tests
-
-Veyron Integration-Test Run
-
-Run integration tests.
-
-Usage:
-   veyron integration-test run
-
-Veyron Version
-
-Print version of the veyron tool.
-
-Usage:
-   veyron version
+   -target_go=go: Go command for the target platform.
 
 Veyron Help
 
