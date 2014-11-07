@@ -194,10 +194,10 @@ func reportOutdatedBranches(ctx *util.Context) error {
 				}
 			}
 			if !found {
-				fmt.Fprintf(ctx.Stdout(), "NOTE: project=%q path=%q\n", path.Base(project.Name), project.Path)
-				fmt.Fprintf(ctx.Stdout(), "This project is on a non-master branch that is out of date.\n")
-				fmt.Fprintf(ctx.Stdout(), "Please update this branch using %q.\n", "git merge master")
-				fmt.Fprintf(ctx.Stdout(), "Until then the %q tool might not function properly.\n", "veyron")
+				fmt.Fprintf(ctx.Stderr(), "NOTE: project=%q path=%q\n", path.Base(project.Name), project.Path)
+				fmt.Fprintf(ctx.Stderr(), "This project is on a non-master branch that is out of date.\n")
+				fmt.Fprintf(ctx.Stderr(), "Please update this branch using %q.\n", "git merge master")
+				fmt.Fprintf(ctx.Stderr(), "Until then the %q tool might not function properly.\n", "veyron")
 			}
 		}
 	}
