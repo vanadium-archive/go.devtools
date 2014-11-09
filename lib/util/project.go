@@ -36,6 +36,7 @@ type Manifest struct {
 	Imports  []Import  `xml:"imports>import"`
 	Projects []Project `xml:"projects>project"`
 	Tools    []Tool    `xml:"tools>tool"`
+	XMLName  struct{}  `xml:"manifest"`
 }
 
 // Imports maps manifest import names to their detailed description.
@@ -54,7 +55,7 @@ type Projects map[string]Project
 // Project represents a veyron project.
 type Project struct {
 	// Exclude is flag used to exclude previously included projects.
-	Exclude bool `xml:exclude,attr`
+	Exclude bool `xml:"exclude,attr"`
 	// Name is the URL at which the project is hosted.
 	Name string `xml:"name,attr"`
 	// Path is the path used to store the project locally. Project
@@ -79,7 +80,7 @@ type Tools map[string]Tool
 // Tool represents a veyron tool.
 type Tool struct {
 	// Exclude is flag used to exclude previously included projects.
-	Exclude bool `xml:exclude,attr`
+	Exclude bool `xml:"exclude,attr"`
 	// Name is the name of the tool binary.
 	Name string `xml:"name,attr"`
 	// Package is the package path of the tool.
@@ -113,7 +114,7 @@ func CreateSnapshot(ctx *Context, path string) error {
 	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(path), perm)); err != nil {
 		return err
 	}
-	data, err := xml.Marshal(manifest)
+	data, err := xml.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return err
 	}
