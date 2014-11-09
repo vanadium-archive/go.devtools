@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"path/filepath"
 	"sort"
+	"time"
 
 	"tools/lib/cmdline"
 	"tools/lib/runutil"
@@ -187,5 +189,18 @@ is not an API. It is an implementation and can change without notice.
 
 func runUpdate(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContextFromCommand(command, verboseFlag)
+
+	// Create a snapshot of the current state of all projects and
+	// write it to the $VEYRON_ROOT/.update_history folder.
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return err
+	}
+	snapshotFile := filepath.Join(root, ".update_history", time.Now().Format(time.RFC3339))
+	if err := util.CreateSnapshot(ctx, snapshotFile); err != nil {
+		return err
+	}
+
+	// Update all projects to their latest version.
 	return util.UpdateUniverse(ctx, manifestFlag, gcFlag)
 }
