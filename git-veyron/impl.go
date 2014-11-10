@@ -166,7 +166,7 @@ type changeConflictError string
 
 func (s changeConflictError) Error() string {
 	result := "changelist conflicts with the remote master branch\n\n"
-	result += "To resolve this problem, run 'git pull origin master',\n"
+	result += "To resolve this problem, run 'veyron update; git merge master',\n"
 	result += "resolve the conflicts identified below, and then try again.\n"
 	result += string(s)
 	return result

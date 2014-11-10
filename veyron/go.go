@@ -193,7 +193,11 @@ func reportOutdatedBranches(ctx *util.Context) error {
 					break
 				}
 			}
-			if !found {
+			merging, err := ctx.Git().MergeInProgress()
+			if err != nil {
+				return err
+			}
+			if !found && !merging {
 				fmt.Fprintf(ctx.Stderr(), "NOTE: project=%q path=%q\n", path.Base(project.Name), project.Path)
 				fmt.Fprintf(ctx.Stderr(), "This project is on a non-master branch that is out of date.\n")
 				fmt.Fprintf(ctx.Stderr(), "Please update this branch using %q.\n", "git merge master")

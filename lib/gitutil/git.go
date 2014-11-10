@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -357,6 +358,23 @@ func (g *Git) Merge(branch string, squash bool) error {
 		return fmt.Errorf("%v\n%v", err, strings.Join(out, "\n"))
 	}
 	return nil
+}
+
+// MergeInProgress returns a boolean flag that indicates if a merge
+// operation is in progress for the current repository.
+func (g *Git) MergeInProgress() (bool, error) {
+	repoRoot, err := g.TopLevel()
+	if err != nil {
+		return false, err
+	}
+	mergeFile := filepath.Join(repoRoot, ".git", "MERGE_HEAD")
+	if _, err := os.Stat(mergeFile); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // ModifiedFiles returns a slice of filenames that have changed between
