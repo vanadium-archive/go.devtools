@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path"
@@ -9,6 +10,7 @@ import (
 
 	"tools/lib/gerrit"
 	"tools/lib/gitutil"
+	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
@@ -108,6 +110,78 @@ func commitFiles(t *testing.T, ctx *util.Context, fileNames []string) {
 		if err := ctx.Git().CommitFile(fileName, commitMessage); err != nil {
 			t.Fatalf("%v", err)
 		}
+	}
+}
+
+func createConfig(t *testing.T, ctx *util.Context, rootDir string) {
+	configFile := filepath.Join(rootDir, "tools", "conf", "veyron")
+	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(configFile), os.FileMode(0755))); err != nil {
+		t.Fatalf("%v", err)
+	}
+	config := util.Config{}
+	data, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := ioutil.WriteFile(configFile, data, os.FileMode(0644)); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", configFile, err)
+	}
+}
+
+func createTestGoDependencyPackages(t *testing.T, ctx *util.Context, rootDir string) {
+	fooDir := filepath.Join(rootDir, "src", "veyron.io", "foo")
+	if err := ctx.Run().Function(runutil.MkdirAll(fooDir, os.FileMode(0755))); err != nil {
+		t.Fatalf("MkdirAll(%v) failed: %v", fooDir, err)
+	}
+	fooFile := filepath.Join(fooDir, "foo.go")
+	fooData := `package foo
+
+func Foo() string {
+	return "hello"
+}
+`
+	if err := ioutil.WriteFile(fooFile, []byte(fooData), os.FileMode(0644)); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", fooFile, err)
+	}
+	if err := ctx.Git().CommitFile(fooFile, "commit foo.go"); err != nil {
+		t.Fatalf("%v", err)
+	}
+	barDir := filepath.Join(rootDir, "src", "veyron.io", "bar")
+	if err := ctx.Run().Function(runutil.MkdirAll(barDir, os.FileMode(0755))); err != nil {
+		t.Fatalf("MkdirAll(%v) failed: %v", barDir, err)
+	}
+	barFile := filepath.Join(barDir, "bar.go")
+	barData := `package bar
+
+import "veyron.io/foo"
+
+func Bar() string {
+	return foo.Foo()
+}
+`
+	if err := ioutil.WriteFile(barFile, []byte(barData), os.FileMode(0644)); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", barFile, err)
+	}
+	if err := ctx.Git().CommitFile(barFile, "commit bar.go"); err != nil {
+		t.Fatalf("%v", err)
+	}
+}
+
+func createTestGoDependencyConstraint(t *testing.T, ctx *util.Context, rootDir, command string) {
+	depFile := filepath.Join(rootDir, "src", "veyron.io", "foo", "GO.PACKAGE")
+	depData := `{
+  "dependencies": {
+    "incoming": [
+      {"` + command + `": "..."}
+    ]
+  }
+}
+`
+	if err := ioutil.WriteFile(depFile, []byte(depData), os.FileMode(0644)); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", depFile, err)
+	}
+	if err := ctx.Git().CommitFile(depFile, "commit GO.PACKAGE"); err != nil {
+		t.Fatalf("%v", err)
 	}
 }
 
@@ -320,6 +394,70 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 	}
 }
 
+func TestGoDependencyError(t *testing.T) {
+	ctx := util.DefaultContext()
+	workingDir, repoPath, _, gerritPath := setup(t, ctx, true)
+	defer teardown(t, workingDir)
+	oldRoot := os.Getenv("VEYRON_ROOT")
+	if err := os.Setenv("VEYRON_ROOT", workingDir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	oldGoPath := os.Getenv("GOPATH")
+	if err := os.Setenv("GOPATH", repoPath); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("GOPATH", oldGoPath)
+	branch := "my-branch"
+	if err := ctx.Git().CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("%v", err)
+	}
+	createConfig(t, ctx, workingDir)
+	createTestGoDependencyPackages(t, ctx, repoPath)
+	createTestGoDependencyConstraint(t, ctx, repoPath, "deny")
+	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := review.checkGoDependencies(); err == nil {
+		t.Fatalf("go format check did not fail when it should")
+	} else if _, ok := err.(goDependencyError); !ok {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGoDependencyOK(t *testing.T) {
+	ctx := util.DefaultContext()
+	workingDir, repoPath, _, gerritPath := setup(t, ctx, true)
+	defer teardown(t, workingDir)
+	oldRoot := os.Getenv("VEYRON_ROOT")
+	if err := os.Setenv("VEYRON_ROOT", workingDir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	oldGoPath := os.Getenv("GOPATH")
+	if err := os.Setenv("GOPATH", repoPath); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("GOPATH", oldGoPath)
+	branch := "my-branch"
+	if err := ctx.Git().CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("%v", err)
+	}
+	createConfig(t, ctx, workingDir)
+	createTestGoDependencyPackages(t, ctx, repoPath)
+	createTestGoDependencyConstraint(t, ctx, repoPath, "allow")
+	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := review.checkGoDependencies(); err != nil {
+		t.Fatalf("go dependency check failed: %v", err)
+	}
+}
+
 func TestGoFormatError(t *testing.T) {
 	ctx := util.DefaultContext()
 	workingDir, _, _, gerritPath := setup(t, ctx, true)
@@ -346,6 +484,8 @@ func main() {}
 	}
 	if err := review.checkGoFormat(); err == nil {
 		t.Fatalf("go format check did not fail when it should")
+	} else if _, ok := err.(goFormatError); !ok {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -485,6 +625,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+	depcopFlag = false
 	review.run()
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, ctx, repoPath, gerritPath, expectedRef, files)
@@ -534,6 +675,7 @@ func TestDirtyBranch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+	depcopFlag = false
 	review.run()
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, ctx, repoPath, gerritPath, expectedRef, files)
@@ -577,6 +719,7 @@ func TestRunInSubdirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+	depcopFlag = false
 	review.run()
 	path := path.Join(repoPath, subdir)
 	want, err := filepath.EvalSymlinks(path)

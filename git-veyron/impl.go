@@ -23,6 +23,7 @@ var (
 	currentFlag     bool
 	draftFlag       bool
 	forceFlag       bool
+	depcopFlag      bool
 	gofmtFlag       bool
 	masterFlag      bool
 	reviewersFlag   string
@@ -39,6 +40,7 @@ func init() {
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
 	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
 	cmdReview.Flags.BoolVar(&uncommittedFlag, "check_uncommitted", true, "Check that no uncommitted changes exist.")
+	cmdReview.Flags.BoolVar(&depcopFlag, "check_depcop", true, "Check that no go-depcop violations exist.")
 	cmdReview.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
 	cmdStatus.Flags.BoolVar(&masterFlag, "show_master", false, "Show master branches in the status.")
 	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show_uncommitted", true, "Indicate if there are any uncommitted changes.")
@@ -182,6 +184,15 @@ type gerritError string
 
 func (s gerritError) Error() string {
 	result := "sending code review failed\n\n"
+	result += string(s)
+	return result
+}
+
+type goDependencyError string
+
+func (s goDependencyError) Error() string {
+	result := "changelist introduces dependency violations\n\n"
+	result += "To resolve this problem, fix the following violations:\n"
 	result += string(s)
 	return result
 }
@@ -330,6 +341,27 @@ func (r *review) checkGoFormat() error {
 	return nil
 }
 
+// checkDependencies checks if the code to be submitted meets the
+// dependency constraints.
+func (r *review) checkGoDependencies() error {
+	var out bytes.Buffer
+	opts := r.ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	if err := r.ctx.Run().CommandWithOpts(opts, "veyron", "go", "list", "veyron.io/..."); err != nil {
+		fmt.Println(out.String())
+		return err
+	}
+	pkgs := strings.Split(strings.TrimSpace(out.String()), "\n")
+	args := []string{"run", "go-depcop", "check"}
+	args = append(args, pkgs...)
+	out.Reset()
+	if err := r.ctx.Run().CommandWithOpts(opts, "veyron", args...); err != nil {
+		return goDependencyError(out.String())
+	}
+	return nil
+}
+
 // cleanup cleans up after the review.
 func (r *review) cleanup(stashed bool) {
 	if err := r.ctx.Git().CheckoutBranch(r.branch, !gitutil.Force); err != nil {
@@ -434,6 +466,11 @@ func (r *review) run() error {
 	}
 	if gofmtFlag {
 		if err := r.checkGoFormat(); err != nil {
+			return err
+		}
+	}
+	if depcopFlag {
+		if err := r.checkGoDependencies(); err != nil {
 			return err
 		}
 	}
