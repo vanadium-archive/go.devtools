@@ -125,7 +125,11 @@ func computeIncomingDependencies() (map[string]map[string]struct{}, error) {
 		if err != nil {
 			fmt.Errorf("Import(%v, %v) failed: %v", dir, mode, err)
 		}
-		for _, dep := range pkg.Imports {
+		imports := pkg.Imports
+		if includeTestsFlag {
+			imports = append(imports, pkg.TestImports...)
+		}
+		for _, dep := range imports {
 			if deps, ok := allDeps[dep]; ok {
 				deps[dir] = struct{}{}
 			}
@@ -223,7 +227,11 @@ func printDependencyHierarchy(stdout io.Writer, p *build.Package, visited map[*b
 	}
 
 	visited[p] = true
-	for _, dep := range p.Imports {
+	imports := p.Imports
+	if includeTestsFlag {
+		imports = append(imports, p.TestImports...)
+	}
+	for _, dep := range imports {
 		pkg, err := importPackage(dep)
 		if err != nil {
 			return err
@@ -265,7 +273,11 @@ func verifyDependencyHierarchy(p *build.Package, visited map[*build.Package]bool
 	}
 	visited[p] = true
 	if parent == nil || recurse {
-		for _, importPath := range p.Imports {
+		imports := p.Imports
+		if includeTestsFlag {
+			imports = append(imports, p.TestImports...)
+		}
+		for _, importPath := range imports {
 			dependency, err := importPackage(importPath)
 			if err == nil {
 				var depViolation []dependencyRuleReference
