@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"tools/lib/cmdline"
+	"tools/lib/gerrit"
 	"tools/lib/gitutil"
 	"tools/lib/runutil"
 	"tools/lib/util"
@@ -36,12 +37,6 @@ file, and posts test results back to the corresponding Gerrit review thread.
 	Run: runTest,
 }
 
-const (
-	testStatusNotExecuted = iota
-	testStatusPassed
-	testStatusFailed
-)
-
 const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 <testsuites>
   <testsuite name="timeout" tests="1" errors="0" failures="1" skip="0">
@@ -55,20 +50,6 @@ const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
   </testsuite>
 </testsuites>
 `
-
-var defaultTestTimeout = 6 * time.Minute
-
-type testInfo struct {
-	// A list of its dependencies.
-	deps []string
-	// Test status.
-	testStatus int
-	// The following two flags are used to find dependency cycles using DFS.
-	visited bool
-	stack   bool
-}
-
-type testInfoMap map[string]*testInfo
 
 // runTest implements the 'test' subcommand.
 //
@@ -102,35 +83,6 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 	cl := parts[3]
 
-	// Parse tests and dependencies from tests config file.
-	configFileContent, err := ioutil.ReadFile(configFileFlag)
-	if err != nil {
-		return fmt.Errorf("ReadFile(%q) failed: %v", configFileFlag)
-	}
-	var testConfig struct {
-		// Tests maps repository URLs to a list of test to execute for the given test.
-		Tests map[string][]string `json:"tests"`
-		// Dependencies maps tests to a list of tests that the test depends on.
-		Dependencies map[string][]string `json:"dependencies"`
-		// Timeouts maps tests to their timeout value.
-		Timeouts map[string]string `json:"timeouts"`
-	}
-	if err := json.Unmarshal(configFileContent, &testConfig); err != nil {
-		return fmt.Errorf("Unmarshal(%q) failed: %v", configFileContent, err)
-	}
-	tests, err := testsForRepo(ctx, testConfig.Tests, repoFlag)
-	if err != nil {
-		return err
-	}
-	if len(tests) == 0 {
-		return nil
-	}
-	sort.Strings(tests)
-	testInfoMap, err := createTests(testConfig.Dependencies, tests)
-	if err != nil {
-		return err
-	}
-
 	// Parse the manifest file to get the local path for the repo.
 	projects, _, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
@@ -150,10 +102,11 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 	defer cleanupFn()
 
-	// Trap sigint signal when the program is aborted on Jenkins.
+	// Trap SIGTERM and SIGINT signal when the program is aborted
+	// on Jenkins.
 	go func() {
 		sigchan := make(chan os.Signal, 1)
-		signal.Notify(sigchan, syscall.SIGTERM)
+		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigchan
 		cleanupFn()
 		// Linux convention is to use 128+signal as the exit
@@ -167,9 +120,11 @@ func runTest(command *cmdline.Command, args []string) error {
 		// When "git pull" fails, post a review to let the CL
 		// author know about the possible merge conflicts.
 		if strings.Contains(err.Error(), "git pull") {
-			reviewMessageFlag = "Possible merge conflict detected.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted.\n"
+			message := `Possible merge conflict detected.
+Presubmit tests will be executed after a new patchset that resolves the conflicts is submitted.
+`
 			printf(ctx.Stdout(), "### Posting message to Gerrit\n")
-			if err := runPost(nil, nil); err != nil {
+			if err := postMessage(ctx, message); err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
 			}
 			printf(ctx.Stderr(), "%v\n", err)
@@ -178,141 +133,93 @@ func runTest(command *cmdline.Command, args []string) error {
 		return err
 	}
 
-	// Run tests.
-	//
-	// TODO(jingjin) parallelize the top-level scheduling loop so
-	// that tests do not need to run serially.
-	results := &bytes.Buffer{}
-
-	// Output current build cop.
-	buildCop, err := buildCop(ctx, time.Now())
+	// Run the tests.
+	printf(ctx.Stdout(), "### Running the tests\n")
+	results, err := util.RunProjectTests(ctx, repoFlag)
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-	} else {
-		fmt.Fprintf(results, "\nCurrent Build Cop: %s\n\n", buildCop)
+		return err
 	}
 
-	executedTests := []string{}
-	fmt.Fprintf(results, "Test results:\n")
-run:
-	for i := 0; i < len(testInfoMap); i++ {
-		// Find a test that can execute.
-		for _, test := range tests {
-			testInfo := testInfoMap[test]
+	// Post a test report.
+	if err := postTestReport(ctx, results); err != nil {
+		return err
+	}
 
-			// Check if the test has not been executed yet
-			// and all its dependencies have been executed
-			// and passed.
-			if testInfo.testStatus != testStatusNotExecuted {
-				continue
-			}
-			allDepsPassed := true
-			for _, dep := range testInfo.deps {
-				if testInfoMap[dep].testStatus != testStatusPassed {
-					allDepsPassed = false
-					break
-				}
-			}
-			if !allDepsPassed {
-				continue
-			}
+	return nil
+}
 
-			// Found a test. Run it, printing a blank line
-			// to visually separate the output of this
-			// test from the output of previous tests.
-			fmt.Fprintln(command.Stdout())
-			printf(command.Stdout(), "### Running %q\n", test)
-			// Get the status of the last completed build
-			// for this test from Jenkins.
-			lastStatus, err := lastCompletedBuildStatusForProject(test)
-			lastStatusString := "?"
-			if err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
-			} else {
-				if lastStatus == "SUCCESS" {
-					lastStatusString = "✔"
-				} else {
-					lastStatusString = "✖"
-				}
-			}
+// postTestReport generates a test report and posts it to Gerrit.
+func postTestReport(ctx *util.Context, results map[string]*util.TestResult) error {
+	names := []string{}
+	for name, _ := range results {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var report bytes.Buffer
+	fmt.Fprintf(&report, "Test results:\n")
+	nfailed := 0
+	for _, name := range names {
+		result := results[name]
 
-			testScript := filepath.Join(testScriptsBasePathFlag, test+".sh")
-			var curStatusString string
-			var stderr bytes.Buffer
-			finished := true
-			opts := ctx.Run().Opts()
-			opts.Stderr = &stderr
-			if err := ctx.Run().TimedCommandWithOpts(defaultTestTimeout, opts, testScript); err != nil {
-				curStatusString = "✖"
-				testInfo.testStatus = testStatusFailed
-				if err == runutil.CommandTimedoutErr {
-					finished = false
-					printf(ctx.Stderr(), "%s TIMED OUT after %s\n", test, defaultTestTimeout)
-					err := generateReportForHangingTest(test, defaultTestTimeout)
-					if err != nil {
-						printf(ctx.Stderr(), "%v\n", err)
-					}
-				} else {
-					printf(ctx.Stderr(), "%v\n", stderr.String())
-				}
-			} else {
-				curStatusString = "✔"
-				testInfo.testStatus = testStatusPassed
-			}
-			fmt.Fprintf(results, "%s ➔ %s: %s", lastStatusString, curStatusString, test)
-			if !finished {
-				fmt.Fprintf(results, " [TIMED OUT after %s]\n", defaultTestTimeout)
-			} else {
-				fmt.Fprintln(results)
-			}
-
-			executedTests = append(executedTests, test)
-
-			// Start another iteration of the main loop.
-			continue run
+		if result.Status == util.TestSkipped {
+			fmt.Fprintf(&report, "skipped %v\n", name)
+			continue
 		}
-		// No tests can be executed in this iteration. Stop
-		// the search.
-		break
-	}
 
-	// Output skipped tests.
-	skippedTests := []string{}
-	for test, testInfo := range testInfoMap {
-		if testInfo.testStatus == testStatusNotExecuted {
-			skippedTests = append(skippedTests, test)
+		// Get the status of the last completed build for this
+		// test from Jenkins.
+		lastStatus, err := lastCompletedBuildStatusForProject(name)
+		lastStatusString := "?"
+		if err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		} else {
+			if lastStatus == "SUCCESS" {
+				lastStatusString = "✔"
+			} else {
+				lastStatusString = "✖"
+			}
+		}
+
+		var curStatusString string
+		if result.Status == util.TestPassed {
+			curStatusString = "✔"
+		} else {
+			nfailed++
+			curStatusString = "✖"
+		}
+
+		fmt.Fprintf(&report, "%s ➔ %s: %s", lastStatusString, curStatusString, name)
+
+		if result.Status == util.TestTimedOut {
+			fmt.Fprintf(&report, " [TIMED OUT after %s]\n", util.DefaultTestTimeout)
+			if err := generateReportForHangingTest(name, util.DefaultTestTimeout); err != nil {
+				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			}
+		} else {
+			fmt.Fprintf(&report, "\n")
 		}
 	}
-	if len(skippedTests) > 0 {
-		sort.Strings(skippedTests)
-		for _, test := range skippedTests {
-			fmt.Fprintf(results, "skipped: %s\n", test)
-		}
-	}
-	if jenkinsBuildNumberFlag >= 0 {
-		sort.Strings(executedTests)
-		links, err := failedTestLinks(ctx, executedTests)
+
+	if nfailed != 0 {
+		links, err := failedTestLinks(ctx, names)
 		if err != nil {
 			return err
 		}
 		linkLines := strings.Join(links, "\n")
-		if linkLines != "" {
-			fmt.Fprintf(results, "\nFailed tests:\n%s\n", linkLines)
-		}
-		fmt.Fprintf(results, "\nMore details at:\n%s/%s/%d/\n",
-			jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
-		reRunLink := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REF=%s&REPO=%s",
-			presubmitTestJenkinsProjectFlag,
-			url.QueryEscape(reviewTargetRefFlag),
-			url.QueryEscape(strings.TrimPrefix(repoFlag, "https://veyron.googlesource.com/")))
-		fmt.Fprintf(results, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", reRunLink)
+		fmt.Fprintf(&report, "\nFailed tests:\n%s\n", linkLines)
 	}
 
+	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n",
+		jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
+	link := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REF=%s&REPO=%s",
+		presubmitTestJenkinsProjectFlag,
+		url.QueryEscape(reviewTargetRefFlag),
+		url.QueryEscape(strings.TrimPrefix(repoFlag, "https://veyron.googlesource.com/")))
+	fmt.Fprintf(&report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
+
 	// Post test results.
-	reviewMessageFlag = results.String()
-	fmt.Fprintln(ctx.Stdout())
 	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
-	if err := runPost(nil, nil); err != nil {
+	if err := postMessage(ctx, report.String()); err != nil {
 		return err
 	}
 	return nil
@@ -327,10 +234,7 @@ func presubmitTestBranchName() string {
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
 func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) error {
-	fmt.Fprintln(ctx.Stdout())
-	printf(ctx.Stdout(),
-		"### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
-
+	printf(ctx.Stdout(), "### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
@@ -355,7 +259,6 @@ func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) erro
 
 // cleanupPresubmitTestBranch removes the presubmit test branch.
 func cleanupPresubmitTestBranch(ctx *util.Context, localRepoDir string) error {
-	fmt.Fprintln(ctx.Stdout())
 	printf(ctx.Stdout(), "### Cleaning up\n")
 	if err := ctx.Run().Function(runutil.Chdir(localRepoDir)); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
@@ -406,79 +309,6 @@ func resetRepo(ctx *util.Context) error {
 	}
 
 	return nil
-}
-
-// testsForRepo returns all the tests for the given repo by querying
-// the presubmit tests config file.
-func testsForRepo(ctx *util.Context, repos map[string][]string, repoName string) ([]string, error) {
-	if _, ok := repos[repoName]; !ok {
-		printf(ctx.Stdout(), "Configuration for repository %q not found. Not running any tests.\n", repoName)
-		return []string{}, nil
-	}
-	return repos[repoName], nil
-}
-
-func createTests(dep map[string][]string, tests []string) (testInfoMap, error) {
-	// For the given list of tests, build a map from the test name
-	// to its testInfo object using the dependency data extracted
-	// from the given dependency config data "dep".
-	testNameToTestInfo := testInfoMap{}
-	for _, test := range tests {
-		depTests := []string{}
-		if deps, ok := dep[test]; ok {
-			depTests = deps
-		}
-		// Make sure the tests in depTests are in the given
-		// "tests".
-		deps := []string{}
-		for _, curDep := range depTests {
-			isDepInTests := false
-			for _, test := range tests {
-				if curDep == test {
-					isDepInTests = true
-					break
-				}
-			}
-			if isDepInTests {
-				deps = append(deps, curDep)
-			}
-		}
-		testNameToTestInfo[test] = &testInfo{
-			testStatus: testStatusNotExecuted,
-			deps:       deps,
-		}
-	}
-
-	// Detect dependency loop using depth-first search.
-	for name, info := range testNameToTestInfo {
-		if info.visited {
-			continue
-		}
-		if findCycle(name, testNameToTestInfo) {
-			return nil, fmt.Errorf("found dependency loop: %v", testNameToTestInfo)
-		}
-	}
-	return testNameToTestInfo, nil
-}
-
-func findCycle(name string, tests testInfoMap) bool {
-	info := tests[name]
-	info.visited = true
-	info.stack = true
-	for _, dep := range info.deps {
-		depInfo := tests[dep]
-		if depInfo.stack {
-			return true
-		}
-		if depInfo.visited {
-			continue
-		}
-		if findCycle(dep, tests) {
-			return true
-		}
-	}
-	info.stack = false
-	return false
 }
 
 // lastCompletedBuildStatusForProject gets the status of the last
@@ -677,8 +507,8 @@ func generateReportForHangingTest(testName string, timeout time.Duration) error 
 	})
 }
 
-// buildCop finds the build cop at the given time from the buildcop_rotations file
-// by comparing timestamps.
+// buildCop finds the build cop at the given time from the buildcop
+// configuration file by comparing timestamps.
 func buildCop(ctx *util.Context, targetTime time.Time) (string, error) {
 	// Parse buildcop.xml file.
 	buildCopRotationsFile := filepath.Join(veyronRoot, "tools", "conf", "buildcop.xml")
@@ -709,4 +539,32 @@ func buildCop(ctx *util.Context, targetTime time.Time) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// postMessage posts the given message to Gerrit.
+func postMessage(ctx *util.Context, message string) error {
+	if !strings.HasPrefix(reviewTargetRefFlag, "refs/changes/") {
+		return fmt.Errorf("invalid ref: %q", reviewTargetRefFlag)
+	}
+
+	// Basic sanity check for the Gerrit base url.
+	gerritHost, err := checkGerritBaseUrl()
+	if err != nil {
+		return err
+	}
+
+	// Parse .netrc file to get Gerrit credential.
+	gerritCred, err := gerritHostCredential(gerritHost)
+	if err != nil {
+		return err
+	}
+
+	// Construct and post review.
+	review := gerrit.GerritReview{Message: message}
+	err = gerrit.PostReview(ctx, gerritBaseUrlFlag, gerritCred.username, gerritCred.password, reviewTargetRefFlag, review)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

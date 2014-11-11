@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -179,26 +178,6 @@ func checkReadme(t *testing.T, ctx *util.Context, project, message string) {
 	}
 }
 
-func createVeyronConfig(t *testing.T, ctx *util.Context, rootDir string) {
-	configDir, perm := filepath.Join(rootDir, "tools", "conf"), os.FileMode(0755)
-	if err := os.MkdirAll(configDir, perm); err != nil {
-		t.Fatalf("%v", err)
-	}
-	config := util.Config{
-		TestMap: map[string][]string{
-			"remote-snapshot": []string{},
-		},
-	}
-	data, err := json.Marshal(config)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	configFile, perm := filepath.Join(configDir, "veyron"), os.FileMode(0644)
-	if err := ioutil.WriteFile(configFile, data, perm); err != nil {
-		t.Fatalf("WriteFile(%v, %v) failed: %v", configFile, err, perm)
-	}
-}
-
 func createRemoteManifest(t *testing.T, ctx *util.Context, rootDir string, remotes []string) {
 	manifestDir, perm := filepath.Join(rootDir, "v1"), os.FileMode(0755)
 	if err := os.MkdirAll(manifestDir, perm); err != nil {
@@ -309,6 +288,11 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
 	}
 	defer os.RemoveAll(rootDir)
+	oldRoot := os.Getenv("VEYRON_ROOT")
+	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("VEYRON_ROOT", oldRoot)
 	remoteDir := filepath.Join(rootDir, "remote")
 	localManifest := setupNewProject(t, ctx, rootDir, ".manifest")
 	remoteManifest := setupNewProject(t, ctx, remoteDir, "test-remote-manifest")
@@ -319,13 +303,13 @@ func TestCreate(t *testing.T) {
 		remoteProjects = append(remoteProjects, remoteProject)
 	}
 	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
-	createVeyronConfig(t, ctx, rootDir)
-	ignoreDirs(t, rootDir, []string{"remote"})
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
-		t.Fatalf("%v", err)
+	config := util.CommonConfig{
+		SnapshotLabelTests: map[string][]string{
+			"remote-snapshot": []string{},
+		},
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	createConfig(t, ctx, &config)
+	ignoreDirs(t, rootDir, []string{"remote"})
 
 	// Create initial commits in the remote projects and use
 	// UpdateUniverse() to mirror them locally.
@@ -339,7 +323,7 @@ func TestCreate(t *testing.T) {
 	// Change the branch of the remote manifest repository away
 	// from the "master" branch, so that we can push changes to it
 	// from the local manifest repository in the course of
-	// CreateBuildManifest().
+	// creating a remote snapshot.
 	if err := ctx.Run().Function(runutil.Chdir(remoteManifest)); err != nil {
 		t.Fatalf("%v", err)
 	}

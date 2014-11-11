@@ -14,6 +14,7 @@ import (
 
 	"tools/lib/cmdline"
 	"tools/lib/gerrit"
+	"tools/lib/util"
 )
 
 // cmdQuery represents the 'query' command of the presubmit tool.
@@ -31,6 +32,8 @@ with test results.
 
 // runQuery implements the "query" subcommand.
 func runQuery(command *cmdline.Command, args []string) error {
+	ctx := util.NewContextFromCommand(command, verboseFlag)
+
 	// Basic sanity check for the Gerrit base url.
 	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {
@@ -40,10 +43,10 @@ func runQuery(command *cmdline.Command, args []string) error {
 	// Don't query anything if the last "presubmit-test" build failed.
 	lastStatus, err := lastCompletedBuildStatusForProject(presubmitTestJenkinsProjectFlag)
 	if err != nil {
-		fmt.Fprintf(command.Stderr(), "%v\n", err)
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
 		if lastStatus == "FAILURE" {
-			fmt.Fprintf(command.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJenkinsProjectFlag)
+			printf(ctx.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJenkinsProjectFlag)
 			return nil
 		}
 	}
@@ -62,12 +65,12 @@ func runQuery(command *cmdline.Command, args []string) error {
 
 	// Query Gerrit.
 	username, password := gerritCred.username, gerritCred.password
-	curQueryResults, err := gerrit.Query(gerritBaseUrlFlag, username, password, queryStringFlag)
+	curQueryResults, err := gerrit.Query(ctx, gerritBaseUrlFlag, username, password, queryStringFlag)
 	if err != nil {
 		return fmt.Errorf("Query(%q, %q, %q, %q) failed: %v", gerritBaseUrlFlag, username, password, queryStringFlag, err)
 	}
 	newCLs := newOpenCLs(prevRefs, curQueryResults)
-	outputOpenCLs(newCLs, command)
+	outputOpenCLs(ctx, newCLs)
 
 	// Write current refs to the log file.
 	err = writeLog(curQueryResults)
@@ -82,7 +85,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 		return nil
 	}
 	if jenkinsHostFlag == "" {
-		printf(command.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
+		printf(ctx.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
 		return nil
 	}
 
@@ -91,21 +94,21 @@ func runQuery(command *cmdline.Command, args []string) error {
 		// Check and cancel matched outdated builds.
 		cl, patchset, err := parseRefString(curNewCL.Ref)
 		if err != nil {
-			printf(command.Stderr(), "%v\n", err)
+			printf(ctx.Stderr(), "%v\n", err)
 		} else {
-			removeOutdatedBuilds(cl, patchset, command)
+			removeOutdatedBuilds(ctx, cl, patchset)
 		}
 
-		printf(command.Stdout(), "Adding presubmit test build #%d: ", index+1)
+		printf(ctx.Stdout(), "Adding presubmit test build #%d: ", index+1)
 		if err := addPresubmitTestBuild(curNewCL); err != nil {
-			fmt.Fprintf(command.Stdout(), "FAIL\n")
-			printf(command.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curNewCL, err)
+			printf(ctx.Stdout(), "FAIL\n")
+			printf(ctx.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curNewCL, err)
 		} else {
 			sentCount++
-			fmt.Fprintf(command.Stdout(), "PASS\n")
+			printf(ctx.Stdout(), "PASS\n")
 		}
 	}
-	printf(command.Stdout(), "%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
+	printf(ctx.Stdout(), "%d/%d sent to %s\n", sentCount, newCLsCount, presubmitTestJenkinsProjectFlag)
 
 	return nil
 }
@@ -219,9 +222,9 @@ func newOpenCLs(prevRefs map[string]bool, curQueryResults []gerrit.QueryResult) 
 
 // outputOpenCLs prints out the given QueryResult entries line by
 // line. Each line shows the link to the CL and its related info.
-func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) {
+func outputOpenCLs(ctx *util.Context, queryResults []gerrit.QueryResult) {
 	if len(queryResults) == 0 {
-		printf(command.Stdout(), "No new open CLs\n")
+		printf(ctx.Stdout(), "No new open CLs\n")
 		return
 	}
 	count := len(queryResults)
@@ -230,13 +233,13 @@ func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) 
 	if count > 1 {
 		fmt.Fprintf(buf, "s")
 	}
-	printf(command.Stdout(), "%s\n", buf.String())
+	printf(ctx.Stdout(), "%s\n", buf.String())
 	for _, queryResult := range queryResults {
 		// The ref string is in the form of /refs/12/3412/1
 		// where "3412" is the CL number and "1" is the patch
 		// set number.
 		parts := strings.Split(queryResult.Ref, "/")
-		printf(command.Stdout(), "http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
+		printf(ctx.Stdout(), "http://go/vcl/%s [PatchSet: %s, Repo: %s]\n", parts[3], parts[4], queryResult.Repo)
 	}
 }
 
@@ -246,17 +249,17 @@ func outputOpenCLs(queryResults []gerrit.QueryResult, command *cmdline.Command) 
 //
 // Since this is not a critical operation, we simply print out the
 // errors if we see any.
-func removeOutdatedBuilds(cl, curPatchSet int, command *cmdline.Command) {
+func removeOutdatedBuilds(ctx *util.Context, cl, curPatchSet int) {
 	// Queued presubmit-test builds.
 	getQueuedBuildsRes, err := jenkinsAPI("queue/api/json", "GET", nil)
 	if err != nil {
-		printf(command.Stderr(), "%v\n", err)
+		printf(ctx.Stderr(), "%v\n", err)
 	} else {
 		// Get queued presubmit-test builds.
 		defer getQueuedBuildsRes.Body.Close()
 		queuedItems, errs := queuedOutdatedBuilds(getQueuedBuildsRes.Body, cl, curPatchSet)
 		if len(errs) != 0 {
-			printf(command.Stderr(), "%v\n", errs)
+			printf(ctx.Stderr(), "%v\n", errs)
 		}
 
 		// Cancel them.
@@ -266,10 +269,10 @@ func removeOutdatedBuilds(cl, curPatchSet int, command *cmdline.Command) {
 				"id": {fmt.Sprintf("%d", queuedItem.id)},
 			})
 			if err != nil {
-				printf(command.Stderr(), "%v\n", err)
+				printf(ctx.Stderr(), "%v\n", err)
 				continue
 			} else {
-				printf(command.Stdout(), "Cancelled build %s as it is no longer current.\n", queuedItem.ref)
+				printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", queuedItem.ref)
 				cancelQueuedItemRes.Body.Close()
 			}
 		}
@@ -279,13 +282,13 @@ func removeOutdatedBuilds(cl, curPatchSet int, command *cmdline.Command) {
 	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestJenkinsProjectFlag)
 	getLastBuildRes, err := jenkinsAPI(getLastBuildUri, "GET", nil)
 	if err != nil {
-		printf(command.Stderr(), "%v\n", err)
+		printf(ctx.Stderr(), "%v\n", err)
 	} else {
 		// Get ongoing presubmit-test build.
 		defer getLastBuildRes.Body.Close()
 		build, err := ongoingOutdatedBuild(getLastBuildRes.Body, cl, curPatchSet)
 		if err != nil {
-			printf(command.Stderr(), "%v\n", err)
+			printf(ctx.Stderr(), "%v\n", err)
 			return
 		}
 		if build.buildNumber < 0 {
@@ -296,9 +299,9 @@ func removeOutdatedBuilds(cl, curPatchSet int, command *cmdline.Command) {
 		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestJenkinsProjectFlag, build.buildNumber)
 		cancelOngoingBuildRes, err := jenkinsAPI(cancelOngoingBuildUri, "POST", nil)
 		if err != nil {
-			printf(command.Stderr(), "%v\n", err)
+			printf(ctx.Stderr(), "%v\n", err)
 		} else {
-			printf(command.Stdout(), "Cancelled build %s as it is no longer current.\n", build.ref)
+			printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", build.ref)
 			cancelOngoingBuildRes.Body.Close()
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"tools/lib/cmdline"
 	"tools/lib/util"
@@ -61,8 +62,6 @@ func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
-	cmdPost.Flags.StringVar(&reviewMessageFlag, "msg", "", "The review message to post to Gerrit.")
-	cmdPost.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&configFileFlag, "conf", defaultConfigFile, "The config file for presubmit tests.")
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
@@ -71,8 +70,12 @@ func init() {
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 }
 
-// printf outputs the given message prefixed by outputPrefix.
+// printf outputs the given message prefixed by outputPrefix, adding a
+// blank line before any messages that start with "###".
 func printf(out io.Writer, format string, args ...interface{}) {
+	if strings.HasPrefix(format, "###") {
+		fmt.Fprintln(out)
+	}
 	fmt.Fprintf(out, "%s ", outputPrefix)
 	fmt.Fprintf(out, format, args...)
 }
@@ -110,7 +113,7 @@ var cmdRoot = &cmdline.Command{
 	Name:     "presubmit",
 	Short:    "Tool for performing various presubmit related functions",
 	Long:     "The presubmit tool performs various presubmit related functions.",
-	Children: []*cmdline.Command{cmdQuery, cmdPost, cmdTest, cmdVersion},
+	Children: []*cmdline.Command{cmdQuery, cmdTest, cmdVersion},
 }
 
 // cmdVersion represent the 'version' command of the presubmit tool.

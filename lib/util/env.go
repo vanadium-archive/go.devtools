@@ -19,25 +19,24 @@ const (
 	rootEnv = "VEYRON_ROOT"
 )
 
-// Config holds configuration for the veyron tool.
-//
-// TODO(jsimsa): Remove "GoRepos" from conf/veyron config file once
-// everyone has update past the CL that introduces this TODO.
-type Config struct {
+// CommonConfig holds configuration common to veyron tools.
+type CommonConfig struct {
 	// GoRepos identifies top-level VEYRON_ROOT directories that
 	// contain a Go workspace.
 	GoRepos []string `json:"go-repos"`
 	// VDLRepos identifies top-level VEYRON_ROOT directories that
 	// contain a VDL workspace.
 	VDLRepos []string `json:"vdl-repos"`
-	// PollMap maps jenkins project names to sets of repos. Given
-	// a set of projects, "veyron project poll" will poll changes
-	// from the corresponding repos.
-	PollMap map[string][]string `json:"poll-map"`
-	// TestMap maps build tag names to sets of jenkins projects
-	// that determine the stability of the build with the given
-	// tag.
-	TestMap map[string][]string `json:"test-map"`
+	// SnapshotLabelTests maps snapshot labels to sets of tests
+	// that determine whether a snapshot for the given label can
+	// be created.
+	SnapshotLabelTests map[string][]string `json:"snapshot-label-tests"`
+	// ProjectTests maps veyron projects to sets of tests that
+	// should be executed to test changes in the given project.
+	ProjectTests map[string][]string `json:"project-tests"`
+	// TestDependencies maps tests to sets of tests that the given
+	// test depends on.
+	TestDependencies map[string][]string `json:"test-dependencies"`
 }
 
 // LocalManifestFile returns the path to the local manifest.
@@ -88,22 +87,59 @@ func ResolveManifestPath(path string) (string, error) {
 	return RemoteManifestFile(path)
 }
 
-// VeyronConfig returns the config for veyron tools.
-func VeyronConfig() (*Config, error) {
+// ConfigDir returns the local path to the directory storing config
+// files for the veyron tools.
+func ConfigDir() (string, error) {
 	root, err := VeyronRoot()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	confPath := filepath.Join(root, "tools", "conf", "veyron")
-	confBytes, err := ioutil.ReadFile(confPath)
+	return filepath.Join(root, "tools", "conf"), nil
+}
+
+// ConfigFile returns the local path to the config file identifed by
+// the given name.
+func ConfigFile(name string) (string, error) {
+	dir, err := ConfigDir()
 	if err != nil {
-		return nil, fmt.Errorf("ReadFile(%v) failed: %v", confPath, err)
+		return "", err
 	}
-	var conf Config
-	if err := json.Unmarshal(confBytes, &conf); err != nil {
-		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(confBytes), err)
+	return filepath.Join(dir, name+".json"), nil
+}
+
+// TestScriptDir returns the local path to the test script directory.
+func TestScriptDir() (string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return "", err
 	}
-	return &conf, nil
+	return filepath.Join(root, "scripts", "jenkins"), nil
+}
+
+// TestScriptFile returns the local path to the test script file
+// identifed by the given name.
+func TestScriptFile(name string) (string, error) {
+	dir, err := TestScriptDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name+".sh"), nil
+}
+
+// LoadConfig loads the config identified by the given name.
+func LoadConfig(name string, config interface{}) error {
+	configPath, err := ConfigFile(name)
+	if err != nil {
+		return err
+	}
+	configBytes, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("ReadFile(%v) failed: %v", configPath, err)
+	}
+	if err := json.Unmarshal(configBytes, config); err != nil {
+		return fmt.Errorf("Unmarshal(%v) failed: %v", string(configBytes), err)
+	}
+	return nil
 }
 
 // VeyronEnvironment returns the environment variables setting for
@@ -117,12 +153,12 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	conf, err := VeyronConfig()
-	if err != nil {
+	var config CommonConfig
+	if err := LoadConfig("common", &config); err != nil {
 		return nil, err
 	}
-	setGoPath(env, root, conf)
-	setVdlPath(env, root, conf)
+	setGoPath(env, root, &config)
+	setVdlPath(env, root, &config)
 	archCmd := exec.Command("uname", "-m")
 	arch, err := archCmd.Output()
 	if err != nil {
@@ -230,10 +266,10 @@ func setArmEnv(env *envutil.Snapshot, platform Platform) error {
 
 // setGoPath adds the paths to veyron Go workspaces to the GOPATH
 // variable.
-func setGoPath(env *envutil.Snapshot, root string, conf *Config) {
+func setGoPath(env *envutil.Snapshot, root string, config *CommonConfig) {
 	gopath := env.GetTokens("GOPATH", ":")
 	// Append an entry to gopath for each veyron go repo.
-	for _, repo := range conf.GoRepos {
+	for _, repo := range config.GoRepos {
 		gopath = append(gopath, filepath.Join(root, repo, "go"))
 	}
 	env.SetTokens("GOPATH", gopath, ":")
@@ -241,13 +277,13 @@ func setGoPath(env *envutil.Snapshot, root string, conf *Config) {
 
 // setVdlPath adds the paths to veyron Go workspaces to the VDLPATH
 // variable.
-func setVdlPath(env *envutil.Snapshot, root string, conf *Config) {
+func setVdlPath(env *envutil.Snapshot, root string, config *CommonConfig) {
 	vdlpath := env.GetTokens("VDLPATH", ":")
 	// Append an entry to vdlpath for each veyron go repo.
 	//
 	// TODO(toddw): This logic will change when we pull vdl into a
 	// separate repo.
-	for _, repo := range conf.VDLRepos {
+	for _, repo := range config.VDLRepos {
 		vdlpath = append(vdlpath, filepath.Join(root, repo, "go"))
 	}
 	env.SetTokens("VDLPATH", vdlpath, ":")

@@ -4,16 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"path/filepath"
 	"sort"
-	"time"
 
 	"tools/lib/cmdline"
 	"tools/lib/runutil"
 	"tools/lib/util"
 )
 
-// cmdProject represents the 'project' command of the veyron tool.
+// cmdProject represents the "veyron project" command.
 var cmdProject = &cmdline.Command{
 	Name:     "project",
 	Short:    "Manage veyron projects",
@@ -21,8 +19,7 @@ var cmdProject = &cmdline.Command{
 	Children: []*cmdline.Command{cmdProjectList, cmdProjectPoll},
 }
 
-// cmdProjectList represents the 'list' sub-command of the
-// 'project' command of the veyron tool.
+// cmdProjectList represents the "veyron project list" command.
 var cmdProjectList = &cmdline.Command{
 	Run:   runProjectList,
 	Name:  "list",
@@ -76,19 +73,18 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 	return nil
 }
 
-// cmdProjectPoll represents the 'poll' sub-command of the 'project'
-// command of the veyron tool.
+// cmdProjectPoll represents the "veyron project poll" command.
 var cmdProjectPoll = &cmdline.Command{
 	Run:   runProjectPoll,
 	Name:  "poll",
 	Short: "Poll existing veyron projects",
 	Long: `
-Poll existing veyron projects and report whether any new changes exist.
-Projects to poll can be specified as command line arguments.
-If no projects are specified, all projects are polled by default.
+Poll veyron projects that can affect the outcome of the given tests
+and report whether any new changes in these projects exist. If no
+tests are specified, all projects are polled by default.
 `,
-	ArgsName: "<project ...>",
-	ArgsLong: "<project ...> is a list of projects to poll.",
+	ArgsName: "<test ...>",
+	ArgsLong: "<test ...> is a list of tests that determine what projects to poll.",
 }
 
 // runProjectPoll generates a description of changes that exist
@@ -96,16 +92,24 @@ If no projects are specified, all projects are polled by default.
 func runProjectPoll(command *cmdline.Command, args []string) error {
 	projectSet := map[string]struct{}{}
 	if len(args) > 0 {
-		config, err := util.VeyronConfig()
-		if err != nil {
+		var config util.CommonConfig
+		if err := util.LoadConfig("common", &config); err != nil {
 			return err
 		}
-		for _, arg := range args {
-			curProjects, ok := config.PollMap[arg]
-			if !ok {
-				return fmt.Errorf("failed to find the key %q in %#v", arg, config.PollMap)
+		// Invert the config.ProjectTests map that maps
+		// projects to tests to run.
+		testProjects := map[string][]string{}
+		for project, tests := range config.ProjectTests {
+			for _, test := range tests {
+				testProjects[test] = append(testProjects[test], project)
 			}
-			for _, project := range curProjects {
+		}
+		for _, arg := range args {
+			projects, ok := testProjects[arg]
+			if !ok {
+				return fmt.Errorf("failed to find any projects for test %q", arg)
+			}
+			for _, project := range projects {
 				projectSet[project] = struct{}{}
 			}
 		}
@@ -132,75 +136,4 @@ func runProjectPoll(command *cmdline.Command, args []string) error {
 		fmt.Fprintf(command.Stdout(), "%s\n", bytes)
 	}
 	return nil
-}
-
-// cmdUpdate represents the 'update' command of the veyron tool.
-var cmdUpdate = &cmdline.Command{
-	Run:   runUpdate,
-	Name:  "update",
-	Short: "Update all veyron tools and projects",
-	Long: `
-Updates all veyron projects, builds the latest version of veyron
-tools, and installs the resulting binaries into $VEYRON_ROOT/bin. The
-sequence in which the individual updates happen guarantees that we end
-up with a consistent set of tools and source code.
-
-The set of project and tools to update is describe by a
-manifest. Veyron manifests are revisioned and stored in a "manifest"
-repository, that is available locally in $VEYRON_ROOT/.manifest. The
-manifest uses the following XML schema:
-
- <manifest>
-   <imports>
-     <import name="default"/>
-     ...
-   </imports>
-   <projects>
-     <project name="https://veyron.googlesource.com/veyrong.go"
-              path="veyron/go/src/veyron.io/veyron"
-              protocol="git"
-              revision="HEAD"/>
-     ...
-   </projects>
-   <tools>
-     <tool name="veyron" package="tools/veyron"/>
-     ...
-   </tools>
- </manifest>
-
-The <import> element can be used to share settings across multiple
-manifests. Import names are interpreted relative to the
-$VEYRON_ROOT/.manifest/v1 directory. Import cycles are not allowed and
-if a project or a tool is specified multiple times, the last
-specification takes effect. In particular, the elements <project
-name="foo" exclude="true"/> and <tool name="bar" exclude="true"/> can
-be used to exclude previously included projects and tools.
-
-The tool identifies which manifest to use using the following
-algorithm. If the $VEYRON_ROOT/.local_manifest file exists, then it is
-used. Otherwise, the $VEYRON_ROOT/.manifest/v1/<manifest>.xml file is
-used, which <manifest> is the value of the -manifest command-line
-flag, which defaults to "default".
-
-NOTE: Unlike the veyron tool commands, the above manifest file format
-is not an API. It is an implementation and can change without notice.
-`,
-}
-
-func runUpdate(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
-
-	// Create a snapshot of the current state of all projects and
-	// write it to the $VEYRON_ROOT/.update_history folder.
-	root, err := util.VeyronRoot()
-	if err != nil {
-		return err
-	}
-	snapshotFile := filepath.Join(root, ".update_history", time.Now().Format(time.RFC3339))
-	if err := util.CreateSnapshot(ctx, snapshotFile); err != nil {
-		return err
-	}
-
-	// Update all projects to their latest version.
-	return util.UpdateUniverse(ctx, manifestFlag, gcFlag)
 }

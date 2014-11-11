@@ -31,7 +31,6 @@ func init() {
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdGo.Flags.StringVar(&hostGo, "host_go", "go", "Go command for the host platform.")
 	cmdGo.Flags.StringVar(&targetGo, "target_go", "go", "Go command for the target platform.")
-	cmdIntegrationTestRun.Flags.IntVar(&numTestWorkersFlag, "workers", 0, "Number of test workers. The default 0 matches the number of CPUs.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdSnapshot.Flags.BoolVar(&remoteFlag, "remote", false, "Manage remote snapshots.")
@@ -56,18 +55,18 @@ var cmdRoot = &cmdline.Command{
 		cmdEnv,
 		cmdGo,
 		cmdGoExt,
-		cmdIntegrationTest,
 		cmdProfile,
 		cmdProject,
 		cmdRun,
 		cmdSnapshot,
+		cmdTest,
 		cmdUpdate,
 		cmdVersion,
 		cmdXGo,
 	},
 }
 
-// cmdContributors represents the 'contributors' command of the veyron tool.
+// cmdContributors represents the "veyron contributors" command.
 var cmdContributors = &cmdline.Command{
 	Run:   runContributors,
 	Name:  "contributors",
@@ -154,7 +153,7 @@ func listCommitters(git *gitutil.Git) ([]string, error) {
 	return git.Committers()
 }
 
-// cmdVersion represents the 'version' command of the veyron tool.
+// cmdVersion represents the "veyron version" command.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",

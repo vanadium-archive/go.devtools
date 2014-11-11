@@ -16,7 +16,7 @@ import (
 	"tools/lib/util"
 )
 
-// cmdGo represents the 'go' command of the veyron tool.
+// cmdGo represents the "veyron go" command.
 var cmdGo = &cmdline.Command{
 	Run:   runGo,
 	Name:  "go",
@@ -44,7 +44,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	return runGoForPlatform(ctx, util.HostPlatform(), command, args)
 }
 
-// cmdXGo represents the 'xgo' command of the veyron tool.
+// cmdXGo represents the "veyron xgo" command.
 var cmdXGo = &cmdline.Command{
 	Run:   runXGo,
 	Name:  "xgo",
@@ -360,7 +360,7 @@ func computeGoDeps(ctx *util.Context, env *envutil.Snapshot, pkgs []string) ([]s
 	return deps, nil
 }
 
-// cmdGoExt represents the 'goext' command of the veyron tool.
+// cmdGoExt represents the "veyron goext" command.
 var cmdGoExt = &cmdline.Command{
 	Name:     "goext",
 	Short:    "Veyron extensions of the go tool",
@@ -368,8 +368,7 @@ var cmdGoExt = &cmdline.Command{
 	Children: []*cmdline.Command{cmdGoExtDistClean},
 }
 
-// cmdGoExtDistClean represents the 'distclean' sub-command of 'goext'
-// command of the veyron tool.
+// cmdGoExtDistClean represents the 'veyron goext distclean" command.
 var cmdGoExtDistClean = &cmdline.Command{
 	Run:   runGoExtDistClean,
 	Name:  "distclean",

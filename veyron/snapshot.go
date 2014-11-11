@@ -30,8 +30,7 @@ snapshots the are revisioned in the manifest repository.
 	Children: []*cmdline.Command{cmdSnapshotCreate, cmdSnapshotList},
 }
 
-// cmdSnapshotCreate represents the "create" sub-command of the
-// "snapshot" command of the veyron tool.
+// cmdSnapshotCreate represents the "veyron snapshot create" command.
 var cmdSnapshotCreate = &cmdline.Command{
 	Run:   runSnapshotCreate,
 	Name:  "create",
@@ -246,11 +245,11 @@ func runTests(ctx *util.Context, label string) error {
 	if err != nil {
 		return err
 	}
-	config, err := util.VeyronConfig()
-	if err != nil {
+	var config util.CommonConfig
+	if err := util.LoadConfig("common", &config); err != nil {
 		return err
 	}
-	tests, ok := config.TestMap[label]
+	tests, ok := config.SnapshotLabelTests[label]
 	if !ok {
 		if remoteFlag {
 			return fmt.Errorf("no configuration for label %v found", label)
@@ -269,12 +268,11 @@ func runTests(ctx *util.Context, label string) error {
 	return nil
 }
 
-// cmdSnapshotList represents the "list" sub-command of the "snapshot"
-// command of the veyron tool.
+// cmdSnapshotList represents the "veyron snapshot list" command.
 var cmdSnapshotList = &cmdline.Command{
 	Run:   runSnapshotList,
 	Name:  "list",
-	Short: "List existing snapshots of veyron builds",
+	Short: "List existing snapshots of veyron projects",
 	Long: `
 The "snapshot list" command lists existing snapshots of the labels
 specified as command-line arguments. If no arguments are provided, the

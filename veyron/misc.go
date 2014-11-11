@@ -23,7 +23,7 @@ func translateExitCode(err error) error {
 	return err
 }
 
-// cmdEnv represents the 'env' command of the veyron tool.
+// cmdEnv represents the "veyron env" command.
 var cmdEnv = &cmdline.Command{
 	Run:   runEnv,
 	Name:  "env",
@@ -64,7 +64,7 @@ func runEnv(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// cmdRun represents the 'run' command of the veyron tool.
+// cmdRun represents the "veyron run" command.
 var cmdRun = &cmdline.Command{
 	Run:      runRun,
 	Name:     "run",

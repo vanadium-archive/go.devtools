@@ -30,7 +30,7 @@ var (
 	}
 )
 
-// cmdProfile represents the 'profile' command of the veyron tool.
+// cmdProfile represents the "veyron profile" command.
 var cmdProfile = &cmdline.Command{
 	Name:  "profile",
 	Short: "Manage veyron profiles",
@@ -43,8 +43,7 @@ development.
 	Children: []*cmdline.Command{cmdProfileList, cmdProfileSetup},
 }
 
-// cmdProfileList represents the 'list' sub-command of the
-// 'profile' command of the veyron tool.
+// cmdProfileList represents the "veyron profile list" command.
 var cmdProfileList = &cmdline.Command{
 	Run:   runProfileList,
 	Name:  "list",
@@ -60,8 +59,7 @@ func runProfileList(command *cmdline.Command, _ []string) error {
 	return nil
 }
 
-// cmdProfileSetup represents the 'setup' sub-command of the 'profile'
-// command of the veyron tool.
+// cmdProfileSetup represents the "veyron profile setup" command.
 var cmdProfileSetup = &cmdline.Command{
 	Run:      runProfileSetup,
 	Name:     "setup",

@@ -38,8 +38,8 @@ type GerritReview struct {
 }
 
 // PostReview posts a review to the given Gerrit ref.
-func PostReview(gerritBaseUrl, username, password, ref string, review GerritReview) error {
-	fmt.Printf("Posting review for %s:\n%#v\n", ref, review)
+func PostReview(ctx *util.Context, gerritBaseUrl, username, password, ref string, review GerritReview) error {
+	fmt.Fprintf(ctx.Stdout(), "Posting review for %s:\n%#v\n", ref, review)
 
 	// Construct api url.
 	// ref is in the form of "refs/changes/<last two digits of change number>/<change number>/<patch set number>".
@@ -129,8 +129,9 @@ type QueryResult struct {
 // See the following links for more details about Gerrit search syntax:
 // - https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#list-changes
 // - https://gerrit-review.googlesource.com/Documentation/user-search.html
-func Query(gerritBaseUrl, username, password, queryString string) ([]QueryResult, error) {
+func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString string) ([]QueryResult, error) {
 	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&q=%s", gerritBaseUrl, url.QueryEscape(queryString))
+	fmt.Fprintf(ctx.Stdout(), "Issuing query: %v\n", url)
 	var body io.Reader
 	method, body := "GET", nil
 	req, err := http.NewRequest(method, url, body)
