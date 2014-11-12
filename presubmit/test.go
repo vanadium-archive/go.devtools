@@ -150,12 +150,23 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 
 // postTestReport generates a test report and posts it to Gerrit.
 func postTestReport(ctx *util.Context, results map[string]*util.TestResult) error {
+	// Do not post a test report if no tests were run.
+	if len(results) == 0 {
+		return nil
+	}
+
+	var report bytes.Buffer
+	buildCop, err := buildCop(ctx, time.Now())
+	if err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+	} else {
+		fmt.Fprintf(&report, "\nCurrent Build Cop: %s\n\n", buildCop)
+	}
 	names := []string{}
 	for name, _ := range results {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	var report bytes.Buffer
 	fmt.Fprintf(&report, "Test results:\n")
 	nfailed := 0
 	for _, name := range names {

@@ -114,7 +114,10 @@ func commitFiles(t *testing.T, ctx *util.Context, fileNames []string) {
 }
 
 func createConfig(t *testing.T, ctx *util.Context, rootDir string) {
-	configFile := filepath.Join(rootDir, "tools", "conf", "veyron")
+	configFile, err := util.ConfigFile("common")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(configFile), os.FileMode(0755))); err != nil {
 		t.Fatalf("%v", err)
 	}
