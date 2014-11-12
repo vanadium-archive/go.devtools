@@ -174,11 +174,12 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 		// If setting up the environment for the host, we are done.
 	case platform.Arch == "arm" && platform.OS == "linux":
 		// Set up cross-compilation for arm / linux.
-		setArmLinuxEnv := setArmEnv
-		if platform.Environment == "android" {
-			setArmLinuxEnv = setAndroidEnv
+		if err := setArmEnv(env, platform); err != nil {
+			return nil, err
 		}
-		if err := setArmLinuxEnv(env, platform); err != nil {
+	case platform.Arch == "arm" && platform.OS == "android":
+		// Set up cross-compilation for arm / android.
+		if err := setAndroidEnv(env, platform); err != nil {
 			return nil, err
 		}
 	case platform.Arch == "386" && platform.OS == "nacl":
@@ -224,13 +225,12 @@ func setAndroidEnv(env *envutil.Snapshot, platform Platform) error {
 	if err != nil {
 		return err
 	}
-	// Set CC specific environment variables.
-	env.Set("CC", filepath.Join(root, "environment", "android", "ndk-toolchain", "bin", "arm-linux-androideabi-gcc"))
 	// Set Go specific environment variables.
+	env.Set("CGO_ENABLED", "1")
+	env.Set("GOOS", platform.OS)
 	env.Set("GOARCH", platform.Arch)
 	env.Set("GOARM", strings.TrimPrefix(platform.SubArch, "v"))
-	env.Set("GOOS", platform.OS)
-	if err := setJniCgoEnv(env, root, "android"); err != nil {
+	if err := setJniCgoEnv(env, root, platform.OS); err != nil {
 		return err
 	}
 	// Add the paths to veyron cross-compilation tools to the PATH.

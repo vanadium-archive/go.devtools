@@ -532,80 +532,25 @@ func setupMobileLinux(ctx *util.Context) error {
 		if err := ctx.Run().Function(runutil.Chdir(androidRoot)); err != nil {
 			return err
 		}
-		// Get go 1.2.2 (9c4fdd8369ca) because the go android
-		// patches do not currently support 1.3. Upgrade to
-		// newer versions when the patches are available.
-		remote, revision := "https://code.google.com/p/go", "9c4fdd8369ca"
+		// Download Go head as of 11/11/2014.
+		remote, revision := "https://code.google.com/p/go", "fba0ff340b22"
 		if err := run(ctx, "hg", []string{"clone", remote, "-r", revision}, nil); err != nil {
 			return err
 		}
-		tmpDir, err := ioutil.TempDir("", "")
-		if err != nil {
-			fmt.Errorf("TempDir() failed: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
-		if err := run(ctx, "git", []string{"clone", "https://github.com/eliasnaur/goandroid.git", tmpDir}, nil); err != nil {
-			return err
-		}
 
-		// Apply our and Android Go patches.
-		hgrc := `
-[extensions]
-mq =
-codereview = !
-
-[ui]
-username = me<me@mail.com>
-`
-		hgDir := filepath.Join(androidRoot, "go", ".hg")
-		hgrcFile := filepath.Join(hgDir, "hgrc")
-		if err := ioutil.WriteFile(hgrcFile, []byte(hgrc), 0644); err != nil {
-			return err
-		}
-		androidGoPatches := filepath.Join(tmpDir, "patches")
-		if err := run(ctx, "cp", []string{"-a", androidGoPatches, hgDir}, nil); err != nil {
-			return err
-		}
-		androidPatches := filepath.Join(androidRoot, "patches")
-		if err := run(ctx, "cp", []string{"-a", androidPatches, hgDir}, nil); err != nil {
-			return err
-		}
-		androidGoSeries, err := ioutil.ReadFile(filepath.Join(androidGoPatches, "series"))
-		if err != nil {
-			return fmt.Errorf("ReadFile(%v) failed: %v", filepath.Join(androidGoPatches, "series"), err)
-		}
-		androidSeries, err := ioutil.ReadFile(filepath.Join(androidPatches, "series"))
-		if err != nil {
-			return fmt.Errorf("ReadFile(%v) failed: %v", filepath.Join(androidPatches, "series"), err)
-		}
-		if err := ioutil.WriteFile(filepath.Join(hgDir, "patches", "series"), append(androidGoSeries, androidSeries...), defaultFilePerm); err != nil {
-			return fmt.Errorf("WriteFile(%v) failed: %v", filepath.Join(hgDir, "patches", "series"), err)
-		}
-		if err := ctx.Run().Function(runutil.Chdir(androidGo)); err != nil {
-			return err
-		}
-		if err := run(ctx, "hg", []string{"qpush", "-a"}, nil); err != nil {
-			return err
-		}
-
-		// Build Android Go.
+		// Build.
 		srcDir := filepath.Join(androidGo, "src")
 		if err := ctx.Run().Function(runutil.Chdir(srcDir)); err != nil {
 			return err
 		}
 		makeEnv := envutil.NewSnapshotFromOS()
 		unsetGoEnv(makeEnv)
-		makeEnv.Set("CGO_ENABLED", "0")
-		makeEnv.Set("GOOS", "linux")
+		makeEnv.Set("CC_FOR_TARGET", filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc"))
+		makeEnv.Set("GOOS", "android")
 		makeEnv.Set("GOARCH", "arm")
+		makeEnv.Set("GOARM", "7")
 		makeBin := filepath.Join(srcDir, "make.bash")
-		makeArgs := []string{
-			fmt.Sprintf("CC=%q", filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")),
-			"GOOS=linux", "GOARCH=arm", "GOARM=7", "CGO_ENABLED=1",
-			filepath.Join(androidRoot, "go", "bin", "go"),
-			"install", "-tags", "android", "-a", "-v", "std",
-		}
-		if err := run(ctx, makeBin, makeArgs, makeEnv.Map()); err != nil {
+		if err := run(ctx, makeBin, nil, makeEnv.Map()); err != nil {
 			return err
 		}
 		return nil
