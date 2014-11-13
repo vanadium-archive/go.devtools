@@ -228,7 +228,7 @@ func TestBuildCop(t *testing.T) {
 		},
 		testCase{
 			targetTime:       time.Date(2014, time.November, 20, 14, 0, 0, 0, time.Local),
-			expectedBuildCop: "jsimsaa",
+			expectedBuildCop: "jsimsa",
 		},
 	}
 	for _, test := range testCases {
