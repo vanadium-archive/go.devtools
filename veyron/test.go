@@ -61,6 +61,11 @@ func runTestProject(command *cmdline.Command, args []string) error {
 		return err
 	}
 	printSummary(ctx, results)
+	for _, result := range results {
+		if result.Status != testutil.TestPassed {
+			return cmdline.ErrExitCode(2)
+		}
+	}
 	return nil
 }
 
@@ -92,6 +97,11 @@ func runTestRun(command *cmdline.Command, args []string) error {
 		return err
 	}
 	printSummary(ctx, results)
+	for _, result := range results {
+		if result.Status != testutil.TestPassed {
+			return cmdline.ErrExitCode(2)
+		}
+	}
 	return nil
 }
 
