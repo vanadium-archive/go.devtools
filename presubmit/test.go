@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -156,7 +155,7 @@ func postTestReport(ctx *util.Context, results map[string]*util.TestResult) erro
 	}
 
 	var report bytes.Buffer
-	buildCop, err := buildCop(ctx, time.Now())
+	buildCop, err := util.BuildCop(ctx, time.Now())
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
@@ -516,40 +515,6 @@ func generateReportForHangingTest(testName string, timeout time.Duration) error 
 		ErrorMessage: fmt.Sprintf("The test timed out after %s.\nOpen console log and search for \"%s timed out\".",
 			timeout, testName),
 	})
-}
-
-// buildCop finds the build cop at the given time from the buildcop
-// configuration file by comparing timestamps.
-func buildCop(ctx *util.Context, targetTime time.Time) (string, error) {
-	// Parse buildcop.xml file.
-	buildCopRotationsFile := filepath.Join(veyronRoot, "tools", "conf", "buildcop.xml")
-	content, err := ioutil.ReadFile(buildCopRotationsFile)
-	if err != nil {
-		return "", fmt.Errorf("ReadFile(%q) failed: %v", buildCopRotationsFile, err)
-	}
-	var shifts struct {
-		Shifts []struct {
-			Primary string `xml:"primary"`
-			Date    string `xml:"startDate"`
-		} `xml:"shift"`
-	}
-	if err := xml.Unmarshal(content, &shifts); err != nil {
-		return "", fmt.Errorf("Unmarshal(%q) failed: %v", string(content), err)
-	}
-
-	// Find the build cop at targetTime.
-	for i := len(shifts.Shifts) - 1; i >= 0; i-- {
-		shift := shifts.Shifts[i]
-		layout := "Jan 2, 2006 3:04:05 PM"
-		t, err := time.Parse(layout, shift.Date)
-		if err != nil {
-			return "", fmt.Errorf("Parse(%q, %v) failed: %v", layout, shift.Date, err)
-		}
-		if targetTime.Unix() >= t.Unix() {
-			return shift.Primary, nil
-		}
-	}
-	return "", nil
 }
 
 // postMessage posts the given message to Gerrit.

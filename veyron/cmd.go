@@ -51,6 +51,7 @@ var cmdRoot = &cmdline.Command{
 	Short: "Tool for managing veyron development",
 	Long:  "The veyron tool helps manage veyron development.",
 	Children: []*cmdline.Command{
+		cmdBuildCop,
 		cmdContributors,
 		cmdEnv,
 		cmdGo,

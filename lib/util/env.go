@@ -352,3 +352,12 @@ func setNaclEnv(env *envutil.Snapshot, platform Platform) error {
 	env.Set("GOOS", platform.OS)
 	return nil
 }
+
+// BuildCopRotationPath returns the path to the build cop rotation file.
+func BuildCopRotationPath() (string, error) {
+	root, err := VeyronRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "tools", "conf", "buildcop.xml"), nil
+}
