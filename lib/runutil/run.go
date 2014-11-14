@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	CommandTimedoutErr = fmt.Errorf("command timed out")
+	CommandTimedOutErr = fmt.Errorf("command timed out")
 )
 
 type Run struct {
@@ -141,7 +141,7 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 		if opts.Verbose {
 			r.printf(r.opts.Stdout, "TIMED OUT")
 		}
-		return CommandTimedoutErr
+		return CommandTimedOutErr
 	case err := <-done:
 		if err != nil {
 			if opts.Verbose {

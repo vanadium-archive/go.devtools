@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 
 	"tools/lib/cmdline"
+	"tools/lib/testutil"
 	"tools/lib/util"
 )
+
+func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+}
 
 // cmdTest represents the "veyron test" command.
 var cmdTest = &cmdline.Command{
@@ -50,7 +56,7 @@ func runTestProject(command *cmdline.Command, args []string) error {
 	if !strings.HasPrefix(project, "http") {
 		project = "https://veyron.googlesource.com/" + project
 	}
-	results, err := util.RunProjectTests(ctx, project)
+	results, err := testutil.RunProjectTests(ctx, project)
 	if err != nil {
 		return err
 	}
@@ -81,7 +87,7 @@ func runTestRun(command *cmdline.Command, args []string) error {
 	if err := os.Chdir(tmpDir); err != nil {
 		return err
 	}
-	results, err := util.RunTests(ctx, args)
+	results, err := testutil.RunTests(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -89,19 +95,10 @@ func runTestRun(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-func printSummary(ctx *util.Context, results map[string]*util.TestResult) {
-	fmt.Fprintf(ctx.Stdout(), "\nSummary:\n")
+func printSummary(ctx *util.Context, results map[string]*testutil.TestResult) {
+	fmt.Fprintf(ctx.Stdout(), "SUMMARY:\n")
 	for name, result := range results {
-		switch result.Status {
-		case util.TestPassed:
-			fmt.Fprintf(ctx.Stdout(), "%v PASSED\n", name)
-		case util.TestFailed:
-			fmt.Fprintf(ctx.Stdout(), "%v FAILED\n", name)
-		case util.TestTimedOut:
-			fmt.Fprintf(ctx.Stdout(), "%v TIMED OUT\n", name)
-		case util.TestSkipped:
-			fmt.Fprintf(ctx.Stdout(), "%v SKIPPED\n", name)
-		}
+		fmt.Fprintf(ctx.Stdout(), "%v %s\n", name, result.Status)
 	}
 }
 

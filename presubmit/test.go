@@ -22,6 +22,7 @@ import (
 	"tools/lib/gerrit"
 	"tools/lib/gitutil"
 	"tools/lib/runutil"
+	"tools/lib/testutil"
 	"tools/lib/util"
 )
 
@@ -51,8 +52,6 @@ const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 `
 
 // runTest implements the 'test' subcommand.
-//
-// TODO(jingjin): Refactor this function so that it does not span 200+ lines.
 func runTest(command *cmdline.Command, args []string) error {
 	ctx := util.NewContextFromCommand(command, verboseFlag)
 
@@ -134,7 +133,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the tests\n")
-	results, err := util.RunProjectTests(ctx, repoFlag)
+	results, err := testutil.RunProjectTests(ctx, repoFlag)
 	if err != nil {
 		return err
 	}
@@ -148,7 +147,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 }
 
 // postTestReport generates a test report and posts it to Gerrit.
-func postTestReport(ctx *util.Context, results map[string]*util.TestResult) error {
+func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult) error {
 	// Do not post a test report if no tests were run.
 	if len(results) == 0 {
 		return nil
@@ -171,7 +170,7 @@ func postTestReport(ctx *util.Context, results map[string]*util.TestResult) erro
 	for _, name := range names {
 		result := results[name]
 
-		if result.Status == util.TestSkipped {
+		if result.Status == testutil.TestSkipped {
 			fmt.Fprintf(&report, "skipped %v\n", name)
 			continue
 		}
@@ -191,7 +190,7 @@ func postTestReport(ctx *util.Context, results map[string]*util.TestResult) erro
 		}
 
 		var curStatusString string
-		if result.Status == util.TestPassed {
+		if result.Status == testutil.TestPassed {
 			curStatusString = "✔"
 		} else {
 			nfailed++
@@ -200,9 +199,9 @@ func postTestReport(ctx *util.Context, results map[string]*util.TestResult) erro
 
 		fmt.Fprintf(&report, "%s ➔ %s: %s", lastStatusString, curStatusString, name)
 
-		if result.Status == util.TestTimedOut {
-			fmt.Fprintf(&report, " [TIMED OUT after %s]\n", util.DefaultTestTimeout)
-			if err := generateReportForHangingTest(name, util.DefaultTestTimeout); err != nil {
+		if result.Status == testutil.TestTimedOut {
+			fmt.Fprintf(&report, " [TIMED OUT after %s]\n", testutil.DefaultTestTimeout)
+			if err := generateReportForHangingTest(name, testutil.DefaultTestTimeout); err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			}
 		} else {

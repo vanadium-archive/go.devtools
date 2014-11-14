@@ -59,8 +59,7 @@ func TestTestProject(t *testing.T) {
 	}
 	got, want := out.String(), `##### Running test "veyron-test" #####
 ##### PASSED #####
-
-Summary:
+SUMMARY:
 veyron-test PASSED
 `
 	if got != want {
@@ -94,8 +93,7 @@ func TestTestRun(t *testing.T) {
 	}
 	got, want := out.String(), `##### Running test "veyron-test" #####
 ##### PASSED #####
-
-Summary:
+SUMMARY:
 veyron-test PASSED
 `
 	if got != want {
