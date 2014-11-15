@@ -523,7 +523,7 @@ func ThirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	args := []string{"-run", `"[^(TestTestmainPackage)]"`}
+	args := []string{"-run", "[^(TestTestmainPackage)]"}
 	pkgs := []string{"code.google.com/...", "github.com/..."}
 	return goTest(ctx, testName, args, pkgs, nil)
 }
@@ -534,7 +534,7 @@ func ThirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	args := []string{"-race", "-run", `"[^(TestTestmainPackage)]"`}
+	args := []string{"-race", "-run", "[^(TestTestmainPackage)]"}
 	pkgs := []string{"code.google.com/...", "github.com/..."}
 	return goTest(ctx, testName, args, pkgs, nil)
 }
