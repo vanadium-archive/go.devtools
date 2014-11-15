@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"tools/lib/cmdline"
 	"tools/lib/runutil"
+	"tools/lib/testutil"
 	"tools/lib/util"
 )
 
@@ -241,10 +241,6 @@ func revisionChanges(ctx *util.Context, snapshotDir, snapshotFile, label string)
 
 // runTests runs the tests associated with the given snapshot label.
 func runTests(ctx *util.Context, label string) error {
-	root, err := util.VeyronRoot()
-	if err != nil {
-		return err
-	}
 	var config util.CommonConfig
 	if err := util.LoadConfig("common", &config); err != nil {
 		return err
@@ -257,12 +253,12 @@ func runTests(ctx *util.Context, label string) error {
 		return nil
 	}
 	for _, test := range tests {
-		testPath := filepath.Join(root, "scripts", "jenkins", test)
-		testCmd := exec.Command(testPath)
-		testCmd.Stdout = ctx.Stdout()
-		testCmd.Stdout = ctx.Stderr()
-		if err := testCmd.Run(); err != nil {
-			return fmt.Errorf("%v failed: %v", strings.Join(testCmd.Args, " "), err)
+		result, err := testutil.RunTests(ctx, []string{test})
+		if err != nil {
+			return err
+		}
+		if result[test].Status != testutil.TestPassed {
+			return fmt.Errorf("%v failed", test)
 		}
 	}
 	return nil
