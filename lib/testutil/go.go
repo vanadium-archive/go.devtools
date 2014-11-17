@@ -476,7 +476,7 @@ func installGoCover(ctx *util.Context) error {
 	// Check if the tool exists.
 	cmd := exec.Command("go", "tool", "cover")
 	if err := cmd.Run(); err != nil {
-		if err := ctx.Run().Command("veyron", "go", "install", "code.google.com/p/go.tools/cmd/cover"); err != nil {
+		if err := ctx.Run().Command("veyron", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
 			return err
 		}
 	}
@@ -532,29 +532,29 @@ func installGo2XUnit(ctx *util.Context) error {
 
 // ThirdPartyGoBuild is a test for the Go build of the third-party projects.
 func ThirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"code.google.com/...", "github.com/..."}
+	pkgs := []string{"code.google.com/...", "github.com/...", "golang.org/..."}
 	return goBuild(ctx, testName, nil, pkgs, nil)
 }
 
 // ThirdPartyGoTest is a test for the Go tests of the third-party projects.
 func ThirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Run the tests excluding TestTestmainPackage from
-	// code.google.com/p/go.tools/go/ssa/interp as the package has
+	// golang.org/x/tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
 	args := []string{"-run", "[^(TestTestmainPackage)]"}
-	pkgs := []string{"code.google.com/...", "github.com/..."}
+	pkgs := []string{"code.google.com/...", "github.com/...", "golang.org/..."}
 	return goTest(ctx, testName, args, pkgs, nil)
 }
 
 // ThirdPartyGoRace is a test for the Go data-race tests of the third-party projects.
 func ThirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	// Run the tests excluding TestTestmainPackage from
-	// code.google.com/p/go.tools/go/ssa/interp as the package has
+	// golang.org/x/tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
 	args := []string{"-race", "-run", "[^(TestTestmainPackage)]"}
-	pkgs := []string{"code.google.com/...", "github.com/..."}
+	pkgs := []string{"code.google.com/...", "github.com/...", "golang.org/..."}
 	return goTest(ctx, testName, args, pkgs, nil)
 }
 
