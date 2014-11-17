@@ -467,46 +467,65 @@ func testWorker(ctx *util.Context, args []string, pkgs <-chan string, results ch
 	}
 }
 
-// installGoCover installs the go cover tool.
+// installGoCover makes sure the "go cover" tool is installed.
 //
 // TODO(jsimsa): Unify the installation functions by moving the
 // gocover-cobertura and go2xunit tools into the third_party
 // repository.
 func installGoCover(ctx *util.Context) error {
-	if err := ctx.Run().Command("veyron", "go", "install", "code.google.com/p/go.tools/cmd/cover"); err != nil {
-		return err
+	// Check if the tool exists.
+	cmd := exec.Command("go", "tool", "cover")
+	if err := cmd.Run(); err != nil {
+		if err := ctx.Run().Command("veyron", "go", "install", "code.google.com/p/go.tools/cmd/cover"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// installGoCoverCobertura installs the gocover-cobertura tool.
+// installGoCoverCobertura makes sure the "gocover-cobertura" tool is
+// installed.
 func installGoCoverCobertura(ctx *util.Context) error {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
 	}
-	opts := ctx.Run().Opts()
-	env := envutil.NewSnapshotFromOS()
-	env.Set("GOPATH", filepath.Join(root, "environment", "golib"))
-	opts.Env = env.Map()
-	if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
-		return err
+	// Check if the tool exists.
+	bin := filepath.Join(root, "environment", "golib", "bin", "gocover-cobertura")
+	if _, err := os.Stat(bin); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		opts := ctx.Run().Opts()
+		env := envutil.NewSnapshotFromOS()
+		env.Set("GOPATH", filepath.Join(root, "environment", "golib"))
+		opts.Env = env.Map()
+		if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// installGo2XUnit installs the go2xunit tool.
+// installGo2XUnit makes sure the "go2xunit" tool is installed.
 func installGo2XUnit(ctx *util.Context) error {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
 	}
-	opts := ctx.Run().Opts()
-	env := envutil.NewSnapshotFromOS()
-	env.Set("GOPATH", filepath.Join(root, "environment", "golib"))
-	opts.Env = env.Map()
-	if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
-		return err
+	// Check if the tool exists.
+	bin := filepath.Join(root, "environment", "golib", "bin", "go2xunit")
+	if _, err := os.Stat(bin); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		opts := ctx.Run().Opts()
+		env := envutil.NewSnapshotFromOS()
+		env.Set("GOPATH", filepath.Join(root, "environment", "golib"))
+		opts.Env = env.Map()
+		if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
