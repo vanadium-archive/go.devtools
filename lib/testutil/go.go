@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -447,11 +448,24 @@ func testWorker(ctx *util.Context, args []string, pkgs <-chan string, results ch
 // repository.
 func installGoCover(ctx *util.Context) error {
 	// Check if the tool exists.
-	cmd := exec.Command("go", "tool", "cover")
+	var out bytes.Buffer
+	cmd := exec.Command("go", "tool")
+	cmd.Stdout = &out
+	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
-		if err := ctx.Run().Command("veyron", "go", "install", "code.google.com/p/go.tools/cmd/cover"); err != nil {
-			return err
+		return err
+	}
+	scanner := bufio.NewScanner(&out)
+	for scanner.Scan() {
+		if scanner.Text() == "cover" {
+			return nil
 		}
+	}
+	if scanner.Err() != nil {
+		return fmt.Errorf("Scan() failed: %v")
+	}
+	if err := ctx.Run().Command("veyron", "go", "install", "code.google.com/p/go.tools/cmd/cover"); err != nil {
+		return err
 	}
 	return nil
 }
