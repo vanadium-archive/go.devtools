@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"tools/lib/envutil"
@@ -266,26 +267,8 @@ func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []strin
 // coverageWorker generates test coverage.
 func coverageWorker(ctx *util.Context, args []string, pkgs <-chan string, results chan<- coverageResult) {
 	for pkg := range pkgs {
-		// Build the test package binary.
-		var out bytes.Buffer
-		cmd := exec.Command("veyron", "go", "test", "-c", pkg)
-		cmd.Stdout = &out
-		cmd.Stderr = &out
-		start := time.Now()
-		if err := cmd.Run(); err != nil {
-			// Report a build error.
-			result := coverageResult{
-				status: buildFailed,
-				output: out.String(),
-				pkg:    pkg,
-				time:   time.Now().Sub(start),
-			}
-			results <- result
-			continue
-		}
-
 		// Compute the test coverage.
-		out.Reset()
+		var out bytes.Buffer
 		coverageFile, err := ioutil.TempFile("", "")
 		if err != nil {
 			panic(fmt.Sprintf("TempFile() failed: %v", err))
@@ -295,10 +278,10 @@ func coverageWorker(ctx *util.Context, args []string, pkgs <-chan string, result
 			coverageFile.Name(), "-timeout", defaultTestCoverageTimeout, "-v",
 		}, args...)
 		args = append(args, pkg)
-		cmd = exec.Command("veyron", args...)
+		cmd := exec.Command("veyron", args...)
 		cmd.Stdout = &out
 		cmd.Stderr = &out
-		start = time.Now()
+		start := time.Now()
 		err = cmd.Run()
 		result := coverageResult{
 			pkg:      pkg,
@@ -307,7 +290,11 @@ func coverageWorker(ctx *util.Context, args []string, pkgs <-chan string, result
 			output:   out.String(),
 		}
 		if err != nil {
-			result.status = testFailed
+			if isBuildFailure(err, out.String(), pkg) {
+				result.status = buildFailed
+			} else {
+				result.status = testFailed
+			}
 		} else {
 			result.status = testPassed
 		}
@@ -426,32 +413,14 @@ func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (
 // testWorker tests packages.
 func testWorker(ctx *util.Context, args []string, pkgs <-chan string, results chan<- testResult) {
 	for pkg := range pkgs {
-		// Build the test package binary.
+		// Run the test.
 		var out bytes.Buffer
-		cmd := exec.Command("veyron", "go", "test", "-c", pkg)
+		args := append([]string{"go", "test", "-timeout", defaultTestTimeout, "-v"}, args...)
+		args = append(args, pkg)
+		cmd := exec.Command("veyron", args...)
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 		start := time.Now()
-		if err := cmd.Run(); err != nil {
-			// Report a build error.
-			result := testResult{
-				status: buildFailed,
-				output: out.String(),
-				pkg:    pkg,
-				time:   time.Now().Sub(start),
-			}
-			results <- result
-			continue
-		}
-
-		// Run the test package binary.
-		out.Reset()
-		args := append([]string{"go", "test", "-timeout", defaultTestTimeout, "-v"}, args...)
-		args = append(args, pkg)
-		cmd = exec.Command("veyron", args...)
-		cmd.Stdout = &out
-		cmd.Stderr = &out
-		start = time.Now()
 		err := cmd.Run()
 		result := testResult{
 			pkg:    pkg,
@@ -459,7 +428,11 @@ func testWorker(ctx *util.Context, args []string, pkgs <-chan string, results ch
 			output: out.String(),
 		}
 		if err != nil {
-			result.status = testFailed
+			if isBuildFailure(err, out.String(), pkg) {
+				result.status = buildFailed
+			} else {
+				result.status = testFailed
+			}
 		} else {
 			result.status = testPassed
 		}
@@ -528,6 +501,20 @@ func installGo2XUnit(ctx *util.Context) error {
 		}
 	}
 	return nil
+}
+
+// isBuildFailure checks whether the given error and output indicate a build failure for the given package.
+func isBuildFailure(err error, out, pkg string) bool {
+	if exitError, ok := err.(*exec.ExitError); ok {
+		// Try checking err's process state to determine the exit code.
+		// Exit code 2 means build failures.
+		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
+			return status.ExitStatus() == 2
+		}
+	}
+	// As a fallback, check the output line.
+	// If the output starts with "# ${pkg}", then it should be a build failure.
+	return strings.HasPrefix(out, fmt.Sprintf("# %s", pkg))
 }
 
 // ThirdPartyGoBuild is a test for the Go build of the third-party projects.
