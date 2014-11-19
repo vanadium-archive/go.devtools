@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -101,7 +100,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 		if err != nil {
 			printf(ctx.Stderr(), "%v\n", err)
 		} else {
-			url := path.Join(repoBaseUrl, curNewCL.Repo)
+			url := fmt.Sprintf("%s/%s", repoBaseUrl, curNewCL.Repo)
 			if _, ok := projects[url]; !ok {
 				printf(ctx.Stdout(), "project=%q not found in the default manifest. Skipped.\n", url)
 				continue
