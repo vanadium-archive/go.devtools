@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,9 @@ import (
 	"tools/lib/gerrit"
 	"tools/lib/util"
 )
+
+// TODO(jingjin): define this as a constant elsewhere and replace all occurrences in our tools.
+const repoBaseUrl = "https://veyron.googlesource.com"
 
 // cmdQuery represents the 'query' command of the presubmit tool.
 var cmdQuery = &cmdline.Command{
@@ -91,6 +95,19 @@ func runQuery(command *cmdline.Command, args []string) error {
 
 	sentCount := 0
 	for index, curNewCL := range newCLs {
+		// Skip the CL if its repo is not in the default manifest.
+		// TODO(jingjin): find cl's repo and send it to presubmit-test.
+		projects, _, err := util.ReadManifest(ctx, "default")
+		if err != nil {
+			printf(ctx.Stderr(), "%v\n", err)
+		} else {
+			url := path.Join(repoBaseUrl, curNewCL.Repo)
+			if _, ok := projects[url]; !ok {
+				printf(ctx.Stdout(), "project=%q not found in the default manifest. Skipped.\n", url)
+				continue
+			}
+		}
+
 		// Check and cancel matched outdated builds.
 		cl, patchset, err := parseRefString(curNewCL.Ref)
 		if err != nil {
