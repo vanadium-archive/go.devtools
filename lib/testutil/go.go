@@ -17,14 +17,18 @@ import (
 	"tools/lib/util"
 )
 
+var clean = true
+
 // initGoTest carries out the initial actions for the given Go test.
 func initGoTest(ctx *util.Context, testName string, profiles []string) (func(), error) {
 	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Command("veyron", "goext", "distclean"); err != nil {
-		return nil, err
+	if clean {
+		if err := ctx.Run().Command("veyron", "goext", "distclean"); err != nil {
+			return nil, err
+		}
 	}
 	return cleanup, nil
 }

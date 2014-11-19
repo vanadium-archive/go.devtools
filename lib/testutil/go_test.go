@@ -174,6 +174,7 @@ var (
 func TestGoBuild(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-build", "tools/lib/testutil/testdata/foo"
+	clean = false
 	result, err := goBuild(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -201,6 +202,7 @@ func TestGoBuild(t *testing.T) {
 func TestGoCoverage(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-coverage", "tools/lib/testutil/testdata/foo"
+	clean = false
 	result, err := goCoverage(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -242,6 +244,7 @@ func TestGoCoverage(t *testing.T) {
 func TestGoTest(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-test", "tools/lib/testutil/testdata/foo"
+	clean = false
 	result, err := goTest(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)
