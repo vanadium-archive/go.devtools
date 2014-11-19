@@ -168,6 +168,11 @@ func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []strin
 		return nil, err
 	}
 
+	// Pre-build non-test packages.
+	if err := buildTestDeps(ctx, pkgs); err != nil {
+		return nil, err
+	}
+
 	// Enumerate the packages for which coverage is to be computed.
 	pkgList, err := goList(ctx, pkgs)
 	if err != nil {
@@ -340,6 +345,11 @@ func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (
 		return nil, err
 	}
 
+	// Pre-build non-test packages.
+	if err := buildTestDeps(ctx, pkgs); err != nil {
+		return nil, err
+	}
+
 	// Enumerate the packages to be built.
 	pkgList, err := goList(ctx, pkgs)
 	if err != nil {
@@ -439,6 +449,19 @@ func testWorker(ctx *util.Context, args []string, pkgs <-chan string, results ch
 		}
 		results <- result
 	}
+}
+
+// buildTestDeps builds dependencies for the given test packages
+func buildTestDeps(ctx *util.Context, pkgs []string) error {
+	fmt.Fprintf(ctx.Stdout(), "building test dependencies ... ")
+	args := append([]string{"go", "test", "-i"}, pkgs...)
+	err := ctx.Run().Command("veyron", args...)
+	if err == nil {
+		fmt.Fprintf(ctx.Stdout(), "ok\n")
+	} else {
+		fmt.Fprintf(ctx.Stdout(), "failed\n")
+	}
+	return err
 }
 
 // installGoCover makes sure the "go cover" tool is installed.
