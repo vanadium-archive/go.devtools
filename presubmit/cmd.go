@@ -90,7 +90,7 @@ func substituteVarsInFlags() {
 		os.Exit(1)
 	}
 	if configFileFlag == defaultConfigFile {
-		configFileFlag = filepath.Join(veyronRoot, "veyron", "go", "src", "veyron.io", "tools", "conf", "presubmit")
+		configFileFlag = filepath.Join(veyronRoot, "veyron", "go", "src", "veyron.io", "tools", "conf", "deprecated", "presubmit")
 	}
 	if logFilePathFlag == defaultLogFilePath {
 		logFilePathFlag = filepath.Join(os.Getenv("HOME"), "tmp", "presubmit_log")
