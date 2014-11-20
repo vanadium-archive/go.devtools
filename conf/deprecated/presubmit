@@ -1,0 +1,90 @@
+{
+  "tests": {
+    "https://veyron.googlesource.com/roadmap.go.examples": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race",
+      "veyron-shell-test"
+    ],
+    "https://veyron.googlesource.com/roadmap.go.proximity": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race"
+    ],
+    "https://veyron.googlesource.com/roadmap.go.store": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race",
+      "veyron-shell-test"
+    ],
+    "https://veyron.googlesource.com/roadmap.profiles": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race"
+    ],
+    "https://veyron.googlesource.com/tools": [
+      "tools-go-build",
+      "tools-go-test",
+      "tools-go-race"
+    ],
+    "https://veyron.googlesource.com/veyron-browser": [
+      "veyron-browser-test"
+    ],
+    "https://veyron.googlesource.com/veyron.go.core": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race",
+      "veyron-javascript-test-integration",
+      "veyron-browser-test",
+      "veyron-shell-test",
+      "veyron-javascript-build-extension"
+    ],
+    "https://veyron.googlesource.com/veyron.go.wspr": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race",
+      "veyron-javascript-test-integration",
+      "veyron-browser-test",
+      "veyron-shell-test",
+      "veyron-javascript-build-extension"
+    ],
+    "https://veyron.googlesource.com/veyron.js": [
+      "veyron-javascript-test-unit",
+      "veyron-javascript-test-integration",
+      "veyron-browser-test"
+    ]
+  },
+  "dependencies": {
+    "tools-go-race": [
+      "tools-go-build"
+    ],
+    "tools-go-test": [
+      "tools-go-build"
+    ],
+    "veyron-android-build": [
+      "veyron-android-build-native"
+    ],
+    "veyron-android-test": [
+      "veyron-android-build"
+    ],
+    "veyron-browser-test": [
+      "veyron-go-build",
+      "veyron-javascript-test-integration"
+    ],
+    "veyron-go-race": [
+      "veyron-go-build"
+    ],
+    "veyron-go-test": [
+      "veyron-go-build"
+    ],
+    "veyron-javascript-test-integration": [
+      "veyron-go-build"
+    ],
+    "veyron-javascript-test-unit": [
+      "veyron-javascript-test-integration"
+    ],
+    "veyron-shell-test": [
+      "veyron-go-build"
+    ]
+  }
+}

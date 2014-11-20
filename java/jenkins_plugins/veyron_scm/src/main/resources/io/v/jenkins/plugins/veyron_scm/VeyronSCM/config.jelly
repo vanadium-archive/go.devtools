@@ -1,0 +1,9 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <!-- Text field for specifying VEYRON_ROOT -->
+  <f:entry title="VEYRON_ROOT" field="veyronRootInput">
+    <f:textbox default="root"/>
+  </f:entry>
+  <f:entry title="Manifest" field="manifestInput">
+    <f:textbox default="default"/>
+  </f:entry>
+</j:jelly>
