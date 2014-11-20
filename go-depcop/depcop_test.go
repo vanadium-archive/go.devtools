@@ -62,16 +62,16 @@ type dependencyRuleTest struct {
 
 func TestVerifyDependency(t *testing.T) {
 	var packageTests = []packageTest{
-		{"tools/go-depcop/testdata/test-a", false},
-		{"tools/go-depcop/testdata/test-b", true},
-		{"tools/go-depcop/testdata/test-c", true},
-		{"tools/go-depcop/testdata/test-c/child", false},
-		{"tools/go-depcop/testdata/import-C", false},
-		{"tools/go-depcop/testdata/import-unsafe", false},
-		{"tools/go-depcop/testdata/test-internal", false},
-		{"tools/go-depcop/testdata/test-internal/child", false},
-		{"tools/go-depcop/testdata/test-internal/internal/child", false},
-		{"tools/go-depcop/testdata/test-internal-fail", true},
+		{"veyron.io/tools/go-depcop/testdata/test-a", false},
+		{"veyron.io/tools/go-depcop/testdata/test-b", true},
+		{"veyron.io/tools/go-depcop/testdata/test-c", true},
+		{"veyron.io/tools/go-depcop/testdata/test-c/child", false},
+		{"veyron.io/tools/go-depcop/testdata/import-C", false},
+		{"veyron.io/tools/go-depcop/testdata/import-unsafe", false},
+		{"veyron.io/tools/go-depcop/testdata/test-internal", false},
+		{"veyron.io/tools/go-depcop/testdata/test-internal/child", false},
+		{"veyron.io/tools/go-depcop/testdata/test-internal/internal/child", false},
+		{"veyron.io/tools/go-depcop/testdata/test-internal-fail", true},
 	}
 
 	for _, test := range packageTests {
@@ -116,14 +116,14 @@ func TestComputeIncomingDependency(t *testing.T) {
 	}
 	oldPath := os.Getenv("GOPATH")
 	defer os.Setenv("GOPATH", oldPath)
-	if err := os.Setenv("GOPATH", filepath.Join(root, "tools", "go")); err != nil {
-		t.Fatalf("Setenv(%v, %v) failed: %v", "GOPATH", filepath.Join(root, "tools", "go"))
+	if err := os.Setenv("GOPATH", filepath.Join(root, "veyron", "go")); err != nil {
+		t.Fatalf("Setenv(%v, %v) failed: %v", "GOPATH", filepath.Join(root, "veyron", "go"))
 	}
 	allDeps, err := computeIncomingDependencies()
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
-	this, that := "tools/lib/version", "tools/go-depcop"
+	this, that := "veyron.io/tools/lib/version", "veyron.io/tools/go-depcop"
 	if deps, ok := allDeps[this]; !ok {
 		t.Fatalf("no incoming dependencies for %v", this)
 	} else {

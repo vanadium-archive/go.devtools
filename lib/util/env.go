@@ -94,7 +94,7 @@ func ConfigDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "tools", "conf"), nil
+	return filepath.Join(root, "veyron", "go", "src", "veyron.io", "tools", "conf"), nil
 }
 
 // ConfigFile returns the local path to the config file identifed by
@@ -359,5 +359,5 @@ func BuildCopRotationPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "tools", "conf", "buildcop.xml"), nil
+	return filepath.Join(root, "veyron", "go", "src", "veyron.io", "tools", "conf", "buildcop.xml"), nil
 }

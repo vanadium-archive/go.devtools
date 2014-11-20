@@ -1,5 +1,5 @@
 {
-    "go-repos" : [ "roadmap", "third_party", "tools", "veyron" ],
+    "go-repos" : [ "roadmap", "third_party", "veyron" ],
     "vdl-repos" : [ "roadmap", "veyron" ],
     "project-tests": {
         "https://veyron.googlesource.com/roadmap.go.examples": [
@@ -37,6 +37,12 @@
             "veyron-javascript-build-extension"
         ],
         "https://veyron.googlesource.com/veyron.go.playground": [
+            "veyron-go-build",
+            "veyron-go-test",
+            "veyron-go-race",
+            "veyron-shell-test"
+        ],
+        "https://veyron.googlesource.com/veyron.go.tools": [
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",

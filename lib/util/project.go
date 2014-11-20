@@ -577,9 +577,9 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 			delete(tools, tool.Name)
 			continue
 		}
-		// Use the "tools" project as the default project.
+		// Use the "veyron.go.tools" project as the default project.
 		if tool.Project == "" {
-			tool.Project = "https://veyron.googlesource.com/tools"
+			tool.Project = "https://veyron.googlesource.com/veyron.go.tools"
 		}
 		tools[tool.Name] = tool
 	}

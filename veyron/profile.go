@@ -361,7 +361,7 @@ func setupArmLinux(ctx *util.Context) error {
 		if err := run(ctx, bin, []string{"arm-unknown-linux-gnueabi"}, nil); err != nil {
 			return err
 		}
-		configFile := filepath.Join(root, "tools", "conf", "crosstool.config")
+		configFile := filepath.Join(root, "veyron", "go", "src", "veyron.io", "tools", "conf", "crosstool.config")
 		config, err := ioutil.ReadFile(configFile)
 		if err != nil {
 			return fmt.Errorf("ReadFile(%v) failed: %v", configFile, err)
