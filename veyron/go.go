@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/envutil"
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/envutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 // cmdGo represents the "veyron go" command.

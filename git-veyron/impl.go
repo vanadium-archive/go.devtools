@@ -10,12 +10,12 @@ import (
 	"sort"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/gerrit"
-	"tools/lib/gitutil"
-	"tools/lib/runutil"
-	"tools/lib/util"
-	"tools/lib/version"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/gerrit"
+	"veyron.io/tools/lib/gitutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
+	"veyron.io/tools/lib/version"
 )
 
 var (

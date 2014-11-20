@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"tools/lib/gerrit"
+	"veyron.io/tools/lib/gerrit"
 )
 
 func TestParseValidNetRcFile(t *testing.T) {

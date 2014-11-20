@@ -8,13 +8,13 @@ import (
 	"regexp"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/util"
-	"tools/lib/version"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/util"
+	"veyron.io/tools/lib/version"
 )
 
 const (
-	defaultConfigFile                  = "$VEYRON_ROOT/tools/conf/presubmit"
+	defaultConfigFile                  = "$VEYRON_ROOT/veyron/go/src/veyron.io/tools/conf/presubmit"
 	defaultGerritBaseUrl               = "https://veyron-review.googlesource.com"
 	defaultLogFilePath                 = "$HOME/tmp/presubmit_log"
 	defaultNetRcFilePath               = "$HOME/.netrc"

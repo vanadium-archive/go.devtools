@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"tools/lib/runutil"
+	"veyron.io/tools/lib/runutil"
 )
 
 type HgError struct {

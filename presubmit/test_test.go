@@ -79,8 +79,8 @@ func TestParseJUnitReportFileWithFailedTests(t *testing.T) {
   <testsuite name="ts1" tests="1" errors="0" failures="1" skip="0">
     <testcase classname="package c1" name="n1" time="0">
 		  <failure message="error">
-# tools/presubmit
-tools/go/src/tools/presubmit/main.go:106: undefined: test
+# veyron.io/tools/presubmit
+veyron/go/src/veyron.io/tools/presubmit/main.go:106: undefined: test
 		  </failure>
     </testcase>
   </testsuite>

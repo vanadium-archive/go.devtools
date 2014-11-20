@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"tools/lib/runutil"
+	"veyron.io/tools/lib/runutil"
 )
 
 const Force = true

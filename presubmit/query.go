@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/gerrit"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/gerrit"
+	"veyron.io/tools/lib/util"
 )
 
 // TODO(jingjin): define this as a constant elsewhere and replace all occurrences in our tools.

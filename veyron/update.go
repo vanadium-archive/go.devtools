@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"tools/lib/cmdline"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/util"
 )
 
 // cmdUpdate represents the "veyron update" command.
@@ -37,7 +37,7 @@ manifest uses the following XML schema:
      ...
    </projects>
    <tools>
-     <tool name="veyron" package="tools/veyron"/>
+     <tool name="veyron" package="veyron.io/tools/veyron"/>
      ...
    </tools>
  </manifest>

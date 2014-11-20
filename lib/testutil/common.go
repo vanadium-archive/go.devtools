@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 // initTest carries out the initial actions for the given test.

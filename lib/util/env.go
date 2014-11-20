@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"tools/lib/envutil"
+	"veyron.io/tools/lib/envutil"
 )
 
 const (

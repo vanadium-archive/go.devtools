@@ -22,11 +22,6 @@
       "veyron-go-test",
       "veyron-go-race"
     ],
-    "https://veyron.googlesource.com/tools": [
-      "tools-go-build",
-      "tools-go-test",
-      "tools-go-race"
-    ],
     "https://veyron.googlesource.com/veyron-browser": [
       "veyron-browser-test"
     ],

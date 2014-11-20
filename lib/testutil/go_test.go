@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tools/lib/util"
+	"veyron.io/tools/lib/util"
 )
 
 // caseMatch checks whether the given test cases match modulo their
@@ -109,10 +109,10 @@ var (
 	wantBuild = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "tools/lib/testutil/testdata/foo",
+				Name: "veyron.io/tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "tools/lib/testutil/testdata/foo",
+						Classname: "veyron.io/tools/lib/testutil/testdata/foo",
 						Name:      "Build",
 					},
 				},
@@ -123,10 +123,10 @@ var (
 	wantTest = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "tools/lib/testutil/testdata/foo",
+				Name: "veyron.io/tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "tools/lib/testutil/testdata/foo",
+						Classname: "veyron.io/tools/lib/testutil/testdata/foo",
 						Name:      "TestFoo",
 					},
 				},
@@ -139,14 +139,14 @@ var (
 		BranchRate: 0,
 		Packages: []testCoveragePkg{
 			testCoveragePkg{
-				Name:       "tools/lib/testutil/testdata/foo",
+				Name:       "veyron.io/tools/lib/testutil/testdata/foo",
 				LineRate:   0,
 				BranchRate: 0,
 				Complexity: 0,
 				Classes: []testCoverageClass{
 					testCoverageClass{
 						Name:       "-",
-						Filename:   "tools/lib/testutil/testdata/foo/foo.go",
+						Filename:   "veyron.io/tools/lib/testutil/testdata/foo/foo.go",
 						LineRate:   0,
 						BranchRate: 0,
 						Complexity: 0,
@@ -173,7 +173,7 @@ var (
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
 	defer setupTempHome(t)()
-	ctx, testName, pkgName := util.DefaultContext(), "test-go-build", "tools/lib/testutil/testdata/foo"
+	ctx, testName, pkgName := util.DefaultContext(), "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
 	clean = false
 	result, err := goBuild(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
@@ -201,7 +201,7 @@ func TestGoBuild(t *testing.T) {
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
 	defer setupTempHome(t)()
-	ctx, testName, pkgName := util.DefaultContext(), "test-go-coverage", "tools/lib/testutil/testdata/foo"
+	ctx, testName, pkgName := util.DefaultContext(), "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
 	clean = false
 	result, err := goCoverage(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
@@ -243,7 +243,7 @@ func TestGoCoverage(t *testing.T) {
 // TestGoTest checks the Go test based test logic.
 func TestGoTest(t *testing.T) {
 	defer setupTempHome(t)()
-	ctx, testName, pkgName := util.DefaultContext(), "test-go-test", "tools/lib/testutil/testdata/foo"
+	ctx, testName, pkgName := util.DefaultContext(), "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
 	clean = false
 	result, err := goTest(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {

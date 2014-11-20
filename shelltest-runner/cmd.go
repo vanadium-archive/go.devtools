@@ -17,11 +17,11 @@ import (
 	"syscall"
 	"time"
 
-	"tools/lib/cmdline"
-	"tools/lib/envutil"
-	"tools/lib/runutil"
-	"tools/lib/util"
-	"tools/lib/version"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/envutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
+	"veyron.io/tools/lib/version"
 )
 
 const (

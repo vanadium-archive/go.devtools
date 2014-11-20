@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"tools/lib/util"
+	"veyron.io/tools/lib/util"
 
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/types"

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"tools/lib/util"
+	"veyron.io/tools/lib/util"
 )
 
 type testCoverage struct {

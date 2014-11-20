@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/util"
-	"tools/lib/version"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/util"
+	"veyron.io/tools/lib/version"
 )
 
 var (

@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
-	"tools/lib/gitutil"
-	"tools/lib/util"
+	"veyron.io/tools/lib/gitutil"
+	"veyron.io/tools/lib/util"
 )
 
 var (

@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/envutil"
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/envutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 var (

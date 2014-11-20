@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tools/lib/cmdline"
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 func createLabelDir(t *testing.T, ctx *util.Context, snapshotDir, name string, snapshots []string) {

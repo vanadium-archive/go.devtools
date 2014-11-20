@@ -4,7 +4,8 @@
 			    {"deny": "..."}
 		],
 		"outgoing": [
-			    {"allow": "tools/lib/..."},
+			    {"allow": "veyron.io/lib/..."},
+			    {"allow": "veyron.io/tools/lib/..."},
 			    {"allow": "code.google.com/p/go.tools/..."},
 			    {"deny": "..."}
 		]

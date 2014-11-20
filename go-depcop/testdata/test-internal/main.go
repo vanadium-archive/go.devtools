@@ -1,8 +1,8 @@
 package testinternal
 
 import (
-	"tools/go-depcop/testdata/test-internal/internal"
-	"tools/go-depcop/testdata/test-internal/internal/child"
+	"veyron.io/tools/go-depcop/testdata/test-internal/internal"
+	"veyron.io/tools/go-depcop/testdata/test-internal/internal/child"
 )
 
 func main() {

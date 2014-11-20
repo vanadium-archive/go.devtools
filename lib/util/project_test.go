@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tools/lib/runutil"
+	"veyron.io/tools/lib/runutil"
 )
 
 func addRemote(t *testing.T, ctx *Context, localProject, name, remoteProject string) {

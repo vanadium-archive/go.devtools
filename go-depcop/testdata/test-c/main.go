@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	_ "tools/go-depcop/testdata/test-b"
+	_ "veyron.io/tools/go-depcop/testdata/test-b"
 )
 
 func main() {

@@ -1,5 +1,5 @@
 package childvalid
 
-import _ "tools/go-depcop/testdata/test-internal/internal"
+import _ "veyron.io/tools/go-depcop/testdata/test-internal/internal"
 
 func main() {}

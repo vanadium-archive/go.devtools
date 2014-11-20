@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"go/build"
 
-	"tools/lib/cmdline"
-	"tools/lib/version"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/version"
 )
 
 var (

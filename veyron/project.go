@@ -6,9 +6,9 @@ import (
 	"path"
 	"sort"
 
-	"tools/lib/cmdline"
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 // cmdProject represents the "veyron project" command.

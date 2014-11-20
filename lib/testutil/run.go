@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"tools/lib/envutil"
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/tools/lib/envutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 type TestStatus int
@@ -124,10 +124,6 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"third_party-go-build": ThirdPartyGoBuild,
 	"third_party-go-test":  ThirdPartyGoTest,
 	"third_party-go-race":  ThirdPartyGoRace,
-	"tools-go-build":       ToolsGoBuild,
-	"tools-go-cover":       ToolsGoCoverage,
-	"tools-go-test":        ToolsGoTest,
-	"tools-go-race":        ToolsGoRace,
 	"veyron-go-build":      VeyronGoBuild,
 	"veyron-go-cover":      VeyronGoCoverage,
 	"veyron-go-test":       VeyronGoTest,

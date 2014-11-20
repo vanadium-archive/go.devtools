@@ -8,8 +8,8 @@ import (
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/types"
 
-	"tools/lib/cmdline"
-	"tools/lib/version"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/version"
 )
 
 var (

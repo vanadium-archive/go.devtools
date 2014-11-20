@@ -18,12 +18,12 @@ import (
 	"text/template"
 	"time"
 
-	"tools/lib/cmdline"
-	"tools/lib/gerrit"
-	"tools/lib/gitutil"
-	"tools/lib/runutil"
-	"tools/lib/testutil"
-	"tools/lib/util"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/gerrit"
+	"veyron.io/tools/lib/gitutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/testutil"
+	"veyron.io/tools/lib/util"
 )
 
 // cmdTest represents the 'test' command of the presubmit tool.

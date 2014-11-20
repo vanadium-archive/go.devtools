@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"tools/lib/util"
+	"veyron.io/tools/lib/util"
 )
 
 // TestGoVeyronEnvironment checks that the implementation of the
@@ -234,12 +234,13 @@ func TestComputeGoDeps(t *testing.T) {
 		// This is checking the actual dependencies of the specified packages, so it
 		// may break if we change the implementation; we try to pick dependencies
 		// that are likely to remain in these packages.
-		{nil, []string{"tools/veyron", "fmt"}},
-		{[]string{"."}, []string{"tools/veyron", "fmt"}},
-		{[]string{"tools/veyron"}, []string{"tools/veyron", "fmt"}},
-		{[]string{"tools/veyron/..."}, []string{"tools/veyron", "fmt"}},
+		{nil, []string{"veyron.io/tools/veyron", "fmt"}},
+		{[]string{"."}, []string{"veyron.io/tools/veyron", "fmt"}},
+		{[]string{"veyron.io/tools/veyron"}, []string{"veyron.io/tools/veyron", "fmt"}},
+		{[]string{"veyron.io/tools/veyron/..."}, []string{"veyron.io/tools/veyron", "fmt"}},
 	}
 	for _, test := range tests {
+		t.Logf("%v\n", test.Pkgs)
 		got, err := computeGoDeps(ctx, hostEnv, test.Pkgs)
 		if err != nil {
 			t.Errorf("%v failed: %v", test.Pkgs, err)

@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"tools/lib/envutil"
+	"veyron.io/tools/lib/envutil"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"tools/lib/util"
+	"veyron.io/tools/lib/util"
 )
 
 type testSuites struct {

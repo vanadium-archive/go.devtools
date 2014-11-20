@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 func createConfig(t *testing.T, ctx *util.Context, config *util.CommonConfig) {

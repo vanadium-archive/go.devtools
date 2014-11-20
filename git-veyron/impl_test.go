@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tools/lib/gerrit"
-	"tools/lib/gitutil"
-	"tools/lib/runutil"
-	"tools/lib/util"
+	"veyron.io/tools/lib/gerrit"
+	"veyron.io/tools/lib/gitutil"
+	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/util"
 )
 
 // assertCommitCount asserts that the commit count between two

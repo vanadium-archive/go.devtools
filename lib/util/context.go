@@ -4,10 +4,10 @@ import (
 	"io"
 	"os"
 
-	"tools/lib/cmdline"
-	"tools/lib/gitutil"
-	"tools/lib/hgutil"
-	"tools/lib/runutil"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/gitutil"
+	"veyron.io/tools/lib/hgutil"
+	"veyron.io/tools/lib/runutil"
 )
 
 // Context represents an execution context of a tool command

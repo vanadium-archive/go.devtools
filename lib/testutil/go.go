@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"tools/lib/envutil"
-	"tools/lib/util"
+	"veyron.io/tools/lib/envutil"
+	"veyron.io/tools/lib/util"
 )
 
 var clean = true
@@ -583,31 +583,6 @@ func ThirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	// go2xunit to fail.
 	args := []string{"-race", "-run", "[^(TestTestmainPackage)]"}
 	pkgs := []string{"code.google.com/...", "github.com/..."}
-	return goTest(ctx, testName, args, pkgs, nil)
-}
-
-// ToolsGoBuild is a test for the Go build of the tools project.
-func ToolsGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"tools/..."}
-	return goBuild(ctx, testName, nil, pkgs, nil)
-}
-
-// ToolsGoCoverage is a test for the Go test coverage of the tools project.
-func ToolsGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"tools/..."}
-	return goCoverage(ctx, testName, nil, pkgs, nil)
-}
-
-// ToolsGoTest is a test for the Go tests of the tools project.
-func ToolsGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"tools/..."}
-	return goTest(ctx, testName, nil, pkgs, nil)
-}
-
-// ToolsGoRace is a test for the Go data-race tests of the tools project.
-func ToolsGoRace(ctx *util.Context, testName string) (*TestResult, error) {
-	args := []string{"-race"}
-	pkgs := []string{"tools/..."}
 	return goTest(ctx, testName, args, pkgs, nil)
 }
 

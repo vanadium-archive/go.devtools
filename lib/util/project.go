@@ -16,9 +16,9 @@ import (
 	"sort"
 	"strings"
 
-	"tools/lib/cmdline"
-	"tools/lib/gitutil"
-	"tools/lib/runutil"
+	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/gitutil"
+	"veyron.io/tools/lib/runutil"
 )
 
 // CL represents a changelist.
@@ -330,7 +330,7 @@ func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error
 		default:
 			return UnsupportedProtocolErr(project.Protocol)
 		}
-		ldflags := fmt.Sprintf("-X tools/lib/version.Version %d", count)
+		ldflags := fmt.Sprintf("-X veyron.io/tools/lib/version.Version %d", count)
 		args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
 		var stderr bytes.Buffer
 		opts := ctx.Run().Opts()

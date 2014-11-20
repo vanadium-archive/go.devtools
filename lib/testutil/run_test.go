@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tools/lib/util"
+	"veyron.io/tools/lib/util"
 )
 
 func TestProjectTests(t *testing.T) {
