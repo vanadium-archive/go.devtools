@@ -182,8 +182,8 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 		if err := setAndroidEnv(env, platform); err != nil {
 			return nil, err
 		}
-	case platform.Arch == "386" && platform.OS == "nacl":
-		// Set up cross-compilation for 386 / nacl.
+	case (platform.Arch == "386" || platform.Arch == "amd64p32") && platform.OS == "nacl":
+		// Set up cross-compilation nacl.
 		if err := setNaclEnv(env, platform); err != nil {
 			return nil, err
 		}
