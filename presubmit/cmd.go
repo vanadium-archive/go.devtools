@@ -32,7 +32,6 @@ type credential struct {
 
 var (
 	// flags
-	configFileFlag                  string
 	gerritBaseUrlFlag               string
 	jenkinsBuildNumberFlag          int
 	jenkinsHostFlag                 string
@@ -62,7 +61,6 @@ func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
-	cmdTest.Flags.StringVar(&configFileFlag, "conf", defaultConfigFile, "The config file for presubmit tests.")
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
 	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", defaultTestScriptsBase, "The base path of all the test scripts.")
@@ -88,9 +86,6 @@ func substituteVarsInFlags() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 		os.Exit(1)
-	}
-	if configFileFlag == defaultConfigFile {
-		configFileFlag = filepath.Join(veyronRoot, "veyron", "go", "src", "veyron.io", "tools", "conf", "deprecated", "presubmit")
 	}
 	if logFilePathFlag == defaultLogFilePath {
 		logFilePathFlag = filepath.Join(os.Getenv("HOME"), "tmp", "presubmit_log")

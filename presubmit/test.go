@@ -60,9 +60,6 @@ func runTest(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(configFileFlag); err != nil {
-		return fmt.Errorf("Stat(%q) failed: %v", configFileFlag, err)
-	}
 	if _, err := os.Stat(manifestFilePath); err != nil {
 		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
 	}
