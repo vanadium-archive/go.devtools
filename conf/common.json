@@ -36,6 +36,11 @@
             "veyron-shell-test",
             "veyron-javascript-build-extension"
         ],
+        "https://veyron.googlesource.com/veyron.go.lib": [
+            "veyron-go-build",
+            "veyron-go-test",
+            "veyron-go-race"
+        ],
         "https://veyron.googlesource.com/veyron.go.playground": [
             "veyron-go-build",
             "veyron-go-test",
