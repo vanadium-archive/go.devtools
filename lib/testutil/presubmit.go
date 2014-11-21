@@ -141,7 +141,7 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{
 		"-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "-v", "test",
-		"-build_number", os.Getenv("BUILD_NUMBER"), "-repo", util.VeyronGitRepoHost() + "/" + os.Getenv("REPO"),
+		"-build_number", os.Getenv("BUILD_NUMBER"), "-repo", util.VeyronGitRepoHost() + os.Getenv("REPO"),
 		"-ref", os.Getenv("REF"), "-tests_base_path", filepath.Join(root, "scripts", "jenkins"),
 	}
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
