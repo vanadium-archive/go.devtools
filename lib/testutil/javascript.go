@@ -3,6 +3,7 @@ package testutil
 import (
 	"path/filepath"
 
+	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
@@ -33,9 +34,11 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 
 	// Run the test target.
 	opts := ctx.Run().Opts()
+	osEnv := envutil.NewSnapshotFromOS()
 	for key, value := range env {
-		opts.Env[key] = value
+		osEnv.Set(key, value)
 	}
+	opts.Env = osEnv.Map()
 	if err := ctx.Run().CommandWithOpts(opts, "make", target); err != nil {
 		return &TestResult{Status: TestFailed}, nil
 	}
