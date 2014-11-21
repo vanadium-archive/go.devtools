@@ -178,7 +178,8 @@ func createSnapshot(ctx *util.Context, snapshotDir, snapshotFile, label string) 
 	if err := ctx.Run().Function(runutil.RemoveAll(newSymlink)); err != nil {
 		return err
 	}
-	if err := ctx.Run().Function(runutil.Symlink(snapshotFile, newSymlink)); err != nil {
+	relativeSnapshotPath := strings.TrimPrefix(snapshotFile, snapshotDir+string(os.PathSeparator))
+	if err := ctx.Run().Function(runutil.Symlink(relativeSnapshotPath, newSymlink)); err != nil {
 		return err
 	}
 	if err := ctx.Run().Function(runutil.Rename(newSymlink, symlink)); err != nil {
@@ -221,10 +222,11 @@ func revisionChanges(ctx *util.Context, snapshotDir, snapshotFile, label string)
 	if err := ctx.Run().Function(runutil.Chdir(snapshotDir)); err != nil {
 		return err
 	}
-	if err := ctx.Git().Add(snapshotFile); err != nil {
+	relativeSnapshotPath := strings.TrimPrefix(snapshotFile, snapshotDir+string(os.PathSeparator))
+	if err := ctx.Git().Add(relativeSnapshotPath); err != nil {
 		return err
 	}
-	if err := ctx.Git().Add(filepath.Join(snapshotDir, label)); err != nil {
+	if err := ctx.Git().Add(label); err != nil {
 		return err
 	}
 	name := strings.TrimPrefix(snapshotFile, snapshotDir)
