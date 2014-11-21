@@ -681,7 +681,8 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	// "dontKillMe".
 	godocCmd.Env = append(godocCmd.Env, "BUILD_ID=dontKillMe")
 	godocCmd.Env = append(godocCmd.Env,
-		fmt.Sprintf("GOPATH=%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join("roadmap", "go")))
+		fmt.Sprintf("GOPATH=%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join(root, "roadmap", "go")))
+	fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(godocCmd.Args, " "))
 	if err := godocCmd.Start(); err != nil {
 		return nil, err
 	}
