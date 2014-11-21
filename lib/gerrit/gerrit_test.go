@@ -1,9 +1,12 @@
 package gerrit
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+
+	"veyron.io/tools/lib/util"
 )
 
 func TestParseQueryResults(t *testing.T) {
@@ -53,11 +56,78 @@ func TestParseQueryResults(t *testing.T) {
 		},
 	}
 
-	got, err := parseQueryResults(strings.NewReader(input))
+	ctx := util.DefaultContext()
+	got, err := parseQueryResults(ctx, strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("want: %#v, got: %#v", expected, got)
+	}
+}
+
+func TestParseMultiPartMatch(t *testing.T) {
+	type testCase struct {
+		str             string
+		expectNoMatches bool
+		expectedIndex   string
+		expectedTotal   string
+	}
+	testCases := []testCase{
+		testCase{
+			str:             "message...\nMultiPart: a/3",
+			expectNoMatches: true,
+		},
+		testCase{
+			str:             "message...\n1/3",
+			expectNoMatches: true,
+		},
+		testCase{
+			str:           "message...\nMultiPart:1/2",
+			expectedIndex: "1",
+			expectedTotal: "2",
+		},
+		testCase{
+			str:           "message...\nMultiPart: 1/2",
+			expectedIndex: "1",
+			expectedTotal: "2",
+		},
+		testCase{
+			str:           "message...\nMultiPart: 1 /2",
+			expectedIndex: "1",
+			expectedTotal: "2",
+		},
+		testCase{
+			str:           "message...\nMultiPart: 1/ 2",
+			expectedIndex: "1",
+			expectedTotal: "2",
+		},
+		testCase{
+			str:           "message...\nMultiPart: 1 / 2",
+			expectedIndex: "1",
+			expectedTotal: "2",
+		},
+		testCase{
+			str:           "message...\nMultiPart: 123/234",
+			expectedIndex: "123",
+			expectedTotal: "234",
+		},
+	}
+	for _, test := range testCases {
+		multiPartCLInfo, _ := parseMultiPartMatch(test.str)
+		if test.expectNoMatches && multiPartCLInfo != nil {
+			t.Fatalf("want no matches, got %v", multiPartCLInfo)
+		}
+		if !test.expectNoMatches && multiPartCLInfo == nil {
+			t.Fatalf("want matches, got no matches")
+		}
+		if !test.expectNoMatches {
+			if want, got := test.expectedIndex, fmt.Sprintf("%d", multiPartCLInfo.Index); want != got {
+				t.Fatalf("want 'index' %q, got %q", want, got)
+			}
+			if want, got := test.expectedTotal, fmt.Sprintf("%d", multiPartCLInfo.Total); want != got {
+				t.Fatalf("want 'total' %q, got %q", want, got)
+			}
+		}
 	}
 }

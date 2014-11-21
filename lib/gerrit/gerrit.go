@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"veyron.io/tools/lib/gitutil"
@@ -19,7 +20,8 @@ import (
 )
 
 var (
-	remoteRE = regexp.MustCompile("remote:[^\n]*")
+	remoteRE    = regexp.MustCompile("remote:[^\n]*")
+	multiPartRE = regexp.MustCompile(`MultiPart:\s*(\d+)\s*/\s*(\d+)`)
 )
 
 // Comment represents a single inline file comment.
@@ -73,9 +75,25 @@ func PostReview(ctx *util.Context, gerritBaseUrl, username, password, ref string
 	return nil
 }
 
+// QueryResult contains the essential data we care about from query
+// results.
+type QueryResult struct {
+	Ref       string
+	Repo      string
+	ChangeID  string
+	MultiPart *MultiPartCLInfo
+}
+
+// MultiPartCLInfo contains data used to process multiple cls across different repos.
+type MultiPartCLInfo struct {
+	Topic string
+	Index int // This should be 1-based.
+	Total int
+}
+
 // parseQueryResults parses a list of Gerrit ChangeInfo entries (json
 // result of a query) and returns a list of QueryResult entries.
-func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
+func parseQueryResults(ctx *util.Context, reader io.Reader) ([]QueryResult, error) {
 	r := bufio.NewReader(reader)
 
 	// The first line of the input is the XSSI guard
@@ -90,11 +108,15 @@ func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
 		Change_id        string
 		Current_revision string
 		Project          string
+		Topic            string
 		Revisions        map[string]struct {
 			Fetch struct {
 				Http struct {
 					Ref string
 				}
+			}
+			Commit struct {
+				Message string // This contains both "subject" and the rest of the commit message.
 			}
 		}
 	}
@@ -104,21 +126,43 @@ func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
 
 	var refs []QueryResult
 	for _, change := range changes {
-		refs = append(refs, QueryResult{
+		queryResult := QueryResult{
 			Ref:      change.Revisions[change.Current_revision].Fetch.Http.Ref,
 			Repo:     change.Project,
 			ChangeID: change.Change_id,
-		})
+		}
+		multiPartCLInfo, err := parseMultiPartMatch(change.Revisions[change.Current_revision].Commit.Message)
+		if err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			continue
+		}
+		if multiPartCLInfo != nil {
+			multiPartCLInfo.Topic = change.Topic
+		}
+		queryResult.MultiPart = multiPartCLInfo
+		refs = append(refs, queryResult)
 	}
 	return refs, nil
 }
 
-// QueryResult contains the essential data we care about from query
-// results.
-type QueryResult struct {
-	Ref      string
-	Repo     string
-	ChangeID string
+// parseMultiPartMatch uses multiPartRE (a pattern like: MultiPart: 1/3) to match the given string.
+func parseMultiPartMatch(match string) (*MultiPartCLInfo, error) {
+	matches := multiPartRE.FindStringSubmatch(match)
+	if matches != nil {
+		index, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("Atoi(%q) failed: %v", matches[1], err)
+		}
+		total, err := strconv.Atoi(matches[2])
+		if err != nil {
+			return nil, fmt.Errorf("Atoi(%q) failed: %v", matches[2], err)
+		}
+		return &MultiPartCLInfo{
+			Index: index,
+			Total: total,
+		}, nil
+	}
+	return nil, nil
 }
 
 // Query returns a list of QueryResult entries matched by the given
@@ -130,7 +174,7 @@ type QueryResult struct {
 // - https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#list-changes
 // - https://gerrit-review.googlesource.com/Documentation/user-search.html
 func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString string) ([]QueryResult, error) {
-	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&q=%s", gerritBaseUrl, url.QueryEscape(queryString))
+	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&o=CURRENT_COMMIT&q=%s", gerritBaseUrl, url.QueryEscape(queryString))
 	fmt.Fprintf(ctx.Stdout(), "Issuing query: %v\n", url)
 	var body io.Reader
 	method, body := "GET", nil
@@ -147,7 +191,7 @@ func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString str
 	}
 	defer res.Body.Close()
 
-	return parseQueryResults(res.Body)
+	return parseQueryResults(ctx, res.Body)
 }
 
 // formatParams formats parameters of a change list.
