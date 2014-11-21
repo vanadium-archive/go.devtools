@@ -105,7 +105,11 @@ func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Function(runutil.Rename(jsDocDir, webDir)); err != nil {
+	// Move generated js documentation to the web server directory
+	// using "mv" instead of "os.Rename()" to account for the fact
+	// the the source and the destination may be on different
+	// partitions.
+	if err := ctx.Run().Command("mv", jsDocDir, webDir); err != nil {
 		return nil, err
 	}
 	return result, nil
