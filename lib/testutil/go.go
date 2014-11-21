@@ -672,7 +672,7 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	}
 
 	// Start a new instance of godoc.
-	godocCmd := exec.Command("godoc", "-analysis=type", "-index", "-http", godocPort)
+	godocCmd := exec.Command("godoc", "-analysis=type", "-index", "-http=:"+godocPort)
 	godocCmd.Stdout = ioutil.Discard
 	godocCmd.Stderr = ioutil.Discard
 	// Jenkins kills all background processes started by a shell
@@ -682,7 +682,7 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	godocCmd.Env = append(godocCmd.Env, "BUILD_ID=dontKillMe")
 	godocCmd.Env = append(godocCmd.Env,
 		fmt.Sprintf("GOPATH=%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join(root, "roadmap", "go")))
-	fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(godocCmd.Args, " "))
+	fmt.Fprintf(ctx.Stdout(), "%v %v\n", godocCmd.Env, strings.Join(godocCmd.Args, " "))
 	if err := godocCmd.Start(); err != nil {
 		return nil, err
 	}
