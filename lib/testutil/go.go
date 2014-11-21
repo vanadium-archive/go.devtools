@@ -576,7 +576,7 @@ func getListenerPID(ctx *util.Context, port string) (int, error) {
 	}
 
 	// Parse the port number.
-	pidString := strings.TrimPrefix(out.String(), "p")
+	pidString := strings.TrimPrefix(strings.TrimSpace(out.String()), "p")
 	pid, err := strconv.Atoi(pidString)
 	if err != nil {
 		return -1, fmt.Errorf("Atoi(%v) failed: %v", pidString, err)
