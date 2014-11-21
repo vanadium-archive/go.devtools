@@ -40,18 +40,26 @@ func findTestResultFiles(ctx *util.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Collect javascript test results.
 	jsDir := filepath.Join(root, "veyron.js", "test_out")
-	fileInfoList, err := ioutil.ReadDir(jsDir)
-	if err != nil {
-		return nil, fmt.Errorf("ReadDir(%v) failed: %v", jsDir)
-	}
-	for _, fileInfo := range fileInfoList {
-		name := fileInfo.Name()
-		if strings.HasSuffix(name, "_integration.out") || strings.HasSuffix(name, "_spec.out") {
-			result = append(result, filepath.Join(jsDir, name))
+	if _, err := os.Stat(); err == nil {
+		fileInfoList, err := ioutil.ReadDir(jsDir)
+		if err != nil {
+			return nil, fmt.Errorf("ReadDir(%v) failed: %v", jsDir)
+		}
+		for _, fileInfo := range fileInfoList {
+			name := fileInfo.Name()
+			if strings.HasSuffix(name, "_integration.out") || strings.HasSuffix(name, "_spec.out") {
+				result = append(result, filepath.Join(jsDir, name))
+			}
+		}
+	} else {
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
 	}
+
 	// Collect non-javascript test results.
 	workspaceDir := os.Getenv("WORKSPACE")
 	fileInfoList, err = ioutil.ReadDir(workspaceDir)
