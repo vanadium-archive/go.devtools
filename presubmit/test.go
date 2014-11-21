@@ -220,7 +220,7 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult) 
 	link := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REF=%s&REPO=%s",
 		presubmitTestJenkinsProjectFlag,
 		url.QueryEscape(reviewTargetRefFlag),
-		url.QueryEscape(strings.TrimPrefix(repoFlag, "https://veyron.googlesource.com/")))
+		url.QueryEscape(strings.TrimPrefix(repoFlag, util.VeyronGitRepoHost())))
 	fmt.Fprintf(&report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
 
 	// Post test results.

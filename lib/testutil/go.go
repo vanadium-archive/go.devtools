@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -16,22 +17,6 @@ import (
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
-
-var clean = true
-
-// initGoTest carries out the initial actions for the given Go test.
-func initGoTest(ctx *util.Context, testName string, profiles []string) (func(), error) {
-	cleanup, err := initTest(ctx, testName, profiles)
-	if err != nil {
-		return nil, err
-	}
-	if clean {
-		if err := ctx.Run().Command("veyron", "goext", "distclean"); err != nil {
-			return nil, err
-		}
-	}
-	return cleanup, nil
-}
 
 type taskStatus int
 
@@ -52,7 +37,7 @@ type buildResult struct {
 // goBuild is a helper function for running Go builds.
 func goBuild(ctx *util.Context, testName string, args, pkgs, profiles []string) (*TestResult, error) {
 	// Initialize the test.
-	cleanup, err := initGoTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +140,7 @@ const defaultTestCoverageTimeout = "5m"
 // goCoverage is a helper function for running Go coverage tests.
 func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []string) (*TestResult, error) {
 	// Initialize the test.
-	cleanup, err := initGoTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +323,7 @@ const defaultTestTimeout = "5m"
 // goTest is a helper function for running Go tests.
 func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (*TestResult, error) {
 	// Initialize the test.
-	cleanup, err := initGoTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -497,6 +482,17 @@ func installGoCover(ctx *util.Context) error {
 	return nil
 }
 
+// installGoDoc makes sure the "go doc" tool is installed.
+func installGoDoc(ctx *util.Context) error {
+	// Check if the tool exists.
+	if _, err := exec.LookPath("godoc"); err != nil {
+		if err := ctx.Run().Command("veyron", "go", "install", "code.google.com/p/go.tools/cmd/godoc"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // installGoCoverCobertura makes sure the "gocover-cobertura" tool is
 // installed.
 func installGoCoverCobertura(ctx *util.Context) error {
@@ -558,13 +554,44 @@ func isBuildFailure(err error, out, pkg string) bool {
 	return strings.HasPrefix(out, fmt.Sprintf("# %s", pkg))
 }
 
-// ThirdPartyGoBuild is a test for the Go build of the third-party projects.
+// getListenerPID finds the process ID of the process listening on the
+// given port. If no process is listening on the given port (or an
+// error is encountered), the function returns -1.
+func getListenerPID(ctx *util.Context, port string) (int, error) {
+	// Make sure "lsof" exists.
+	_, err := exec.LookPath("lsof")
+	if err != nil {
+		return -1, fmt.Errorf(`"lsof" not found in the PATH`)
+	}
+
+	// Use "lsof" to find the process ID of the listener.
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	if err := ctx.Run().CommandWithOpts(opts, "lsof", "-i", port, "-F", "p"); err != nil {
+		// When no listener exists, "lsof" exits with non-zero
+		// status.
+		return -1, nil
+	}
+
+	// Parse the port number.
+	pidString := strings.TrimPrefix(out.String(), "p")
+	pid, err := strconv.Atoi(pidString)
+	if err != nil {
+		return -1, fmt.Errorf("Atoi(%v) failed: %v", pidString, err)
+	}
+
+	return pid, nil
+}
+
+// ThirdPartyGoBuild runs Go build for third-party projects.
 func ThirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"code.google.com/...", "github.com/..."}
 	return goBuild(ctx, testName, nil, pkgs, nil)
 }
 
-// ThirdPartyGoTest is a test for the Go tests of the third-party projects.
+// ThirdPartyGoTest runs Go tests for the third-party projects.
 func ThirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Run the tests excluding TestTestmainPackage from
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
@@ -575,7 +602,7 @@ func ThirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	return goTest(ctx, testName, args, pkgs, nil)
 }
 
-// ThirdPartyGoRace is a test for the Go data-race tests of the third-party projects.
+// ThirdPartyGoRace runs Go data-race tests for third-party projects.
 func ThirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	// Run the tests excluding TestTestmainPackage from
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
@@ -586,7 +613,15 @@ func ThirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	return goTest(ctx, testName, args, pkgs, nil)
 }
 
-// VeyronGoBuild is a test for the Go build of the veyron projects.
+// VeyronGoBench runs Go benchmarks for veyron projects.
+func VeyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
+	args := []string{"-tags", "veyronbluetooth", "-bench", ".", "-run", "XXX"}
+	pkgs := []string{"veyron.io/..."}
+	profiles := []string{"proximity"}
+	return goTest(ctx, testName, args, pkgs, profiles)
+}
+
+// VeyronGoBuild runs Go build for the veyron projects.
 func VeyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 	args := []string{"-tags", "veyronbluetooth"}
 	pkgs := []string{"veyron.io/..."}
@@ -594,14 +629,67 @@ func VeyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 	return goBuild(ctx, testName, args, pkgs, profiles)
 }
 
-// VeyronGoCoverage is a test for the Go test coverage of the veyron projects.
+// VeyronGoCoverage runs Go coverage tests for veyron projects.
 func VeyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
 	profiles := []string{"proximity"}
 	return goCoverage(ctx, testName, nil, pkgs, profiles)
 }
 
-// VeyronGoTest is a test for the Go tests of the veyron projects.
+// VeyronGoDoc (re)starts the godoc server for veyron projects.
+func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize the test.
+	cleanup, err := initTest(ctx, testName, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	// Install dependencies.
+	if err := installGoDoc(ctx); err != nil {
+		return nil, err
+	}
+
+	// Terminate previous instance of godoc if it is still running.
+	godocPort := "8002"
+	pid, err := getListenerPID(ctx, godocPort)
+	if err != nil {
+		return nil, err
+	}
+	if pid != -1 {
+		p, err := os.FindProcess(pid)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.Kill(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Start a new instance of godoc.
+	godocCmd := exec.Command("godoc", "-analysis=type", "-index", "-http", godocPort)
+	godocCmd.Stdout = ioutil.Discard
+	godocCmd.Stderr = ioutil.Discard
+	// Jenkins kills all background processes started by a shell
+	// when the shell exits. To prevent Jenkins from doing that,
+	// the BUILD_ID environment variable needs to be set to
+	// "dontKillMe".
+	godocCmd.Env = append(godocCmd.Env, "BUILD_ID=dontKillMe")
+	godocCmd.Env = append(godocCmd.Env,
+		fmt.Sprintf("GOPATH=%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join("roadmap", "go")))
+	if err := godocCmd.Start(); err != nil {
+		return nil, err
+	}
+
+	return &TestResult{Status: TestPassed}, nil
+}
+
+// VeyronGoTest runs Go tests for veyron projects.
 func VeyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	args := []string{"-tags", "veyronbluetooth"}
 	pkgs := []string{"veyron.io/..."}
@@ -609,7 +697,7 @@ func VeyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	return goTest(ctx, testName, args, pkgs, profiles)
 }
 
-// VeyronGoRace is a test for the Go data-race tests of the veyron projects.
+// VeyronGoRace runs Go data-race tests for veyron projects.
 func VeyronGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	args := []string{"-race", "-tags", "veyronbluetooth"}
 	pkgs := []string{"veyron.io/..."}

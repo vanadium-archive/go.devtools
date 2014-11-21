@@ -17,9 +17,6 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// TODO(jingjin): define this as a constant elsewhere and replace all occurrences in our tools.
-const repoBaseUrl = "https://veyron.googlesource.com"
-
 // cmdQuery represents the 'query' command of the presubmit tool.
 var cmdQuery = &cmdline.Command{
 	Name:  "query",
@@ -100,7 +97,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 		if err != nil {
 			printf(ctx.Stderr(), "%v\n", err)
 		} else {
-			url := fmt.Sprintf("%s/%s", repoBaseUrl, curNewCL.Repo)
+			url := fmt.Sprintf("%s/%s", util.VeyronGitRepoHost(), curNewCL.Repo)
 			if _, ok := projects[url]; !ok {
 				printf(ctx.Stdout(), "project=%q not found in the default manifest. Skipped.\n", url)
 				continue

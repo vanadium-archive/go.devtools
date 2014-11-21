@@ -30,7 +30,7 @@ manifest uses the following XML schema:
      ...
    </imports>
    <projects>
-     <project name="https://veyron.googlesource.com/veyrong.go"
+     <project name="https://veyron.googlesource.com/veyron"
               path="veyron/go/src/veyron.io/veyron"
               protocol="git"
               revision="HEAD"/>

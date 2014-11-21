@@ -10,6 +10,13 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
+func init() {
+	// Prevent the initTest() function from cleaning up Go object
+	// files and binaries to avoid interference with concurrently
+	// running tests.
+	cleanGo = false
+}
+
 // caseMatch checks whether the given test cases match modulo their
 // execution time.
 func caseMatch(c1, c2 testCase) bool {
@@ -174,7 +181,6 @@ var (
 func TestGoBuild(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
-	clean = false
 	result, err := goBuild(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -202,7 +208,6 @@ func TestGoBuild(t *testing.T) {
 func TestGoCoverage(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
-	clean = false
 	result, err := goCoverage(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -244,7 +249,6 @@ func TestGoCoverage(t *testing.T) {
 func TestGoTest(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
-	clean = false
 	result, err := goTest(ctx, testName, nil, []string{pkgName}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)

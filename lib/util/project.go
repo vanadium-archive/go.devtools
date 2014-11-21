@@ -869,7 +869,7 @@ func runOperation(ctx *Context, op operation) error {
 			if err := ctx.Git().Clone(op.project.Name, op.destination); err != nil {
 				return err
 			}
-			if strings.HasPrefix(op.project.Name, "https://veyron.googlesource.com/") {
+			if strings.HasPrefix(op.project.Name, VeyronGitRepoHost()) {
 				// Setup the repository for Gerrit code reviews.
 				file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
 				url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"

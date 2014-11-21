@@ -10,6 +10,12 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
+// cleanGo is used to control whether the initTest function removes
+// all stale Go object files and binaries. It is use to prevent the
+// test of this package from interfering with other concurrently
+// running tests that might be sharing the same object files.
+var cleanGo = true
+
 // initTest carries out the initial actions for the given test.
 func initTest(ctx *util.Context, testName string, profiles []string) (func(), error) {
 	// Output the hostname.
@@ -48,6 +54,13 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 	}
 	if err := ctx.Run().Function(runutil.Chdir(workDir)); err != nil {
 		return nil, err
+	}
+
+	// Remove all stale Go object files and binaries.
+	if cleanGo {
+		if err := ctx.Run().Command("veyron", "goext", "distclean"); err != nil {
+			return nil, err
+		}
 	}
 
 	return func() {

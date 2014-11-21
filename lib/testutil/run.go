@@ -121,13 +121,24 @@ run:
 }
 
 var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
-	"third_party-go-build": ThirdPartyGoBuild,
-	"third_party-go-test":  ThirdPartyGoTest,
-	"third_party-go-race":  ThirdPartyGoRace,
-	"veyron-go-build":      VeyronGoBuild,
-	"veyron-go-cover":      VeyronGoCoverage,
-	"veyron-go-test":       VeyronGoTest,
-	"veyron-go-race":       VeyronGoRace,
+	"third_party-go-build":                  ThirdPartyGoBuild,
+	"third_party-go-test":                   ThirdPartyGoTest,
+	"third_party-go-race":                   ThirdPartyGoRace,
+	"veyron-browser-test":                   VeyronBrowserTest,
+	"veyron-go-bench":                       VeyronGoBench,
+	"veyron-go-build":                       VeyronGoBuild,
+	"veyron-go-cover":                       VeyronGoCoverage,
+	"veyron-go-doc":                         VeyronGoDoc,
+	"veyron-go-test":                        VeyronGoTest,
+	"veyron-go-race":                        VeyronGoRace,
+	"veyron-javascript-build-extension":     VeyronJSBuildExtension,
+	"veyron-javascript-build-nacl-compiler": VeyronJSBuildNaClCompiler,
+	"veyron-javascript-doc":                 VeyronJSDoc,
+	"veyron-javascript-test-intergration":   VeyronJSIntegrationTest,
+	"veyron-javascript-test-unit":           VeyronJSUnitTest,
+	"veyron-javascript-vom":                 VeyronJSVomTest,
+	"veyron-presubmit-poll":                 VeyronPresubmitPoll,
+	"veyron-presubmit-test":                 VeyronPresubmitTest,
 }
 
 // RunTests executes the given tests and reports the test results.

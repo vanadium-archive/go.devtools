@@ -205,6 +205,12 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 	return env, nil
 }
 
+// VeyronGitRepoHost returns the URL that hosts veyron git
+// repositories.
+func VeyronGitRepoHost() string {
+	return "https://veyron.googlesource.com/"
+}
+
 // VeyronRoot returns the root of the veyron universe.
 func VeyronRoot() (string, error) {
 	root := os.Getenv(rootEnv)

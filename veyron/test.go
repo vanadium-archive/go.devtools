@@ -54,7 +54,7 @@ func runTestProject(command *cmdline.Command, args []string) error {
 	}
 	project := args[0]
 	if !strings.HasPrefix(project, "http") {
-		project = "https://veyron.googlesource.com/" + project
+		project = util.VeyronGitRepoHost() + project
 	}
 	results, err := testutil.RunProjectTests(ctx, project)
 	if err != nil {
