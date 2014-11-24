@@ -20,14 +20,14 @@ import (
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/runutil"
+	"veyron.io/tools/lib/testutil"
 	"veyron.io/tools/lib/util"
 	"veyron.io/tools/lib/version"
 )
 
 const (
-	defaultBinDir   = "$TMPDIR/bin"
-	outputPrefix    = "[SHELLTEST-RUNNER]"
-	xunitReportFile = "tests_veyron_shell_test.xml"
+	defaultBinDir = "$TMPDIR/bin"
+	outputPrefix  = "[SHELLTEST-RUNNER]"
 )
 
 var (
@@ -279,6 +279,7 @@ func runTestScripts(ctx *util.Context) error {
 		return err
 	}
 	fileMode := os.FileMode(0644)
+	xunitReportFile := testutil.XUnitReportPath("veyron-shell-test")
 	if err := ioutil.WriteFile(xunitReportFile, []byte(output), fileMode); err != nil {
 		return fmt.Errorf("WriteFile(%q, %q, %v) failed: %v", xunitReportFile, output, fileMode, err)
 	}
