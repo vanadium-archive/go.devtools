@@ -676,12 +676,16 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	//
 	// Jenkins kills all background processes started by a shell
 	// when the shell exits. To prevent Jenkins from doing that,
-	// use nil as standard input, discard all standard output, and
+	// use nil as standard input, redirect output to a file, and
 	// set the BUILD_ID environment variable to "dontKillMe".
 	godocCmd := exec.Command("godoc", "-analysis=type", "-index", "-http=:"+godocPort)
 	godocCmd.Stdin = nil
-	godocCmd.Stdout = ioutil.Discard
-	godocCmd.Stderr = ioutil.Discard
+	fd, err := os.Create(filepath.Join(root, "godoc.out"))
+	if err != nil {
+		return nil, err
+	}
+	godocCmd.Stdout = fd
+	godocCmd.Stderr = fd
 	env := envutil.NewSnapshotFromOS()
 	env.Set("BUILD_ID", "dontKillMe")
 	env.Set("GOPATH", fmt.Sprintf("%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join(root, "roadmap", "go")))
