@@ -666,22 +666,26 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 		if err != nil {
 			return nil, err
 		}
+		fmt.Fprintf(ctx.Stdout(), "kill %d\n", pid)
 		if err := p.Kill(); err != nil {
 			return nil, err
 		}
 	}
 
 	// Start a new instance of godoc.
-	godocCmd := exec.Command("godoc", "-analysis=type", "-index", "-http=:"+godocPort)
-	godocCmd.Stdout = ioutil.Discard
-	godocCmd.Stderr = ioutil.Discard
+	//
 	// Jenkins kills all background processes started by a shell
 	// when the shell exits. To prevent Jenkins from doing that,
-	// the BUILD_ID environment variable needs to be set to
-	// "dontKillMe".
-	godocCmd.Env = append(godocCmd.Env, "BUILD_ID=dontKillMe")
-	godocCmd.Env = append(godocCmd.Env,
-		fmt.Sprintf("GOPATH=%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join(root, "roadmap", "go")))
+	// use nil as standard input, discard all standard output, and
+	// set the BUILD_ID environment variable to "dontKillMe".
+	godocCmd := exec.Command("godoc", "-analysis=type", "-index", "-http=:"+godocPort)
+	godocCmd.Stdin = nil
+	godocCmd.Stdout = ioutil.Discard
+	godocCmd.Stderr = ioutil.Discard
+	env := envutil.NewSnapshotFromOS()
+	env.Set("BUILD_ID", "dontKillMe")
+	env.Set("GOPATH", fmt.Sprintf("%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join(root, "roadmap", "go")))
+	godocCmd.Env = env.Slice()
 	fmt.Fprintf(ctx.Stdout(), "%v %v\n", godocCmd.Env, strings.Join(godocCmd.Args, " "))
 	if err := godocCmd.Start(); err != nil {
 		return nil, err
