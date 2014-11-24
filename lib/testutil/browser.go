@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"os"
 	"path/filepath"
 
 	"veyron.io/tools/lib/envutil"
@@ -17,6 +16,7 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 	if err != nil {
 		return nil, err
 	}
+	provaOutputFile := filepath.Join(root, "veyron_browser_test.out")
 
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
@@ -25,7 +25,7 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 	}
 	defer cleanup()
 
-	// Invoke "make clean" for the veyron browser.
+	// Invoke "make clean" for the veyron browser and remove the test output file if it exists.
 	browserDir := filepath.Join(root, "veyron-browser")
 	if err := ctx.Run().Function(runutil.Chdir(browserDir)); err != nil {
 		return nil, err
@@ -33,9 +33,11 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 	if err := ctx.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
+	if err := ctx.Run().Function(runutil.RemoveAll(provaOutputFile)); err != nil {
+		return nil, err
+	}
 
 	// Invoke "make test" for the veyron browser.
-	provaOutputFile := filepath.Join(os.Getenv("TMPDIR"), "veyron_browser_test.out")
 	opts := ctx.Run().Opts()
 	env := envutil.NewSnapshotFromOS()
 	env.Set("PROVA_OUTPUT_FILE", provaOutputFile)
