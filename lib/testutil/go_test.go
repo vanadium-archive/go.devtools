@@ -190,7 +190,7 @@ func TestGoBuild(t *testing.T) {
 	}
 
 	// Check the xUnit report.
-	xUnitFile := xUnitReportPath(testName)
+	xUnitFile := XUnitReportPath(testName)
 	data, err := ioutil.ReadFile(xUnitFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
@@ -217,7 +217,7 @@ func TestGoCoverage(t *testing.T) {
 	}
 
 	// Check the xUnit report.
-	xUnitFile := xUnitReportPath(testName)
+	xUnitFile := XUnitReportPath(testName)
 	data, err := ioutil.ReadFile(xUnitFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
@@ -258,7 +258,7 @@ func TestGoTest(t *testing.T) {
 	}
 
 	// Check the xUnit report.
-	xUnitFile := xUnitReportPath(testName)
+	xUnitFile := XUnitReportPath(testName)
 	data, err := ioutil.ReadFile(xUnitFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)

@@ -49,7 +49,7 @@ type testFailure struct {
 //
 // TODO(jsimsa): Once all Jenkins shell test scripts are ported to Go,
 // change the filename to xunit_report_<testName>.xml.
-func xUnitReportPath(testName string) string {
+func XUnitReportPath(testName string) string {
 	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
 	if workspace == "" {
 
@@ -90,7 +90,7 @@ func createXUnitReport(testName string, suites []testSuite) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(xUnitReportPath(testName), bytes, os.FileMode(0644)); err != nil {
+	if err := ioutil.WriteFile(XUnitReportPath(testName), bytes, os.FileMode(0644)); err != nil {
 		return err
 	}
 	return nil
