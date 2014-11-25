@@ -93,12 +93,12 @@ func coverageFromGoTestOutput(ctx *util.Context, testOutput io.Reader) (*testCov
 // createCoberturaReport generates a cobertura report using the given
 // coverage information.
 func createCoberturaReport(testName string, data *testCoverage) error {
-	bytes, err := xml.MarshalIndent(data, "", "  ")
+	bytes, err := xml.MarshalIndent(*data, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("MarshalIndent(%v) failed: %v", *data, err)
 	}
 	if err := ioutil.WriteFile(coberturaReportPath(testName), bytes, os.FileMode(0644)); err != nil {
-		return err
+		return fmt.Errorf("WriteFile(%v) failed: %v", coberturaReportPath(testName), err)
 	}
 	return nil
 }

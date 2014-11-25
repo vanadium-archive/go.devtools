@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -54,7 +55,7 @@ func goBuild(ctx *util.Context, testName string, args, pkgs, profiles []string) 
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan buildResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go buildWorker(ctx, args, tasks, taskResults)
+		go buildWorker(args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -102,10 +103,10 @@ func goBuild(ctx *util.Context, testName string, args, pkgs, profiles []string) 
 }
 
 // buildWorker builds packages.
-func buildWorker(ctx *util.Context, args []string, pkgs <-chan string, results chan<- buildResult) {
+func buildWorker(args []string, pkgs <-chan string, results chan<- buildResult) {
 	for pkg := range pkgs {
 		var out bytes.Buffer
-		args := append([]string{"go", "build"}, args...)
+		args := append([]string{"go", "build", "-o", filepath.Join(binDirPath(), path.Base(pkg))}, args...)
 		args = append(args, pkg)
 		cmd := exec.Command("veyron", args...)
 		cmd.Stdout = &out
@@ -173,7 +174,7 @@ func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []strin
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan coverageResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go coverageWorker(ctx, args, tasks, taskResults)
+		go coverageWorker(args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -260,7 +261,7 @@ func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []strin
 }
 
 // coverageWorker generates test coverage.
-func coverageWorker(ctx *util.Context, args []string, pkgs <-chan string, results chan<- coverageResult) {
+func coverageWorker(args []string, pkgs <-chan string, results chan<- coverageResult) {
 	for pkg := range pkgs {
 		// Compute the test coverage.
 		var out bytes.Buffer
@@ -350,7 +351,7 @@ func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan testResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go testWorker(ctx, args, tasks, taskResults)
+		go testWorker(args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -411,7 +412,7 @@ func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (
 }
 
 // testWorker tests packages.
-func testWorker(ctx *util.Context, args []string, pkgs <-chan string, results chan<- testResult) {
+func testWorker(args []string, pkgs <-chan string, results chan<- testResult) {
 	for pkg := range pkgs {
 		// Run the test.
 		var out bytes.Buffer

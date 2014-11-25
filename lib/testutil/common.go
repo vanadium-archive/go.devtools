@@ -16,6 +16,12 @@ import (
 // running tests that might be sharing the same object files.
 var cleanGo = true
 
+// binDirPath returns the path to the directory for storing temporary
+// binaries.
+func binDirPath() string {
+	return filepath.Join(os.Getenv("TMPDIR"), "bin")
+}
+
 // initTest carries out the initial actions for the given test.
 func initTest(ctx *util.Context, testName string, profiles []string) (func(), error) {
 	// Output the hostname.
@@ -39,6 +45,11 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 		return nil, err
 	}
 	fmt.Fprintf(ctx.Stdout(), "workdir = %s\n", workDir)
+
+	// Create a temporary directory for storing binaries.
+	if err := ctx.Run().Function(runutil.MkdirAll(binDirPath(), os.FileMode(0755))); err != nil {
+		return nil, err
+	}
 
 	// Setup profiles.
 	for _, profile := range profiles {

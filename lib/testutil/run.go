@@ -131,6 +131,7 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"veyron-go-doc":                         VeyronGoDoc,
 	"veyron-go-test":                        VeyronGoTest,
 	"veyron-go-race":                        VeyronGoRace,
+	"veyron-integration-test":               VeyronIntegrationTest,
 	"veyron-javascript-build-extension":     VeyronJSBuildExtension,
 	"veyron-javascript-build-nacl-compiler": VeyronJSBuildNaClCompiler,
 	"veyron-javascript-doc":                 VeyronJSDoc,
@@ -139,6 +140,8 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"veyron-javascript-vom":                 VeyronJSVomTest,
 	"veyron-presubmit-poll":                 VeyronPresubmitPoll,
 	"veyron-presubmit-test":                 VeyronPresubmitTest,
+	"veyron-tutorial":                       VeyronTutorial,
+	"veyron-vdl":                            VeyronVDL,
 }
 
 // RunTests executes the given tests and reports the test results.

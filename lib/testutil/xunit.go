@@ -88,10 +88,10 @@ func createXUnitReport(testName string, suites []testSuite) error {
 	result := testSuites{Suites: suites}
 	bytes, err := xml.MarshalIndent(result, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("MarshalIndent(%v) failed: %v", result, err)
 	}
 	if err := ioutil.WriteFile(XUnitReportPath(testName), bytes, os.FileMode(0644)); err != nil {
-		return err
+		return fmt.Errorf("WriteFile(%v) failed: %v", XUnitReportPath(testName), err)
 	}
 	return nil
 }
