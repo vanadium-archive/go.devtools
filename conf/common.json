@@ -6,7 +6,7 @@
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
-            "veyron-shell-test"
+            "veyron-integration-test"
         ],
         "https://veyron.googlesource.com/roadmap.go.proximity": [
             "veyron-go-build",
@@ -17,7 +17,7 @@
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
-            "veyron-shell-test"
+            "veyron-integration-test"
         ],
         "https://veyron.googlesource.com/roadmap.profiles": [
             "veyron-go-build",
@@ -33,7 +33,7 @@
             "veyron-go-race",
             "veyron-javascript-test-integration",
             "veyron-browser-test",
-            "veyron-shell-test",
+            "veyron-integration-test",
             "veyron-javascript-build-extension"
         ],
         "https://veyron.googlesource.com/veyron.go.lib": [
@@ -45,13 +45,13 @@
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
-            "veyron-shell-test"
+            "veyron-integration-test"
         ],
         "https://veyron.googlesource.com/veyron.go.tools": [
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
-            "veyron-shell-test"
+            "veyron-integration-test"
         ],
         "https://veyron.googlesource.com/veyron.go.wspr": [
             "veyron-go-build",
@@ -59,7 +59,7 @@
             "veyron-go-race",
             "veyron-javascript-test-integration",
             "veyron-browser-test",
-            "veyron-shell-test",
+            "veyron-integration-test",
             "veyron-javascript-build-extension"
         ],
         "https://veyron.googlesource.com/veyron.js": [
@@ -98,7 +98,7 @@
         "veyron-javascript-test-unit": [
             "veyron-javascript-test-integration"
         ],
-        "veyron-shell-test": [
+        "veyron-integration-test": [
             "veyron-go-build"
         ]
     }

@@ -12,6 +12,10 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
+// TODO(jsimsa): Move the Veyron* functions and the testFunctions map
+// from the testutil package into this package, keeping only the
+// shared test harnesses in the testutil package.
+
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
@@ -122,22 +126,9 @@ var cmdTestList = &cmdline.Command{
 
 func runTestList(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContextFromCommand(command, verboseFlag)
-	testDir, err := util.TestScriptDir()
-	if err != nil {
-		return err
-	}
-	fileInfoList, err := ioutil.ReadDir(testDir)
-	if err != nil {
-		return err
-	}
-	for _, fileInfo := range fileInfoList {
-		// Only list test scripts that end with ".sh" and do
-		// not contain the "common". Script names that contain
-		// "common" are reserved for shell libraries for the
-		// test scripts.
-		if strings.HasSuffix(fileInfo.Name(), ".sh") && strings.Index(fileInfo.Name(), "common") == -1 {
-			fmt.Fprintf(ctx.Stdout(), "%v\n", strings.TrimSuffix(fileInfo.Name(), ".sh"))
-		}
+	testList := testutil.TestList()
+	for _, test := range testList {
+		fmt.Fprintf(ctx.Stdout(), "%v\n", test)
 	}
 	return nil
 }

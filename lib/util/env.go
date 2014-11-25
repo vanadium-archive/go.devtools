@@ -107,25 +107,6 @@ func ConfigFile(name string) (string, error) {
 	return filepath.Join(dir, name+".json"), nil
 }
 
-// TestScriptDir returns the local path to the test script directory.
-func TestScriptDir() (string, error) {
-	root, err := VeyronRoot()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, "scripts", "jenkins"), nil
-}
-
-// TestScriptFile returns the local path to the test script file
-// identifed by the given name.
-func TestScriptFile(name string) (string, error) {
-	dir, err := TestScriptDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, name+".sh"), nil
-}
-
 // LoadConfig loads the config identified by the given name.
 func LoadConfig(name string, config interface{}) error {
 	configPath, err := ConfigFile(name)

@@ -63,9 +63,6 @@ func runTest(command *cmdline.Command, args []string) error {
 	if _, err := os.Stat(manifestFilePath); err != nil {
 		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
 	}
-	if _, err := os.Stat(testScriptsBasePathFlag); err != nil {
-		return fmt.Errorf("Stat(%q) failed: %v", testScriptsBasePathFlag, err)
-	}
 	if repoFlag == "" {
 		return command.UsageErrorf("-repo flag is required")
 	}

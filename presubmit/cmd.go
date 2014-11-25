@@ -20,7 +20,6 @@ const (
 	defaultNetRcFilePath               = "$HOME/.netrc"
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
 	defaultQueryString                 = "(status:open -project:experimental)"
-	defaultTestScriptsBase             = "$VEYRON_ROOT/scripts/jenkins/"
 	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
 	outputPrefix                       = "[VEYRON PRESUBMIT]"
 )
@@ -44,7 +43,6 @@ var (
 	repoFlag                        string
 	reviewMessageFlag               string
 	reviewTargetRefFlag             string
-	testScriptsBasePathFlag         string
 	verboseFlag                     bool
 
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
@@ -63,7 +61,6 @@ func init() {
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
 	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
 	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
-	cmdTest.Flags.StringVar(&testScriptsBasePathFlag, "tests_base_path", defaultTestScriptsBase, "The base path of all the test scripts.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 }
@@ -92,9 +89,6 @@ func substituteVarsInFlags() {
 	}
 	if netRcFilePathFlag == defaultNetRcFilePath {
 		netRcFilePathFlag = filepath.Join(os.Getenv("HOME"), ".netrc")
-	}
-	if testScriptsBasePathFlag == defaultTestScriptsBase {
-		testScriptsBasePathFlag = filepath.Join(veyronRoot, "scripts", "jenkins")
 	}
 }
 

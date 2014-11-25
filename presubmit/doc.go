@@ -55,16 +55,12 @@ Usage:
 The presubmit test flags are:
  -build_number=-1
    The number of the Jenkins build.
- -conf=$VEYRON_ROOT/veyron/go/src/veyron.io/tools/conf/presubmit
-   The config file for presubmit tests.
  -manifest=default
    Name of the project manifest.
  -ref=
    The ref where the review is posted.
  -repo=
    The URL of the repository containing the CL pointed by the ref.
- -tests_base_path=$VEYRON_ROOT/scripts/jenkins/
-   The base path of all the test scripts.
 
 Presubmit Version
 

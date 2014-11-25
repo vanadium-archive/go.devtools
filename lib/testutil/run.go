@@ -5,8 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -57,6 +55,37 @@ type testDepGraph map[string]*testNode
 // DefaultTestTimeout identified the maximum time each test is allowed
 // to run before being forcefully terminated.
 var DefaultTestTimeout = 10 * time.Minute
+
+var testMock = func(*util.Context, string) (*TestResult, error) {
+	return &TestResult{Status: TestPassed}, nil
+}
+
+// TODO(jsimsa): Only define "ignore-this" in tests.
+var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
+	"ignore-this":                           testMock,
+	"third_party-go-build":                  ThirdPartyGoBuild,
+	"third_party-go-test":                   ThirdPartyGoTest,
+	"third_party-go-race":                   ThirdPartyGoRace,
+	"veyron-browser-test":                   VeyronBrowserTest,
+	"veyron-go-bench":                       VeyronGoBench,
+	"veyron-go-build":                       VeyronGoBuild,
+	"veyron-go-cover":                       VeyronGoCoverage,
+	"veyron-go-doc":                         VeyronGoDoc,
+	"veyron-go-test":                        VeyronGoTest,
+	"veyron-go-race":                        VeyronGoRace,
+	"veyron-integration-test":               VeyronIntegrationTest,
+	"veyron-javascript-build-extension":     VeyronJSBuildExtension,
+	"veyron-javascript-build-nacl-compiler": VeyronJSBuildNaClCompiler,
+	"veyron-javascript-doc":                 VeyronJSDoc,
+	"veyron-javascript-test-intergration":   VeyronJSIntegrationTest,
+	"veyron-javascript-test-unit":           VeyronJSUnitTest,
+	"veyron-javascript-vdl":                 VeyronJSVdlTest,
+	"veyron-javascript-vom":                 VeyronJSVomTest,
+	"veyron-presubmit-poll":                 VeyronPresubmitPoll,
+	"veyron-presubmit-test":                 VeyronPresubmitTest,
+	"veyron-tutorial":                       VeyronTutorial,
+	"veyron-vdl":                            VeyronVDL,
+}
 
 // RunProjectTests runs all tests associated with the given project.
 func RunProjectTests(ctx *util.Context, project string) (map[string]*TestResult, error) {
@@ -120,31 +149,6 @@ run:
 	return results, nil
 }
 
-var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
-	"third_party-go-build":                  ThirdPartyGoBuild,
-	"third_party-go-test":                   ThirdPartyGoTest,
-	"third_party-go-race":                   ThirdPartyGoRace,
-	"veyron-browser-test":                   VeyronBrowserTest,
-	"veyron-go-bench":                       VeyronGoBench,
-	"veyron-go-build":                       VeyronGoBuild,
-	"veyron-go-cover":                       VeyronGoCoverage,
-	"veyron-go-doc":                         VeyronGoDoc,
-	"veyron-go-test":                        VeyronGoTest,
-	"veyron-go-race":                        VeyronGoRace,
-	"veyron-integration-test":               VeyronIntegrationTest,
-	"veyron-javascript-build-extension":     VeyronJSBuildExtension,
-	"veyron-javascript-build-nacl-compiler": VeyronJSBuildNaClCompiler,
-	"veyron-javascript-doc":                 VeyronJSDoc,
-	"veyron-javascript-test-intergration":   VeyronJSIntegrationTest,
-	"veyron-javascript-test-unit":           VeyronJSUnitTest,
-	"veyron-javascript-vdl":                 VeyronJSVdlTest,
-	"veyron-javascript-vom":                 VeyronJSVomTest,
-	"veyron-presubmit-poll":                 VeyronPresubmitPoll,
-	"veyron-presubmit-test":                 VeyronPresubmitTest,
-	"veyron-tutorial":                       VeyronTutorial,
-	"veyron-vdl":                            VeyronVDL,
-}
-
 // RunTests executes the given tests and reports the test results.
 func RunTests(ctx *util.Context, tests []string) (map[string]*TestResult, error) {
 	results := make(map[string]*TestResult, len(tests))
@@ -157,38 +161,29 @@ func RunTests(ctx *util.Context, tests []string) (map[string]*TestResult, error)
 	return results, nil
 }
 
+// TestList returns a list of all tests known by the testutil package.
+func TestList() []string {
+	result := []string{}
+	for name := range testFunctions {
+		result = append(result, name)
+	}
+	sort.Strings(result)
+	return result
+}
+
 // runTests runs the given tests, populating the results map.
 func runTests(ctx *util.Context, tests []string, results map[string]*TestResult) error {
 	for _, test := range tests {
 		testFn, ok := testFunctions[test]
-		if ok {
-			fmt.Fprintf(ctx.Stdout(), "##### Running test %q #####\n", test)
-			result, err := testFn(ctx, test)
-			if err != nil {
-				return err
-			}
-			results[test] = result
-			fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", results[test].Status)
-			continue
+		if !ok {
+			return fmt.Errorf("test %v does not exist", test)
 		}
-		testScript, err := util.TestScriptFile(test)
+		fmt.Fprintf(ctx.Stdout(), "##### Running test %q #####\n", test)
+		result, err := testFn(ctx, test)
 		if err != nil {
 			return err
 		}
-		opts := ctx.Run().Opts()
-		env := envutil.NewSnapshotFromOS()
-		env.Set("VEYRON_NO_UPDATE", "1")
-		opts.Env = env.Map()
-		fmt.Fprintf(ctx.Stdout(), "##### Running test %q #####\n", test)
-		if err := ctx.Run().TimedCommandWithOpts(DefaultTestTimeout, opts, testScript); err != nil {
-			if err == runutil.CommandTimedOutErr {
-				results[test].Status = TestTimedOut
-			} else {
-				results[test].Status = TestFailed
-			}
-		} else {
-			results[test].Status = TestPassed
-		}
+		results[test] = result
 		fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", results[test].Status)
 	}
 	return nil
