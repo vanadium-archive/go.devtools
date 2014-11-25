@@ -362,6 +362,7 @@ public class VeyronSCM extends SCM {
         }
         stderrLines.add(line);
       }
+      bre.close();
       exitCode = proc.join();
     } catch (Exception e) {
       e.printStackTrace(listener.getLogger());
