@@ -111,10 +111,6 @@ func VeyronPresubmitPoll(ctx *util.Context, testName string) (*TestResult, error
 
 // VeyronPresubmitTest runs presubmit tests for veyron projects.
 func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
-	if err != nil {
-		return nil, err
-	}
 	if err := requireEnv([]string{"BUILD_NUMBER", "REF", "REPO", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
@@ -141,8 +137,9 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{
 		"-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "-v", "test",
-		"-build_number", os.Getenv("BUILD_NUMBER"), "-repo", util.VeyronGitRepoHost() + os.Getenv("REPO"),
-		"-ref", os.Getenv("REF"), "-tests_base_path", filepath.Join(root, "scripts", "jenkins"),
+		"-build_number", os.Getenv("BUILD_NUMBER"),
+		"-repo", util.VeyronGitRepoHost() + os.Getenv("REPO"),
+		"-ref", os.Getenv("REF"),
 	}
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
