@@ -17,6 +17,13 @@ func VeyronTutorial(ctx *util.Context, testName string) (*TestResult, error) {
 		return nil, err
 	}
 
+	// Initialize the test.
+	cleanup, err := initTest(ctx, testName, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
 	// Install the mdrip tool.
 	opts := ctx.Run().Opts()
 	env := envutil.NewSnapshotFromOS()
