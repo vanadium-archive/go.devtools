@@ -1,12 +1,102 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	"veyron.io/tools/lib/gerrit"
+	"veyron.io/tools/lib/util"
 )
+
+func TestMultiPartCLSet(t *testing.T) {
+	set := NewMultiPartCLSet()
+	checkMultiPartCLSet(t, -1, map[int]gerrit.QueryResult{}, set)
+
+	// Add a non-multipart cl.
+	cl := genCL(1000, 1, "veyron.go.core")
+	if err := set.addCL(cl); err == nil {
+		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
+	}
+	checkMultiPartCLSet(t, -1, map[int]gerrit.QueryResult{}, set)
+
+	// Add a multi part cl.
+	cl.MultiPart = &gerrit.MultiPartCLInfo{
+		Topic: "test",
+		Index: 1,
+		Total: 2,
+	}
+	if err := set.addCL(cl); err != nil {
+		t.Fatalf("addCL(%v) failed: %v", cl, err)
+	}
+	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+		1: cl,
+	}, set)
+
+	// Test incomplete.
+	if expected, got := false, set.complete(); expected != got {
+		t.Fatalf("want %s, got %s", expected, got)
+	}
+
+	// Add another multi part cl with the wrong "Total" number.
+	cl2 := genMultiPartCL(1050, 2, "veyron.js", "test", 2, 3)
+	if err := set.addCL(cl2); err == nil {
+		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
+	}
+	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+		1: cl,
+	}, set)
+
+	// Add another multi part cl with duplicated "Index" number.
+	cl3 := genMultiPartCL(1052, 2, "veyron.js", "Test", 1, 2)
+	if err := set.addCL(cl3); err == nil {
+		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
+	}
+	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+		1: cl,
+	}, set)
+
+	// Add another multi part cl with the wrong "Topic".
+	cl4 := genMultiPartCL(1062, 2, "veyron.js", "test123", 1, 2)
+	if err := set.addCL(cl4); err == nil {
+		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
+	}
+	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+		1: cl,
+	}, set)
+
+	// Add a valid multi part cl.
+	cl5 := genMultiPartCL(1072, 2, "veyron.js", "test", 2, 2)
+	if err := set.addCL(cl5); err != nil {
+		t.Fatalf("addCL(%v) failed: %v", cl, err)
+	}
+	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+		1: cl,
+		2: cl5,
+	}, set)
+
+	// Test complete.
+	if expected, got := true, set.complete(); expected != got {
+		t.Fatalf("want %v, got %v", expected, got)
+	}
+
+	// Test cls.
+	if expected, got := (clList{cl, cl5}), set.cls(); !reflect.DeepEqual(expected, got) {
+		t.Fatalf("want %v, got %v", expected, got)
+	}
+}
+
+func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[int]gerrit.QueryResult, set *multiPartCLSet) {
+	if expectedTotal != set.expectedTotal {
+		t.Fatalf("total: want %v, got %v", expectedTotal, set.expectedTotal)
+	}
+	if !reflect.DeepEqual(expectedCLsByPart, set.parts) {
+		t.Fatalf("clsByPart: want %+v, got %+v", expectedCLsByPart, set.parts)
+	}
+}
 
 func TestParseValidNetRcFile(t *testing.T) {
 	// Valid content.
@@ -58,88 +148,160 @@ machine veyron-review.googlesource.com login git-jingjin.google.com password 543
 }
 
 func TestNewOpenCLs(t *testing.T) {
-	queryResults := []gerrit.QueryResult{
-		gerrit.QueryResult{
-			Ref:      "refs/10/1010/1",
-			Repo:     "veyron",
-			ChangeID: "abcd",
+	ctx := util.DefaultContext()
+	nonMultiPartCLs := clList{
+		genCL(1010, 1, "veyron"),
+		genCL(1020, 2, "tools"),
+		genCL(1030, 3, "veyron.js"),
+
+		genMultiPartCL(1000, 1, "veyron.js", "T1", 1, 2),
+		genMultiPartCL(1001, 1, "veyron.go.core", "T1", 2, 2),
+		genMultiPartCL(1002, 2, "veyron.go.core", "T2", 2, 2),
+		genMultiPartCL(1001, 2, "veyron.go.core", "T1", 2, 2),
+	}
+	multiPartCLs := clList{
+		// Multi part CLs.
+		// The first two form a complete set for topic T1.
+		// The third one looks like the second one, but has a different topic.
+		// The last one has a larger patchset than the second one.
+		genMultiPartCL(1000, 1, "veyron.js", "T1", 1, 2),
+		genMultiPartCL(1001, 1, "veyron.go.core", "T1", 2, 2),
+		genMultiPartCL(1002, 2, "veyron.go.core", "T2", 2, 2),
+		genMultiPartCL(1001, 2, "veyron.go.core", "T1", 2, 2),
+	}
+
+	type testCase struct {
+		prevCLsMap clRefMap
+		curCLs     clList
+		expected   []clList
+	}
+	testCases := []testCase{
+		////////////////////////////////
+		// Tests for non-multipart CLs.
+
+		// Both prevCLsMap and curCLs are empty.
+		testCase{
+			prevCLsMap: clRefMap{},
+			curCLs:     clList{},
+			expected:   []clList{},
 		},
-		gerrit.QueryResult{
-			Ref:      "refs/20/1020/2",
-			Repo:     "tools",
-			ChangeID: "efgh",
+		// prevCLsMap is empty, curCLs is not.
+		testCase{
+			prevCLsMap: clRefMap{},
+			curCLs:     clList{nonMultiPartCLs[0], nonMultiPartCLs[1]},
+			expected:   []clList{clList{nonMultiPartCLs[0]}, clList{nonMultiPartCLs[1]}},
 		},
-		gerrit.QueryResult{
-			Ref:      "refs/30/1030/3",
-			Repo:     "veyron.js",
-			ChangeID: "mn",
+		// prevCLsMap is not empty, curCLs is.
+		testCase{
+			prevCLsMap: clRefMap{nonMultiPartCLs[0].Ref: nonMultiPartCLs[0]},
+			curCLs:     clList{},
+			expected:   []clList{},
+		},
+		// prevCLsMap and curCLs are not empty, and they have overlapping refs.
+		testCase{
+			prevCLsMap: clRefMap{
+				nonMultiPartCLs[0].Ref: nonMultiPartCLs[0],
+				nonMultiPartCLs[1].Ref: nonMultiPartCLs[1],
+			},
+			curCLs:   clList{nonMultiPartCLs[1], nonMultiPartCLs[2]},
+			expected: []clList{clList{nonMultiPartCLs[2]}},
+		},
+		// prevCLsMap and curCLs are not empty, and they have NO overlapping refs.
+		testCase{
+			prevCLsMap: clRefMap{nonMultiPartCLs[0].Ref: nonMultiPartCLs[0]},
+			curCLs:     clList{nonMultiPartCLs[1]},
+			expected:   []clList{clList{nonMultiPartCLs[1]}},
+		},
+
+		////////////////////////////////
+		// Tests for multi part CLs.
+
+		// len(curCLs) > len(prevCLsMap).
+		// And the CLs in curCLs have different topics.
+		testCase{
+			prevCLsMap: clRefMap{multiPartCLs[0].Ref: multiPartCLs[0]},
+			curCLs:     clList{multiPartCLs[0], multiPartCLs[2]},
+			expected:   []clList{},
+		},
+		// len(curCLs) > len(prevCLsMap).
+		// And the CLs in curCLs form a complete multi part cls set.
+		testCase{
+			prevCLsMap: clRefMap{multiPartCLs[0].Ref: multiPartCLs[0]},
+			curCLs:     clList{multiPartCLs[0], multiPartCLs[1]},
+			expected:   []clList{clList{multiPartCLs[0], multiPartCLs[1]}},
+		},
+		// len(curCLs) == len(prevCLsMap).
+		// And cl[6] has a larger patchset than multiPartCLs[4] with identical cl number.
+		testCase{
+			prevCLsMap: clRefMap{
+				multiPartCLs[0].Ref: multiPartCLs[0],
+				multiPartCLs[1].Ref: multiPartCLs[1],
+			},
+			curCLs:   clList{multiPartCLs[0], multiPartCLs[3]},
+			expected: []clList{clList{multiPartCLs[0], multiPartCLs[3]}},
+		},
+
+		////////////////////////////////
+		// Tests for mixed.
+		testCase{
+			prevCLsMap: clRefMap{
+				multiPartCLs[0].Ref: multiPartCLs[0],
+				multiPartCLs[1].Ref: multiPartCLs[1],
+			},
+			curCLs: clList{nonMultiPartCLs[0], multiPartCLs[0], multiPartCLs[3]},
+			expected: []clList{
+				clList{nonMultiPartCLs[0]},
+				clList{multiPartCLs[0], multiPartCLs[3]},
+			},
 		},
 	}
 
-	// Both prevRefs and curQueryResults are empty.
-	prevRefs := map[string]bool{}
-	curQueryResults := []gerrit.QueryResult{}
-	got := newOpenCLs(prevRefs, curQueryResults)
-	expected := []gerrit.QueryResult{}
-	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
+	for index, test := range testCases {
+		got := newOpenCLs(ctx, test.prevCLsMap, test.curCLs)
+		if !reflect.DeepEqual(test.expected, got) {
+			t.Fatalf("case %d: want: %v, got: %v", index, test.expected, got)
+		}
 	}
+}
 
-	// prevRefs is empty, curQueryResults is not.
-	curQueryResults = []gerrit.QueryResult{
-		queryResults[0],
-		queryResults[1],
+func TestSendCLListsToPresubmitTest(t *testing.T) {
+	clLists := []clList{
+		clList{
+			genCL(1000, 1, "veyron.js"),
+		},
+		clList{
+			genMultiPartCL(1001, 1, "veyron.js", "t", 1, 2),
+			genMultiPartCL(1002, 1, "veyron.go.core", "t", 2, 2),
+		},
 	}
-	got = newOpenCLs(prevRefs, curQueryResults)
-	expected = []gerrit.QueryResult{
-		queryResults[0],
-		queryResults[1],
-	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
-	}
+	var buf bytes.Buffer
+	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false)
+	skipMultiPartCLs = false
+	numSentCLs := sendCLListsToPresubmitTest(ctx, clLists, nil,
+		// Mock out the removeOutdatedBuilds function.
+		func(ctx *util.Context, cls clNumberToPatchsetMap) {},
 
-	// prevRefs is not empty, curQueryResults is.
-	prevRefs = map[string]bool{
-		queryResults[0].Ref: true,
-	}
-	curQueryResults = []gerrit.QueryResult{}
-	got = newOpenCLs(prevRefs, curQueryResults)
-	expected = []gerrit.QueryResult{}
-	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
-	}
+		// Mock out the addPresubmitTestBuild function.
+		// It will return error for the first clList.
+		func(cls clList) error {
+			if reflect.DeepEqual(cls, clLists[0]) {
+				return fmt.Errorf("err\n")
+			} else {
+				return nil
+			}
+		},
+	)
 
-	// prevRefs and curQueryResults are not empty, and they have overlapping refs.
-	prevRefs = map[string]bool{
-		queryResults[0].Ref: true,
-		queryResults[1].Ref: true,
+	// Check output and return value.
+	expectedOutput := `[VEYRON PRESUBMIT] FAIL: Add http://go/vcl/1000/1
+[VEYRON PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:veyron.js ChangeID: MultiPart:<nil>}]) failed: err
+[VEYRON PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
+`
+	if got := buf.String(); expectedOutput != got {
+		t.Fatalf("output: want:\n%v\n, got:\n%v", expectedOutput, got)
 	}
-	curQueryResults = []gerrit.QueryResult{
-		queryResults[1],
-		queryResults[2],
-	}
-	got = newOpenCLs(prevRefs, curQueryResults)
-	expected = []gerrit.QueryResult{
-		queryResults[2],
-	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
-	}
-
-	// prevRefs and curQueryResults are not empty, and they have NO overlapping refs.
-	prevRefs = map[string]bool{
-		queryResults[0].Ref: true,
-	}
-	curQueryResults = []gerrit.QueryResult{
-		queryResults[1],
-	}
-	got = newOpenCLs(prevRefs, curQueryResults)
-	expected = []gerrit.QueryResult{
-		queryResults[1],
-	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %v, got: %v", expected, got)
+	if expected := 2; expected != numSentCLs {
+		t.Fatalf("numSentCLs: want %d, got %d", expected, numSentCLs)
 	}
 }
 
@@ -149,7 +311,7 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 	"items" : [
 	  {
 			"id": 10,
-			"params": "\nREPO=veyron.js\nREF=refs/changes/78/4778/1",
+			"params": "\nREPO=veyron.js veyron.go.core\nREF=refs/changes/78/4778/1:refs/changes/50/4750/2",
 			"task" : {
 				"name": "veyron-presubmit-test"
 			}
@@ -171,44 +333,65 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 }
 	`
 	type testCase struct {
-		cl       int
-		patchset int
+		cls      clNumberToPatchsetMap
 		expected []queuedItem
 	}
 	testCases := []testCase{
-		// Matching CL with larger patchset.
+		// A single matching CL with larger patchset.
 		testCase{
-			cl:       4799,
-			patchset: 3,
+			cls: clNumberToPatchsetMap{4799: 3},
 			expected: []queuedItem{queuedItem{
 				id:  20,
 				ref: "refs/changes/99/4799/2",
 			}},
 		},
-		// Matching CL with equal patchset.
+		// A single matching CL with equal patchset.
 		testCase{
-			cl:       4799,
-			patchset: 2,
+			cls: clNumberToPatchsetMap{4799: 2},
 			expected: []queuedItem{queuedItem{
 				id:  20,
 				ref: "refs/changes/99/4799/2",
 			}},
 		},
-		// Matching CL with smaller patchset.
+		// A single matching CL with smaller patchset.
 		testCase{
-			cl:       4799,
-			patchset: 1,
+			cls:      clNumberToPatchsetMap{4799: 1},
 			expected: []queuedItem{},
 		},
 		// Non-matching cl.
 		testCase{
-			cl:       1234,
-			patchset: 1,
+			cls:      clNumberToPatchsetMap{1234: 1},
+			expected: []queuedItem{},
+		},
+		// Matching multi part CLs, with one equal patchset and one smaller patch set.
+		testCase{
+			cls:      clNumberToPatchsetMap{4778: 1, 4750: 1},
+			expected: []queuedItem{},
+		},
+		// Matching multi part CLs, with equal patchset for both
+		testCase{
+			cls: clNumberToPatchsetMap{4778: 1, 4750: 2},
+			expected: []queuedItem{queuedItem{
+				id:  10,
+				ref: "refs/changes/78/4778/1:refs/changes/50/4750/2",
+			}},
+		},
+		// Matching multi part CLs, with larger patchset for both
+		testCase{
+			cls: clNumberToPatchsetMap{4778: 3, 4750: 4},
+			expected: []queuedItem{queuedItem{
+				id:  10,
+				ref: "refs/changes/78/4778/1:refs/changes/50/4750/2",
+			}},
+		},
+		// Try to match multi part CLs, but one cl number doesn't match.
+		testCase{
+			cls:      clNumberToPatchsetMap{4778: 3, 4751: 4},
 			expected: []queuedItem{},
 		},
 	}
 	for _, test := range testCases {
-		got, errs := queuedOutdatedBuilds(strings.NewReader(response), test.cl, test.patchset)
+		got, errs := queuedOutdatedBuilds(strings.NewReader(response), test.cls)
 		if len(errs) != 0 {
 			t.Fatalf("want no errors, got: %v", errs)
 		}
@@ -219,7 +402,7 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 }
 
 func TestOngoingOutdatedBuilds(t *testing.T) {
-	response := `
+	nonMultiPartResponse := `
 	{
 		"actions": [
 			{
@@ -239,50 +422,155 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 		"number": 1234
 	}
 	`
+	multiPartResponse := `
+	{
+		"actions": [
+			{
+				"parameters": [
+				  {
+						"name": "REPO",
+						"value": "veyron.js veyron.go.core"
+					},
+					{
+						"name": "REF",
+						"value": "refs/changes/00/5400/2:refs/changes/96/5396/3"
+					}
+				]
+			}
+		],
+		"building": true,
+		"number": 2014
+	}
+	`
 	type testCase struct {
-		cl       int
-		patchset int
+		cls      clNumberToPatchsetMap
+		input    string
 		expected ongoingBuild
 	}
+	nonMultiPartBuild := ongoingBuild{
+		buildNumber: 1234,
+		ref:         "refs/changes/96/5396/3",
+	}
+	multiPartBuild := ongoingBuild{
+		buildNumber: 2014,
+		ref:         "refs/changes/00/5400/2:refs/changes/96/5396/3",
+	}
+	invalidBuild := ongoingBuild{buildNumber: -1}
 	testCases := []testCase{
-		// Matching CL with larger patchset.
+		// A single matching CL with larger patchset.
 		testCase{
-			cl:       5396,
-			patchset: 4,
-			expected: ongoingBuild{
-				buildNumber: 1234,
-				ref:         "refs/changes/96/5396/3",
-			},
+			cls:      clNumberToPatchsetMap{5396: 4},
+			input:    nonMultiPartResponse,
+			expected: nonMultiPartBuild,
 		},
-		// Matching CL with equal patchset.
+		// A single matching CL with equal patchset.
 		testCase{
-			cl:       5396,
-			patchset: 3,
-			expected: ongoingBuild{
-				buildNumber: 1234,
-				ref:         "refs/changes/96/5396/3",
-			},
+			cls:      clNumberToPatchsetMap{5396: 3},
+			input:    nonMultiPartResponse,
+			expected: nonMultiPartBuild,
 		},
-		// Matching CL with smaller patchset.
+		// A single matching CL with smaller patchset.
 		testCase{
-			cl:       5396,
-			patchset: 2,
-			expected: ongoingBuild{buildNumber: -1},
+			cls:      clNumberToPatchsetMap{5396: 2},
+			input:    nonMultiPartResponse,
+			expected: invalidBuild,
 		},
 		// Non-matching CL.
 		testCase{
-			cl:       1999,
-			patchset: 2,
-			expected: ongoingBuild{buildNumber: -1},
+			cls:      clNumberToPatchsetMap{1999: 2},
+			input:    nonMultiPartResponse,
+			expected: invalidBuild,
+		},
+		// Matching multi part CLs, with one equal patchset and one smaller patch set.
+		testCase{
+			cls:      clNumberToPatchsetMap{5400: 2, 5396: 2},
+			input:    multiPartResponse,
+			expected: invalidBuild,
+		},
+		// Matching multi part CLs, with equal patchset for both
+		testCase{
+			cls:      clNumberToPatchsetMap{5400: 2, 5396: 3},
+			input:    multiPartResponse,
+			expected: multiPartBuild,
+		},
+		// Matching multi part CLs, with larger patchset for both
+		testCase{
+			cls:      clNumberToPatchsetMap{5400: 3, 5396: 4},
+			input:    multiPartResponse,
+			expected: multiPartBuild,
+		},
+		// Try to match multi part CLs, but one cl number doesn't match.
+		testCase{
+			cls:      clNumberToPatchsetMap{5400: 3, 8399: 4},
+			input:    multiPartResponse,
+			expected: invalidBuild,
 		},
 	}
 	for _, test := range testCases {
-		got, err := ongoingOutdatedBuild(strings.NewReader(response), test.cl, test.patchset)
+		got, err := ongoingOutdatedBuild(strings.NewReader(test.input), test.cls)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}
 		if !reflect.DeepEqual(test.expected, got) {
 			t.Fatalf("want %v, got %v", test.expected, got)
+		}
+	}
+}
+
+func TestIsBuildOutdated(t *testing.T) {
+	type testCase struct {
+		refs     string
+		cls      clNumberToPatchsetMap
+		outdated bool
+	}
+	testCases := []testCase{
+		// Builds with a single ref.
+		testCase{
+			refs:     "refs/changes/10/1000/2",
+			cls:      clNumberToPatchsetMap{1000: 2},
+			outdated: true,
+		},
+		testCase{
+			refs:     "refs/changes/10/1000/2",
+			cls:      clNumberToPatchsetMap{1000: 1},
+			outdated: false,
+		},
+
+		// Builds with multiple refs.
+		//
+		// One of the cl numbers doesn't match.
+		testCase{
+			refs:     "refs/changes/10/1000/2:refs/changes/10/2000/2",
+			cls:      clNumberToPatchsetMap{1001: 2, 2000: 2},
+			outdated: false,
+		},
+		// Both patchsets in "cls" are smaller.
+		testCase{
+			refs:     "refs/changes/10/1000/2:refs/changes/10/2000/2",
+			cls:      clNumberToPatchsetMap{1000: 1, 2000: 1},
+			outdated: false,
+		},
+		// One of the patchsets in "cls" is larger than the one in "refs".
+		testCase{
+			refs:     "refs/changes/10/1000/2:refs/changes/10/2000/2",
+			cls:      clNumberToPatchsetMap{1000: 3, 2000: 2},
+			outdated: true,
+		},
+		// Both patchsets in "cls" are the same as the ones in "refs".
+		testCase{
+			refs:     "refs/changes/10/1000/2:refs/changes/10/2000/2",
+			cls:      clNumberToPatchsetMap{1000: 2, 2000: 2},
+			outdated: true,
+		},
+	}
+
+	for _, test := range testCases {
+		outdated, err := isBuildOutdated(test.refs, test.cls)
+		if err != nil {
+			t.Fatalf("want no errors, got: %v", err)
+		}
+		if expected, got := test.outdated, outdated; expected != got {
+			t.Fatalf("want %v, got %v", expected, got)
 		}
 	}
 }
@@ -332,5 +620,26 @@ func TestParseRefString(t *testing.T) {
 				t.Fatalf("want %v, got %v", test.expectedPatchSet, patchset)
 			}
 		}
+	}
+}
+
+func genCL(clNumber, patchset int, repo string) gerrit.QueryResult {
+	return gerrit.QueryResult{
+		Ref:      fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
+		Repo:     repo,
+		ChangeID: "",
+	}
+}
+
+func genMultiPartCL(clNumber, patchset int, repo, topic string, index, total int) gerrit.QueryResult {
+	return gerrit.QueryResult{
+		Ref:      fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
+		Repo:     repo,
+		ChangeID: "",
+		MultiPart: &gerrit.MultiPartCLInfo{
+			Topic: topic,
+			Index: index,
+			Total: total,
+		},
 	}
 }
