@@ -167,11 +167,11 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 			c.Failures = append(c.Failures, f)
 			allPassed = false
 			s.Failures++
-			s.Tests++
-			s.Cases = append(s.Cases, c)
 		case testPassed:
 			fmt.Fprintf(ctx.Stdout(), "%s ... ok\n", result.pkg)
 		}
+		s.Tests++
+		s.Cases = append(s.Cases, c)
 		suites = append(suites, s)
 	}
 	close(taskResults)
