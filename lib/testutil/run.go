@@ -77,7 +77,7 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"veyron-javascript-build-extension":     VeyronJSBuildExtension,
 	"veyron-javascript-build-nacl-compiler": VeyronJSBuildNaClCompiler,
 	"veyron-javascript-doc":                 VeyronJSDoc,
-	"veyron-javascript-test-intergration":   VeyronJSIntegrationTest,
+	"veyron-javascript-test-integration":    VeyronJSIntegrationTest,
 	"veyron-javascript-test-unit":           VeyronJSUnitTest,
 	"veyron-javascript-vdl":                 VeyronJSVdlTest,
 	"veyron-javascript-vom":                 VeyronJSVomTest,
