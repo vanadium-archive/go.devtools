@@ -143,6 +143,20 @@ func VeyronJSUnitTest(ctx *util.Context, testName string) (*TestResult, error) {
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
+// VeyronJSVdlTest runs the veyron javascript vdl test.
+func VeyronJSVdlTest(ctx *util.Context, testName string) (*TestResult, error) {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return nil, err
+	}
+	testDir := filepath.Join(root, "veyron.js")
+	target := "test-vdl"
+	env := map[string]string{}
+	env["TAP"] = "true"
+	env["NODE_OUTPUT"] = "vdl_test.tap"
+	return runJSTest(ctx, testName, testDir, target, nil, env)
+}
+
 // VeyronJSVomTest runs the veyron javascript vom test.
 func VeyronJSVomTest(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
