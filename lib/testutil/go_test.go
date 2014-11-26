@@ -181,7 +181,7 @@ var (
 func TestGoBuild(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := goBuild(ctx, testName, nil, []string{pkgName}, nil)
+	result, err := goBuild(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -208,7 +208,7 @@ func TestGoBuild(t *testing.T) {
 func TestGoCoverage(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := goCoverage(ctx, testName, nil, []string{pkgName}, nil)
+	result, err := goCoverage(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -249,7 +249,7 @@ func TestGoCoverage(t *testing.T) {
 func TestGoTest(t *testing.T) {
 	defer setupTempHome(t)()
 	ctx, testName, pkgName := util.DefaultContext(), "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := goTest(ctx, testName, nil, []string{pkgName}, nil)
+	result, err := goTest(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

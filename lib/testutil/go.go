@@ -35,8 +35,45 @@ type buildResult struct {
 	time   time.Duration
 }
 
+type goBuildOpt interface {
+	goBuildOpt()
+}
+
+type goCoverageOpt interface {
+	goCoverageOpt()
+}
+
+type goTestOpt interface {
+	goTestOpt()
+}
+
+type argsOpt []string
+type profilesOpt []string
+type timeoutOpt string
+
+func (argsOpt) goBuildOpt()    {}
+func (argsOpt) goCoverageOpt() {}
+func (argsOpt) goTestOpt()     {}
+
+func (profilesOpt) goBuildOpt()    {}
+func (profilesOpt) goCoverageOpt() {}
+func (profilesOpt) goTestOpt()     {}
+
+func (timeoutOpt) goCoverageOpt() {}
+func (timeoutOpt) goTestOpt()     {}
+
 // goBuild is a helper function for running Go builds.
-func goBuild(ctx *util.Context, testName string, args, pkgs, profiles []string) (*TestResult, error) {
+func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (*TestResult, error) {
+	args, profiles := []string{}, []string{}
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case argsOpt:
+			args = []string(typedOpt)
+		case profilesOpt:
+			profiles = []string(typedOpt)
+		}
+	}
+
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
@@ -139,7 +176,20 @@ type coverageResult struct {
 const defaultTestCoverageTimeout = "5m"
 
 // goCoverage is a helper function for running Go coverage tests.
-func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []string) (*TestResult, error) {
+func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCoverageOpt) (*TestResult, error) {
+	timeout := defaultTestCoverageTimeout
+	args, profiles := []string{}, []string{}
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case timeoutOpt:
+			timeout = string(typedOpt)
+		case argsOpt:
+			args = []string(typedOpt)
+		case profilesOpt:
+			profiles = []string(typedOpt)
+		}
+	}
+
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
@@ -174,7 +224,7 @@ func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []strin
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan coverageResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go coverageWorker(args, tasks, taskResults)
+		go coverageWorker(timeout, args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -261,7 +311,7 @@ func goCoverage(ctx *util.Context, testName string, args, pkgs, profiles []strin
 }
 
 // coverageWorker generates test coverage.
-func coverageWorker(args []string, pkgs <-chan string, results chan<- coverageResult) {
+func coverageWorker(timeout string, args []string, pkgs <-chan string, results chan<- coverageResult) {
 	for pkg := range pkgs {
 		// Compute the test coverage.
 		var out bytes.Buffer
@@ -271,7 +321,7 @@ func coverageWorker(args []string, pkgs <-chan string, results chan<- coverageRe
 		}
 		args := append([]string{
 			"go", "test", "-cover", "-coverprofile",
-			coverageFile.Name(), "-timeout", defaultTestCoverageTimeout, "-v",
+			coverageFile.Name(), "-timeout", timeout, "-v",
 		}, args...)
 		args = append(args, pkg)
 		cmd := exec.Command("veyron", args...)
@@ -322,7 +372,20 @@ type testResult struct {
 const defaultTestTimeout = "5m"
 
 // goTest is a helper function for running Go tests.
-func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (*TestResult, error) {
+func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (*TestResult, error) {
+	timeout := defaultTestTimeout
+	args, profiles := []string{}, []string{}
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case timeoutOpt:
+			timeout = string(typedOpt)
+		case argsOpt:
+			args = []string(typedOpt)
+		case profilesOpt:
+			profiles = []string(typedOpt)
+		}
+	}
+
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
@@ -351,7 +414,7 @@ func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan testResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go testWorker(args, tasks, taskResults)
+		go testWorker(timeout, args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -412,11 +475,11 @@ func goTest(ctx *util.Context, testName string, args, pkgs, profiles []string) (
 }
 
 // testWorker tests packages.
-func testWorker(args []string, pkgs <-chan string, results chan<- testResult) {
+func testWorker(timeout string, args []string, pkgs <-chan string, results chan<- testResult) {
 	for pkg := range pkgs {
 		// Run the test.
 		var out bytes.Buffer
-		args := append([]string{"go", "test", "-timeout", defaultTestTimeout, "-v"}, args...)
+		args := append([]string{"go", "test", "-timeout", timeout, "-v"}, args...)
 		args = append(args, pkg)
 		cmd := exec.Command("veyron", args...)
 		cmd.Stdout = &out
@@ -589,7 +652,7 @@ func getListenerPID(ctx *util.Context, port string) (int, error) {
 // ThirdPartyGoBuild runs Go build for third-party projects.
 func ThirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"code.google.com/...", "github.com/..."}
-	return goBuild(ctx, testName, nil, pkgs, nil)
+	return goBuild(ctx, testName, pkgs)
 }
 
 // ThirdPartyGoTest runs Go tests for the third-party projects.
@@ -598,9 +661,9 @@ func ThirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	args := []string{"-run", "[^(TestTestmainPackage)]"}
 	pkgs := []string{"code.google.com/...", "github.com/..."}
-	return goTest(ctx, testName, args, pkgs, nil)
+	args := argsOpt([]string{"-run", "[^(TestTestmainPackage)]"})
+	return goTest(ctx, testName, pkgs, args)
 }
 
 // ThirdPartyGoRace runs Go data-race tests for third-party projects.
@@ -609,32 +672,32 @@ func ThirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	args := []string{"-race", "-run", "[^(TestTestmainPackage)]"}
 	pkgs := []string{"code.google.com/...", "github.com/..."}
-	return goTest(ctx, testName, args, pkgs, nil)
+	args := argsOpt([]string{"-race", "-run", "[^(TestTestmainPackage)]"})
+	return goTest(ctx, testName, pkgs, args)
 }
 
 // VeyronGoBench runs Go benchmarks for veyron projects.
 func VeyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
-	args := []string{"-tags", "veyronbluetooth", "-bench", ".", "-run", "XXX"}
 	pkgs := []string{"veyron.io/..."}
-	profiles := []string{"proximity"}
-	return goTest(ctx, testName, args, pkgs, profiles)
+	args := argsOpt([]string{"-tags", "veyronbluetooth", "-bench", ".", "-run", "XXX"})
+	profiles := profilesOpt([]string{"proximity"})
+	return goTest(ctx, testName, pkgs, args, profiles)
 }
 
 // VeyronGoBuild runs Go build for the veyron projects.
 func VeyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	args := []string{"-tags", "veyronbluetooth"}
 	pkgs := []string{"veyron.io/..."}
-	profiles := []string{"proximity"}
-	return goBuild(ctx, testName, args, pkgs, profiles)
+	args := argsOpt([]string{"-tags", "veyronbluetooth"})
+	profiles := profilesOpt([]string{"proximity"})
+	return goBuild(ctx, testName, pkgs, args, profiles)
 }
 
 // VeyronGoCoverage runs Go coverage tests for veyron projects.
 func VeyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
-	profiles := []string{"proximity"}
-	return goCoverage(ctx, testName, nil, pkgs, profiles)
+	profiles := profilesOpt([]string{"proximity"})
+	return goCoverage(ctx, testName, pkgs, profiles)
 }
 
 // VeyronGoDoc (re)starts the godoc server for veyron projects.
@@ -701,16 +764,17 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 
 // VeyronGoTest runs Go tests for veyron projects.
 func VeyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	args := []string{"-tags", "veyronbluetooth"}
 	pkgs := []string{"veyron.io/..."}
-	profiles := []string{"proximity"}
-	return goTest(ctx, testName, args, pkgs, profiles)
+	args := argsOpt([]string{"-tags", "veyronbluetooth"})
+	profiles := profilesOpt([]string{"proximity"})
+	return goTest(ctx, testName, pkgs, args, profiles)
 }
 
 // VeyronGoRace runs Go data-race tests for veyron projects.
 func VeyronGoRace(ctx *util.Context, testName string) (*TestResult, error) {
-	args := []string{"-race", "-tags", "veyronbluetooth"}
 	pkgs := []string{"veyron.io/..."}
-	profiles := []string{"proximity"}
-	return goTest(ctx, testName, args, pkgs, profiles)
+	args := argsOpt([]string{"-race", "-tags", "veyronbluetooth"})
+	profiles := profilesOpt([]string{"proximity"})
+	timeout := timeoutOpt("7m")
+	return goTest(ctx, testName, pkgs, timeout, args, profiles)
 }
