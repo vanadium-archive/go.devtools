@@ -34,8 +34,7 @@
             "veyron-javascript-test-integration",
             "veyron-browser-test",
             "veyron-integration-test",
-            "veyron-javascript-build-extension",
-            "veyron-tutorial"
+            "veyron-javascript-build-extension"
         ],
         "https://veyron.googlesource.com/veyron.go.lib": [
             "veyron-go-build",
