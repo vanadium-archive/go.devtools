@@ -3,6 +3,7 @@ package testutil
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"veyron.io/tools/lib/util"
@@ -60,7 +61,6 @@ var testMock = func(*util.Context, string) (*TestResult, error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// TODO(jsimsa): Only define "ignore-this" in tests.
 var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"ignore-this":                           testMock,
 	"third_party-go-build":                  ThirdPartyGoBuild,
@@ -165,7 +165,9 @@ func RunTests(ctx *util.Context, tests []string) (map[string]*TestResult, error)
 func TestList() []string {
 	result := []string{}
 	for name := range testFunctions {
-		result = append(result, name)
+		if !strings.HasPrefix(name, "ignore") {
+			result = append(result, name)
+		}
 	}
 	sort.Strings(result)
 	return result

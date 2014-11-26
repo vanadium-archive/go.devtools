@@ -12,10 +12,6 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// TODO(jsimsa): Move the Veyron* functions and the testFunctions map
-// from the testutil package into this package, keeping only the
-// shared test harnesses in the testutil package.
-
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
