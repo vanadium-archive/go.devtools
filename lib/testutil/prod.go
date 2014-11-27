@@ -85,7 +85,7 @@ type prodService struct {
 // VeyronProdServicesTest runs a test of veyron production services.
 func VeyronProdServicesTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
