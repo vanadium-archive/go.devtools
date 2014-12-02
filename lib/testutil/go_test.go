@@ -95,8 +95,8 @@ func suitesMatch(ss1, ss2 testSuites) bool {
 
 // setupTempHome sets up a temporary HOME directory to which the tests
 // will generate their temporary files.
-func setupTempHome(t *testing.T) func() {
-	workDir, err := ioutil.TempDir("", "")
+func setupTempHome(t *testing.T, ctx *util.Context) func() {
+	workDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
@@ -179,8 +179,10 @@ var (
 
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
-	defer setupTempHome(t)()
-	ctx, testName, pkgName := util.DefaultContext(), "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
+	ctx := util.DefaultContext()
+
+	defer setupTempHome(t, ctx)()
+	testName, pkgName := "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
 	result, err := goBuild(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -206,8 +208,10 @@ func TestGoBuild(t *testing.T) {
 
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
-	defer setupTempHome(t)()
-	ctx, testName, pkgName := util.DefaultContext(), "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
+	ctx := util.DefaultContext()
+
+	defer setupTempHome(t, ctx)()
+	testName, pkgName := "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
 	result, err := goCoverage(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -247,8 +251,10 @@ func TestGoCoverage(t *testing.T) {
 
 // TestGoTest checks the Go test based test logic.
 func TestGoTest(t *testing.T) {
-	defer setupTempHome(t)()
-	ctx, testName, pkgName := util.DefaultContext(), "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
+	ctx := util.DefaultContext()
+
+	defer setupTempHome(t, ctx)()
+	testName, pkgName := "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
 	result, err := goTest(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)

@@ -142,7 +142,7 @@ func VeyronProdServicesTest(ctx *util.Context, testName string) (*TestResult, er
 	}
 
 	// Create the xUnit report.
-	if err := createXUnitReport(testName, suites); err != nil {
+	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {

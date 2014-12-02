@@ -30,6 +30,7 @@ type Run struct {
 }
 
 type Opts struct {
+	DryRun  bool
 	Env     map[string]string
 	Stdin   io.Reader
 	Stdout  io.Writer
@@ -38,10 +39,11 @@ type Opts struct {
 }
 
 // New is the Run factory.
-func New(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, verbose bool) *Run {
+func New(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, dryRun, verbose bool) *Run {
 	return &Run{
 		indent: 0,
 		opts: Opts{
+			DryRun:  dryRun,
 			Env:     env,
 			Stdin:   stdin,
 			Stdout:  stdout,
@@ -83,7 +85,7 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 	command.Stdout = opts.Stdout
 	command.Stderr = opts.Stderr
 	command.Env = envutil.ToSlice(opts.Env)
-	if opts.Verbose {
+	if opts.Verbose || opts.DryRun {
 		args := []string{}
 		for _, arg := range command.Args {
 			// Quote any arguments that contain '"', ''', or ' '.
@@ -95,7 +97,10 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 		}
 		r.printf(r.opts.Stdout, strings.Join(args, " "))
 	}
-
+	if opts.DryRun {
+		r.printf(r.opts.Stdout, "OK")
+		return nil
+	}
 	if timeout == 0 {
 		// No timeout.
 		var err error
@@ -110,11 +115,17 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 		}
 		return err
 	}
-	// Has timeout.
+	return r.timedCommand(timeout, opts, command)
+}
+
+// timedCommand executes the given command, terminating it forcefully
+// if it is still running after the given timeout elapses.
+func (r *Run) timedCommand(timeout time.Duration, opts Opts, command *exec.Cmd) error {
 	// Make the process of this command a new process group leader
 	// to facilitate clean up of processes that time out.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	// Kill this process group explicitly when receiving SIGTERM or SIGINT signals.
+	// Kill this process group explicitly when receiving SIGTERM
+	// or SIGINT signals.
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
@@ -134,7 +145,6 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 	select {
 	case <-time.After(timeout):
 		// The command has timed out.
-		// Kill itself and its children.
 		r.terminateProcessGroup(command)
 		// Allow goroutine to exit.
 		<-done
@@ -154,7 +164,6 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 		}
 		return err
 	}
-
 	return nil
 }
 

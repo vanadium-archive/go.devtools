@@ -13,15 +13,17 @@ import (
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/gitutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 	"veyron.io/tools/lib/version"
 )
+
+const commitMessageFile = ".gerrit_commit_message"
 
 var (
 	ccsFlag         string
 	currentFlag     bool
 	draftFlag       bool
+	dryRunFlag      bool
 	forceFlag       bool
 	depcopFlag      bool
 	gofmtFlag       bool
@@ -35,6 +37,7 @@ var (
 // init carries out the package initialization.
 func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdCleanup.Flags.BoolVar(&forceFlag, "f", false, "Ignore unmerged changes.")
 	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
@@ -122,7 +125,7 @@ func cleanupBranch(ctx *util.Context, branch string) error {
 		// the master, when there are no differences
 		// or the only difference is the gerrit commit
 		// message file.
-		if len(files) != 0 && (len(files) != 1 || files[0] != ".gerrit_commit_message") {
+		if len(files) != 0 && (len(files) != 1 || files[0] != commitMessageFile) {
 			return fmt.Errorf("unmerged changes in\n%s", strings.Join(files, "\n"))
 		}
 	}
@@ -145,7 +148,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("cleanup requires at least one argument")
 	}
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	return cleanup(ctx, args)
 }
 
@@ -240,7 +243,7 @@ var defaultMessageHeader = `
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	edit, repo := true, ""
 	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag)
 	if err != nil {
@@ -305,12 +308,12 @@ func (r *review) checkGoFormat() error {
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer os.Chdir(wd)
+	defer r.ctx.Run().Chdir(wd)
 	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return err
 	}
-	if err := r.ctx.Run().Function(runutil.Chdir(topLevel)); err != nil {
+	if err := r.ctx.Run().Chdir(topLevel); err != nil {
 		return err
 	}
 	ill := make([]string, 0)
@@ -394,7 +397,7 @@ func (r *review) createReviewBranch(message string) error {
 	if err := r.ctx.Git().CreateBranchWithUpstream(r.reviewBranch, upstream); err != nil {
 		return err
 	}
-	{
+	if !r.ctx.DryRun() {
 		hasDiff, err := r.ctx.Git().BranchesDiffer(r.branch, r.reviewBranch)
 		if err != nil {
 			return err
@@ -489,12 +492,12 @@ func (r *review) run() error {
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer os.Chdir(wd)
+	defer r.ctx.Run().Chdir(wd)
 	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return err
 	}
-	if err := r.ctx.Run().Function(runutil.Chdir(topLevel)); err != nil {
+	if err := r.ctx.Run().Chdir(topLevel); err != nil {
 		return err
 	}
 	defer r.cleanup(stashed)
@@ -519,8 +522,10 @@ func (r *review) run() error {
 
 // send sends the current branch out for review.
 func (r *review) send() error {
-	if err := r.ensureChangeID(); err != nil {
-		return err
+	if !r.ctx.DryRun() {
+		if err := r.ensureChangeID(); err != nil {
+			return err
+		}
 	}
 	if err := gerrit.Review(r.ctx, r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
 		return gerritError(err.Error())
@@ -542,7 +547,7 @@ func (r *review) updateReviewMessage(filename string) error {
 	if err := r.ctx.Git().CheckoutBranch(r.branch, !gitutil.Force); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filename, []byte(newMessage), 0644); err != nil {
+	if err := r.ctx.Run().WriteFile(filename, []byte(newMessage), 0644); err != nil {
 		return fmt.Errorf("WriteFile(%v, %v) failed: %v", filename, newMessage, err)
 	}
 	if err := r.ctx.Git().CommitFile(filename, "Update gerrit commit message."); err != nil {
@@ -572,7 +577,7 @@ func (r *review) getCommitMessageFilename() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(topLevel, ".gerrit_commit_message"), nil
+	return filepath.Join(topLevel, commitMessageFile), nil
 }
 
 // cmdStatus represents the 'status' command of the git-veyron tool.
@@ -589,7 +594,7 @@ indication of the status:
 }
 
 func runStatus(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err
@@ -605,12 +610,12 @@ func runStatus(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer os.Chdir(wd)
+	defer ctx.Run().Chdir(wd)
 	// Get the name of the current repository, if applicable.
 	currentRepo, _ := ctx.Git().RepoName()
 	var statuses []string
 	for _, name := range names {
-		if err := ctx.Run().Function(runutil.Chdir(projects[name].Path)); err != nil {
+		if err := ctx.Run().Chdir(projects[name].Path); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", projects[name].Path, err)
 		}
 		branch, err := ctx.Git().CurrentBranchName()

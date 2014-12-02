@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -29,7 +28,7 @@ var cmdProjectList = &cmdline.Command{
 
 // runProjectList generates a listing of local projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err
@@ -43,7 +42,7 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 		project := projects[name]
 		fmt.Fprintf(ctx.Stdout(), "project=%q path=%q\n", path.Base(name), project.Path)
 		if branchesFlag {
-			if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+			if err := ctx.Run().Chdir(project.Path); err != nil {
 				return err
 			}
 			branches, current := []string{}, ""
@@ -114,7 +113,7 @@ func runProjectPoll(command *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	update, err := util.PollProjects(ctx, manifestFlag, projectSet)
 	if err != nil {
 		return err

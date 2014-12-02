@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func createBuildCopFile(veyronRoot string, t *testing.T) {
+func createBuildCopFile(t *testing.T, ctx *Context, veyronRoot string) {
 	content := `<?xml version="1.0" ?>
 <rotation>
   <shift>
@@ -33,7 +33,7 @@ func createBuildCopFile(veyronRoot string, t *testing.T) {
 	}
 	dir := filepath.Dir(buildCopRotationsFile)
 	dirMode := os.FileMode(0700)
-	if err := os.MkdirAll(dir, dirMode); err != nil {
+	if err := ctx.Run().MkdirAll(dir, dirMode); err != nil {
 		t.Fatalf("MkdirAll(%q, %v) failed: %v", dir, dirMode, err)
 	}
 	fileMode := os.FileMode(0644)
@@ -43,13 +43,14 @@ func createBuildCopFile(veyronRoot string, t *testing.T) {
 }
 
 func TestBuildCop(t *testing.T) {
+	ctx := DefaultContext()
+
 	// Setup a fake VEYRON_ROOT.
-	dir, prefix := "", ""
-	tmpDir, err := ioutil.TempDir(dir, prefix)
+	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer ctx.Run().RemoveAll(tmpDir)
 	oldRoot, err := VeyronRoot()
 	if err := os.Setenv("VEYRON_ROOT", tmpDir); err != nil {
 		t.Fatalf("%v", err)
@@ -57,9 +58,7 @@ func TestBuildCop(t *testing.T) {
 	defer os.Setenv("VEYRON_ROOT", oldRoot)
 
 	// Create a buildcop.xml file.
-	createBuildCopFile(tmpDir, t)
-
-	ctx := DefaultContext()
+	createBuildCopFile(t, ctx, tmpDir)
 	type testCase struct {
 		targetTime       time.Time
 		expectedBuildCop string

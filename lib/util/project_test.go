@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"veyron.io/tools/lib/runutil"
 )
 
 func addRemote(t *testing.T, ctx *Context, localProject, name, remoteProject string) {
@@ -17,8 +15,8 @@ func addRemote(t *testing.T, ctx *Context, localProject, name, remoteProject str
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(localProject)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(localProject); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := ctx.Git().AddRemote(name, remoteProject); err != nil {
@@ -81,7 +79,7 @@ func createLocalManifestStub(t *testing.T, ctx *Context, rootDir string) {
 
 func createRemoteManifest(t *testing.T, ctx *Context, rootDir string, remotes []string) {
 	manifestDir, perm := filepath.Join(rootDir, "v1"), os.FileMode(0755)
-	if err := os.MkdirAll(manifestDir, perm); err != nil {
+	if err := ctx.Run().MkdirAll(manifestDir, perm); err != nil {
 		t.Fatalf("%v", err)
 	}
 	manifest := Manifest{}
@@ -109,8 +107,8 @@ func commitManifest(t *testing.T, ctx *Context, manifest *Manifest, manifestDir 
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(manifestDir)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(manifestDir); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := ctx.Git().CommitFile(manifestFile, "creating manifest"); err != nil {
@@ -138,8 +136,8 @@ func holdProjectBack(t *testing.T, ctx *Context, manifestDir, project string) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(project)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(project); err != nil {
 		t.Fatalf("%v", err)
 	}
 	revision, err := ctx.Git().LatestCommitID()
@@ -218,15 +216,15 @@ func remoteProjectName(i int) string {
 
 func setupNewProject(t *testing.T, ctx *Context, dir, name string) string {
 	projectDir, perm := filepath.Join(dir, name), os.FileMode(0755)
-	if err := ctx.Run().Function(runutil.MkdirAll(projectDir, perm)); err != nil {
+	if err := ctx.Run().MkdirAll(projectDir, perm); err != nil {
 		t.Fatalf("%v", err)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(projectDir)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(projectDir); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := ctx.Git().Init(projectDir); err != nil {
@@ -247,8 +245,8 @@ func writeReadme(t *testing.T, ctx *Context, projectDir, message string) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(projectDir)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(projectDir); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := ctx.Git().CommitFile(path, "creating README"); err != nil {
@@ -266,11 +264,11 @@ func TestUpdateUniverse(t *testing.T) {
 	// "remote" directory, which is ignored from the consideration
 	// of LocalProjects().
 	ctx := DefaultContext()
-	rootDir, err := ioutil.TempDir("", "")
+	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(rootDir)
+	defer ctx.Run().RemoveAll(rootDir)
 	remoteDir := filepath.Join(rootDir, "remote")
 	localManifest := setupNewProject(t, ctx, rootDir, ".manifest")
 	remoteManifest := setupNewProject(t, ctx, remoteDir, "test-remote-manifest")

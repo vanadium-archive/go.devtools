@@ -43,7 +43,9 @@ type Git struct {
 
 // New is the Git factory.
 func New(runner *runutil.Run) *Git {
-	return &Git{runner: runner}
+	return &Git{
+		runner: runner,
+	}
 }
 
 // Add adds a file to staging.
@@ -66,8 +68,8 @@ func (g *Git) BranchExists(branchName string) bool {
 }
 
 // BranchesDiffer tests whether two branches have any changes between them.
-func (g *Git) BranchesDiffer(branchName1, branchName2 string) (bool, error) {
-	out, err := g.runOutput("--no-pager", "diff", "-name-only", branchName1+".."+branchName2)
+func (g *Git) BranchesDiffer(branch1, branch2 string) (bool, error) {
+	out, err := g.runOutput("--no-pager", "diff", "-name-only", branch1+".."+branch2)
 	if err != nil {
 		return false, err
 	}
@@ -162,7 +164,7 @@ func (g *Git) CommitWithMessageAndEdit(message string) error {
 // Committers returns a list of committers for the current repository
 // along with the number of their commits.
 func (g *Git) Committers() ([]string, error) {
-	out, err := g.runOutput("shortlog", "-s", "-n")
+	out, err := g.runOutputWithOpts(g.disableDryRun(), "shortlog", "-s", "-n")
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +177,7 @@ func (g *Git) CountCommits(branch, base string) (int, error) {
 	if base != "" {
 		args = append(args, "^"+base)
 	}
-	out, err := g.runOutput(args...)
+	out, err := g.runOutputWithOpts(g.disableDryRun(), args...)
 	if err != nil {
 		return 0, err
 	}
@@ -208,7 +210,7 @@ func (g *Git) CreateBranchWithUpstream(branchName, upstream string) error {
 
 // CurrentBranchName returns the name of the current branch.
 func (g *Git) CurrentBranchName() (string, error) {
-	out, err := g.runOutput("rev-parse", "--abbrev-ref", "HEAD")
+	out, err := g.runOutputWithOpts(g.disableDryRun(), "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -248,7 +250,7 @@ func (g *Git) DeleteBranch(branchName string, force bool) error {
 // (e.g. --merged).
 func (g *Git) GetBranches(args ...string) ([]string, string, error) {
 	args = append([]string{"branch"}, args...)
-	out, err := g.runOutput(args...)
+	out, err := g.runOutputWithOpts(g.disableDryRun(), args...)
 	if err != nil {
 		return nil, "", err
 	}
@@ -304,7 +306,7 @@ func (g *Git) IsFileCommitted(file string) bool {
 
 // LatestCommitID returns the latest commit identifier for the current branch.
 func (g *Git) LatestCommitID() (string, error) {
-	out, err := g.runOutput("rev-parse", "HEAD")
+	out, err := g.runOutputWithOpts(g.disableDryRun(), "rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -430,7 +432,7 @@ func (g *Git) RemoveUntrackedFiles() error {
 
 // RepoName gets the name of the current repository.
 func (g *Git) RepoName() (string, error) {
-	out, err := g.runOutput("config", "--get", "remote.origin.url")
+	out, err := g.runOutputWithOpts(g.disableDryRun(), "config", "--get", "remote.origin.url")
 	if err != nil {
 		return "", err
 	}
@@ -485,7 +487,7 @@ func (g *Git) StashPop() error {
 
 // TopLevel returns the top level path of the current repository.
 func (g *Git) TopLevel() (string, error) {
-	out, err := g.runOutput("rev-parse", "--show-toplevel")
+	out, err := g.runOutputWithOpts(g.disableDryRun(), "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", err
 	}
@@ -504,7 +506,7 @@ func (g *Git) UntrackedFiles() ([]string, error) {
 
 // Version returns the major and minor git version.
 func (g *Git) Version() (int, int, error) {
-	out, err := g.runOutput("version")
+	out, err := g.runOutputWithOpts(g.disableDryRun(), "version")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -530,6 +532,18 @@ func (g *Git) Version() (int, int, error) {
 	return major, minor, nil
 }
 
+func (g *Git) disableDryRun() runutil.Opts {
+	opts := g.runner.Opts()
+	if opts.DryRun {
+		// Disable the dry run option as this function has no
+		// effect and doing so results in more informative
+		// "dry run" output.
+		opts.DryRun = false
+		opts.Verbose = true
+	}
+	return opts
+}
+
 func (g *Git) run(args ...string) error {
 	var stdout, stderr bytes.Buffer
 	opts := g.runner.Opts()
@@ -542,8 +556,11 @@ func (g *Git) run(args ...string) error {
 }
 
 func (g *Git) runOutput(args ...string) ([]string, error) {
+	return g.runOutputWithOpts(g.runner.Opts(), args...)
+}
+
+func (g *Git) runOutputWithOpts(opts runutil.Opts, args ...string) ([]string, error) {
 	var stdout, stderr bytes.Buffer
-	opts := g.runner.Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
 	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {

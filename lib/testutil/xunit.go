@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,13 +83,13 @@ func testSuiteFromGoTestOutput(ctx *util.Context, testOutput io.Reader) (*testSu
 
 // createXUnitReport generates an xUnit report using the given test
 // suites.
-func createXUnitReport(testName string, suites []testSuite) error {
+func createXUnitReport(ctx *util.Context, testName string, suites []testSuite) error {
 	result := testSuites{Suites: suites}
 	bytes, err := xml.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", result, err)
 	}
-	if err := ioutil.WriteFile(XUnitReportPath(testName), bytes, os.FileMode(0644)); err != nil {
+	if err := ctx.Run().WriteFile(XUnitReportPath(testName), bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", XUnitReportPath(testName), err)
 	}
 	return nil

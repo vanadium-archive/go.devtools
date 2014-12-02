@@ -49,7 +49,7 @@ var binPackages = []string{
 // buildBinaries builds Go binaries enumerated by the binPackages list.
 func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 	// Create a pool of workers.
-	fmt.Fprintf(ctx.Stdout(), "Building binaries...\n")
+	fmt.Fprintf(ctx.Stdout(), "building binaries...\n")
 	numPkgs := len(binPackages)
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan buildResult, numPkgs)
@@ -92,7 +92,7 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 
 	// Create the xUnit report.
 	close(taskResults)
-	if err := createXUnitReport(testName, suites); err != nil {
+	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {
@@ -102,7 +102,11 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 }
 
 // findTestScripts finds all test.sh file from the given root dirs.
-func findTestScripts(rootDirs []string) []string {
+func findTestScripts(ctx *util.Context, rootDirs []string) []string {
+	if ctx.DryRun() {
+		// In "dry run" mode, no test scripts are executed.
+		return nil
+	}
 	matchedFiles := []string{}
 	for _, rootDir := range rootDirs {
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
@@ -124,14 +128,14 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 	}
 
 	// Find all test.sh scripts.
-	testScripts := findTestScripts([]string{
+	testScripts := findTestScripts(ctx, []string{
 		filepath.Join(root, "veyron", "go", "src"),
 		filepath.Join(root, "roadmap", "go", "src"),
 	})
 
 	// Create a worker pool to run tests in parallel, passing the
 	// location of binaries through shell_test_BIN_DIR.
-	fmt.Fprintf(ctx.Stdout(), "Running tests...\n")
+	fmt.Fprintf(ctx.Stdout(), "running tests...\n")
 	numTests := len(testScripts)
 	tasks := make(chan string, numTests)
 	taskResults := make(chan testResult, numTests)
@@ -177,7 +181,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 	close(taskResults)
 
 	// Create the xUnit report.
-	if err := createXUnitReport(testName, suites); err != nil {
+	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {
@@ -190,7 +194,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 // them, and sends results to the <results> channel.
 func testScriptWorker(root string, env map[string]string, tasks <-chan string, results chan<- testResult) {
 	var out bytes.Buffer
-	ctx := util.NewContext(env, os.Stdin, &out, &out, false)
+	ctx := util.NewContext(env, os.Stdin, &out, &out, false, false)
 	for script := range tasks {
 		start := time.Now()
 		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, script)
@@ -225,6 +229,9 @@ func VeyronIntegrationTest(ctx *util.Context, testName string) (*TestResult, err
 	// Build all Go binaries used in intergartion test scripts and
 	// then run the integration tests. We pre-build the binaries
 	// used by multiple test scripts to speed things up.
+	if ctx.DryRun() {
+		binPackages = nil
+	}
 	result, err := buildBinaries(ctx, testName)
 	if err != nil {
 		return nil, err

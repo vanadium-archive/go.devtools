@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/testutil"
 	"veyron.io/tools/lib/util"
 )
@@ -75,7 +74,7 @@ func runSnapshotCreate(command *cmdline.Command, args []string) error {
 	if len(args) != 1 {
 		return command.UsageErrorf("unexpected number of arguments")
 	}
-	ctx, label := util.NewContextFromCommand(command, verboseFlag), args[0]
+	ctx, label := util.NewContextFromCommand(command, dryRunFlag, verboseFlag), args[0]
 
 	if !remoteFlag {
 		if err := checkSnapshotDir(ctx); err != nil {
@@ -137,7 +136,7 @@ func checkSnapshotDir(ctx *util.Context) error {
 			return err
 		}
 		createFn := func() error {
-			if err := ctx.Run().Function(runutil.MkdirAll(snapshotDir, 0755)); err != nil {
+			if err := ctx.Run().MkdirAll(snapshotDir, 0755); err != nil {
 				return err
 			}
 			if err := ctx.Git().Init(snapshotDir); err != nil {
@@ -147,8 +146,8 @@ func checkSnapshotDir(ctx *util.Context) error {
 			if err != nil {
 				return err
 			}
-			defer os.Chdir(cwd)
-			if err := ctx.Run().Function(runutil.Chdir(snapshotDir)); err != nil {
+			defer ctx.Run().Chdir(cwd)
+			if err := ctx.Run().Chdir(snapshotDir); err != nil {
 				return err
 			}
 			if err := ctx.Git().Commit(); err != nil {
@@ -157,7 +156,7 @@ func checkSnapshotDir(ctx *util.Context) error {
 			return nil
 		}
 		if err := createFn(); err != nil {
-			ctx.Run().Function(runutil.RemoveAll(snapshotDir))
+			ctx.Run().RemoveAll(snapshotDir)
 			return err
 		}
 	}
@@ -175,14 +174,14 @@ func createSnapshot(ctx *util.Context, snapshotDir, snapshotFile, label string) 
 	// latest snapshot.
 	symlink := filepath.Join(snapshotDir, label)
 	newSymlink := symlink + ".new"
-	if err := ctx.Run().Function(runutil.RemoveAll(newSymlink)); err != nil {
+	if err := ctx.Run().RemoveAll(newSymlink); err != nil {
 		return err
 	}
 	relativeSnapshotPath := strings.TrimPrefix(snapshotFile, snapshotDir+string(os.PathSeparator))
-	if err := ctx.Run().Function(runutil.Symlink(relativeSnapshotPath, newSymlink)); err != nil {
+	if err := ctx.Run().Symlink(relativeSnapshotPath, newSymlink); err != nil {
 		return err
 	}
-	if err := ctx.Run().Function(runutil.Rename(newSymlink, symlink)); err != nil {
+	if err := ctx.Run().Rename(newSymlink, symlink); err != nil {
 		return err
 	}
 
@@ -218,8 +217,8 @@ func revisionChanges(ctx *util.Context, snapshotDir, snapshotFile, label string)
 	if err != nil {
 		return err
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(snapshotDir)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(snapshotDir); err != nil {
 		return err
 	}
 	relativeSnapshotPath := strings.TrimPrefix(snapshotFile, snapshotDir+string(os.PathSeparator))

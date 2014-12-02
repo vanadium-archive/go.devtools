@@ -8,7 +8,6 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/gitutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 	"veyron.io/tools/lib/version"
 )
@@ -23,6 +22,7 @@ var (
 	platformFlag       string
 	numTestWorkersFlag int
 	verboseFlag        bool
+	dryRunFlag         bool
 	remoteFlag         bool
 )
 
@@ -33,6 +33,7 @@ func init() {
 	cmdGo.Flags.StringVar(&targetGo, "target_go", "go", "Go command for the target platform.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdSnapshot.Flags.BoolVar(&remoteFlag, "remote", false, "Manage remote snapshots.")
 	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
@@ -83,7 +84,7 @@ considered by default.
 }
 
 func runContributors(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err
@@ -104,7 +105,7 @@ func runContributors(command *cmdline.Command, args []string) error {
 		if !ok {
 			continue
 		}
-		if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+		if err := ctx.Run().Chdir(project.Path); err != nil {
 			return err
 		}
 		switch project.Protocol {

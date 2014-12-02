@@ -376,7 +376,7 @@ func inject(ctx *util.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 			beginOffset = patch.Offset
 		}
 		patchedSrc = append(patchedSrc, src[beginOffset:]...)
-		ioutil.WriteFile(filename, patchedSrc, 644)
+		ctx.Run().WriteFile(filename, patchedSrc, 644)
 	}
 
 	return gofmt(ctx, filesToFormat)

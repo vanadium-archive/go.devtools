@@ -130,7 +130,7 @@ func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildO
 	close(taskResults)
 
 	// Create the xUnit report.
-	if err := createXUnitReport(testName, suites); err != nil {
+	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {
@@ -287,21 +287,23 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 		}
 		if result.coverage != nil {
 			result.coverage.Close()
-			os.Remove(result.coverage.Name())
+			if err := ctx.Run().RemoveAll(result.coverage.Name()); err != nil {
+				return nil, err
+			}
 		}
 		suites = append(suites, s)
 	}
 	close(taskResults)
 
 	// Create the xUnit and cobertura reports.
-	if err := createXUnitReport(testName, suites); err != nil {
+	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	coverage, err := coverageFromGoTestOutput(ctx, &coverageData)
 	if err != nil {
 		return nil, err
 	}
-	if err := createCoberturaReport(testName, coverage); err != nil {
+	if err := createCoberturaReport(ctx, testName, coverage); err != nil {
 		return nil, err
 	}
 	if !allPassed {
@@ -359,7 +361,11 @@ func goList(ctx *util.Context, pkgs []string) ([]string, error) {
 		fmt.Fprintln(ctx.Stdout(), out.String())
 		return nil, err
 	}
-	return strings.Split(strings.TrimSpace(out.String()), "\n"), nil
+	cleanOut := strings.TrimSpace(out.String())
+	if cleanOut == "" {
+		return nil, nil
+	}
+	return strings.Split(cleanOut, "\n"), nil
 }
 
 type testResult struct {
@@ -465,7 +471,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	close(taskResults)
 
 	// Create the xUnit report.
-	if err := createXUnitReport(testName, suites); err != nil {
+	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {

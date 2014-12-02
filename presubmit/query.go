@@ -102,7 +102,7 @@ with test results.
 
 // runQuery implements the "query" subcommand.
 func runQuery(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	numSentCLs := 0
 	defer func() {
 		printf(ctx.Stdout(), "%d sent.\n", numSentCLs)
@@ -145,7 +145,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 	}
 
 	// Write current CLs to the log file.
-	err = writeLog(curCLs)
+	err = writeLog(ctx, curCLs)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func readLog() (clRefMap, error) {
 }
 
 // writeLog writes the refs of the given CLs to the log file.
-func writeLog(cls clList) error {
+func writeLog(ctx *util.Context, cls clList) error {
 	// Index CLs with their refs.
 	results := clRefMap{}
 	for _, cl := range cls {
@@ -257,7 +257,7 @@ func writeLog(cls clList) error {
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", results, err)
 	}
-	if err := ioutil.WriteFile(logFilePathFlag, bytes, os.FileMode(0644)); err != nil {
+	if err := ctx.Run().WriteFile(logFilePathFlag, bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%q) failed: %v", logFilePathFlag, err)
 	}
 	return nil

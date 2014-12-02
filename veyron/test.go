@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"runtime"
 	"strings"
 
@@ -43,15 +41,7 @@ func runTestProject(command *cmdline.Command, args []string) error {
 	if len(args) != 1 {
 		return command.UsageErrorf("unexpected number of arguments")
 	}
-	ctx := util.NewContextFromCommand(command, verboseFlag)
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return fmt.Errorf("TempDir() failed: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		return err
-	}
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	project := args[0]
 	if !strings.HasPrefix(project, "http") {
 		project = util.VeyronGitRepoHost() + project
@@ -83,15 +73,7 @@ func runTestRun(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("unexpected number of arguments")
 	}
-	ctx := util.NewContextFromCommand(command, verboseFlag)
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return fmt.Errorf("TempDir() failed: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		return err
-	}
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	results, err := testutil.RunTests(ctx, args)
 	if err != nil {
 		return err
@@ -121,7 +103,7 @@ var cmdTestList = &cmdline.Command{
 }
 
 func runTestList(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	testList := testutil.TestList()
 	for _, test := range testList {
 		fmt.Fprintf(ctx.Stdout(), "%v\n", test)

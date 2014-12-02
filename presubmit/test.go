@@ -21,7 +21,6 @@ import (
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/gitutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/testutil"
 	"veyron.io/tools/lib/util"
 )
@@ -53,7 +52,7 @@ const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 
 // runTest implements the 'test' subcommand.
 func runTest(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 
 	// Basic sanity checks.
 	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
@@ -242,8 +241,8 @@ func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) erro
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer os.Chdir(wd)
-	if err := ctx.Run().Function(runutil.Chdir(localRepoDir)); err != nil {
+	defer ctx.Run().Chdir(wd)
+	if err := ctx.Run().Chdir(localRepoDir); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
 	if err := resetRepo(ctx); err != nil {
@@ -263,7 +262,7 @@ func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) erro
 // cleanupPresubmitTestBranch removes the presubmit test branch.
 func cleanupPresubmitTestBranch(ctx *util.Context, localRepoDir string) error {
 	printf(ctx.Stdout(), "### Cleaning up\n")
-	if err := ctx.Run().Function(runutil.Chdir(localRepoDir)); err != nil {
+	if err := ctx.Run().Chdir(localRepoDir); err != nil {
 		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 	}
 	if err := resetRepo(ctx); err != nil {

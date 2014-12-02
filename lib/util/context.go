@@ -21,8 +21,8 @@ type Context struct {
 }
 
 // NewContext returns a new context instance.
-func NewContext(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, verbose bool) *Context {
-	run := runutil.New(env, stdin, stdout, stderr, verbose)
+func NewContext(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, dryRun, verbose bool) *Context {
+	run := runutil.New(env, stdin, stdout, stderr, dryRun, verbose)
 	return &Context{
 		git: gitutil.New(run),
 		hg:  hgutil.New(run),
@@ -32,8 +32,8 @@ func NewContext(env map[string]string, stdin io.Reader, stdout, stderr io.Writer
 
 // NewContextFromCommand returns a new context instance based on the
 // given command.
-func NewContextFromCommand(command *cmdline.Command, verbose bool) *Context {
-	run := runutil.New(nil, os.Stdin, command.Stdout(), command.Stderr(), verbose)
+func NewContextFromCommand(command *cmdline.Command, dryRun, verbose bool) *Context {
+	run := runutil.New(nil, os.Stdin, command.Stdout(), command.Stderr(), dryRun, verbose)
 	return &Context{
 		git: gitutil.New(run),
 		hg:  hgutil.New(run),
@@ -43,12 +43,17 @@ func NewContextFromCommand(command *cmdline.Command, verbose bool) *Context {
 
 // DefaultContext returns the default context.
 func DefaultContext() *Context {
-	run := runutil.New(nil, os.Stdin, os.Stdout, os.Stderr, true)
+	run := runutil.New(nil, os.Stdin, os.Stdout, os.Stderr, false, true)
 	return &Context{
 		git: gitutil.New(run),
 		hg:  hgutil.New(run),
 		run: run,
 	}
+}
+
+// DryRun returns the dry run setting of the context.
+func (ctx Context) DryRun() bool {
+	return ctx.run.Opts().DryRun
 }
 
 // Env returns the environment of the context.
@@ -86,7 +91,7 @@ func (ctx Context) Stdout() io.Writer {
 	return ctx.run.Opts().Stdout
 }
 
-// Verbose returns the verbosity of the context.
+// Verbose returns the verbosity setting of the context.
 func (ctx Context) Verbose() bool {
 	return ctx.run.Opts().Verbose
 }

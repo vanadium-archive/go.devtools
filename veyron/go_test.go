@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,29 +37,29 @@ func TestGoVeyronEnvironment(t *testing.T) {
 // go' command generates up-to-date VDL files for select go tool
 // commands before dispatching these commands to the go tool.
 func TestGoVDLGeneration(t *testing.T) {
-	testCmd := *cmdGo
+	ctx, testCmd := util.DefaultContext(), *cmdGo
 	var stdout, stderr bytes.Buffer
 	testCmd.Init(nil, &stdout, &stderr)
 	// Create a tmpdir for all our work.
 	const tmpDirPrefix = "test_vgo"
-	tmpdir, err := ioutil.TempDir("", tmpDirPrefix)
+	tmpdir, err := ctx.Run().TempDir("", tmpDirPrefix)
 	if err != nil {
-		t.Fatalf(`TempDir("", %q) failed: %v`, tmpDirPrefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(tmpdir)
+	defer ctx.Run().RemoveAll(tmpdir)
 	// Create test files tmpdir/src/testpkg/test.vdl and tmpdir/src/testpkg/doc.go
 	pkgdir := filepath.Join(tmpdir, "src", "testpkg")
 	const perm = os.ModePerm
-	if err := os.MkdirAll(pkgdir, perm); err != nil {
+	if err := ctx.Run().MkdirAll(pkgdir, perm); err != nil {
 		t.Fatalf(`MkdirAll(%q) failed: %v`, pkgdir, err)
 	}
 	goFile := filepath.Join(pkgdir, "doc.go")
-	if err := ioutil.WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
+	if err := ctx.Run().WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
 		t.Fatalf(`WriteFile(%q) failed: %v`, goFile, err)
 	}
 	inFile := filepath.Join(pkgdir, "test.vdl")
 	outFile := inFile + ".go"
-	if err := ioutil.WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
+	if err := ctx.Run().WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
 		t.Fatalf(`WriteFile(%q) failed: %v`, inFile, err)
 	}
 	// Add tmpdir as first component of GOPATH and VDLPATH, so we'll be able to

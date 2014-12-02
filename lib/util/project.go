@@ -111,7 +111,7 @@ func CreateSnapshot(ctx *Context, path string) error {
 		return err
 	}
 	perm := os.FileMode(0755)
-	if err := ctx.Run().Function(runutil.MkdirAll(filepath.Dir(path), perm)); err != nil {
+	if err := ctx.Run().MkdirAll(filepath.Dir(path), perm); err != nil {
 		return err
 	}
 	data, err := xml.MarshalIndent(manifest, "", "  ")
@@ -119,7 +119,7 @@ func CreateSnapshot(ctx *Context, path string) error {
 		return err
 	}
 	perm = os.FileMode(0644)
-	if err := ioutil.WriteFile(path, data, perm); err != nil {
+	if err := ctx.Run().WriteFile(path, data, perm); err != nil {
 		return fmt.Errorf("WriteFile(%v, %v) failed: %v", path, err, perm)
 	}
 	return nil
@@ -147,7 +147,7 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	if err != nil {
 		return nil, err
 	}
-	defer os.Chdir(cwd)
+	defer ctx.Run().Chdir(cwd)
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 		if op.ty == updateOperation {
 			switch op.project.Protocol {
 			case "git":
-				if err := ctx.Run().Function(runutil.Chdir(op.destination)); err != nil {
+				if err := ctx.Run().Chdir(op.destination); err != nil {
 					return nil, err
 				}
 				if err := ctx.Git().Fetch("origin", "master"); err != nil {
@@ -255,11 +255,11 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 		return err
 	}
 	prefix := "tmp-veyron-tools-build"
-	tmpDir, err := ioutil.TempDir(root, prefix)
+	tmpDir, err := ctx.Run().TempDir(root, prefix)
 	if err != nil {
 		return fmt.Errorf("TempDir(%v, %v) failed: %v", root, prefix, err)
 	}
-	defer os.Remove(tmpDir)
+	defer ctx.Run().RemoveAll(tmpDir)
 	if err := buildTools(ctx, remoteTools, tmpDir); err != nil {
 		return err
 	}
@@ -274,8 +274,8 @@ func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) error {
 	if err != nil {
 		return err
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(project.Path); err != nil {
 		return err
 	}
 	switch project.Protocol {
@@ -390,8 +390,8 @@ func findLocalProjects(ctx *Context, path string, projects Projects) error {
 	if err != nil {
 		return err
 	}
-	defer os.Chdir(cwd)
-	if err := ctx.Run().Function(runutil.Chdir(path)); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(path); err != nil {
 		return err
 	}
 	gitDir := filepath.Join(path, ".git")
@@ -461,6 +461,10 @@ func findLocalProjects(ctx *Context, path string, projects Projects) error {
 // installTools installs the tools from the given directory into
 // $VEYRON_ROOT/bin.
 func installTools(ctx *Context, dir string) error {
+	if ctx.DryRun() {
+		// In "dry run" mode, no binaries are built.
+		return nil
+	}
 	root, err := VeyronRoot()
 	if err != nil {
 		return err
@@ -474,7 +478,7 @@ func installTools(ctx *Context, dir string) error {
 		installFn := func() error {
 			src := filepath.Join(dir, fi.Name())
 			dst := filepath.Join(root, "bin", fi.Name())
-			if err := ctx.Run().Function(runutil.Rename(src, dst)); err != nil {
+			if err := ctx.Run().Rename(src, dst); err != nil {
 				return err
 			}
 			return nil
@@ -593,8 +597,8 @@ func reportNonMaster(ctx *Context, project Project) error {
 	if err != nil {
 		return err
 	}
-	defer os.Chdir(cwd)
-	if err := os.Chdir(project.Path); err != nil {
+	defer ctx.Run().Chdir(cwd)
+	if err := ctx.Run().Chdir(project.Path); err != nil {
 		return err
 	}
 	switch project.Protocol {
@@ -861,7 +865,7 @@ func runOperation(ctx *Context, op operation) error {
 	switch op.ty {
 	case createOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
-		if err := ctx.Run().Function(runutil.MkdirAll(path, perm)); err != nil {
+		if err := ctx.Run().MkdirAll(path, perm); err != nil {
 			return err
 		}
 		switch op.project.Protocol {
@@ -885,11 +889,11 @@ func runOperation(ctx *Context, op operation) error {
 					return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
 				}
 				file = filepath.Join(op.destination, ".git", "hooks", "pre-commit")
-				if err := ioutil.WriteFile(file, []byte(preCommitHook), perm); err != nil {
+				if err := ctx.Run().WriteFile(file, []byte(preCommitHook), perm); err != nil {
 					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
 				}
 				file = filepath.Join(op.destination, ".git", "hooks", "pre-push")
-				if err := ioutil.WriteFile(file, []byte(prePushHook), perm); err != nil {
+				if err := ctx.Run().WriteFile(file, []byte(prePushHook), perm); err != nil {
 					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
 				}
 			}
@@ -897,8 +901,8 @@ func runOperation(ctx *Context, op operation) error {
 			if err != nil {
 				return err
 			}
-			defer os.Chdir(cwd)
-			if err := ctx.Run().Function(runutil.Chdir(op.destination)); err != nil {
+			defer ctx.Run().Chdir(cwd)
+			if err := ctx.Run().Chdir(op.destination); err != nil {
 				return err
 			}
 			if err := ctx.Git().Reset(op.project.Revision); err != nil {
@@ -912,8 +916,8 @@ func runOperation(ctx *Context, op operation) error {
 			if err != nil {
 				return err
 			}
-			defer os.Chdir(cwd)
-			if err := ctx.Run().Function(runutil.Chdir(op.destination)); err != nil {
+			defer ctx.Run().Chdir(cwd)
+			if err := ctx.Run().Chdir(op.destination); err != nil {
 				return err
 			}
 			if err := ctx.Hg().CheckoutRevision(op.project.Revision); err != nil {
@@ -923,15 +927,15 @@ func runOperation(ctx *Context, op operation) error {
 			return UnsupportedProtocolErr(op.project.Protocol)
 		}
 	case deleteOperation:
-		if err := ctx.Run().Function(runutil.RemoveAll(op.source)); err != nil {
+		if err := ctx.Run().RemoveAll(op.source); err != nil {
 			return err
 		}
 	case moveOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
-		if err := ctx.Run().Function(runutil.MkdirAll(path, perm)); err != nil {
+		if err := ctx.Run().MkdirAll(path, perm); err != nil {
 			return err
 		}
-		if err := ctx.Run().Function(runutil.Rename(op.source, op.destination)); err != nil {
+		if err := ctx.Run().Rename(op.source, op.destination); err != nil {
 			return err
 		}
 		if err := reportNonMaster(ctx, op.project); err != nil {

@@ -12,7 +12,6 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -40,7 +39,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	return runGoForPlatform(ctx, util.HostPlatform(), command, args)
 }
 
@@ -78,7 +77,7 @@ func runXGo(command *cmdline.Command, args []string) error {
 	if len(args) < 2 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	platform, err := util.ParsePlatform(args[0])
 	if err != nil {
 		return err
@@ -174,10 +173,10 @@ func reportOutdatedBranches(ctx *util.Context) error {
 	if err != nil {
 		return err
 	}
-	defer os.Chdir(cwd)
+	defer ctx.Run().Chdir(cwd)
 	projects, err := util.LocalProjects(ctx)
 	for _, project := range projects {
-		if err := ctx.Run().Function(runutil.Chdir(project.Path)); err != nil {
+		if err := ctx.Run().Chdir(project.Path); err != nil {
 			return err
 		}
 		switch project.Protocol {
@@ -383,7 +382,7 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, verboseFlag)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
 	env, err := util.VeyronEnvironment(util.HostPlatform())
 	if err != nil {
 		return err
@@ -392,9 +391,7 @@ func runGoExtDistClean(command *cmdline.Command, _ []string) error {
 	for _, workspace := range env.GetTokens("GOPATH", ":") {
 		for _, name := range []string{"bin", "pkg"} {
 			dir := filepath.Join(workspace, name)
-			// TODO(jsimsa): Use the new logging library
-			// for this when it is checked in.
-			if err := ctx.Run().Function(runutil.RemoveAll(dir)); err != nil {
+			if err := ctx.Run().RemoveAll(dir); err != nil {
 				failed = true
 			}
 		}

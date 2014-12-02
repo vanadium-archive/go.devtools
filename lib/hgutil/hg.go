@@ -58,7 +58,7 @@ func (h *Hg) Clone(repo, path string) error {
 
 // CurrentBranchName returns the name of the current branch.
 func (h *Hg) CurrentBranchName() (string, error) {
-	out, err := h.runOutput("branch")
+	out, err := h.runOutputWithOpts(h.disableDryRun(), "branch")
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +93,7 @@ func (h *Hg) Pull() error {
 
 // RepoName gets the name of the current repository.
 func (h *Hg) RepoName() (string, error) {
-	out, err := h.runOutput("paths", "default")
+	out, err := h.runOutputWithOpts(h.disableDryRun(), "paths", "default")
 	if err != nil {
 		return "", err
 	}
@@ -101,6 +101,18 @@ func (h *Hg) RepoName() (string, error) {
 		return "", fmt.Errorf("unexpected length of %v: expected %v, got %v", out, expected, got)
 	}
 	return out[0], nil
+}
+
+func (h *Hg) disableDryRun() runutil.Opts {
+	opts := h.runner.Opts()
+	if opts.DryRun {
+		// Disable the dry run option as this function has no
+		// effect and doing so results in more informative
+		// "dry run" output.
+		opts.DryRun = false
+		opts.Verbose = true
+	}
+	return opts
 }
 
 func (h *Hg) run(args ...string) error {
@@ -115,8 +127,11 @@ func (h *Hg) run(args ...string) error {
 }
 
 func (h *Hg) runOutput(args ...string) ([]string, error) {
+	return h.runOutputWithOpts(h.runner.Opts(), args...)
+}
+
+func (h *Hg) runOutputWithOpts(opts runutil.Opts, args ...string) ([]string, error) {
 	var stdout, stderr bytes.Buffer
-	opts := h.runner.Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
 	if err := h.runner.CommandWithOpts(opts, "hg", args...); err != nil {

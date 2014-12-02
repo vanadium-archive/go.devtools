@@ -2,11 +2,9 @@ package testutil
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -29,25 +27,25 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 	if err != nil {
 		return nil, fmt.Errorf("Hostname() failed: %v", err)
 	}
-	fmt.Fprintf(ctx.Stdout(), "hostname = %s\n", hostname)
+	fmt.Fprintf(ctx.Stdout(), "hostname = %q\n", hostname)
 
 	// Create a working test directory under $HOME/tmp and set the
 	// TMPDIR environment variable to it.
 	rootDir := filepath.Join(os.Getenv("HOME"), "tmp", testName)
-	if err := ctx.Run().Function(runutil.MkdirAll(rootDir, os.FileMode(0755))); err != nil {
+	if err := ctx.Run().MkdirAll(rootDir, os.FileMode(0755)); err != nil {
 		return nil, err
 	}
-	workDir, err := ioutil.TempDir(rootDir, "")
+	workDir, err := ctx.Run().TempDir(rootDir, "")
 	if err != nil {
 		return nil, fmt.Errorf("TempDir() failed: %v", err)
 	}
 	if err := os.Setenv("TMPDIR", workDir); err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(ctx.Stdout(), "workdir = %s\n", workDir)
+	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
 
 	// Create a temporary directory for storing binaries.
-	if err := ctx.Run().Function(runutil.MkdirAll(binDirPath(), os.FileMode(0755))); err != nil {
+	if err := ctx.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
 		return nil, err
 	}
 
@@ -58,13 +56,16 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 		}
 	}
 
-	// Descend to the working directory.
+	// Descend into the working directory (unless doing a "dry
+	// run" in which case the working directory does not exist).
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Function(runutil.Chdir(workDir)); err != nil {
-		return nil, err
+	if !ctx.DryRun() {
+		if err := ctx.Run().Chdir(workDir); err != nil {
+			return nil, err
+		}
 	}
 
 	// Remove all stale Go object files and binaries.
@@ -75,6 +76,6 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 	}
 
 	return func() {
-		os.Chdir(cwd)
+		ctx.Run().Chdir(cwd)
 	}, nil
 }

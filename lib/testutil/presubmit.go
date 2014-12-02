@@ -129,7 +129,7 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error
 		return nil, err
 	}
 	for _, file := range testResultFiles {
-		if err := os.Remove(file); err != nil {
+		if err := ctx.Run().RemoveAll(file); err != nil {
 			return nil, err
 		}
 	}
@@ -155,7 +155,7 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error
 			return nil, err
 		} else {
 			if fileInfo.Size() == 0 {
-				if err := os.Remove(file); err != nil {
+				if err := ctx.Run().RemoveAll(file); err != nil {
 					return nil, err
 				}
 			}
@@ -171,7 +171,7 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error
 	if len(testResultFiles) == 0 {
 		workspaceDir := os.Getenv("WORKSPACE")
 		dummyFile, perm := filepath.Join(workspaceDir, "tests_dummy.xml"), os.FileMode(0644)
-		if err := ioutil.WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
+		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
 			return nil, fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
 		}
 	}

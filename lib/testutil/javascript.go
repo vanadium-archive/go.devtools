@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -18,7 +17,7 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	defer cleanup()
 
 	// Navigate to the target directory.
-	if err := ctx.Run().Function(runutil.Chdir(testDir)); err != nil {
+	if err := ctx.Run().Chdir(testDir); err != nil {
 		return nil, err
 	}
 
@@ -56,7 +55,7 @@ func VeyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, er
 	target := "nacl/out"
 	cleanFn := func() error {
 		naclDir := filepath.Join(root, "go.nacl", "bin", "go")
-		if err := ctx.Run().Function(runutil.RemoveAll(naclDir)); err != nil {
+		if err := ctx.Run().RemoveAll(naclDir); err != nil {
 			return err
 		}
 		return nil
@@ -75,7 +74,7 @@ func VeyronJSBuildNaClCompiler(ctx *util.Context, testName string) (*TestResult,
 	testDir := filepath.Join(root, "veyron.js")
 	target := filepath.Join(root, "go.nacl", "bin", "go")
 	cleanFn := func() error {
-		if err := ctx.Run().Function(runutil.RemoveAll(target)); err != nil {
+		if err := ctx.Run().RemoveAll(target); err != nil {
 			return err
 		}
 		return nil
@@ -96,7 +95,7 @@ func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	target := "docs"
 	webDir, jsDocDir := "/var/www/jsdoc", filepath.Join(testDir, "docs")
 	cleanFn := func() error {
-		if err := ctx.Run().Function(runutil.RemoveAll(webDir)); err != nil {
+		if err := ctx.Run().RemoveAll(webDir); err != nil {
 			return err
 		}
 		return nil

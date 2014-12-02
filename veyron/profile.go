@@ -14,7 +14,6 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -78,7 +77,7 @@ func runProfileSetup(command *cmdline.Command, args []string) error {
 	}
 
 	// Setup the profiles.
-	ctx := util.NewContextFromCommand(command, true)
+	ctx := util.NewContextFromCommand(command, dryRunFlag, true)
 	for _, arg := range args {
 		setupFn := func() error {
 			return setup(ctx, runtime.GOOS, arg)
@@ -135,7 +134,7 @@ func atomicAction(ctx *util.Context, installFn func() error, dir, message string
 		}
 		if err := installFn(); err != nil {
 			if dir != "" {
-				ctx.Run().Function(runutil.RemoveAll(dir))
+				ctx.Run().RemoveAll(dir)
 			}
 			return err
 		}
@@ -284,7 +283,7 @@ func setupArmLinux(ctx *util.Context) error {
 	// Download and build arm/linux cross-compiler for Go.
 	goDir := filepath.Join(root, "environment", "go", "linux", "arm")
 	installGoFn := func() error {
-		if err := ctx.Run().Function(runutil.MkdirAll(goDir, defaultDirPerm)); err != nil {
+		if err := ctx.Run().MkdirAll(goDir, defaultDirPerm); err != nil {
 			return err
 		}
 		name := "go1.3.3.src.tar.gz"
@@ -295,11 +294,11 @@ func setupArmLinux(ctx *util.Context) error {
 		if err := run(ctx, "tar", []string{"-C", goDir, "-xzf", local}, nil); err != nil {
 			return err
 		}
-		if err := ctx.Run().Function(runutil.RemoveAll(local)); err != nil {
+		if err := ctx.Run().RemoveAll(local); err != nil {
 			return err
 		}
 		goSrcDir := filepath.Join(goDir, "go", "src")
-		if err := ctx.Run().Function(runutil.Chdir(goSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(goSrcDir); err != nil {
 			return err
 		}
 		makeBin := filepath.Join(goSrcDir, "make.bash")
@@ -321,7 +320,7 @@ func setupArmLinux(ctx *util.Context) error {
 	xgccOutDir := filepath.Join(root, "environment", "cout", "xgcc")
 	installNgFn := func() error {
 		xgccSrcDir := filepath.Join(root, "environment", "csrc", "crosstool-ng-1.19.0")
-		if err := ctx.Run().Function(runutil.Chdir(xgccSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(xgccSrcDir); err != nil {
 			return err
 		}
 		if err := run(ctx, "autoreconf", []string{"--install", "--force", "--verbose"}, nil); err != nil {
@@ -348,13 +347,12 @@ func setupArmLinux(ctx *util.Context) error {
 	// Build arm/linux gcc tools.
 	xgccToolDir := filepath.Join(xgccOutDir, "arm-unknown-linux-gnueabi")
 	installXgccFn := func() error {
-		dir, prefix := "", ""
-		tmpDir, err := ioutil.TempDir(dir, prefix)
+		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
-			return fmt.Errorf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
-		if err := ctx.Run().Function(runutil.Chdir(tmpDir)); err != nil {
+		defer ctx.Run().RemoveAll(tmpDir)
+		if err := ctx.Run().Chdir(tmpDir); err != nil {
 			return err
 		}
 		bin := filepath.Join(xgccOutDir, "bin", "ct-ng")
@@ -369,7 +367,7 @@ func setupArmLinux(ctx *util.Context) error {
 		old, new := "/usr/local/veyron", filepath.Join(root, "environment", "cout")
 		newConfig := strings.Replace(string(config), old, new, -1)
 		newConfigFile := filepath.Join(tmpDir, ".config")
-		if err := ioutil.WriteFile(newConfigFile, []byte(newConfig), defaultFilePerm); err != nil {
+		if err := ctx.Run().WriteFile(newConfigFile, []byte(newConfig), defaultFilePerm); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", newConfigFile, err)
 		}
 		if err := run(ctx, bin, []string{"oldconfig"}, nil); err != nil {
@@ -381,17 +379,17 @@ func setupArmLinux(ctx *util.Context) error {
 		return nil
 	}
 	if err := atomicAction(ctx, installXgccFn, xgccToolDir, "Build arm/linux gcc tools"); err != nil {
-		ctx.Run().Function(runutil.RemoveAll(xgccToolDir))
+		ctx.Run().RemoveAll(xgccToolDir)
 		return err
 	}
 
 	// Create arm/linux gcc symlinks.
 	xgccLinkDir := filepath.Join(xgccOutDir, "cross_arm")
 	installLinksFn := func() error {
-		if err := ctx.Run().Function(runutil.MkdirAll(xgccLinkDir, defaultDirPerm)); err != nil {
+		if err := ctx.Run().MkdirAll(xgccLinkDir, defaultDirPerm); err != nil {
 			return err
 		}
-		if err := ctx.Run().Function(runutil.Chdir(xgccLinkDir)); err != nil {
+		if err := ctx.Run().Chdir(xgccLinkDir); err != nil {
 			return err
 		}
 		binDir := filepath.Join(xgccToolDir, "bin")
@@ -404,7 +402,7 @@ func setupArmLinux(ctx *util.Context) error {
 			if strings.HasPrefix(fileInfo.Name(), prefix) {
 				src := filepath.Join(binDir, fileInfo.Name())
 				dst := filepath.Join(xgccLinkDir, strings.TrimPrefix(fileInfo.Name(), prefix))
-				if err := ctx.Run().Function(runutil.Symlink(src, dst)); err != nil {
+				if err := ctx.Run().Symlink(src, dst); err != nil {
 					return err
 				}
 			}
@@ -436,14 +434,14 @@ func setupMobileLinux(ctx *util.Context) error {
 	javaDir := filepath.Join(androidRoot, "java")
 	jreDir := filepath.Join(javaDir, "jre1.7.0_65")
 	installJreFn := func() error {
-		if err := ctx.Run().Function(runutil.MkdirAll(javaDir, defaultDirPerm)); err != nil {
+		if err := ctx.Run().MkdirAll(javaDir, defaultDirPerm); err != nil {
 			return err
 		}
-		tmpDir, err := ioutil.TempDir("", "")
+		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
 			fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer ctx.Run().RemoveAll(tmpDir)
 		remote := "http://javadl.sun.com/webapps/download/AutoDL?BundleId=92494"
 		local := filepath.Join(tmpDir, "jre.tar.gz")
 		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
@@ -461,11 +459,11 @@ func setupMobileLinux(ctx *util.Context) error {
 	// Download Android SDK.
 	sdkRoot := filepath.Join(androidRoot, "android-sdk-linux")
 	installSdkFn := func() error {
-		tmpDir, err := ioutil.TempDir("", "")
+		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
 			fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer ctx.Run().RemoveAll(tmpDir)
 		remote := "http://dl.google.com/android/android-sdk_r23-linux.tgz"
 		local := filepath.Join(tmpDir, "android-sdk.tgz")
 		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
@@ -502,11 +500,11 @@ func setupMobileLinux(ctx *util.Context) error {
 	// Download Android NDK.
 	ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
 	installNdkFn := func() error {
-		tmpDir, err := ioutil.TempDir("", "")
+		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
 			fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer ctx.Run().RemoveAll(tmpDir)
 		remote := "http://dl.google.com/android/ndk/android-ndk-r9d-linux-x86_64.tar.bz2"
 		local := filepath.Join(tmpDir, "android-ndk-r9d-linux-x86_64.tar.bz2")
 		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
@@ -529,7 +527,7 @@ func setupMobileLinux(ctx *util.Context) error {
 	// Download and build Android Go.
 	androidGo := filepath.Join(androidRoot, "go")
 	installGoFn := func() error {
-		if err := ctx.Run().Function(runutil.Chdir(androidRoot)); err != nil {
+		if err := ctx.Run().Chdir(androidRoot); err != nil {
 			return err
 		}
 		// Download Go head as of 11/11/2014.
@@ -540,7 +538,7 @@ func setupMobileLinux(ctx *util.Context) error {
 
 		// Build.
 		srcDir := filepath.Join(androidGo, "src")
-		if err := ctx.Run().Function(runutil.Chdir(srcDir)); err != nil {
+		if err := ctx.Run().Chdir(srcDir); err != nil {
 			return err
 		}
 		makeEnv := envutil.NewSnapshotFromOS()
@@ -563,7 +561,7 @@ func setupMobileLinux(ctx *util.Context) error {
 	jniOutDir := filepath.Join(root, "environment", "cout", "jni-wrapper-1.0", "android")
 	installJniFn := func() error {
 		jniSrcDir := filepath.Join(root, "environment", "csrc", "jni-wrapper-1.0")
-		if err := ctx.Run().Function(runutil.Chdir(jniSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(jniSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -655,7 +653,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	expatOutDir := filepath.Join(root, "environment", "cout", "expat-2.1.0", string(arch))
 	installExpatFn := func() error {
 		expatSrcDir := filepath.Join(root, "environment", "csrc", "expat-2.1.0")
-		if err := ctx.Run().Function(runutil.Chdir(expatSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(expatSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -688,7 +686,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	dbusOutDir := filepath.Join(root, "environment", "cout", "dbus-1.6.14", string(arch))
 	installDbusFn := func() error {
 		dbusSrcDir := filepath.Join(root, "environment", "csrc", "dbus-1.6.14")
-		if err := ctx.Run().Function(runutil.Chdir(dbusSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(dbusSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -726,7 +724,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	libffiOutDir := filepath.Join(root, "environment", "cout", "libffi-3.0.13", string(arch))
 	installLibffiFn := func() error {
 		libffiSrcDir := filepath.Join(root, "environment", "csrc", "libffi-3.0.13")
-		if err := ctx.Run().Function(runutil.Chdir(libffiSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(libffiSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -762,7 +760,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	zlibOutDir := filepath.Join(root, "environment", "cout", "zlib-1.2.8", string(arch))
 	installZlibFn := func() error {
 		zlibSrcDir := filepath.Join(root, "environment", "csrc", "zlib-1.2.8")
-		if err := ctx.Run().Function(runutil.Chdir(zlibSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(zlibSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -792,14 +790,14 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	glibOutDir := filepath.Join(root, "environment", "cout", "glib-2.28.8", string(arch))
 	installGlibFn := func() error {
 		glibSrcDir := filepath.Join(root, "environment", "csrc", "glib-2.28.8")
-		if err := ctx.Run().Function(runutil.Chdir(glibSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(glibSrcDir); err != nil {
 			return err
 		}
 		glibCacheFile := filepath.Join(glibSrcDir, "glib.cache")
-		if err := ioutil.WriteFile(glibCacheFile, []byte(glibCache), defaultFilePerm); err != nil {
+		if err := ctx.Run().WriteFile(glibCacheFile, []byte(glibCache), defaultFilePerm); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", glibCacheFile, err)
 		}
-		defer os.Remove(glibCacheFile)
+		defer ctx.Run().RemoveAll(glibCacheFile)
 		env := envutil.NewSnapshotFromOS()
 		if path != "" {
 			env.Set("PATH", fmt.Sprintf("%s:%s", path, env.Get("PATH")))
@@ -841,7 +839,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	libusbOutDir := filepath.Join(root, "environment", "cout", "libusb-1.0.16-rc10", string(arch))
 	installLibusbFn := func() error {
 		libusbSrcDir := filepath.Join(root, "environment", "csrc", "libusb-1.0.16-rc10")
-		if err := ctx.Run().Function(runutil.Chdir(libusbSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(libusbSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -878,7 +876,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	libusbCompatOutDir := filepath.Join(root, "environment", "cout", "libusb-compat-0.1.5", string(arch))
 	installLibusbCompatFn := func() error {
 		libusbCompatSrcDir := filepath.Join(root, "environment", "csrc", "libusb-compat-0.1.5")
-		if err := ctx.Run().Function(runutil.Chdir(libusbCompatSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(libusbCompatSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -916,7 +914,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 	bluezOutDir := filepath.Join(root, "environment", "cout", "bluez-4.101", string(arch))
 	installBluezFn := func() error {
 		bluezSrcDir := filepath.Join(root, "environment", "csrc", "bluez-4.101")
-		if err := ctx.Run().Function(runutil.Chdir(bluezSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(bluezSrcDir); err != nil {
 			return err
 		}
 		env := envutil.NewSnapshotFromOS()
@@ -988,7 +986,7 @@ func setupWebHelper(ctx *util.Context) error {
 	nodeOutDir := filepath.Join(root, "environment", "cout", "node")
 	installNodeFn := func() error {
 		nodeSrcDir := filepath.Join(root, "environment", "csrc", "node-v0.10.24")
-		if err := ctx.Run().Function(runutil.Chdir(nodeSrcDir)); err != nil {
+		if err := ctx.Run().Chdir(nodeSrcDir); err != nil {
 			return err
 		}
 		if err := run(ctx, "./configure", []string{fmt.Sprintf("--prefix=%v", nodeOutDir)}, nil); err != nil {

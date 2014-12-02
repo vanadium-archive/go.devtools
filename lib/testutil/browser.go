@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -27,13 +26,13 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 
 	// Invoke "make clean" for the veyron browser and remove the test output file if it exists.
 	browserDir := filepath.Join(root, "veyron-browser")
-	if err := ctx.Run().Function(runutil.Chdir(browserDir)); err != nil {
+	if err := ctx.Run().Chdir(browserDir); err != nil {
 		return nil, err
 	}
 	if err := ctx.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Function(runutil.RemoveAll(provaOutputFile)); err != nil {
+	if err := ctx.Run().RemoveAll(provaOutputFile); err != nil {
 		return nil, err
 	}
 

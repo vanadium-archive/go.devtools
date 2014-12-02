@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -92,12 +91,12 @@ func coverageFromGoTestOutput(ctx *util.Context, testOutput io.Reader) (*testCov
 
 // createCoberturaReport generates a cobertura report using the given
 // coverage information.
-func createCoberturaReport(testName string, data *testCoverage) error {
+func createCoberturaReport(ctx *util.Context, testName string, data *testCoverage) error {
 	bytes, err := xml.MarshalIndent(*data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", *data, err)
 	}
-	if err := ioutil.WriteFile(coberturaReportPath(testName), bytes, os.FileMode(0644)); err != nil {
+	if err := ctx.Run().WriteFile(coberturaReportPath(testName), bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", coberturaReportPath(testName), err)
 	}
 	return nil

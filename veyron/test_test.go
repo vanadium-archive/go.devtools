@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -13,14 +12,14 @@ import (
 )
 
 func TestTestProject(t *testing.T) {
-	// Setup an instance of veyron universe.
 	ctx := util.DefaultContext()
-	dir, prefix := "", ""
-	rootDir, err := ioutil.TempDir(dir, prefix)
+
+	// Setup an instance of veyron universe.
+	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(rootDir)
+	defer ctx.Run().RemoveAll(rootDir)
 	oldRoot := os.Getenv("VEYRON_ROOT")
 	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
@@ -53,13 +52,14 @@ ignore-this PASSED
 }
 
 func TestTestRun(t *testing.T) {
+	ctx := util.DefaultContext()
+
 	// Setup an instance of veyron universe.
-	dir, prefix := "", ""
-	rootDir, err := ioutil.TempDir(dir, prefix)
+	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(rootDir)
+	defer ctx.Run().RemoveAll(rootDir)
 	oldRoot := os.Getenv("VEYRON_ROOT")
 	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
@@ -84,13 +84,14 @@ ignore-this PASSED
 }
 
 func TestTestList(t *testing.T) {
+	ctx := util.DefaultContext()
+
 	// Setup an instance of veyron universe.
-	dir, prefix := "", ""
-	rootDir, err := ioutil.TempDir(dir, prefix)
+	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(rootDir)
+	defer ctx.Run().RemoveAll(rootDir)
 	oldRoot := os.Getenv("VEYRON_ROOT")
 	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)

@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,13 +10,14 @@ import (
 // of the VEYRON_ROOT environment variable as a path, evaluates any
 // symlinks the path might contain, and returns the result.
 func TestVeyronRootSymlink(t *testing.T) {
+	ctx := DefaultContext()
+
 	// Create a temporary directory.
-	dir, prefix := "", ""
-	tmpDir, err := ioutil.TempDir(dir, prefix)
+	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
-		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer ctx.Run().RemoveAll(tmpDir)
 
 	// Make sure tmpDir is not a symlink itself.
 	tmpDir, err = filepath.EvalSymlinks(tmpDir)
@@ -27,11 +27,11 @@ func TestVeyronRootSymlink(t *testing.T) {
 
 	// Create a directory and a symlink to it.
 	root, perm := filepath.Join(tmpDir, "root"), os.FileMode(0700)
-	if err := os.Mkdir(root, perm); err != nil {
+	if err := ctx.Run().MkdirAll(root, perm); err != nil {
 		t.Fatalf("%v", err)
 	}
 	symRoot := filepath.Join(tmpDir, "sym_root")
-	if err := os.Symlink(root, symRoot); err != nil {
+	if err := ctx.Run().Symlink(root, symRoot); err != nil {
 		t.Fatalf("%v", err)
 	}
 
