@@ -220,7 +220,7 @@ func testScriptWorker(root string, env map[string]string, tasks <-chan string, r
 // VeyronIntegrationTest runs veyron integration tests.
 func VeyronIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
