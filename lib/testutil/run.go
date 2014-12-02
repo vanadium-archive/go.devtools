@@ -86,6 +86,7 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"veyron-prod-services-test":             VeyronProdServicesTest,
 	"veyron-tutorial":                       VeyronTutorial,
 	"veyron-vdl":                            VeyronVDL,
+	"veyron-www":                            VeyronWWW,
 }
 
 // RunProjectTests runs all tests associated with the given projects.
