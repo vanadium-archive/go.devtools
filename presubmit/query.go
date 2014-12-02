@@ -338,9 +338,6 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 	return newCLs
 }
 
-// TODO(jingjin): remove this after changes are made in presubmit/test.go.
-var skipMultiPartCLs = true
-
 // sendCLListsToPresubmitTest sends the given clLists to presubmit-test Jenkins
 // target one by one to run presubmit-test builds. It returns how many CLs have
 // been sent successfully.
@@ -350,11 +347,6 @@ func sendCLListsToPresubmitTest(ctx *util.Context, clLists []clList, defaultProj
 	clsSent := 0
 outer:
 	for _, curCLList := range clLists {
-		// TODO(jingjin): remove this after changes are made in presubmit/test.go.
-		if skipMultiPartCLs && len(curCLList) > 1 {
-			continue
-		}
-
 		// Check and cancel matched outdated builds.
 		curCLMap := clNumberToPatchsetMap{}
 		clStrings := []string{}
