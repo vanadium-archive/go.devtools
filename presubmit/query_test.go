@@ -311,14 +311,14 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 	"items" : [
 	  {
 			"id": 10,
-			"params": "\nREPO=veyron.js veyron.go.core\nREF=refs/changes/78/4778/1:refs/changes/50/4750/2",
+			"params": "\nREPOS=veyron.js veyron.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
 			"task" : {
 				"name": "veyron-presubmit-test"
 			}
 		},
 	  {
 			"id": 20,
-			"params": "\nREPO=veyron.js\nREF=refs/changes/99/4799/2",
+			"params": "\nREPOS=veyron.js\nREFS=refs/changes/99/4799/2",
 			"task" : {
 				"name": "veyron-presubmit-test"
 			}
@@ -408,11 +408,11 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 			{
 				"parameters": [
 				  {
-						"name": "REPO",
+						"name": "REPOS",
 						"value": "veyron.go.core"
 					},
 					{
-						"name": "REF",
+						"name": "REFS",
 						"value": "refs/changes/96/5396/3"
 					}
 				]
@@ -428,11 +428,11 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 			{
 				"parameters": [
 				  {
-						"name": "REPO",
+						"name": "REPOS",
 						"value": "veyron.js veyron.go.core"
 					},
 					{
-						"name": "REF",
+						"name": "REFS",
 						"value": "refs/changes/00/5400/2:refs/changes/96/5396/3"
 					}
 				]

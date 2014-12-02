@@ -50,6 +50,17 @@ const timeoutReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 </testsuites>
 `
 
+type cl struct {
+	clNumber int
+	patchset int
+	ref      string
+	repo     string
+}
+
+func (c cl) String() string {
+	return fmt.Sprintf("http://go/vcl/%d/%d", c.clNumber, c.patchset)
+}
+
 // runTest implements the 'test' subcommand.
 func runTest(command *cmdline.Command, args []string) error {
 	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
@@ -62,32 +73,28 @@ func runTest(command *cmdline.Command, args []string) error {
 	if _, err := os.Stat(manifestFilePath); err != nil {
 		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
 	}
-	if repoFlag == "" {
-		return command.UsageErrorf("-repo flag is required")
+	if reposFlag == "" {
+		return command.UsageErrorf("-repos flag is required")
 	}
-	if reviewTargetRefFlag == "" {
-		return command.UsageErrorf("-ref flag is required")
+	if reviewTargetRefsFlag == "" {
+		return command.UsageErrorf("-refs flag is required")
 	}
-	parts := strings.Split(reviewTargetRefFlag, "/")
-	if expected, got := 5, len(parts); expected != got {
-		return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", reviewTargetRefFlag, expected, got)
+
+	// Parse cls from refs and repos.
+	cls, refs, repos, err := parseRefsAndRepos()
+	if err != nil {
+		return err
 	}
-	cl := parts[3]
 
 	// Parse the manifest file to get the local path for the repo.
 	projects, _, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
-	localRepo, ok := projects[repoFlag]
-	if !ok {
-		return fmt.Errorf("repo %q not found", repoFlag)
-	}
-	dir := localRepo.Path
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() {
-		if err := cleanupPresubmitTestBranch(ctx, dir); err != nil {
+		if err := cleanupAllPresubmitTestBranches(ctx, projects); err != nil {
 			printf(command.Stderr(), "%v\n", err)
 		}
 	}
@@ -107,32 +114,35 @@ func runTest(command *cmdline.Command, args []string) error {
 	}()
 
 	// Prepare presubmit test branch.
-	if err := preparePresubmitTestBranch(ctx, dir, cl); err != nil {
+	if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
 		// When "git pull" fails, post a review to let the CL
 		// author know about the possible merge conflicts.
 		if strings.Contains(err.Error(), "git pull") {
-			message := `Possible merge conflict detected.
+			message := fmt.Sprintf(`Possible merge conflict detected in %s.
 Presubmit tests will be executed after a new patchset that resolves the conflicts is submitted.
-`
+`, failedCL.String())
 			printf(ctx.Stdout(), "### Posting message to Gerrit\n")
-			if err := postMessage(ctx, message); err != nil {
+			if err := postMessage(ctx, message, refs); err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
 			}
 			printf(ctx.Stderr(), "%v\n", err)
 			return nil
+		}
+		if failedCL != nil {
+			return fmt.Errorf("%s: %v", failedCL.String(), err)
 		}
 		return err
 	}
 
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the tests\n")
-	results, err := testutil.RunProjectTests(ctx, repoFlag)
+	results, err := testutil.RunProjectTests(ctx, repos)
 	if err != nil {
 		return err
 	}
 
 	// Post a test report.
-	if err := postTestReport(ctx, results); err != nil {
+	if err := postTestReport(ctx, results, refs); err != nil {
 		return err
 	}
 
@@ -140,7 +150,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 }
 
 // postTestReport generates a test report and posts it to Gerrit.
-func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult) error {
+func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, refs []string) error {
 	// Do not post a test report if no tests were run.
 	if len(results) == 0 {
 		return nil
@@ -213,60 +223,108 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult) 
 
 	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n",
 		jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
-	link := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REF=%s&REPO=%s",
+	link := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REFS=%s&REPOS=%s",
 		presubmitTestJenkinsProjectFlag,
-		url.QueryEscape(reviewTargetRefFlag),
-		url.QueryEscape(strings.TrimPrefix(repoFlag, util.VeyronGitRepoHost())))
+		url.QueryEscape(reviewTargetRefsFlag),
+		url.QueryEscape(reposFlag))
 	fmt.Fprintf(&report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
 
 	// Post test results.
 	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
-	if err := postMessage(ctx, report.String()); err != nil {
+	if err := postMessage(ctx, report.String(), refs); err != nil {
 		return err
 	}
 	return nil
 }
 
+// parseRefsAndRepos parses cl info from refs and repos flag, and returns a
+// slice of "cl" objects, a slice of ref strings, and a slice of repos.
+func parseRefsAndRepos() ([]cl, []string, []string, error) {
+	refs := strings.Split(reviewTargetRefsFlag, ":")
+	repos := strings.Split(reposFlag, ":")
+	fullRepos := []string{}
+	if got, want := len(refs), len(repos); got != want {
+		return nil, nil, nil, fmt.Errorf("Mismatching lengths of %v and %v: %v vs. %v", refs, repos, len(refs), len(repos))
+	}
+	cls := []cl{}
+	for i, ref := range refs {
+		repo := repos[i]
+		clNumber, patchset, err := parseRefString(ref)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		fullRepo := util.VeyronGitRepoHost() + repo
+		fullRepos = append(fullRepos, fullRepo)
+		cls = append(cls, cl{
+			clNumber: clNumber,
+			patchset: patchset,
+			ref:      ref,
+			repo:     fullRepo,
+		})
+	}
+	return cls, refs, fullRepos, nil
+}
+
 // presubmitTestBranchName returns the name of the branch where the cl
 // content is pulled.
-func presubmitTestBranchName() string {
-	return "presubmit_" + reviewTargetRefFlag
+func presubmitTestBranchName(ref string) string {
+	return "presubmit_" + ref
 }
 
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
-func preparePresubmitTestBranch(ctx *util.Context, localRepoDir, cl string) error {
-	printf(ctx.Stdout(), "### Preparing to test http://go/vcl/%s (Repo: %s, Ref: %s)\n", cl, repoFlag, reviewTargetRefFlag)
+func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string]util.Project) (*cl, error) {
+	strCLs := []string{}
+	for _, cl := range cls {
+		strCLs = append(strCLs, cl.String())
+	}
+	printf(ctx.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer ctx.Run().Chdir(wd)
+	if err := cleanupAllPresubmitTestBranches(ctx, projects); err != nil {
+		return nil, fmt.Errorf("%v\n", err)
+	}
+	// Pull changes for each cl.
+	for _, cl := range cls {
+		localRepo, ok := projects[cl.repo]
+		if !ok {
+			return &cl, fmt.Errorf("repo %q not found", cl.repo)
+		}
+		localRepoDir := localRepo.Path
+		if err := ctx.Run().Chdir(localRepoDir); err != nil {
+			return &cl, fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+		}
+		branchName := presubmitTestBranchName(cl.ref)
+		if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
+			return &cl, err
+		}
+		origin := "origin"
+		if err := ctx.Git().Pull(origin, cl.ref); err != nil {
+			return &cl, err
+		}
+	}
+	return nil, nil
+}
+
+// cleanupPresubmitTestBranch removes the presubmit test branch.
+func cleanupAllPresubmitTestBranches(ctx *util.Context, projects map[string]util.Project) error {
+	printf(ctx.Stdout(), "### Cleaning up\n")
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
 	defer ctx.Run().Chdir(wd)
-	if err := ctx.Run().Chdir(localRepoDir); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
-	}
-	if err := resetRepo(ctx); err != nil {
-		return err
-	}
-	branchName := presubmitTestBranchName()
-	if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
-		return err
-	}
-	origin := "origin"
-	if err := ctx.Git().Pull(origin, reviewTargetRefFlag); err != nil {
-		return err
-	}
-	return nil
-}
-
-// cleanupPresubmitTestBranch removes the presubmit test branch.
-func cleanupPresubmitTestBranch(ctx *util.Context, localRepoDir string) error {
-	printf(ctx.Stdout(), "### Cleaning up\n")
-	if err := ctx.Run().Chdir(localRepoDir); err != nil {
-		return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
-	}
-	if err := resetRepo(ctx); err != nil {
-		return err
+	for _, project := range projects {
+		localRepoDir := project.Path
+		if err := ctx.Run().Chdir(localRepoDir); err != nil {
+			return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+		}
+		if err := resetRepo(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -510,11 +568,7 @@ func generateReportForHangingTest(testName string, timeout time.Duration) error 
 }
 
 // postMessage posts the given message to Gerrit.
-func postMessage(ctx *util.Context, message string) error {
-	if !strings.HasPrefix(reviewTargetRefFlag, "refs/changes/") {
-		return fmt.Errorf("invalid ref: %q", reviewTargetRefFlag)
-	}
-
+func postMessage(ctx *util.Context, message string, refs []string) error {
 	// Basic sanity check for the Gerrit base url.
 	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {
@@ -529,7 +583,7 @@ func postMessage(ctx *util.Context, message string) error {
 
 	// Construct and post review.
 	review := gerrit.GerritReview{Message: message}
-	err = gerrit.PostReview(ctx, gerritBaseUrlFlag, gerritCred.username, gerritCred.password, reviewTargetRefFlag, review)
+	err = gerrit.PostReview(ctx, gerritBaseUrlFlag, gerritCred.username, gerritCred.password, refs, review)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ func TestProjectTests(t *testing.T) {
 	ctx := util.DefaultContext()
 
 	// Get tests for a repo that is in the config file.
-	got, err := projectTests(ctx, projects, "veyron")
+	got, err := projectTests(ctx, projects, []string{"veyron"})
 	expected := []string{
 		"veyron-go-build",
 		"veyron-go-test",
@@ -29,7 +29,7 @@ func TestProjectTests(t *testing.T) {
 
 	// Get tests for a repo that is NOT in the config file.
 	// This should return empty tests.
-	got, err = projectTests(ctx, projects, "non-exist-repo")
+	got, err = projectTests(ctx, projects, []string{"non-exist-repo"})
 	expected = nil
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)

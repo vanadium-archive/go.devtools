@@ -41,9 +41,9 @@ var (
 	netRcFilePathFlag               string
 	presubmitTestJenkinsProjectFlag string
 	queryStringFlag                 string
-	repoFlag                        string
+	reposFlag                       string
 	reviewMessageFlag               string
-	reviewTargetRefFlag             string
+	reviewTargetRefsFlag            string
 	verboseFlag                     bool
 
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
@@ -61,8 +61,8 @@ func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
 	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
-	cmdTest.Flags.StringVar(&repoFlag, "repo", "", "The URL of the repository containing the CL pointed by the ref.")
-	cmdTest.Flags.StringVar(&reviewTargetRefFlag, "ref", "", "The ref where the review is posted.")
+	cmdTest.Flags.StringVar(&reposFlag, "repos", "", "The base names of remote repositories containing the CLs pointed by the refs, separated by ':'.")
+	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 }

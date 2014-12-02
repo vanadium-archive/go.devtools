@@ -39,38 +39,39 @@ type GerritReview struct {
 	Comments map[string][]Comment `json:"comments,omitempty"`
 }
 
-// PostReview posts a review to the given Gerrit ref.
-func PostReview(ctx *util.Context, gerritBaseUrl, username, password, ref string, review GerritReview) error {
-	fmt.Fprintf(ctx.Stdout(), "Posting review for %s:\n%#v\n", ref, review)
-
-	// Construct api url.
-	// ref is in the form of "refs/changes/<last two digits of change number>/<change number>/<patch set number>".
-	parts := strings.Split(ref, "/")
-	if expected, got := 5, len(parts); expected != got {
-		return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
-	}
-	cl, revision := parts[3], parts[4]
-	url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", gerritBaseUrl, cl, revision)
+// PostReview posts a review to the given Gerrit refs.
+func PostReview(ctx *util.Context, gerritBaseUrl, username, password string, refs []string, review GerritReview) error {
+	fmt.Fprintf(ctx.Stdout(), "Posting review for %v:\n%#v\n", refs, review)
 
 	// Encode "review" in json.
 	encodedBytes, err := json.Marshal(review)
 	if err != nil {
 		return fmt.Errorf("Marshal(%#v) failed: %v", review, err)
 	}
+	for _, ref := range refs {
+		// Construct api url.
+		// ref is in the form of "refs/changes/<last two digits of change number>/<change number>/<patch set number>".
+		parts := strings.Split(ref, "/")
+		if expected, got := 5, len(parts); expected != got {
+			return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
+		}
+		cl, revision := parts[3], parts[4]
+		url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", gerritBaseUrl, cl, revision)
 
-	// Post review.
-	method, body := "POST", bytes.NewReader(encodedBytes)
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+		// Post review.
+		method, body := "POST", bytes.NewReader(encodedBytes)
+		req, err := http.NewRequest(method, url, body)
+		if err != nil {
+			return fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+		}
+		req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+		req.SetBasicAuth(username, password)
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("Do(%v) failed: %v", req, err)
+		}
+		res.Body.Close()
 	}
-	req.Header.Add("Content-Type", "application/json;charset=UTF-8")
-	req.SetBasicAuth(username, password)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("Do(%v) failed: %v", req, err)
-	}
-	res.Body.Close()
 
 	return nil
 }

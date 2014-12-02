@@ -494,11 +494,11 @@ func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) ([]queued
 		// Parse the ref, and append the id/ref of the build
 		// if it passes the checks.  The param string is in
 		// the form of:
-		// "\nREF=ref/changes/12/3412/2\nREPO=test" or
-		// "\nREPO=test\nREF=ref/changes/12/3412/2"
+		// "\nREFS=ref/changes/12/3412/2\nREPOS=test" or
+		// "\nREPOS=test\nREFS=ref/changes/12/3412/2"
 		parts := strings.Split(item.Params, "\n")
 		ref := ""
-		refPrefix := "REF="
+		refPrefix := "REFS="
 		for _, part := range parts {
 			if strings.HasPrefix(part, refPrefix) {
 				ref = strings.TrimPrefix(part, refPrefix)
@@ -560,7 +560,7 @@ func ongoingOutdatedBuild(reader io.Reader, cls clNumberToPatchsetMap) (ongoingB
 loop:
 	for _, action := range build.Actions {
 		for _, param := range action.Parameters {
-			if param.Name == "REF" {
+			if param.Name == "REFS" {
 				ref = param.Value
 				break loop
 			}
@@ -692,8 +692,8 @@ func addPresubmitTestBuild(cls clList) error {
 	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestJenkinsProjectFlag)
 	addBuildUrl.RawQuery = url.Values{
 		"token": {jenkinsTokenFlag},
-		"REF":   {strings.Join(refs, ":")},
-		"REPO":  {strings.Join(repos, ":")},
+		"REFS":  {strings.Join(refs, ":")},
+		"REPOS": {strings.Join(repos, ":")},
 	}.Encode()
 	resp, err := http.Get(addBuildUrl.String())
 	if err == nil {

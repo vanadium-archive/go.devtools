@@ -88,14 +88,14 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"veyron-vdl":                            VeyronVDL,
 }
 
-// RunProjectTests runs all tests associated with the given project.
-func RunProjectTests(ctx *util.Context, project string) (map[string]*TestResult, error) {
+// RunProjectTests runs all tests associated with the given projects.
+func RunProjectTests(ctx *util.Context, projects []string) (map[string]*TestResult, error) {
 	// Parse tests and dependencies from config file.
 	var config util.CommonConfig
 	if err := util.LoadConfig("common", &config); err != nil {
 		return nil, err
 	}
-	tests, err := projectTests(ctx, config.ProjectTests, project)
+	tests, err := projectTests(ctx, config.ProjectTests, projects)
 	if err != nil {
 		return nil, err
 	}
@@ -192,14 +192,26 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult)
 	return nil
 }
 
-// projectTest returns all the tests for the given project.
-func projectTests(ctx *util.Context, projects map[string][]string, project string) ([]string, error) {
-	tests, ok := projects[project]
-	if !ok {
-		fmt.Fprintf(ctx.Stdout(), "project %q entry not found; not running any tests.\n", project)
+// projectTest returns all the tests for the given projects.
+func projectTests(ctx *util.Context, projectsMap map[string][]string, projects []string) ([]string, error) {
+	tests := map[string]struct{}{}
+	for _, project := range projects {
+		if projectTests, ok := projectsMap[project]; ok {
+			for _, t := range projectTests {
+				tests[t] = struct{}{}
+			}
+		}
+	}
+	if len(tests) == 0 {
+		fmt.Fprintf(ctx.Stdout(), "no tests found for projects %v.\n", projects)
 		return nil, nil
 	}
-	return tests, nil
+	sortedTests := []string{}
+	for test := range tests {
+		sortedTests = append(sortedTests, test)
+	}
+	sort.Strings(sortedTests)
+	return sortedTests, nil
 }
 
 // createTestDepGraph creates a test dependency graph given a map of
