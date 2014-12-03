@@ -131,6 +131,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 	testScripts := findTestScripts(ctx, []string{
 		filepath.Join(root, "veyron", "go", "src"),
 		filepath.Join(root, "roadmap", "go", "src"),
+		filepath.Join(root, "scripts"),
 	})
 
 	// Create a worker pool to run tests in parallel, passing the
