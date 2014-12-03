@@ -110,7 +110,8 @@ func findTestScripts(ctx *util.Context, rootDirs []string) []string {
 	matchedFiles := []string{}
 	for _, rootDir := range rootDirs {
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-			if strings.HasSuffix(path, string(os.PathSeparator)+"test.sh") {
+			// TODO(sjr): remove /test.sh check once support for shell-based integration tests is removed.
+			if strings.HasSuffix(path, string(os.PathSeparator)+"test.sh") || strings.HasSuffix(path, filepath.Join("testdata", "integration_test.go")) {
 				matchedFiles = append(matchedFiles, path)
 			}
 			return nil
@@ -141,6 +142,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 	taskResults := make(chan testResult, numTests)
 	env := envutil.NewSnapshotFromOS()
 	env.Set("shell_test_BIN_DIR", binDirPath())
+	env.Set("VEYRON_INTEGRATION_BIN_DIR", binDirPath())
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go testScriptWorker(root, env.Map(), tasks, taskResults)
 	}
@@ -197,7 +199,14 @@ func testScriptWorker(root string, env map[string]string, tasks <-chan string, r
 	ctx := util.NewContext(env, os.Stdin, &out, &out, false, false, false)
 	for script := range tasks {
 		start := time.Now()
-		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, script)
+		var args []string
+		if strings.HasSuffix(script, ".go") {
+			args = []string{"go", "test", script}
+		} else {
+			// TODO(sjr): remove /test.sh check once support for shell-based integration tests is removed.
+			args = []string{"run", script}
+		}
+		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, "veyron", args...)
 		pkgName := path.Dir(script)
 		if index := strings.Index(pkgName, "veyron.io"); index != -1 {
 			pkgName = pkgName[index:]
