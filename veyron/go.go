@@ -39,7 +39,7 @@ func runGo(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	return runGoForPlatform(ctx, util.HostPlatform(), command, args)
 }
 
@@ -77,7 +77,7 @@ func runXGo(command *cmdline.Command, args []string) error {
 	if len(args) < 2 {
 		return command.UsageErrorf("not enough arguments")
 	}
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	platform, err := util.ParsePlatform(args[0])
 	if err != nil {
 		return err
@@ -382,7 +382,7 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	env, err := util.VeyronEnvironment(util.HostPlatform())
 	if err != nil {
 		return err

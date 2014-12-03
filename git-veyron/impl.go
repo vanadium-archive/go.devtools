@@ -28,6 +28,7 @@ var (
 	depcopFlag      bool
 	gofmtFlag       bool
 	masterFlag      bool
+	noColorFlag     bool
 	reviewersFlag   string
 	verboseFlag     bool
 	uncommittedFlag bool
@@ -38,6 +39,7 @@ var (
 func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
+	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
 	cmdCleanup.Flags.BoolVar(&forceFlag, "f", false, "Ignore unmerged changes.")
 	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
 	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
@@ -148,7 +150,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("cleanup requires at least one argument")
 	}
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	return cleanup(ctx, args)
 }
 
@@ -243,7 +245,7 @@ var defaultMessageHeader = `
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	edit, repo := true, ""
 	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag)
 	if err != nil {
@@ -594,7 +596,7 @@ indication of the status:
 }
 
 func runStatus(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err

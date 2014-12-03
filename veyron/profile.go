@@ -77,7 +77,7 @@ func runProfileSetup(command *cmdline.Command, args []string) error {
 	}
 
 	// Setup the profiles.
-	ctx := util.NewContextFromCommand(command, dryRunFlag, true)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, true)
 	for _, arg := range args {
 		setupFn := func() error {
 			return setup(ctx, runtime.GOOS, arg)

@@ -30,6 +30,7 @@ type Run struct {
 }
 
 type Opts struct {
+	Color   bool
 	DryRun  bool
 	Env     map[string]string
 	Stdin   io.Reader
@@ -39,10 +40,11 @@ type Opts struct {
 }
 
 // New is the Run factory.
-func New(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, dryRun, verbose bool) *Run {
+func New(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, color, dryRun, verbose bool) *Run {
 	return &Run{
 		indent: 0,
 		opts: Opts{
+			Color:   color,
 			DryRun:  dryRun,
 			Env:     env,
 			Stdin:   stdin,

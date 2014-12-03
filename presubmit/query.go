@@ -102,7 +102,7 @@ with test results.
 
 // runQuery implements the "query" subcommand.
 func runQuery(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	numSentCLs := 0
 	defer func() {
 		printf(ctx.Stdout(), "%d sent.\n", numSentCLs)

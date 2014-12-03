@@ -62,7 +62,7 @@ is not an API. It is an implementation and can change without notice.
 }
 
 func runUpdate(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 
 	// Create a snapshot of the current state of all projects and
 	// write it to the $VEYRON_ROOT/.update_history folder.

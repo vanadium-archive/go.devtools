@@ -74,7 +74,7 @@ func runSnapshotCreate(command *cmdline.Command, args []string) error {
 	if len(args) != 1 {
 		return command.UsageErrorf("unexpected number of arguments")
 	}
-	ctx, label := util.NewContextFromCommand(command, dryRunFlag, verboseFlag), args[0]
+	ctx, label := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag), args[0]
 
 	if !remoteFlag {
 		if err := checkSnapshotDir(ctx); err != nil {

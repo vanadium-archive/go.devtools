@@ -74,7 +74,7 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		if result.status != buildPassed {
-			fmt.Fprintf(ctx.Stdout(), "%s ... failed\n%v\n", result.pkg, result.output)
+			fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: "build",
 				Data:    result.output,
@@ -83,7 +83,7 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 			allPassed = false
 			s.Failures++
 		} else {
-			fmt.Fprintf(ctx.Stdout(), "%s ... ok\n", result.pkg)
+			ok(ctx, "%s\n", result.pkg)
 		}
 		s.Tests++
 		s.Cases = append(s.Cases, c)
@@ -163,7 +163,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 		}
 		switch result.status {
 		case testFailed:
-			fmt.Fprintf(ctx.Stdout(), "%s ... failed\n%v\n", result.pkg, result.output)
+			fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: "test",
 				Data:    result.output,
@@ -172,7 +172,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 			allPassed = false
 			s.Failures++
 		case testPassed:
-			fmt.Fprintf(ctx.Stdout(), "%s ... ok\n", result.pkg)
+			ok(ctx, "%s\n", result.pkg)
 		}
 		s.Tests++
 		s.Cases = append(s.Cases, c)
@@ -194,7 +194,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 // them, and sends results to the <results> channel.
 func testScriptWorker(root string, env map[string]string, tasks <-chan string, results chan<- testResult) {
 	var out bytes.Buffer
-	ctx := util.NewContext(env, os.Stdin, &out, &out, false, false)
+	ctx := util.NewContext(env, os.Stdin, &out, &out, false, false, false)
 	for script := range tasks {
 		start := time.Now()
 		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, script)

@@ -275,7 +275,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false, false)
+	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false, false, false)
 	numSentCLs := sendCLListsToPresubmitTest(ctx, clLists, nil,
 		// Mock out the removeOutdatedBuilds function.
 		func(ctx *util.Context, cls clNumberToPatchsetMap) {},

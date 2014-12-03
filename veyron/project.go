@@ -28,7 +28,7 @@ var cmdProjectList = &cmdline.Command{
 
 // runProjectList generates a listing of local projects.
 func runProjectList(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func runProjectPoll(command *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	update, err := util.PollProjects(ctx, manifestFlag, projectSet)
 	if err != nil {
 		return err

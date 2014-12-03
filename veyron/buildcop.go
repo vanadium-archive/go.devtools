@@ -29,7 +29,7 @@ var cmdBuildCopList = &cmdline.Command{
 }
 
 func runBuildCop(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	buildcop, err := util.BuildCop(ctx, time.Now())
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func runBuildCop(command *cmdline.Command, _ []string) error {
 }
 
 func runBuildCopList(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	rotation, err := util.LoadBuildCopRotation()
 	if err != nil {
 		return err

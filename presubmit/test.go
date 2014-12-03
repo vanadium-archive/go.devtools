@@ -63,7 +63,7 @@ func (c cl) String() string {
 
 // runTest implements the 'test' subcommand.
 func runTest(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, dryRunFlag, verboseFlag)
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 
 	// Basic sanity checks.
 	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
