@@ -112,7 +112,7 @@ func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildO
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		if result.status != buildPassed {
-			fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: "build",
 				Data:    result.output,
@@ -121,7 +121,7 @@ func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildO
 			allPassed = false
 			s.Failures++
 		} else {
-			ok(ctx, "%s\n", result.pkg)
+			Pass(ctx, "%s\n", result.pkg)
 		}
 		s.Tests++
 		s.Cases = append(s.Cases, c)
@@ -249,7 +249,7 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		addFailureFn := func(message string) {
-			fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: message,
 				Data:    result.output,
@@ -266,7 +266,7 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 		case testFailed:
 			addFailureFn("test")
 		case testPassed:
-			ok(ctx, "%s\n", result.pkg)
+			Pass(ctx, "%s\n", result.pkg)
 			if strings.Index(result.output, "no test files") == -1 {
 				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
 				if err != nil {
@@ -440,7 +440,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		addFailureFn := func(message string) {
-			fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: message,
 				Data:    result.output,
@@ -457,7 +457,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 		case testFailed:
 			addFailureFn("test")
 		case testPassed:
-			ok(ctx, "%s\n", result.pkg)
+			Pass(ctx, "%s\n", result.pkg)
 			if strings.Index(result.output, "no test files") == -1 {
 				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
 				if err != nil {

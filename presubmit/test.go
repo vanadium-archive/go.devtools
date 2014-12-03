@@ -278,7 +278,6 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 	for _, cl := range cls {
 		strCLs = append(strCLs, cl.String())
 	}
-	printf(ctx.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("Getwd() failed: %v", err)
@@ -288,23 +287,32 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 		return nil, fmt.Errorf("%v\n", err)
 	}
 	// Pull changes for each cl.
-	for _, cl := range cls {
-		localRepo, ok := projects[cl.repo]
+	printf(ctx.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
+	prepareFn := func(curCL cl) error {
+		localRepo, ok := projects[curCL.repo]
 		if !ok {
-			return &cl, fmt.Errorf("repo %q not found", cl.repo)
+			return fmt.Errorf("repo %q not found", curCL.repo)
 		}
 		localRepoDir := localRepo.Path
 		if err := ctx.Run().Chdir(localRepoDir); err != nil {
-			return &cl, fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+			return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 		}
-		branchName := presubmitTestBranchName(cl.ref)
+		branchName := presubmitTestBranchName(curCL.ref)
 		if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
-			return &cl, err
+			return err
 		}
 		origin := "origin"
-		if err := ctx.Git().Pull(origin, cl.ref); err != nil {
+		if err := ctx.Git().Pull(origin, curCL.ref); err != nil {
+			return err
+		}
+		return nil
+	}
+	for _, cl := range cls {
+		if err := prepareFn(cl); err != nil {
+			testutil.Fail(ctx, "pull changes from %s\n", cl.String())
 			return &cl, err
 		}
+		testutil.Pass(ctx, "pull changes from %s\n", cl.String())
 	}
 	return nil, nil
 }

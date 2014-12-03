@@ -74,7 +74,7 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		if result.status != buildPassed {
-			fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: "build",
 				Data:    result.output,
@@ -83,7 +83,7 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 			allPassed = false
 			s.Failures++
 		} else {
-			ok(ctx, "%s\n", result.pkg)
+			Pass(ctx, "%s\n", result.pkg)
 		}
 		s.Tests++
 		s.Cases = append(s.Cases, c)
@@ -163,7 +163,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 		}
 		switch result.status {
 		case testFailed:
-			fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: "test",
 				Data:    result.output,
@@ -172,7 +172,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 			allPassed = false
 			s.Failures++
 		case testPassed:
-			ok(ctx, "%s\n", result.pkg)
+			Pass(ctx, "%s\n", result.pkg)
 		}
 		s.Tests++
 		s.Cases = append(s.Cases, c)

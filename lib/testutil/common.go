@@ -82,7 +82,7 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 	}, nil
 }
 
-func ok(ctx *util.Context, format string, a ...interface{}) {
+func Pass(ctx *util.Context, format string, a ...interface{}) {
 	strOK := "ok"
 	if ctx.Color() {
 		strOK = util.ColorString("ok", util.Green)
@@ -91,7 +91,7 @@ func ok(ctx *util.Context, format string, a ...interface{}) {
 	fmt.Fprintf(ctx.Stdout(), format, a...)
 }
 
-func fail(ctx *util.Context, format string, a ...interface{}) {
+func Fail(ctx *util.Context, format string, a ...interface{}) {
 	strFail := "fail"
 	if ctx.Color() {
 		strFail = util.ColorString("fail", util.Red)
