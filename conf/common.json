@@ -31,6 +31,8 @@
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
+            "veyron-javascript-vdl",
+            "veyron-javascript-vom",
             "veyron-javascript-test-integration",
             "veyron-browser-test",
             "veyron-integration-test",
@@ -64,6 +66,12 @@
         ],
         "https://veyron.googlesource.com/veyron.js": [
             "veyron-javascript-test-unit",
+            "veyron-javascript-test-integration",
+            "veyron-browser-test"
+        ],
+        "https://veyron.googlesource.com/vom.js": [
+            "veyron-javascript-vdl",
+            "veyron-javascript-vom",
             "veyron-javascript-test-integration",
             "veyron-browser-test"
         ]
