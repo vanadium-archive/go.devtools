@@ -101,8 +101,9 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// findTestScripts finds all test.sh file from the given root dirs.
-func findTestScripts(ctx *util.Context, rootDirs []string) []string {
+// findIntegrationTests finds all test.sh or testdata/integration_test.go files
+// from the given root dirs.
+func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 	if ctx.DryRun() {
 		// In "dry run" mode, no test scripts are executed.
 		return nil
@@ -120,16 +121,16 @@ func findTestScripts(ctx *util.Context, rootDirs []string) []string {
 	return matchedFiles
 }
 
-// runTestScripts runs all test.sh scripts found under
+// runIntegrationTests runs all integration tests found under
 // $VEYRON_ROOT/roadmap/go/src and $VEYRON_ROOT/veyron/go/src.
-func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
+func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
-	// Find all test.sh scripts.
-	testScripts := findTestScripts(ctx, []string{
+	// Find all integration tests.
+	testScripts := findIntegrationTests(ctx, []string{
 		filepath.Join(root, "veyron", "go", "src"),
 		filepath.Join(root, "roadmap", "go", "src"),
 		filepath.Join(root, "scripts"),
@@ -145,7 +146,7 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 	env.Set("shell_test_BIN_DIR", binDirPath())
 	env.Set("VEYRON_INTEGRATION_BIN_DIR", binDirPath())
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go testScriptWorker(root, env.Map(), tasks, taskResults)
+		go integrationTestWorker(root, env.Map(), tasks, taskResults)
 	}
 
 	// Send test scripts to free workers in the pool.
@@ -193,9 +194,9 @@ func runTestScripts(ctx *util.Context, testName string) (*TestResult, error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// testScriptWorker receives tasks from the <tasks> channel, runs
+// integrationTestWorker receives tasks from the <tasks> channel, runs
 // them, and sends results to the <results> channel.
-func testScriptWorker(root string, env map[string]string, tasks <-chan string, results chan<- testResult) {
+func integrationTestWorker(root string, env map[string]string, tasks <-chan string, results chan<- testResult) {
 	var out bytes.Buffer
 	ctx := util.NewContext(env, os.Stdin, &out, &out, false, false, false)
 	for script := range tasks {
@@ -249,7 +250,7 @@ func VeyronIntegrationTest(ctx *util.Context, testName string) (*TestResult, err
 	if result.Status == TestFailed {
 		return result, nil
 	}
-	result, err = runTestScripts(ctx, testName)
+	result, err = runIntegrationTests(ctx, testName)
 	if err != nil {
 		return nil, err
 	}
