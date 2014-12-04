@@ -532,7 +532,7 @@ func setupMobileLinux(ctx *util.Context) error {
 		}
 		// Download Go head as of 11/11/2014.
 		remote, revision := "https://code.google.com/p/go", "fba0ff340b22"
-		if err := run(ctx, "hg", []string{"clone", remote, "-r", revision}, nil); err != nil {
+		if err := run(ctx, "hg", []string{"clone", "--noninteractive", remote, "-r", revision}, nil); err != nil {
 			return err
 		}
 
@@ -1051,7 +1051,7 @@ codegoogle.password=YOUR_GOOGLECODE_PASSWORD
 		}
 		remote := "https://code.google.com/a/google.com/p/go-ppapi-veyron"
 		revision := "faf02af933c8"
-		if err := run(ctx, "hg", []string{"clone", remote, "-r", revision, goPpapiRepoDir}, nil); err != nil {
+		if err := run(ctx, "hg", []string{"clone", "--noninteractive", remote, "-r", revision, goPpapiRepoDir}, nil); err != nil {
 			return err
 		}
 		return nil
