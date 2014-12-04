@@ -961,24 +961,13 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 
 // setupWebDarwin sets up the web profile for darwin.
 func setupWebDarwin(ctx *util.Context) error {
-	// Install dependencies.
-	pkgs := []string{"python"}
-	if err := installDeps(ctx, pkgs); err != nil {
-		return err
-	}
-
-	// Install Jinja2 python library.
-	if err := run(ctx, "pip", []string{"install", "Jinja2"}, nil); err != nil {
-		return err
-	}
-
 	return setupWebHelper(ctx)
 }
 
 // setupWebLinux sets up the web profile for linux
 func setupWebLinux(ctx *util.Context) error {
 	// Install dependencies.
-	pkgs := []string{"g++", "libc6-i386", "python", "python-jinja2", "zip"}
+	pkgs := []string{"g++", "libc6-i386", "zip"}
 	if err := installDeps(ctx, pkgs); err != nil {
 		return err
 	}
@@ -1015,22 +1004,6 @@ func setupWebHelper(ctx *util.Context) error {
 		return err
 	}
 
-	// Build Pepper 35
-	naclSdkDir := filepath.Join(root, "environment", "nacl_sdk")
-	pepperDir := filepath.Join(naclSdkDir, "pepper_35")
-	installPepperFn := func() error {
-		if err := ctx.Run().Chdir(naclSdkDir); err != nil {
-			return err
-		}
-		if err := run(ctx, "./naclsdk", []string{"install", "pepper_35"}, nil); err != nil {
-			return err
-		}
-		return nil
-	}
-	if err := atomicAction(ctx, installPepperFn, pepperDir, "Build Pepper 35"); err != nil {
-		return err
-	}
-
 	missingHgrcMessage := `No .hgrc file found in $HOME. Please visit
 https://code.google.com/a/google.com/hosting/settings to get a googlecode.com password.
 Then add the following to your $HOME/.hgrc, and run "veyron profile setup web" again.
@@ -1061,7 +1034,7 @@ codegoogle.password=YOUR_GOOGLECODE_PASSWORD
 			return err
 		}
 		remote := "https://code.google.com/a/google.com/p/go-ppapi-veyron"
-		revision := "faf02af933c8"
+		revision := "cce00a079b67"
 		if err := run(ctx, "hg", []string{"clone", "--noninteractive", remote, "-r", revision, goPpapiRepoDir}, nil); err != nil {
 			return err
 		}
@@ -1075,10 +1048,7 @@ codegoogle.password=YOUR_GOOGLECODE_PASSWORD
 	goPpapiBinDir := filepath.Join(goPpapiRepoDir, "bin")
 	compileGoPpapiFn := func() error {
 		goPpapiCompileScript := filepath.Join(goPpapiRepoDir, "src", "make-nacl-amd64p32.sh")
-		makeEnv := envutil.NewSnapshotFromOS()
-		unsetGoEnv(makeEnv)
-		makeEnv.Set("NACL_SDK", naclSdkDir)
-		if err := run(ctx, goPpapiCompileScript, []string{}, makeEnv.Map()); err != nil {
+		if err := run(ctx, goPpapiCompileScript, []string{}, nil); err != nil {
 			return err
 		}
 		return nil
