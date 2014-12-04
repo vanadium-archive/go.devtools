@@ -961,13 +961,24 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 
 // setupWebDarwin sets up the web profile for darwin.
 func setupWebDarwin(ctx *util.Context) error {
+	// Install dependencies.
+	pkgs := []string{"python"}
+	if err := installDeps(ctx, pkgs); err != nil {
+		return err
+	}
+
+	// Install Jinja2 python library.
+	if err := run(ctx, "pip", []string{"install", "Jinja2"}, nil); err != nil {
+		return err
+	}
+
 	return setupWebHelper(ctx)
 }
 
 // setupWebLinux sets up the web profile for linux
 func setupWebLinux(ctx *util.Context) error {
 	// Install dependencies.
-	pkgs := []string{"g++", "libc6-i386", "python-jinja2", "zip"}
+	pkgs := []string{"g++", "libc6-i386", "python", "python-jinja2", "zip"}
 	if err := installDeps(ctx, pkgs); err != nil {
 		return err
 	}
