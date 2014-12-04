@@ -15,7 +15,7 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 	if err != nil {
 		return nil, err
 	}
-	provaOutputFile := filepath.Join(root, "veyron_browser_test.out")
+	xUnitFile := XUnitReportPath(testName)
 
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
@@ -32,14 +32,14 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 	if err := ctx.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().RemoveAll(provaOutputFile); err != nil {
+	if err := ctx.Run().RemoveAll(xUnitFile); err != nil {
 		return nil, err
 	}
 
 	// Invoke "make test" for the veyron browser.
 	opts := ctx.Run().Opts()
 	env := envutil.NewSnapshotFromOS()
-	env.Set("PROVA_OUTPUT_FILE", provaOutputFile)
+	env.Set("XUNIT_OUTPUT_FILE", xUnitFile)
 	opts.Env = env.Map()
 	if err := ctx.Run().CommandWithOpts(opts, "make", "test"); err != nil {
 		return &TestResult{Status: TestFailed}, nil
