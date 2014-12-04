@@ -95,8 +95,8 @@ func VeyronJSIntegrationTest(ctx *util.Context, testName string) (*TestResult, e
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-integration"
 	env := map[string]string{}
-	env["TAP"] = "true"
-	env["NODE_OUTPUT"] = "integration_test.tap"
+	env["XUNIT"] = "true"
+	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
@@ -109,8 +109,8 @@ func VeyronJSUnitTest(ctx *util.Context, testName string) (*TestResult, error) {
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-unit"
 	env := map[string]string{}
-	env["TAP"] = "true"
-	env["NODE_OUTPUT"] = "unit_test.tap"
+	env["XUNIT"] = "true"
+	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
@@ -123,8 +123,8 @@ func VeyronJSVdlTest(ctx *util.Context, testName string) (*TestResult, error) {
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-vdl"
 	env := map[string]string{}
-	env["TAP"] = "true"
-	env["NODE_OUTPUT"] = "vdl_test.tap"
+	env["XUNIT"] = "true"
+	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
