@@ -967,7 +967,7 @@ func setupWebDarwin(ctx *util.Context) error {
 // setupWebLinux sets up the web profile for linux
 func setupWebLinux(ctx *util.Context) error {
 	// Install dependencies.
-	pkgs := []string{"g++", "libc6-i386", "python-jinja2"}
+	pkgs := []string{"g++", "libc6-i386", "python-jinja2", "zip"}
 	if err := installDeps(ctx, pkgs); err != nil {
 		return err
 	}
