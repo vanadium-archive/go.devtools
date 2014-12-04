@@ -32,6 +32,7 @@ func init() {
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdGo.Flags.StringVar(&hostGo, "host_go", "go", "Go command for the host platform.")
 	cmdGo.Flags.StringVar(&targetGo, "target_go", "go", "Go command for the target platform.")
+	cmdProject.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")

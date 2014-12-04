@@ -172,8 +172,8 @@ public class VeyronSCM extends SCM {
     String jobName = lastBuild.getEnvironment(listener).get("JOB_NAME");
     String workspaceDir = workspace.getRemote();
     String veyronBin = getVeyronBin(workspaceDir);
-    List<String> pollCommandAndArgs =
-        new ArrayList<String>(Arrays.asList(veyronBin, "project", "poll", jobName));
+    List<String> pollCommandAndArgs = new ArrayList<String>(Arrays.asList(veyronBin, "project",
+        String.format("-manifest=%s", manifestInput), "poll", jobName));
     CommandResult cr = runCommand(workspaceDir,
         launcher,
         listener,

@@ -74,6 +74,9 @@
             "veyron-javascript-vom",
             "veyron-javascript-test-integration",
             "veyron-browser-test"
+        ],
+        "https://github.com/veyron/veyron-www": [
+            "veyron-www"
         ]
     },
     "snapshot-label-tests": {
