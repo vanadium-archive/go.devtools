@@ -47,6 +47,11 @@ public class VeyronSCM extends SCM {
   private static final String LOG_PREFIX = "[Veyron-SCM]";
 
   /**
+   * The minimum version of veyron tool to support "-manifest" flag in "veyron project" command.
+   */
+  private static final int VEYRON_MIN_VERSION = 355;
+
+  /**
    * This field will automatically get the content of the VEYRON_ROOT text field in the UI.
    *
    * See: resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM/config.jelly.
@@ -172,9 +177,36 @@ public class VeyronSCM extends SCM {
     String jobName = lastBuild.getEnvironment(listener).get("JOB_NAME");
     String workspaceDir = workspace.getRemote();
     String veyronBin = getVeyronBin(workspaceDir);
+
+    // Check "veyron" tool's version to decide whether to add "-manifest" flag.
     List<String> pollCommandAndArgs = new ArrayList<String>(Arrays.asList(veyronBin, "project",
         String.format("-manifest=%s", manifestInput), "poll", jobName));
+    List<String> checkVeyronVersionCommandAndArgs =
+        new ArrayList<String>(Arrays.asList(veyronBin, "version"));
     CommandResult cr = runCommand(workspaceDir,
+        launcher,
+        listener,
+        true,
+        checkVeyronVersionCommandAndArgs,
+        lastBuild.getEnvironment(listener));
+    if (cr.getExitCode() == 0) {
+      String[] parts = cr.getStdout().split(" ");
+      String strVersion = parts[parts.length - 1];
+      int version = -1;
+      try {
+        version = Integer.parseInt(strVersion);
+      } catch (NumberFormatException e) {
+        e.printStackTrace(listener.getLogger());
+      }
+      if (version > 0 && version < VEYRON_MIN_VERSION) {
+        pollCommandAndArgs =
+            new ArrayList<String>(Arrays.asList(veyronBin, "project", "poll", jobName));
+      }
+    } else {
+      printf(listener, "command \"%s\" failed.\n", getCommand(checkVeyronVersionCommandAndArgs));
+    }
+
+    cr = runCommand(workspaceDir,
         launcher,
         listener,
         true,
@@ -214,7 +246,7 @@ public class VeyronSCM extends SCM {
     // Run "veyron update -manifest=<manifest>".
     String veyronBin = getVeyronBin(workspaceDir);
     List<String> updateCommandAndArgs = new ArrayList<String>(
-        Arrays.asList(veyronBin, "update", String.format("-manifest=%s", manifestInput)));
+        Arrays.asList(veyronBin, "update", String.format("-manifest=%s", manifestInput), "-gc"));
     cr = runCommand(workspaceDir,
         launcher,
         listener,
