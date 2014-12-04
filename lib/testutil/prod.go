@@ -103,7 +103,7 @@ func VeyronProdServicesTest(ctx *util.Context, testName string) (*TestResult, er
 		prodService{
 			name:       "mounttable",
 			objectName: namespaceRoot,
-			signature:  []string{"Glob", "Mount", "ResolveStep", "ResolveStepX", "Unmount"},
+			signature:  []string{"Mount", "ResolveStep", "ResolveStepX", "Unmount"},
 		},
 		prodService{
 			name:       "application repository",
