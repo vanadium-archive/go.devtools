@@ -136,5 +136,8 @@ func VeyronJSVomTest(ctx *util.Context, testName string) (*TestResult, error) {
 	}
 	testDir := filepath.Join(root, "veyron", "javascript", "vom")
 	target := "test"
-	return runJSTest(ctx, testName, testDir, target, nil, nil)
+	env := map[string]string{}
+	env["XUNIT"] = "true"
+	env["NODE_OUTPUT"] = XUnitReportPath(testName)
+	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
