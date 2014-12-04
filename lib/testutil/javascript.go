@@ -52,36 +52,8 @@ func VeyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, er
 		return nil, err
 	}
 	testDir := filepath.Join(root, "veyron.js")
-	target := "nacl/out"
-	cleanFn := func() error {
-		naclDir := filepath.Join(root, "go.nacl", "bin", "go")
-		if err := ctx.Run().RemoveAll(naclDir); err != nil {
-			return err
-		}
-		return nil
-	}
-	env := map[string]string{}
-	env["NACLGOROOT"] = filepath.Join(root, "go.nacl")
-	return runJSTest(ctx, testName, testDir, target, cleanFn, env)
-}
-
-// VeyronJSBuildNaClCompiler runs the veyron NaCl compiler build.
-func VeyronJSBuildNaClCompiler(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "veyron.js")
-	target := filepath.Join(root, "go.nacl", "bin", "go")
-	cleanFn := func() error {
-		if err := ctx.Run().RemoveAll(target); err != nil {
-			return err
-		}
-		return nil
-	}
-	env := map[string]string{}
-	env["NACLGOROOT"] = filepath.Join(root, "go.nacl")
-	return runJSTest(ctx, testName, testDir, target, cleanFn, env)
+	target := "extension/veyron.crx"
+	return runJSTest(ctx, testName, testDir, target, nil, nil)
 }
 
 // VeyronJSDoc (re)generates the content of the veyron javascript

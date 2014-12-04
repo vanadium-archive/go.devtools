@@ -967,7 +967,7 @@ func setupWebDarwin(ctx *util.Context) error {
 // setupWebLinux sets up the web profile for linux
 func setupWebLinux(ctx *util.Context) error {
 	// Install dependencies.
-	pkgs := []string{"g++", "libc6-i386"}
+	pkgs := []string{"g++", "libc6-i386", "python-jinja2"}
 	if err := installDeps(ctx, pkgs); err != nil {
 		return err
 	}
@@ -1003,6 +1003,79 @@ func setupWebHelper(ctx *util.Context) error {
 	if err := atomicAction(ctx, installNodeFn, nodeOutDir, "Build and install NodeJS"); err != nil {
 		return err
 	}
+
+	// Build Pepper 35
+	naclSdkDir := filepath.Join(root, "environment", "nacl_sdk")
+	pepperDir := filepath.Join(naclSdkDir, "pepper_35")
+	installPepperFn := func() error {
+		if err := ctx.Run().Chdir(naclSdkDir); err != nil {
+			return err
+		}
+		if err := run(ctx, "./naclsdk", []string{"install", "pepper_35"}, nil); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := atomicAction(ctx, installPepperFn, pepperDir, "Build Pepper 35"); err != nil {
+		return err
+	}
+
+	missingHgrcMessage := `No .hgrc file found in $HOME. Please visit
+https://code.google.com/a/google.com/hosting/settings to get a googlecode.com password.
+Then add the following to your $HOME/.hgrc, and run "veyron profile setup web" again.
+[auth]
+codegoogle.prefix=code.google.com
+codegoogle.username=YOUR_EMAIL
+codegoogle.password=YOUR_GOOGLECODE_PASSWORD
+`
+
+	// Ensure $HOME/.hgrc exists.
+	ensureHgrcExists := func() error {
+		homeDir := os.Getenv("HOME")
+		hgrc := filepath.Join(homeDir, ".hgrc")
+		if _, err := os.Stat(hgrc); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			} else {
+				return fmt.Errorf(missingHgrcMessage)
+			}
+		}
+		return nil
+	}
+
+	// Clone the Go Ppapi compiler.
+	goPpapiRepoDir := filepath.Join(root, "environment", "go_ppapi")
+	cloneGoPpapiFn := func() error {
+		if err := ensureHgrcExists(); err != nil {
+			return err
+		}
+		remote := "https://code.google.com/a/google.com/p/go-ppapi-veyron"
+		revision := "faf02af933c8"
+		if err := run(ctx, "hg", []string{"clone", remote, "-r", revision, goPpapiRepoDir}, nil); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := atomicAction(ctx, cloneGoPpapiFn, goPpapiRepoDir, "Clone Go Ppapi repository"); err != nil {
+		return err
+	}
+
+	// Compile the Go Ppapi compiler.
+	goPpapiBinDir := filepath.Join(goPpapiRepoDir, "bin")
+	compileGoPpapiFn := func() error {
+		goPpapiCompileScript := filepath.Join(goPpapiRepoDir, "src", "make-nacl-amd64p32.sh")
+		makeEnv := envutil.NewSnapshotFromOS()
+		unsetGoEnv(makeEnv)
+		makeEnv.Set("NACL_SDK", naclSdkDir)
+		if err := run(ctx, goPpapiCompileScript, []string{}, makeEnv.Map()); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := atomicAction(ctx, compileGoPpapiFn, goPpapiBinDir, "Compile Go Ppapi compiler"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
