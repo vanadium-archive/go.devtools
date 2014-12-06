@@ -98,7 +98,7 @@
             "veyron-javascript-test-integration"
         ],
         "veyron-go-race": [
-            "veyron-go-build"
+            "veyron-go-test"
         ],
         "veyron-go-test": [
             "veyron-go-build"
