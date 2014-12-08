@@ -43,7 +43,7 @@ func NewContextFromCommand(command *cmdline.Command, color, dryRun, verbose bool
 
 // DefaultContext returns the default context.
 func DefaultContext() *Context {
-	run := runutil.New(nil, os.Stdin, os.Stdout, os.Stderr, true, false, true)
+	run := runutil.New(nil, os.Stdin, os.Stdout, os.Stderr, false, false, true)
 	return &Context{
 		git: gitutil.New(run),
 		hg:  hgutil.New(run),
