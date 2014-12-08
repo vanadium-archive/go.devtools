@@ -249,15 +249,10 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 	if err := updateProjects(ctx, remoteProjects, gc); err != nil {
 		return err
 	}
-	// 2. Build all tools in a temporary directory under $VEYRON_ROOT.
-	root, err := VeyronRoot()
+	// 2. Build all tools in a temporary directory.
+	tmpDir, err := ctx.Run().TempDir("", "tmp-veyron-tools-build")
 	if err != nil {
-		return err
-	}
-	prefix := "tmp-veyron-tools-build"
-	tmpDir, err := ctx.Run().TempDir(root, prefix)
-	if err != nil {
-		return fmt.Errorf("TempDir(%v, %v) failed: %v", root, prefix, err)
+		return fmt.Errorf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
 	if err := buildTools(ctx, remoteTools, tmpDir); err != nil {
