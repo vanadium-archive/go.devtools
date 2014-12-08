@@ -1029,18 +1029,34 @@ codegoogle.password=YOUR_GOOGLECODE_PASSWORD
 
 	// Clone the Go Ppapi compiler.
 	goPpapiRepoDir := filepath.Join(root, "environment", "go_ppapi")
+	revision := "d6a826a31648"
 	cloneGoPpapiFn := func() error {
 		if err := ensureHgrcExists(); err != nil {
 			return err
 		}
 		remote := "https://code.google.com/a/google.com/p/go-ppapi-veyron"
-		revision := "cce00a079b67"
 		if err := run(ctx, "hg", []string{"clone", "--noninteractive", remote, "-r", revision, goPpapiRepoDir}, nil); err != nil {
 			return err
 		}
 		return nil
 	}
 	if err := atomicAction(ctx, cloneGoPpapiFn, goPpapiRepoDir, "Clone Go Ppapi repository"); err != nil {
+		return err
+	}
+
+	// Make sure we are on the right revision. If the goPpapiRepoDir
+	// already exists, but is on an older revision, the above atomicAction
+	// will have no effect. Thus, we must manually pull the desired revison
+	// and update the repo.
+	// TODO(nlacasse): Figure out how to ensure we get a specific revision
+	// as part of the above atomicAction.
+	if err := ctx.Run().Chdir(goPpapiRepoDir); err != nil {
+		return err
+	}
+	if err := run(ctx, "hg", []string{"pull", "-r", revision}, nil); err != nil {
+		return err
+	}
+	if err := run(ctx, "hg", []string{"update"}, nil); err != nil {
 		return err
 	}
 
