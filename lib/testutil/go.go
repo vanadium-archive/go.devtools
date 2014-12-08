@@ -242,38 +242,11 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 	allPassed, suites := true, []testSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
-		s := testSuite{Name: result.pkg}
-		c := testCase{
-			Classname: result.pkg,
-			Name:      "TestCoverage",
-			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
-		}
-		addFailureFn := func(message string) {
-			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
-			f := testFailure{
-				Message: message,
-				Data:    result.output,
-			}
-			c.Failures = append(c.Failures, f)
-			allPassed = false
-			s.Failures++
-			s.Tests++
-			s.Cases = append(s.Cases, c)
-		}
+		var s *testSuite
 		switch result.status {
 		case buildFailed:
-			addFailureFn("build")
-		case testFailed:
-			addFailureFn("test")
+			s = createTestSuiteWithFailure(result.pkg, "TestCoverage", "build failure", result.output, result.time)
 		case testPassed:
-			Pass(ctx, "%s\n", result.pkg)
-			if strings.Index(result.output, "no test files") == -1 {
-				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
-				if err != nil {
-					return nil, err
-				}
-				s = *ss
-			}
 			data, err := ioutil.ReadAll(result.coverage)
 			if err != nil {
 				return nil, err
@@ -284,6 +257,19 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 					fmt.Fprintf(&coverageData, "%s\n", line)
 				}
 			}
+			fallthrough
+		case testFailed:
+			if strings.Index(result.output, "no test files") == -1 {
+				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
+				if err != nil {
+					// Token too long error.
+					if !strings.HasSuffix(err.Error(), "token too long") {
+						return nil, err
+					}
+					ss = createTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
+				}
+				s = ss
+			}
 		}
 		if result.coverage != nil {
 			result.coverage.Close()
@@ -291,7 +277,15 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 				return nil, err
 			}
 		}
-		suites = append(suites, s)
+		if s != nil {
+			if s.Failures > 0 {
+				allPassed = false
+				Fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			} else {
+				Pass(ctx, "%s\n", result.pkg)
+			}
+			suites = append(suites, *s)
+		}
 	}
 	close(taskResults)
 
@@ -433,40 +427,32 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	allPassed, suites := true, []testSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
-		s := testSuite{Name: result.pkg}
-		c := testCase{
-			Classname: result.pkg,
-			Name:      "Test",
-			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
-		}
-		addFailureFn := func(message string) {
-			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
-			f := testFailure{
-				Message: message,
-				Data:    result.output,
-			}
-			c.Failures = append(c.Failures, f)
-			allPassed = false
-			s.Failures++
-			s.Tests++
-			s.Cases = append(s.Cases, c)
-		}
+		var s *testSuite
 		switch result.status {
 		case buildFailed:
-			addFailureFn("build")
-		case testFailed:
-			addFailureFn("test")
-		case testPassed:
-			Pass(ctx, "%s\n", result.pkg)
+			s = createTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time)
+		case testFailed, testPassed:
 			if strings.Index(result.output, "no test files") == -1 {
 				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
 				if err != nil {
-					return nil, err
+					// Token too long error.
+					if !strings.HasSuffix(err.Error(), "token too long") {
+						return nil, err
+					}
+					ss = createTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 				}
-				s = *ss
+				s = ss
 			}
 		}
-		suites = append(suites, s)
+		if s != nil {
+			if s.Failures > 0 {
+				allPassed = false
+				Fail(ctx, "%s\n%v\n", result.pkg, result.output)
+			} else {
+				Pass(ctx, "%s\n", result.pkg)
+			}
+			suites = append(suites, *s)
+		}
 	}
 	close(taskResults)
 
@@ -521,6 +507,24 @@ func buildTestDeps(ctx *util.Context, pkgs []string) error {
 		fmt.Fprintf(ctx.Stdout(), "failed\n")
 	}
 	return err
+}
+
+func createTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput string, duration time.Duration) *testSuite {
+	s := testSuite{Name: pkgName}
+	c := testCase{
+		Classname: pkgName,
+		Name:      testName,
+		Time:      fmt.Sprintf("%.2f", duration.Seconds()),
+	}
+	s.Tests = 1
+	f := testFailure{
+		Message: failureMessage,
+		Data:    failureOutput,
+	}
+	c.Failures = append(c.Failures, f)
+	s.Failures = 1
+	s.Cases = append(s.Cases, c)
+	return &s
 }
 
 // installGoCover makes sure the "go cover" tool is installed.
