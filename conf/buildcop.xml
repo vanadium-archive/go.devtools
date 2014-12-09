@@ -7,21 +7,6 @@
 -->
 <rotation>
   <shift>
-    <primary>suharshs</primary>
-    <secondary>tilaks</secondary>
-    <startDate>Nov 12, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>jsimsa</primary>
-    <secondary>toddw</secondary>
-    <startDate>Nov 19, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>toddw</primary>
-    <secondary>wmleler</secondary>
-    <startDate>Nov 26, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
     <primary>wmleler</primary>
     <secondary>ribrdb</secondary>
     <startDate>Dec 3, 2014 12:00:00 PM</startDate>
@@ -37,7 +22,7 @@
     <startDate>Dec 17, 2014 12:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>alexfandrianto</primary>
+    <primary>jingjin</primary>
     <secondary>aghassemi</secondary>
     <startDate>Dec 24, 2014 12:00:00 PM</startDate>
   </shift>
@@ -97,7 +82,7 @@
     <startDate>Mar 11, 2015 12:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>jingjin</primary>
+    <primary>alexfandrianto</primary>
     <secondary>jsimsa</secondary>
     <startDate>Mar 18, 2015 12:00:00 PM</startDate>
   </shift>
@@ -150,5 +135,20 @@
     <primary>spetrovic</primary>
     <secondary>suharshs</secondary>
     <startDate>May 27, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>suharshs</primary>
+    <secondary>tilaks</secondary>
+    <startDate>Jun 3, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>tilaks</primary>
+    <secondary>toddw</secondary>
+    <startDate>Jun 10, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>toddw</primary>
+    <secondary>wmleler</secondary>
+    <startDate>Jun 17, 2015 12:00:00 PM</startDate>
   </shift>
 </rotation>
