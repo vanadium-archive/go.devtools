@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -573,6 +574,15 @@ func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[strin
 	curFailedTestCases := []testCase{}
 	for _, curTestSuite := range testSuites.Testsuites {
 		for _, curTestCase := range curTestSuite.Testcases {
+			// Use test suite's name as the test case's class name if the
+			// class name is empty.
+			if curTestCase.Classname == "" {
+				curTestCase.Classname = curTestSuite.Name
+			}
+			// Unescape test name and class name.
+			curTestCase.Classname = html.UnescapeString(curTestCase.Classname)
+			curTestCase.Name = html.UnescapeString(curTestCase.Name)
+
 			testFullName := genTestFullName(curTestCase.Classname, curTestCase.Name)
 			seenTests[testFullName]++
 

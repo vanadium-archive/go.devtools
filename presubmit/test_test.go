@@ -151,6 +151,8 @@ veyron/go/src/veyron.io/tools/veyron/main.go:1: you should feel bad
     </testcase>
     <testcase classname="c3.n" name="n3" time="0">
     </testcase>
+    <testcase name="&quot;n9&quot;" time="0">
+    </testcase>
   </testsuite>
 </testsuites>
 	`
@@ -175,6 +177,7 @@ veyron/go/src/veyron.io/tools/veyron/main.go:1: you should feel bad
 				"c1::n::n1": 1,
 				"c2::n::n2": 1,
 				"c3::n::n3": 2,
+				`ts1::"n9"`: 1,
 			},
 		},
 		test{
@@ -203,6 +206,7 @@ veyron/go/src/veyron.io/tools/veyron/main.go:1: you should feel bad
 				"c1::n::n1": 1,
 				"c2::n::n2": 1,
 				"c3::n::n3": 2,
+				`ts1::"n9"`: 1,
 			},
 		},
 	}
