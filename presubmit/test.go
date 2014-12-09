@@ -484,7 +484,7 @@ func parseFailedTests(reader io.Reader) ([]testCase, error) {
 	for _, suite := range testCases.Suites {
 		for _, curCase := range suite.Cases {
 			if curCase.Status == "FAILED" || curCase.Status == "REGRESSION" {
-				failedTestCases = append(failedTestCases, suite.Cases...)
+				failedTestCases = append(failedTestCases, curCase)
 			}
 		}
 	}
