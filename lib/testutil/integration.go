@@ -162,7 +162,7 @@ func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error
 		s := testSuite{Name: result.pkg}
 		c := testCase{
 			Classname: result.pkg,
-			Name:      "Integration Test",
+			Name:      "IntegrationTest",
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		switch result.status {
