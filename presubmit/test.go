@@ -640,14 +640,14 @@ func genTestFullName(className, testName string) string {
 func genTestResultLink(className, testName, testFullName string, suffix int) string {
 	packageName := "(root)"
 	// In JUnit:
-	// - If className contains ".", the part before it becomes the
-	//   package name, and the part after it becomes the class name.
+	// - If className contains ".", the part before the last "." becomes
+	//   the package name, and the part after it becomes the class name.
 	// - If className doesn't contain ".", the package name will be
 	//   "(root)".
 	if strings.Contains(className, ".") {
-		parts := strings.SplitN(className, ".", 2)
-		packageName = parts[0]
-		className = parts[1]
+		lastDotIndex := strings.LastIndex(className, ".")
+		packageName = className[0:lastDotIndex]
+		className = className[lastDotIndex+1:]
 	}
 	safePackageName := safePackageOrClassName(packageName)
 	safeClassName := safePackageOrClassName(className)
