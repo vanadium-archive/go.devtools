@@ -143,7 +143,8 @@ func LocalProjects(ctx *Context) (Projects, error) {
 // PollProjects returns the set of changelists that exist remotely
 // but not locally. Changes are grouped by veyron repositories and
 // contain author identification and a description of their content.
-func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{}) (update Update, e error) {
+func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{}) (_ Update, e error) {
+	update := Update{}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
