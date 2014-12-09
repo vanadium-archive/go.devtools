@@ -3,18 +3,19 @@ package testutil
 import (
 	"path/filepath"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
 
 // runJSTest is a harness for executing javascript tests.
-func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (*TestResult, error) {
+func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Navigate to the target directory.
 	if err := ctx.Run().Chdir(testDir); err != nil {

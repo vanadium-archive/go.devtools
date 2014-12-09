@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/util"
 )
@@ -165,8 +166,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	numSentCLs += sendCLListsToPresubmitTest(ctx, newCLLists, defaultProjects,
-		removeOutdatedBuilds, addPresubmitTestBuild)
+	numSentCLs += sendCLListsToPresubmitTest(ctx, newCLLists, defaultProjects, removeOutdatedBuilds, addPresubmitTestBuild)
 
 	return nil
 }
@@ -186,12 +186,12 @@ func checkGerritBaseUrl() (string, error) {
 }
 
 // gerritHostCredential returns credential for the given gerritHost.
-func gerritHostCredential(gerritHost string) (credential, error) {
+func gerritHostCredential(gerritHost string) (_ credential, e error) {
 	fdNetRc, err := os.Open(netRcFilePathFlag)
 	if err != nil {
 		return credential{}, fmt.Errorf("Open(%q) failed: %v", netRcFilePathFlag, err)
 	}
-	defer fdNetRc.Close()
+	defer collect.Error(func() error { return fdNetRc.Close() }, &e)
 	creds, err := parseNetRcFile(fdNetRc)
 	if err != nil {
 		return credential{}, err
@@ -240,7 +240,7 @@ func readLog() (clRefMap, error) {
 }
 
 // writeLog writes the refs of the given CLs to the log file.
-func writeLog(ctx *util.Context, cls clList) error {
+func writeLog(ctx *util.Context, cls clList) (e error) {
 	// Index CLs with their refs.
 	results := clRefMap{}
 	for _, cl := range cls {
@@ -251,7 +251,7 @@ func writeLog(ctx *util.Context, cls clList) error {
 	if err != nil {
 		return fmt.Errorf("OpenFile(%q) failed: %v", logFilePathFlag, err)
 	}
-	defer fd.Close()
+	defer collect.Error(func() error { return fd.Close() }, &e)
 
 	bytes, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
@@ -342,7 +342,7 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 // target one by one to run presubmit-test builds. It returns how many CLs have
 // been sent successfully.
 func sendCLListsToPresubmitTest(ctx *util.Context, clLists []clList, defaultProjects map[string]util.Project,
-	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap),
+	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error,
 	addPresubmitFn func(clList) error) int {
 	clsSent := 0
 outer:
@@ -365,7 +365,9 @@ outer:
 			curCLMap[cl] = patchset
 			clStrings = append(clStrings, fmt.Sprintf("http://go/vcl/%d/%d", cl, patchset))
 		}
-		removeOutdatedFn(ctx, curCLMap)
+		for err := range removeOutdatedFn(ctx, curCLMap) {
+			printf(ctx.Stderr(), "%v\n", err)
+		}
 
 		// Send curCLList to presubmit-test.
 		strCLs := fmt.Sprintf("Add %s", strings.Join(clStrings, ", "))
@@ -396,18 +398,16 @@ func isInDefaultManifest(ctx *util.Context, cl gerrit.QueryResult, defaultProjec
 //
 // Since this is not a critical operation, we simply print out the
 // errors if we see any.
-func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) {
+func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []error) {
 	// Queued presubmit-test builds.
 	getQueuedBuildsRes, err := jenkinsAPI("queue/api/json", "GET", nil)
 	if err != nil {
-		printf(ctx.Stderr(), "%v\n", err)
+		errs = append(errs, nil)
 	} else {
 		// Get queued presubmit-test builds.
-		defer getQueuedBuildsRes.Body.Close()
-		queuedItems, errs := queuedOutdatedBuilds(getQueuedBuildsRes.Body, cls)
-		if len(errs) != 0 {
-			printf(ctx.Stderr(), "%v\n", errs)
-		}
+		defer collect.Errors(func() error { return getQueuedBuildsRes.Body.Close() }, &errs)
+		queuedItems, queuedErrs := queuedOutdatedBuilds(getQueuedBuildsRes.Body, cls)
+		errs = append(errs, queuedErrs...)
 
 		// Cancel them.
 		for _, queuedItem := range queuedItems {
@@ -416,11 +416,13 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) {
 				"id": {fmt.Sprintf("%d", queuedItem.id)},
 			})
 			if err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
+				errs = append(errs, err)
 				continue
 			} else {
 				printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", queuedItem.ref)
-				cancelQueuedItemRes.Body.Close()
+				if err := cancelQueuedItemRes.Body.Close(); err != nil {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
@@ -429,13 +431,13 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) {
 	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestJenkinsProjectFlag)
 	getLastBuildRes, err := jenkinsAPI(getLastBuildUri, "GET", nil)
 	if err != nil {
-		printf(ctx.Stderr(), "%v\n", err)
+		errs = append(errs, err)
 	} else {
 		// Get ongoing presubmit-test build.
-		defer getLastBuildRes.Body.Close()
+		defer collect.Errors(func() error { return getLastBuildRes.Body.Close() }, &errs)
 		build, err := ongoingOutdatedBuild(getLastBuildRes.Body, cls)
 		if err != nil {
-			printf(ctx.Stderr(), "%v\n", err)
+			errs = append(errs, err)
 			return
 		}
 		if build.buildNumber < 0 {
@@ -446,12 +448,15 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) {
 		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestJenkinsProjectFlag, build.buildNumber)
 		cancelOngoingBuildRes, err := jenkinsAPI(cancelOngoingBuildUri, "POST", nil)
 		if err != nil {
-			printf(ctx.Stderr(), "%v\n", err)
+			errs = append(errs, err)
 		} else {
 			printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", build.ref)
-			cancelOngoingBuildRes.Body.Close()
+			if err := cancelOngoingBuildRes.Body.Close(); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
+	return errs
 }
 
 type queuedItem struct {
@@ -462,7 +467,7 @@ type queuedItem struct {
 // queuedOutdatedBuilds returns the ids and refs of queued
 // presubmit-test builds that have the given cl number and equal or
 // smaller patchset number.
-func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) ([]queuedItem, []error) {
+func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) (_ []queuedItem, errs []error) {
 	r := bufio.NewReader(reader)
 	var items struct {
 		Items []struct {
@@ -478,7 +483,6 @@ func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) ([]queued
 	}
 
 	queuedItems := []queuedItem{}
-	errs := []error{}
 	for _, item := range items.Items {
 		if item.Task.Name != presubmitTestJenkinsProjectFlag {
 			continue

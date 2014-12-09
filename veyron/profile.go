@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
@@ -265,7 +266,7 @@ func run(ctx *util.Context, bin string, args []string, env map[string]string) er
 //
 // For more on Go cross-compilation for arm/linux information see:
 // http://www.bootc.net/archives/2012/05/26/how-to-build-a-cross-compiler-for-your-raspberry-pi/
-func setupArmLinux(ctx *util.Context) error {
+func setupArmLinux(ctx *util.Context) (e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -351,7 +352,7 @@ func setupArmLinux(ctx *util.Context) error {
 		if err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 		if err := ctx.Run().Chdir(tmpDir); err != nil {
 			return err
 		}
@@ -417,7 +418,7 @@ func setupArmLinux(ctx *util.Context) error {
 }
 
 // setupMobileLinux sets up the mobile profile for linux.
-func setupMobileLinux(ctx *util.Context) error {
+func setupMobileLinux(ctx *util.Context) (e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -441,7 +442,7 @@ func setupMobileLinux(ctx *util.Context) error {
 		if err != nil {
 			fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 		remote := "http://javadl.sun.com/webapps/download/AutoDL?BundleId=92494"
 		local := filepath.Join(tmpDir, "jre.tar.gz")
 		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
@@ -463,7 +464,7 @@ func setupMobileLinux(ctx *util.Context) error {
 		if err != nil {
 			fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 		remote := "http://dl.google.com/android/android-sdk_r23-linux.tgz"
 		local := filepath.Join(tmpDir, "android-sdk.tgz")
 		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
@@ -504,7 +505,7 @@ func setupMobileLinux(ctx *util.Context) error {
 		if err != nil {
 			fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 		remote := "http://dl.google.com/android/ndk/android-ndk-r9d-linux-x86_64.tar.bz2"
 		local := filepath.Join(tmpDir, "android-ndk-r9d-linux-x86_64.tar.bz2")
 		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
@@ -634,7 +635,7 @@ ac_cv_func_realloc_works=yes
 `
 
 // setupProximityLinuxHelper sets up the proximity profile for linux.
-func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error {
+func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) (e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -797,7 +798,7 @@ func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) error
 		if err := ctx.Run().WriteFile(glibCacheFile, []byte(glibCache), defaultFilePerm); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", glibCacheFile, err)
 		}
-		defer ctx.Run().RemoveAll(glibCacheFile)
+		defer collect.Error(func() error { return ctx.Run().RemoveAll(glibCacheFile) }, &e)
 		env := envutil.NewSnapshotFromOS()
 		if path != "" {
 			env.Set("PATH", fmt.Sprintf("%s:%s", path, env.Get("PATH")))

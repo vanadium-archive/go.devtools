@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/runutil"
 )
@@ -142,12 +143,12 @@ func LocalProjects(ctx *Context) (Projects, error) {
 // PollProjects returns the set of changelists that exist remotely
 // but not locally. Changes are grouped by veyron repositories and
 // contain author identification and a description of their content.
-func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{}) (Update, error) {
+func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{}) (update Update, e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	defer ctx.Run().Chdir(cwd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
 		return nil, err
@@ -160,7 +161,6 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	if err != nil {
 		return nil, err
 	}
-	update := Update{}
 	for _, op := range ops {
 		if len(projectSet) > 0 {
 			if _, ok := projectSet[op.project.Name]; !ok {
@@ -240,7 +240,7 @@ func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
 // remote counterparts identified by the given manifest. Optionally,
 // the 'gc' flag can be used to indicate that local projects that no
 // longer exist remotely should be removed.
-func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
+func UpdateUniverse(ctx *Context, manifest string, gc bool) (e error) {
 	remoteProjects, remoteTools, err := ReadManifest(ctx, manifest)
 	if err != nil {
 		return err
@@ -254,7 +254,7 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 	if err != nil {
 		return fmt.Errorf("TempDir() failed: %v", err)
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 	if err := buildTools(ctx, remoteTools, tmpDir); err != nil {
 		return err
 	}
@@ -264,12 +264,12 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) error {
 
 // ApplyToLocalMaster applies an operation expressed as the given
 // function to the local master branch of the given project.
-func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) error {
+func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) (e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().Chdir(cwd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	if err := ctx.Run().Chdir(project.Path); err != nil {
 		return err
 	}
@@ -284,12 +284,12 @@ func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) error {
 			return err
 		}
 		if stashed {
-			defer ctx.Git().StashPop()
+			defer collect.Error(func() error { return ctx.Git().StashPop() }, &e)
 		}
 		if err := ctx.Git().CheckoutBranch("master", !gitutil.Force); err != nil {
 			return err
 		}
-		defer ctx.Git().CheckoutBranch(branch, !gitutil.Force)
+		defer collect.Error(func() error { return ctx.Git().CheckoutBranch(branch, !gitutil.Force) }, &e)
 	case "hg":
 		branch, err := ctx.Hg().CurrentBranchName()
 		if err != nil {
@@ -298,7 +298,7 @@ func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) error {
 		if err := ctx.Hg().CheckoutBranch("default"); err != nil {
 			return err
 		}
-		defer ctx.Hg().CheckoutBranch(branch)
+		defer collect.Error(func() error { return ctx.Hg().CheckoutBranch(branch) }, &e)
 	default:
 		return UnsupportedProtocolErr(project.Protocol)
 	}
@@ -380,12 +380,12 @@ func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 }
 
 // findLocalProjects implements LocalProjects.
-func findLocalProjects(ctx *Context, path string, projects Projects) error {
+func findLocalProjects(ctx *Context, path string, projects Projects) (e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().Chdir(cwd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	if err := ctx.Run().Chdir(path); err != nil {
 		return err
 	}
@@ -428,7 +428,7 @@ func findLocalProjects(ctx *Context, path string, projects Projects) error {
 	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".veyronignore")
 	file, err := os.Open(ignorePath)
 	if err == nil {
-		defer file.Close()
+		defer collect.Error(func() error { return file.Close() }, &e)
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			ignoreSet[scanner.Text()] = struct{}{}
@@ -587,12 +587,12 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 
 // reportNonMaster checks if the given project is on master branch and
 // if not, reports this fact along with information on how to update it.
-func reportNonMaster(ctx *Context, project Project) error {
+func reportNonMaster(ctx *Context, project Project) (e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().Chdir(cwd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	if err := ctx.Run().Chdir(project.Path); err != nil {
 		return err
 	}
@@ -856,7 +856,7 @@ exit 0
 // commit hooks for existing repositories. Overwriting the existing
 // hooks is not a good idea as developers might have customized the
 // hooks.
-func runOperation(ctx *Context, op operation) error {
+func runOperation(ctx *Context, op operation) (e error) {
 	switch op.ty {
 	case createOperation:
 		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
@@ -896,7 +896,7 @@ func runOperation(ctx *Context, op operation) error {
 			if err != nil {
 				return err
 			}
-			defer ctx.Run().Chdir(cwd)
+			defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 			if err := ctx.Run().Chdir(op.destination); err != nil {
 				return err
 			}
@@ -911,7 +911,7 @@ func runOperation(ctx *Context, op operation) error {
 			if err != nil {
 				return err
 			}
-			defer ctx.Run().Chdir(cwd)
+			defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 			if err := ctx.Run().Chdir(op.destination); err != nil {
 				return err
 			}

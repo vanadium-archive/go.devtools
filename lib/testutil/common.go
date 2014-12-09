@@ -23,7 +23,7 @@ func binDirPath() string {
 }
 
 // initTest carries out the initial actions for the given test.
-func initTest(ctx *util.Context, testName string, profiles []string) (func(), error) {
+func initTest(ctx *util.Context, testName string, profiles []string) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -77,8 +77,8 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func(), er
 		}
 	}
 
-	return func() {
-		ctx.Run().Chdir(cwd)
+	return func() error {
+		return ctx.Run().Chdir(cwd)
 	}, nil
 }
 

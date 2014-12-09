@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/testutil"
 	"veyron.io/tools/lib/util"
 )
@@ -126,7 +127,7 @@ func runSnapshotCreate(command *cmdline.Command, args []string) error {
 
 // checkSnapshotDir makes sure that he local snapshot directory exists
 // and is initialized properly.
-func checkSnapshotDir(ctx *util.Context) error {
+func checkSnapshotDir(ctx *util.Context) (e error) {
 	snapshotDir, err := util.LocalSnapshotDir()
 	if err != nil {
 		return err
@@ -135,7 +136,7 @@ func checkSnapshotDir(ctx *util.Context) error {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		createFn := func() error {
+		createFn := func() (err error) {
 			if err := ctx.Run().MkdirAll(snapshotDir, 0755); err != nil {
 				return err
 			}
@@ -146,7 +147,7 @@ func checkSnapshotDir(ctx *util.Context) error {
 			if err != nil {
 				return err
 			}
-			defer ctx.Run().Chdir(cwd)
+			defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 			if err := ctx.Run().Chdir(snapshotDir); err != nil {
 				return err
 			}
@@ -212,12 +213,12 @@ func getSnapshotDir() (string, error) {
 // revisionChanges commits changes identified by the given manifest
 // file and label to the manifest repository and (if applicable)
 // pushes these changes to the remote repository.
-func revisionChanges(ctx *util.Context, snapshotDir, snapshotFile, label string) error {
+func revisionChanges(ctx *util.Context, snapshotDir, snapshotFile, label string) (e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().Chdir(cwd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	if err := ctx.Run().Chdir(snapshotDir); err != nil {
 		return err
 	}

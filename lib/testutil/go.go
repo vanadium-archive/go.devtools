@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
@@ -63,7 +64,7 @@ func (timeoutOpt) goCoverageOpt() {}
 func (timeoutOpt) goTestOpt()     {}
 
 // goBuild is a helper function for running Go builds.
-func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (*TestResult, error) {
+func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
 	args, profiles := []string{}, []string{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -79,7 +80,7 @@ func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildO
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Enumerate the packages to be built.
 	pkgList, err := goList(ctx, pkgs)
@@ -176,7 +177,7 @@ type coverageResult struct {
 const defaultTestCoverageTimeout = "5m"
 
 // goCoverage is a helper function for running Go coverage tests.
-func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCoverageOpt) (*TestResult, error) {
+func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCoverageOpt) (_ *TestResult, e error) {
 	timeout := defaultTestCoverageTimeout
 	args, profiles := []string{}, []string{}
 	for _, opt := range opts {
@@ -195,7 +196,7 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install dependencies.
 	if err := installGoCover(ctx); err != nil {
@@ -372,7 +373,7 @@ type testResult struct {
 const defaultTestTimeout = "5m"
 
 // goTest is a helper function for running Go tests.
-func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (*TestResult, error) {
+func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
 	args, profiles := []string{}, []string{}
 	for _, opt := range opts {
@@ -391,7 +392,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install dependencies.
 	if err := installGo2XUnit(ctx); err != nil {
@@ -711,7 +712,7 @@ func VeyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
 }
 
 // VeyronGoDoc (re)starts the godoc server for veyron projects.
-func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -722,7 +723,7 @@ func VeyronGoDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install dependencies.
 	if err := installGoDoc(ctx); err != nil {

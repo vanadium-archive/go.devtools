@@ -3,6 +3,7 @@ package testutil
 import (
 	"path/filepath"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
@@ -11,7 +12,7 @@ import (
 // VeyronTutorial runs the veyron tutorial examples.
 //
 // TODO(jregan): Merge the mdrip logic into this package.
-func VeyronTutorial(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -22,7 +23,7 @@ func VeyronTutorial(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the mdrip tool.
 	opts := ctx.Run().Opts()

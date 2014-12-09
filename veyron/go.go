@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
@@ -168,12 +169,12 @@ func generateVDL(ctx *util.Context, cmdArgs []string) error {
 // reportOutdatedProjects checks if the currently checked out branches
 // are up-to-date with respect to the local master branch. For each
 // branch that is not, a notification is printed.
-func reportOutdatedBranches(ctx *util.Context) error {
+func reportOutdatedBranches(ctx *util.Context) (e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().Chdir(cwd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	projects, err := util.LocalProjects(ctx)
 	for _, project := range projects {
 		if err := ctx.Run().Chdir(project.Path); err != nil {

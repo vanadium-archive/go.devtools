@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/util"
 )
 
@@ -86,7 +87,7 @@ func requireEnv(names []string) error {
 
 // VeyronPresubmitPoll polls veyron projects for new patchsets for
 // which to run presubmit tests.
-func VeyronPresubmitPoll(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -97,7 +98,7 @@ func VeyronPresubmitPoll(ctx *util.Context, testName string) (*TestResult, error
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Use the "presubmit query" command to poll for new changes.
 	logfile := filepath.Join(root, ".presubmit_log")
@@ -110,7 +111,7 @@ func VeyronPresubmitPoll(ctx *util.Context, testName string) (*TestResult, error
 }
 
 // VeyronPresubmitTest runs presubmit tests for veyron projects.
-func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
@@ -120,7 +121,7 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (*TestResult, error
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Cleanup the test results possibly left behind by the
 	// previous presubmit test.

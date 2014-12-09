@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/util"
@@ -83,7 +84,7 @@ reports the difference and stops. Otherwise, it deletes the branch.
 	ArgsLong: "<branches> is a list of branches to cleanup.",
 }
 
-func cleanup(ctx *util.Context, branches []string) error {
+func cleanup(ctx *util.Context, branches []string) (e error) {
 	currentBranch, err := ctx.Git().CurrentBranchName()
 	if err != nil {
 		return err
@@ -93,12 +94,12 @@ func cleanup(ctx *util.Context, branches []string) error {
 		return err
 	}
 	if stashed {
-		defer ctx.Git().StashPop()
+		defer collect.Error(func() error { return ctx.Git().StashPop() }, &e)
 	}
 	if err := ctx.Git().CheckoutBranch("master", !gitutil.Force); err != nil {
 		return err
 	}
-	defer ctx.Git().CheckoutBranch(currentBranch, !gitutil.Force)
+	defer collect.Error(func() error { return ctx.Git().CheckoutBranch(currentBranch, !gitutil.Force) }, &e)
 	if err := ctx.Git().Pull("origin", "master"); err != nil {
 		return err
 	}
@@ -298,7 +299,7 @@ var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcde
 
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
-func (r *review) checkGoFormat() error {
+func (r *review) checkGoFormat() (e error) {
 	if err := r.ctx.Git().Fetch("origin", "master"); err != nil {
 		return err
 	}
@@ -310,7 +311,7 @@ func (r *review) checkGoFormat() error {
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer r.ctx.Run().Chdir(wd)
+	defer collect.Error(func() error { return r.ctx.Run().Chdir(wd) }, &e)
 	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return err
@@ -368,20 +369,21 @@ func (r *review) checkGoDependencies() error {
 }
 
 // cleanup cleans up after the review.
-func (r *review) cleanup(stashed bool) {
+func (r *review) cleanup(stashed bool) error {
 	if err := r.ctx.Git().CheckoutBranch(r.branch, !gitutil.Force); err != nil {
-		fmt.Fprintf(r.ctx.Stderr(), "%v\n", err)
+		return err
 	}
 	if r.ctx.Git().BranchExists(r.reviewBranch) {
 		if err := r.ctx.Git().DeleteBranch(r.reviewBranch, gitutil.Force); err != nil {
-			fmt.Fprintf(r.ctx.Stderr(), "%v\n", err)
+			return err
 		}
 	}
 	if stashed {
 		if err := r.ctx.Git().StashPop(); err != nil {
-			fmt.Fprintf(r.ctx.Stderr(), "%v\n", err)
+			return err
 		}
 	}
+	return nil
 }
 
 // createReviewBranch creates a clean review branch from master and
@@ -459,7 +461,7 @@ func (r *review) ensureChangeID() error {
 }
 
 // run implements the end-to-end functionality of the review command.
-func (r *review) run() error {
+func (r *review) run() (e error) {
 	if uncommittedFlag {
 		changes, err := r.ctx.Git().FilesWithUncommittedChanges()
 		if err != nil {
@@ -494,7 +496,7 @@ func (r *review) run() error {
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer r.ctx.Run().Chdir(wd)
+	defer collect.Error(func() error { return r.ctx.Run().Chdir(wd) }, &e)
 	topLevel, err := r.ctx.Git().TopLevel()
 	if err != nil {
 		return err
@@ -502,7 +504,7 @@ func (r *review) run() error {
 	if err := r.ctx.Run().Chdir(topLevel); err != nil {
 		return err
 	}
-	defer r.cleanup(stashed)
+	defer collect.Error(func() error { return r.cleanup(stashed) }, &e)
 	message := ""
 	data, err := ioutil.ReadFile(filename)
 	if err == nil {
@@ -595,7 +597,7 @@ indication of the status:
 `,
 }
 
-func runStatus(command *cmdline.Command, args []string) error {
+func runStatus(command *cmdline.Command, args []string) (e error) {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
@@ -612,7 +614,7 @@ func runStatus(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer ctx.Run().Chdir(wd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
 	// Get the name of the current repository, if applicable.
 	currentRepo, _ := ctx.Git().RepoName()
 	var statuses []string
