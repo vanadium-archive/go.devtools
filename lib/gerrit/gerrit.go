@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/util"
 )
@@ -174,7 +175,7 @@ func parseMultiPartMatch(match string) (*MultiPartCLInfo, error) {
 // See the following links for more details about Gerrit search syntax:
 // - https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#list-changes
 // - https://gerrit-review.googlesource.com/Documentation/user-search.html
-func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString string) ([]QueryResult, error) {
+func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString string) (_ []QueryResult, e error) {
 	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&o=CURRENT_COMMIT&q=%s", gerritBaseUrl, url.QueryEscape(queryString))
 	fmt.Fprintf(ctx.Stdout(), "Issuing query: %v\n", url)
 	var body io.Reader
@@ -190,8 +191,7 @@ func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString str
 	if err != nil {
 		return nil, fmt.Errorf("Do(%v) failed: %v", req, err)
 	}
-	defer res.Body.Close()
-
+	defer collect.Error(func() error { return res.Body.Close() }, &e)
 	return parseQueryResults(ctx, res.Body)
 }
 

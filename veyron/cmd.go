@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/util"
 	"veyron.io/tools/lib/version"
@@ -139,7 +140,7 @@ func runContributors(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-func listCommitters(git *gitutil.Git) ([]string, error) {
+func listCommitters(git *gitutil.Git) (_ []string, e error) {
 	branch, err := git.CurrentBranchName()
 	if err != nil {
 		return nil, err
@@ -149,12 +150,12 @@ func listCommitters(git *gitutil.Git) ([]string, error) {
 		return nil, err
 	}
 	if stashed {
-		defer git.StashPop()
+		defer collect.Error(func() error { return git.StashPop() }, &e)
 	}
 	if err := git.CheckoutBranch("master", !gitutil.Force); err != nil {
 		return nil, err
 	}
-	defer git.CheckoutBranch(branch, !gitutil.Force)
+	defer collect.Error(func() error { return git.CheckoutBranch(branch, !gitutil.Force) }, &e)
 	return git.Committers()
 }
 

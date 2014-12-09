@@ -17,6 +17,8 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+
+	"veyron.io/tools/lib/collect"
 )
 
 // ToMap converts environment variables from the []`key=value` form to the
@@ -143,12 +145,12 @@ func (s *Snapshot) GetTokens(key, separator string) []string {
 //
 // NOTE: This function temporarily modifies the global environment and
 // therefore is not thread-safe.
-func (s *Snapshot) LookPath(file string) (string, error) {
+func (s *Snapshot) LookPath(file string) (_ string, e error) {
 	oldPath := os.Getenv("PATH")
 	if err := os.Setenv("PATH", s.Get("PATH")); err != nil {
 		return "", fmt.Errorf("Setenv(%q, %q) failed: %v", "PATH", s.Get("PATH"), err)
 	}
-	defer os.Setenv("PATH", oldPath)
+	defer collect.Error(func() error { return os.Setenv("PATH", oldPath) }, &e)
 	path, err := exec.LookPath(file)
 	if err != nil {
 		return "", fmt.Errorf("LookPath(%q) failed: %v", file, err)

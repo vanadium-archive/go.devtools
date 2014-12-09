@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/util"
 )
 
@@ -83,13 +84,13 @@ type prodService struct {
 }
 
 // VeyronProdServicesTest runs a test of veyron production services.
-func VeyronProdServicesTest(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
 	if err := ctx.Run().Command("veyron", "go", "install", "veyron.io/veyron/veyron/tools/vrpc"); err != nil {

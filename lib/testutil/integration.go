@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
@@ -232,13 +233,13 @@ func integrationTestWorker(root string, env map[string]string, tasks <-chan stri
 }
 
 // VeyronIntegrationTest runs veyron integration tests.
-func VeyronIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Build all Go binaries used in intergartion test scripts and
 	// then run the integration tests. We pre-build the binaries

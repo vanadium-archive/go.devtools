@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"veyron.io/lib/cmdline"
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/testutil"
@@ -62,7 +63,7 @@ func (c cl) String() string {
 }
 
 // runTest implements the 'test' subcommand.
-func runTest(command *cmdline.Command, args []string) error {
+func runTest(command *cmdline.Command, args []string) (e error) {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 
 	// Basic sanity checks.
@@ -93,12 +94,10 @@ func runTest(command *cmdline.Command, args []string) error {
 	}
 
 	// Setup cleanup function for cleaning up presubmit test branch.
-	cleanupFn := func() {
-		if err := cleanupAllPresubmitTestBranches(ctx, projects); err != nil {
-			printf(command.Stderr(), "%v\n", err)
-		}
+	cleanupFn := func() error {
+		return cleanupAllPresubmitTestBranches(ctx, projects)
 	}
-	defer cleanupFn()
+	defer collect.Error(func() error { return cleanupFn() }, &e)
 
 	// Trap SIGTERM and SIGINT signal when the program is aborted
 	// on Jenkins.
@@ -106,10 +105,12 @@ func runTest(command *cmdline.Command, args []string) error {
 		sigchan := make(chan os.Signal, 1)
 		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigchan
-		cleanupFn()
+		if err := cleanupFn(); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+		}
 		// Linux convention is to use 128+signal as the exit
-		// code. We use exit(0) here to let Jenkins properly
-		// mark a run as "Aborted" instead of "Failed".
+		// code. We use 0 here to let Jenkins properly mark a
+		// run as "Aborted" instead of "Failed".
 		os.Exit(0)
 	}()
 
@@ -275,7 +276,7 @@ func presubmitTestBranchName(ref string) string {
 
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
-func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string]util.Project) (*cl, error) {
+func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string]util.Project) (_ *cl, e error) {
 	strCLs := []string{}
 	for _, cl := range cls {
 		strCLs = append(strCLs, cl.String())
@@ -284,7 +285,7 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 	if err != nil {
 		return nil, fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer ctx.Run().Chdir(wd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
 	if err := cleanupAllPresubmitTestBranches(ctx, projects); err != nil {
 		return nil, fmt.Errorf("%v\n", err)
 	}
@@ -320,13 +321,13 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 }
 
 // cleanupPresubmitTestBranch removes the presubmit test branch.
-func cleanupAllPresubmitTestBranches(ctx *util.Context, projects map[string]util.Project) error {
+func cleanupAllPresubmitTestBranches(ctx *util.Context, projects map[string]util.Project) (e error) {
 	printf(ctx.Stdout(), "### Cleaning up\n")
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer ctx.Run().Chdir(wd)
+	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
 	for _, project := range projects {
 		localRepoDir := project.Path
 		if err := ctx.Run().Chdir(localRepoDir); err != nil {
@@ -383,7 +384,7 @@ func resetRepo(ctx *util.Context) error {
 
 // lastCompletedBuildStatusForProject gets the status of the last
 // completed build for a given jenkins project.
-func lastCompletedBuildStatusForProject(projectName string) (string, error) {
+func lastCompletedBuildStatusForProject(projectName string) (_ string, e error) {
 	// Construct rest API url to get build status.
 	statusUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
@@ -406,8 +407,7 @@ func lastCompletedBuildStatusForProject(projectName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Do(%v) failed: %v", req, err)
 	}
-	defer res.Body.Close()
-
+	defer collect.Error(func() error { return res.Body.Close() }, &e)
 	return parseLastCompletedBuildStatusJsonResponse(res.Body)
 }
 
@@ -460,13 +460,13 @@ func (t failureType) String() string {
 type failedTestLinksMap map[failureType][]string
 
 // failedTests gets a list of failed test cases from the most recent build of the given Jenkins project.
-func failedTests(jenkinsProject string) ([]testCase, error) {
+func failedTests(jenkinsProject string) (_ []testCase, e error) {
 	getTestRerpotUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", jenkinsProject)
 	getTestReportRes, err := jenkinsAPI(getTestRerpotUri, "GET", nil)
 	if err != nil {
 		return []testCase{}, err
 	}
-	defer getTestReportRes.Body.Close()
+	defer collect.Error(func() error { return getTestReportRes.Body.Close() }, &e)
 	return parseFailedTests(getTestReportRes.Body)
 }
 
@@ -492,7 +492,7 @@ func parseFailedTests(reader io.Reader) ([]testCase, error) {
 }
 
 // createFailedTestsReport returns links for failed tests grouped by failure types.
-func createFailedTestsReport(ctx *util.Context, allTestNames []string) (string, error) {
+func createFailedTestsReport(ctx *util.Context, allTestNames []string) (_ string, e error) {
 	linksMap := failedTestLinksMap{}
 	// seenTests maps the test full names to number of times they
 	// have been seen in the test reports. This will be used to
@@ -514,7 +514,7 @@ func createFailedTestsReport(ctx *util.Context, allTestNames []string) (string, 
 			printf(ctx.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
 			continue
 		}
-		defer fdReport.Close()
+		defer collect.Error(func() error { return fdReport.Close() }, &e)
 		curLinksMap, err := genFailedTestLinks(ctx, fdReport, seenTests, testName, failedTests)
 		if err != nil {
 			printf(ctx.Stderr(), "%v\n", err)
@@ -677,7 +677,7 @@ func safeTestName(name string) string {
 
 // generateReportForHangingTest generates a xunit test report file for
 // the given test that timed out.
-func generateReportForHangingTest(testName string, timeout time.Duration) error {
+func generateReportForHangingTest(testName string, timeout time.Duration) (e error) {
 	type tmplData struct {
 		TestName     string
 		ErrorMessage string
@@ -692,7 +692,7 @@ func generateReportForHangingTest(testName string, timeout time.Duration) error 
 	if err != nil {
 		return fmt.Errorf("Create(%q) failed: %v", reportFile, err)
 	}
-	defer f.Close()
+	defer collect.Error(func() error { return f.Close() }, &e)
 	return tmpl.Execute(f, tmplData{
 		TestName: testName,
 		ErrorMessage: fmt.Sprintf("The test timed out after %s.\nOpen console log and search for \"%s timed out\".",

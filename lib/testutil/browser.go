@@ -3,6 +3,7 @@ package testutil
 import (
 	"path/filepath"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
@@ -10,7 +11,7 @@ import (
 // VeyronBrowserTest runs an integration test for the veyron browser.
 //
 // TODO(aghassemi): Port the veyron browser test logic from shell to Go.
-func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -22,7 +23,7 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (*TestResult, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Invoke "make clean" for the veyron browser and remove the test output file if it exists.
 	browserDir := filepath.Join(root, "veyron-browser")

@@ -3,10 +3,11 @@ package testutil
 import (
 	"path/filepath"
 
+	"veyron.io/tools/lib/collect"
 	"veyron.io/tools/lib/util"
 )
 
-func VeyronWWW(ctx *util.Context, testName string) (*TestResult, error) {
+func VeyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -17,7 +18,7 @@ func VeyronWWW(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	wwwDir := filepath.Join(root, "www")
 	if err := ctx.Run().Chdir(wwwDir); err != nil {
