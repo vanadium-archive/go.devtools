@@ -156,6 +156,7 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 		return nil
 	}
 
+	// Report current build cop.
 	var report bytes.Buffer
 	buildCop, err := util.BuildCop(ctx, time.Now())
 	if err != nil {
@@ -163,6 +164,8 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 	} else {
 		fmt.Fprintf(&report, "\nCurrent Build Cop: %s\n\n", buildCop)
 	}
+
+	// Report test results.
 	names := []string{}
 	for name, _ := range results {
 		names = append(names, name)
@@ -213,12 +216,11 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 	}
 
 	if nfailed != 0 {
-		links, err := failedTestLinks(ctx, names)
+		failedTestsReport, err := createFailedTestsReport(ctx, names)
 		if err != nil {
 			return err
 		}
-		linkLines := strings.Join(links, "\n")
-		fmt.Fprintf(&report, "\nFailed tests:\n%s\n", linkLines)
+		fmt.Fprintf(&report, "\n%s\n", failedTestsReport)
 	}
 
 	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n",
@@ -423,10 +425,70 @@ func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (string, error)
 	return status.Result, nil
 }
 
-// failedTestLinks returns a list of Jenkins test report links for the
-// failed tests.
-func failedTestLinks(ctx *util.Context, allTestNames []string) ([]string, error) {
-	links := []string{}
+type testCase struct {
+	ClassName string
+	Name      string
+}
+
+func (t testCase) equal(t2 testCase) bool {
+	return t.ClassName == t2.ClassName && t.Name == t2.Name
+}
+
+type failureType int
+
+const (
+	fixedFailure failureType = iota
+	newFailure
+	knownFailure
+)
+
+func (t failureType) String() string {
+	switch t {
+	case fixedFailure:
+		return "FIXED FAILURE"
+	case newFailure:
+		return "NEW FAILURE"
+	case knownFailure:
+		return "KNOWN FAILURE"
+	default:
+		return "UNKNOWN FAILURE TYPE"
+	}
+}
+
+// failedTestLinks maps from failure type to links.
+type failedTestLinksMap map[failureType][]string
+
+// failedTests gets a list of failed test cases from the most recent build of the given Jenkins project.
+func failedTests(jenkinsProject string) ([]testCase, error) {
+	getTestRerpotUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", jenkinsProject)
+	getTestReportRes, err := jenkinsAPI(getTestRerpotUri, "GET", nil)
+	if err != nil {
+		return []testCase{}, err
+	}
+	defer getTestReportRes.Body.Close()
+	return parseFailedTests(getTestReportRes.Body)
+}
+
+func parseFailedTests(reader io.Reader) ([]testCase, error) {
+	r := bufio.NewReader(reader)
+	var testCases struct {
+		Suites []struct {
+			Cases []testCase
+		}
+	}
+	failedTestCases := []testCase{}
+	if err := json.NewDecoder(r).Decode(&testCases); err != nil {
+		return failedTestCases, fmt.Errorf("Decode() failed: %v", err)
+	}
+	for _, suite := range testCases.Suites {
+		failedTestCases = append(failedTestCases, suite.Cases...)
+	}
+	return failedTestCases, nil
+}
+
+// createFailedTestsReport returns links for failed tests grouped by failure types.
+func createFailedTestsReport(ctx *util.Context, allTestNames []string) (string, error) {
+	linksMap := failedTestLinksMap{}
 	// seenTests maps the test full names to number of times they
 	// have been seen in the test reports. This will be used to
 	// properly generate links to failed tests.
@@ -448,19 +510,43 @@ func failedTestLinks(ctx *util.Context, allTestNames []string) ([]string, error)
 			continue
 		}
 		defer fdReport.Close()
-		curLinks, err := parseJUnitReportFileForFailedTestLinks(fdReport, seenTests)
+		curLinksMap, err := genFailedTestLinks(ctx, fdReport, seenTests, testName, failedTests)
 		if err != nil {
 			printf(ctx.Stderr(), "%v\n", err)
 			continue
 		}
-		links = append(links, curLinks...)
+		for curFailureType, curLinks := range curLinksMap {
+			linksMap[curFailureType] = append(linksMap[curFailureType], curLinks...)
+		}
 	}
-	return links, nil
+
+	// Output links grouped by failure types.
+	var buf bytes.Buffer
+	for _, failureType := range []failureType{newFailure, knownFailure, fixedFailure} {
+		curLinks, ok := linksMap[failureType]
+		if !ok || len(curLinks) == 0 {
+			continue
+		}
+		failureTypeStr := failureType.String()
+		if len(curLinks) > 1 {
+			failureTypeStr += "S"
+		}
+		fmt.Fprintf(&buf, "%s:\n%s\n\n", failureTypeStr, strings.Join(curLinks, "\n"))
+	}
+	return buf.String(), nil
 }
 
-func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[string]int) ([]string, error) {
-	r := bufio.NewReader(reader)
+func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[string]int, testName string,
+	getFailedTestCases func(string) ([]testCase, error)) (failedTestLinksMap, error) {
+	// Get failed tests from the corresponding Jenkins project to compare with the
+	// failed tests from presubmit.
+	failedTestCases, err := getFailedTestCases(testName)
+	if err != nil {
+		printf(ctx.Stderr(), "%v\n", err)
+	}
 
+	// Parse xUnit report of the presubmit test.
+	r := bufio.NewReader(reader)
 	var testSuites struct {
 		Testsuites []struct {
 			Name      string `xml:"name,attr"`
@@ -474,61 +560,95 @@ func parseJUnitReportFileForFailedTestLinks(reader io.Reader, seenTests map[stri
 			} `xml:"testcase"`
 		} `xml:"testsuite"`
 	}
-
 	if err := xml.NewDecoder(r).Decode(&testSuites); err != nil {
 		return nil, fmt.Errorf("Decode() failed: %v", err)
 	}
 
-	links := []string{}
+	linksMap := failedTestLinksMap{}
+	curFailedTestCases := []testCase{}
 	for _, curTestSuite := range testSuites.Testsuites {
 		for _, curTestCase := range curTestSuite.Testcases {
-			testFullName := fmt.Sprintf("%s.%s", curTestCase.Classname, curTestCase.Name)
-			// Replace the period "." in testFullName with
-			// "::" to stop gmail from turning it into a
-			// link automatically.
-			testFullName = strings.Replace(testFullName, ".", "::", -1)
-			// Remove the prefixes introduced by the test
-			// scripts to distinguish between different
-			// failed builds/tests.
-			prefixesToRemove := []string{"go-build::", "build::", "android-test::"}
-			for _, prefix := range prefixesToRemove {
-				testFullName = strings.TrimPrefix(testFullName, prefix)
-			}
+			testFullName := genTestFullName(curTestCase.Classname, curTestCase.Name)
 			seenTests[testFullName]++
 
 			// A failed test.
 			if curTestCase.Failure.Data != "" {
-				packageName := "(root)"
-				className := curTestCase.Classname
-				// In JUnit:
-				// - If className contains ".", the part before it becomes the
-				//   package name, and the part after it becomes the class name.
-				// - If className doesn't contain ".", the package name will be
-				//   "(root)".
-				if strings.Contains(className, ".") {
-					parts := strings.SplitN(className, ".", 2)
-					packageName = parts[0]
-					className = parts[1]
-				}
-				safePackageName := safePackageOrClassName(packageName)
-				safeClassName := safePackageOrClassName(className)
-				safeTestName := safeTestName(curTestCase.Name)
-				link := ""
-				testResultUrl, err := url.Parse(fmt.Sprintf("http://goto.google.com/vpst/%d/testReport/%s/%s/%s",
-					jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestName))
-				if err == nil {
-					link = fmt.Sprintf("- %s\n%s", testFullName, testResultUrl.String())
-					if seenTests[testFullName] > 1 {
-						link = fmt.Sprintf("%s_%d", link, seenTests[testFullName])
+				link := genTestResultLink(curTestCase.Classname, curTestCase.Name, testFullName, seenTests[testFullName])
+				// Determine whether the curTestCase is a new failure or not.
+				isNewFailure := true
+				for _, prevFailedTestCase := range failedTestCases {
+					if curTestCase.Classname == prevFailedTestCase.ClassName && curTestCase.Name == prevFailedTestCase.Name {
+						isNewFailure = false
+						break
 					}
-				} else {
-					link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
 				}
-				links = append(links, link)
+				if isNewFailure {
+					linksMap[newFailure] = append(linksMap[newFailure], link)
+				} else {
+					linksMap[knownFailure] = append(linksMap[knownFailure], link)
+				}
+
+				curFailedTestCases = append(curFailedTestCases, testCase{
+					ClassName: curTestCase.Classname,
+					Name:      curTestCase.Name,
+				})
 			}
 		}
 	}
-	return links, nil
+
+	// Generate links for "fixed" tests and put them into linksMap[fixedFailure].
+	for _, prevFailedTestCase := range failedTestCases {
+		fixed := true
+		for _, curFailedTestCase := range curFailedTestCases {
+			if prevFailedTestCase.equal(curFailedTestCase) {
+				fixed = false
+				break
+			}
+		}
+		if fixed {
+			testFullName := genTestFullName(prevFailedTestCase.ClassName, prevFailedTestCase.Name)
+			// To make things simpler we only show the names of the fixed tests.
+			linksMap[fixedFailure] = append(linksMap[fixedFailure], fmt.Sprintf("- %s", testFullName))
+		}
+	}
+	return linksMap, nil
+}
+
+func genTestFullName(className, testName string) string {
+	testFullName := fmt.Sprintf("%s.%s", className, testName)
+	// Replace the period "." in testFullName with
+	// "::" to stop gmail from turning it into a
+	// link automatically.
+	return strings.Replace(testFullName, ".", "::", -1)
+}
+
+func genTestResultLink(className, testName, testFullName string, suffix int) string {
+	packageName := "(root)"
+	// In JUnit:
+	// - If className contains ".", the part before it becomes the
+	//   package name, and the part after it becomes the class name.
+	// - If className doesn't contain ".", the package name will be
+	//   "(root)".
+	if strings.Contains(className, ".") {
+		parts := strings.SplitN(className, ".", 2)
+		packageName = parts[0]
+		className = parts[1]
+	}
+	safePackageName := safePackageOrClassName(packageName)
+	safeClassName := safePackageOrClassName(className)
+	safeTestName := safeTestName(testName)
+	link := ""
+	testResultUrl, err := url.Parse(fmt.Sprintf("http://goto.google.com/vpst/%d/testReport/%s/%s/%s",
+		jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestName))
+	if err == nil {
+		link = fmt.Sprintf("- %s\n%s", testFullName, testResultUrl.String())
+		if suffix > 1 {
+			link = fmt.Sprintf("%s_%d", link, suffix)
+		}
+	} else {
+		link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
+	}
+	return link
 }
 
 // safePackageOrClassName gets the safe name of the package or class
