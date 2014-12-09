@@ -428,6 +428,7 @@ func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (string, error)
 type testCase struct {
 	ClassName string
 	Name      string
+	Status    string
 }
 
 func (t testCase) equal(t2 testCase) bool {
@@ -481,7 +482,11 @@ func parseFailedTests(reader io.Reader) ([]testCase, error) {
 		return failedTestCases, fmt.Errorf("Decode() failed: %v", err)
 	}
 	for _, suite := range testCases.Suites {
-		failedTestCases = append(failedTestCases, suite.Cases...)
+		for _, curCase := range suite.Cases {
+			if curCase.Status == "FAILED" || curCase.Status == "REGRESSION" {
+				failedTestCases = append(failedTestCases, suite.Cases...)
+			}
+		}
 	}
 	return failedTestCases, nil
 }
