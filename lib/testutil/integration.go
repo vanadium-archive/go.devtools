@@ -202,22 +202,25 @@ func integrationTestWorker(root string, env map[string]string, tasks <-chan stri
 	for script := range tasks {
 		start := time.Now()
 		var args []string
-		if strings.HasSuffix(script, ".go") {
-			args = []string{"go", "test", script}
-		} else {
-			// TODO(sjr): remove /test.sh check once support for shell-based integration tests is removed.
-			args = []string{"run", script}
-		}
-		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, "veyron", args...)
-		pkgName := path.Dir(script)
+		pkgName := strings.TrimPrefix(path.Dir(script), root)
 		if index := strings.Index(pkgName, "veyron.io"); index != -1 {
 			pkgName = pkgName[index:]
 		}
-		result := testResult{
-			pkg:    pkgName,
-			time:   time.Now().Sub(start),
-			output: out.String(),
+		result := testResult{}
+		switch {
+		case strings.HasSuffix(script, ".go"):
+			result.pkg = "go." + pkgName
+			args = []string{"go", "test", script}
+		case strings.HasSuffix(script, ".sh"):
+			result.pkg = "shell." + pkgName
+			args = []string{"run", "bash", "-x", script}
+		default:
+			fmt.Fprintf(os.Stderr, "unsupported type of integration test: %v\n", script)
+			continue
 		}
+		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, "veyron", args...)
+		result.time = time.Now().Sub(start)
+		result.output = out.String()
 		if err != nil {
 			result.status = testFailed
 		} else {
