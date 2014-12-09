@@ -75,6 +75,7 @@
         "https://veyron.googlesource.com/vom.js": [
             "veyron-javascript-vdl",
             "veyron-javascript-vom",
+            "veyron-javascript-unit-test",
             "veyron-javascript-browser-integration-test",
             "veyron-javascript-node-integration-test",
             "veyron-browser-test"
