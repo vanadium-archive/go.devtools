@@ -83,14 +83,28 @@ func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	return result, nil
 }
 
-// VeyronJSIntegrationTest runs the veyron javascript integration test.
-func VeyronJSIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
+// VeyronJSBrowserIntegrationTest runs the veyron javascript integration test in a browser environment using nacl plugin.
+func VeyronJSBrowserIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 	testDir := filepath.Join(root, "veyron.js")
-	target := "test-integration"
+	target := "test-integration-browser"
+	env := map[string]string{}
+	env["XUNIT"] = "true"
+	env["BROWSER_OUTPUT"] = XUnitReportPath(testName)
+	return runJSTest(ctx, testName, testDir, target, nil, env)
+}
+
+// VeyronJSNodeIntegrationTest runs the veyron javascript integration test in NodeJS environment using wspr.
+func VeyronJSNodeIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
+	root, err := util.VeyronRoot()
+	if err != nil {
+		return nil, err
+	}
+	testDir := filepath.Join(root, "veyron.js")
+	target := "test-integration-node"
 	env := map[string]string{}
 	env["XUNIT"] = "true"
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)

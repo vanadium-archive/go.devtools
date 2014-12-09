@@ -33,7 +33,8 @@
             "veyron-go-race",
             "veyron-javascript-vdl",
             "veyron-javascript-vom",
-            "veyron-javascript-test-integration",
+            "veyron-javascript-browser-integration-test",
+            "veyron-javascript-node-integration-test",
             "veyron-browser-test",
             "veyron-integration-test",
             "veyron-javascript-build-extension"
@@ -59,20 +60,23 @@
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
-            "veyron-javascript-test-integration",
+            "veyron-javascript-browser-integration-test",
+            "veyron-javascript-node-integration-test",
             "veyron-browser-test",
             "veyron-integration-test",
             "veyron-javascript-build-extension"
         ],
         "https://veyron.googlesource.com/veyron.js": [
-            "veyron-javascript-test-unit",
-            "veyron-javascript-test-integration",
+            "veyron-javascript-unit-test",
+            "veyron-javascript-browser-integration-test",
+            "veyron-javascript-node-integration-test",
             "veyron-browser-test"
         ],
         "https://veyron.googlesource.com/vom.js": [
             "veyron-javascript-vdl",
             "veyron-javascript-vom",
-            "veyron-javascript-test-integration",
+            "veyron-javascript-browser-integration-test",
+            "veyron-javascript-node-integration-test",
             "veyron-browser-test"
         ],
         "https://github.com/veyron/veyron-www": [
@@ -95,7 +99,8 @@
         ],
         "veyron-browser-test": [
             "veyron-go-build",
-            "veyron-javascript-test-integration"
+            "veyron-javascript-browser-integration-test",
+            "veyron-javascript-node-integration-test"
         ],
         "veyron-go-race": [
             "veyron-go-test"
@@ -103,11 +108,13 @@
         "veyron-go-test": [
             "veyron-go-build"
         ],
-        "veyron-javascript-test-integration": [
-            "veyron-go-build"
+        "veyron-javascript-browser-integration-test": [
+            "veyron-go-build",
+            "veyron-javascript-unit-test"
         ],
-        "veyron-javascript-test-unit": [
-            "veyron-javascript-test-integration"
+        "veyron-javascript-node-integration-test": [
+            "veyron-go-build",
+            "veyron-javascript-unit-test"
         ],
         "veyron-integration-test": [
             "veyron-go-build"
