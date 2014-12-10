@@ -24,6 +24,11 @@
             "veyron-go-test",
             "veyron-go-race"
         ],
+        "https://veyron.googlesource.com/third_party": [
+            "third_party-go-build",
+            "third_party-go-test",
+            "third_party-go-race"
+        ],
         "https://veyron.googlesource.com/veyron-browser": [
             "veyron-browser-test"
         ],
@@ -92,6 +97,12 @@
         ]
     },
     "test-dependencies": {
+        "third_party-go-race": [
+            "third_party-go-test"
+        ],
+        "third_party-go-test": [
+            "third_party-go-build"
+        ],
         "veyron-android-build": [
             "veyron-android-build-native"
         ],
