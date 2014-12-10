@@ -197,6 +197,7 @@ func TestGoBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
 	}
+	defer os.RemoveAll(xUnitFile)
 	var gotBuild testSuites
 	if err := xml.Unmarshal(data, &gotBuild); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
@@ -226,6 +227,7 @@ func TestGoCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
 	}
+	defer os.RemoveAll(xUnitFile)
 	var gotTest testSuites
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
@@ -269,6 +271,7 @@ func TestGoTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
 	}
+	defer os.RemoveAll(xUnitFile)
 	var gotTest testSuites
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
