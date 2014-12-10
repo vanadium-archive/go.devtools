@@ -66,7 +66,7 @@ func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	}
 	testDir := filepath.Join(root, "veyron.js")
 	target := "docs"
-	webDir, jsDocDir := "/var/www/jsdoc", filepath.Join(testDir, "docs")
+	webDir, jsDocDir := "/usr/share/nginx/www/jsdoc", filepath.Join(testDir, "docs")
 	cleanFn := func() error {
 		if err := ctx.Run().RemoveAll(webDir); err != nil {
 			return err
