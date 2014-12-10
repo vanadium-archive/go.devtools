@@ -644,7 +644,7 @@ func getListenerPID(ctx *util.Context, port string) (int, error) {
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "lsof", "-i", ":"+port, "-F", "p"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "lsof", "-i", ":"+port, "-sTCP:LISTEN", "-F", "p"); err != nil {
 		// When no listener exists, "lsof" exits with non-zero
 		// status.
 		return -1, nil
