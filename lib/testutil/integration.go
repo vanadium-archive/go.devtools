@@ -146,9 +146,12 @@ func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error
 	env := envutil.NewSnapshotFromOS()
 	env.Set("shell_test_BIN_DIR", binDirPath())
 	env.Set("VEYRON_INTEGRATION_BIN_DIR", binDirPath())
-	for i := 0; i < runtime.NumCPU(); i++ {
-		go integrationTestWorker(root, env.Map(), tasks, taskResults)
-	}
+	// TODO(rthellend): When we run these tests in parallel, some of them
+	// appear to hang after completing successfully. For now, only run one
+	// at a time to confirm.
+	//for i := 0; i < runtime.NumCPU(); i++ {
+	go integrationTestWorker(root, env.Map(), tasks, taskResults)
+	//}
 
 	// Send test scripts to free workers in the pool.
 	for _, testScript := range testScripts {
