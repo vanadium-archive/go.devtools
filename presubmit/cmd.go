@@ -20,7 +20,7 @@ const (
 	defaultNetRcFilePath               = "$HOME/.netrc"
 	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
 	defaultQueryString                 = "(status:open -project:experimental)"
-	jenkinsBaseJobUrl                  = "http://www.envyor.com/jenkins/job"
+	jenkinsBaseJobUrl                  = "https://dev.v.io/jenkins/job"
 	outputPrefix                       = "[VEYRON PRESUBMIT]"
 )
 

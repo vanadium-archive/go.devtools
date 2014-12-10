@@ -227,7 +227,7 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 
 	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n",
 		jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
-	link := fmt.Sprintf("http://www.envyor.com/jenkins/job/%s/buildWithParameters?REFS=%s&REPOS=%s",
+	link := fmt.Sprintf("https://dev.v.io/jenkins/job/%s/buildWithParameters?REFS=%s&REPOS=%s",
 		presubmitTestJenkinsProjectFlag,
 		url.QueryEscape(reviewTargetRefsFlag),
 		url.QueryEscape(reposFlag))

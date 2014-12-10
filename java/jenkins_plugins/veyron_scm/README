@@ -49,4 +49,4 @@ src/main/resources/io/v/jenkins/plugins/veyron_scm/VeyronBuildData:
 To build and use the plugin:
 - Run: mvn install
 - Upload target/veyron_scm.hpi to Jenkins using "Upload Plugin" at:
-  http://www.envyor.com/jenkins/pluginManager/advanced.
+  http://dev.v.io/jenkins/pluginManager/advanced.
