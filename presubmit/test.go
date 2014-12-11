@@ -151,7 +151,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 		// Find target Tools.
 		targetTools := []util.Tool{}
 		for name, tool := range tools {
-			if name == "veyron" || name == "vdl" {
+			if name == "veyron" || name == "vdl" || name == "go-depcop" {
 				targetTools = append(targetTools, tool)
 			}
 		}
