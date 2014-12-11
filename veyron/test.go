@@ -46,7 +46,7 @@ func runTestProject(command *cmdline.Command, args []string) error {
 	if !strings.HasPrefix(project, "http") {
 		project = util.VeyronGitRepoHost() + project
 	}
-	results, err := testutil.RunProjectTests(ctx, []string{project})
+	results, err := testutil.RunProjectTests(ctx, nil, []string{project})
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func runTestRun(command *cmdline.Command, args []string) error {
 		return command.UsageErrorf("unexpected number of arguments")
 	}
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
-	results, err := testutil.RunTests(ctx, args)
+	results, err := testutil.RunTests(ctx, nil, args)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,11 @@ var cmdTestList = &cmdline.Command{
 
 func runTestList(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
-	testList := testutil.TestList()
+	testList, err := testutil.TestList()
+	if err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		return err
+	}
 	for _, test := range testList {
 		fmt.Fprintf(ctx.Stdout(), "%v\n", test)
 	}

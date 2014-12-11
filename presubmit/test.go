@@ -21,6 +21,7 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/collect"
+	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/testutil"
@@ -89,13 +90,18 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	}
 
 	// Parse the manifest file to get the local path for the repo.
-	projects, _, err := util.ReadManifest(ctx, manifestFlag)
+	projects, tools, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
 
+	// tmpBinDir is where vdl and veyron are built after changes are pulled from
+	// the target CLs.
+	tmpBinDir := filepath.Join(veyronRoot, "tmpBin")
+
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() error {
+		os.RemoveAll(tmpBinDir)
 		return cleanupAllPresubmitTestBranches(ctx, projects)
 	}
 	defer collect.Error(func() error { return cleanupFn() }, &e)
@@ -136,9 +142,32 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 		return err
 	}
 
+	// Rebuild vdl and veyron tool.
+	toolsProject, ok := projects[util.VeyronGitRepoHost()+"veyron.go.tools"]
+	envSnapshot := envutil.NewSnapshotFromOS()
+	if !ok {
+		printf(ctx.Stderr(), "tools project not found. Not rebuilding tools.\n")
+	} else {
+		// Find target Tools.
+		targetTools := []util.Tool{}
+		for name, tool := range tools {
+			if name == "veyron" || name == "vdl" {
+				targetTools = append(targetTools, tool)
+			}
+		}
+		// Rebuild.
+		for _, tool := range targetTools {
+			if err := util.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, toolsProject); err != nil {
+				printf(ctx.Stderr(), "%v\n", err)
+			}
+		}
+		newPATH := strings.Replace(envSnapshot.Get("PATH"), filepath.Join(veyronRoot, "bin"), tmpBinDir, -1)
+		envSnapshot.Set("PATH", newPATH)
+	}
+
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the tests\n")
-	results, err := testutil.RunProjectTests(ctx, repos)
+	results, err := testutil.RunProjectTests(ctx, envSnapshot, repos)
 	if err != nil {
 		return err
 	}

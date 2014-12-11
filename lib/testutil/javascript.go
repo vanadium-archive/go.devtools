@@ -4,14 +4,13 @@ import (
 	"path/filepath"
 
 	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
 
 // runJSTest is a harness for executing javascript tests.
-func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *TestResult, e error) {
+func (t *testEnv) runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := t.initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +22,8 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	}
 
 	// Clean up after previous instances of the test.
-	if err := ctx.Run().Command("make", "clean"); err != nil {
+	opts := t.setTestEnv(ctx.Run().Opts())
+	if err := ctx.Run().CommandWithOpts(opts, "make", "clean"); err != nil {
 		return nil, err
 	}
 	if cleanFn != nil {
@@ -33,12 +33,6 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	}
 
 	// Run the test target.
-	opts := ctx.Run().Opts()
-	osEnv := envutil.NewSnapshotFromOS()
-	for key, value := range env {
-		osEnv.Set(key, value)
-	}
-	opts.Env = osEnv.Map()
 	if err := ctx.Run().CommandWithOpts(opts, "make", target); err != nil {
 		return &TestResult{Status: TestFailed}, nil
 	}
@@ -46,20 +40,20 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// VeyronJSBuildExtension tests the veyron javascript build extension.
-func VeyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSBuildExtension tests the veyron javascript build extension.
+func (t *testEnv) veyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 	testDir := filepath.Join(root, "veyron.js")
 	target := "extension/veyron.crx"
-	return runJSTest(ctx, testName, testDir, target, nil, nil)
+	return t.runJSTest(ctx, testName, testDir, target, nil, nil)
 }
 
-// VeyronJSDoc (re)generates the content of the veyron javascript
+// veyronJSDoc (re)generates the content of the veyron javascript
 // documentation server.
-func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
+func (t *testEnv) veyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -73,7 +67,7 @@ func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 		}
 		return nil
 	}
-	result, err := runJSTest(ctx, testName, testDir, target, cleanFn, nil)
+	result, err := t.runJSTest(ctx, testName, testDir, target, cleanFn, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +78,8 @@ func VeyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	return result, nil
 }
 
-// VeyronJSBrowserIntegrationTest runs the veyron javascript integration test in a browser environment using nacl plugin.
-func VeyronJSBrowserIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSBrowserIntegrationTest runs the veyron javascript integration test in a browser environment using nacl plugin.
+func (t *testEnv) veyronJSBrowserIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// TODO(aghassemi): Re-enable the test when it is fixed.
 	return &TestResult{Status: TestPassed}, nil
 
@@ -98,11 +92,11 @@ func VeyronJSBrowserIntegrationTest(ctx *util.Context, testName string) (*TestRe
 	env := map[string]string{}
 	env["XUNIT"] = "true"
 	env["BROWSER_OUTPUT"] = XUnitReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env)
+	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// VeyronJSNodeIntegrationTest runs the veyron javascript integration test in NodeJS environment using wspr.
-func VeyronJSNodeIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSNodeIntegrationTest runs the veyron javascript integration test in NodeJS environment using wspr.
+func (t *testEnv) veyronJSNodeIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -112,11 +106,11 @@ func VeyronJSNodeIntegrationTest(ctx *util.Context, testName string) (*TestResul
 	env := map[string]string{}
 	env["XUNIT"] = "true"
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env)
+	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// VeyronJSUnitTest runs the veyron javascript unit test.
-func VeyronJSUnitTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSUnitTest runs the veyron javascript unit test.
+func (t *testEnv) veyronJSUnitTest(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -126,11 +120,11 @@ func VeyronJSUnitTest(ctx *util.Context, testName string) (*TestResult, error) {
 	env := map[string]string{}
 	env["XUNIT"] = "true"
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env)
+	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// VeyronJSVdlTest runs the veyron javascript vdl test.
-func VeyronJSVdlTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSVdlTest runs the veyron javascript vdl test.
+func (t *testEnv) veyronJSVdlTest(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -140,11 +134,11 @@ func VeyronJSVdlTest(ctx *util.Context, testName string) (*TestResult, error) {
 	env := map[string]string{}
 	env["XUNIT"] = "true"
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env)
+	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// VeyronJSVomTest runs the veyron javascript vom test.
-func VeyronJSVomTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSVomTest runs the veyron javascript vom test.
+func (t *testEnv) veyronJSVomTest(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -154,5 +148,5 @@ func VeyronJSVomTest(ctx *util.Context, testName string) (*TestResult, error) {
 	env := map[string]string{}
 	env["XUNIT"] = "true"
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env)
+	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }

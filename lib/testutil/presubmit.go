@@ -85,16 +85,16 @@ func requireEnv(names []string) error {
 	return nil
 }
 
-// VeyronPresubmitPoll polls veyron projects for new patchsets for
+// veyronPresubmitPoll polls veyron projects for new patchsets for
 // which to run presubmit tests.
-func VeyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func (t *testEnv) veyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := t.initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -103,21 +103,21 @@ func VeyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e e
 	// Use the "presubmit query" command to poll for new changes.
 	logfile := filepath.Join(root, ".presubmit_log")
 	args := []string{"-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "query", "-log_file", logfile}
-	if err := ctx.Run().Command("presubmit", args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), "presubmit", args...); err != nil {
 		return nil, err
 	}
 
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// VeyronPresubmitTest runs presubmit tests for veyron projects.
-func VeyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// veyronPresubmitTest runs presubmit tests for veyron projects.
+func (t *testEnv) veyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := t.initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func VeyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e e
 		"-repos", os.Getenv("REPOS"),
 		"-refs", os.Getenv("REFS"),
 	}
-	if err := ctx.Run().Command("presubmit", args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), "presubmit", args...); err != nil {
 		return nil, err
 	}
 

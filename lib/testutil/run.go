@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"veyron.io/tools/lib/envutil"
+	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
@@ -61,36 +63,66 @@ var testMock = func(*util.Context, string) (*TestResult, error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
-	"ignore-this":                                testMock,
-	"third_party-go-build":                       ThirdPartyGoBuild,
-	"third_party-go-test":                        ThirdPartyGoTest,
-	"third_party-go-race":                        ThirdPartyGoRace,
-	"veyron-browser-test":                        VeyronBrowserTest,
-	"veyron-go-bench":                            VeyronGoBench,
-	"veyron-go-build":                            VeyronGoBuild,
-	"veyron-go-cover":                            VeyronGoCoverage,
-	"veyron-go-doc":                              VeyronGoDoc,
-	"veyron-go-test":                             VeyronGoTest,
-	"veyron-go-race":                             VeyronGoRace,
-	"veyron-integration-test":                    VeyronIntegrationTest,
-	"veyron-javascript-build-extension":          VeyronJSBuildExtension,
-	"veyron-javascript-doc":                      VeyronJSDoc,
-	"veyron-javascript-browser-integration-test": VeyronJSBrowserIntegrationTest,
-	"veyron-javascript-node-integration-test":    VeyronJSNodeIntegrationTest,
-	"veyron-javascript-unit-test":                VeyronJSUnitTest,
-	"veyron-javascript-vdl":                      VeyronJSVdlTest,
-	"veyron-javascript-vom":                      VeyronJSVomTest,
-	"veyron-presubmit-poll":                      VeyronPresubmitPoll,
-	"veyron-presubmit-test":                      VeyronPresubmitTest,
-	"veyron-prod-services-test":                  VeyronProdServicesTest,
-	"veyron-tutorial":                            VeyronTutorial,
-	"veyron-vdl":                                 VeyronVDL,
-	"veyron-www":                                 VeyronWWW,
+type testEnv struct {
+	snapshot      *envutil.Snapshot
+	veyronBin     string
+	testFunctions map[string]func(*util.Context, string) (*TestResult, error)
+}
+
+func newTestEnv(snapshot *envutil.Snapshot) (*testEnv, error) {
+	if snapshot == nil {
+		snapshot = envutil.NewSnapshotFromOS()
+	}
+	bin, err := snapshot.LookPath("veyron")
+	if err != nil {
+		return nil, err
+	}
+	t := &testEnv{
+		snapshot:  snapshot,
+		veyronBin: bin,
+	}
+	t.testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
+		"ignore-this":                                testMock,
+		"third_party-go-build":                       t.thirdPartyGoBuild,
+		"third_party-go-test":                        t.thirdPartyGoTest,
+		"third_party-go-race":                        t.thirdPartyGoRace,
+		"veyron-browser-test":                        t.veyronBrowserTest,
+		"veyron-go-bench":                            t.veyronGoBench,
+		"veyron-go-build":                            t.veyronGoBuild,
+		"veyron-go-cover":                            t.veyronGoCoverage,
+		"veyron-go-doc":                              t.veyronGoDoc,
+		"veyron-go-test":                             t.veyronGoTest,
+		"veyron-go-race":                             t.veyronGoRace,
+		"veyron-integration-test":                    t.veyronIntegrationTest,
+		"veyron-javascript-build-extension":          t.veyronJSBuildExtension,
+		"veyron-javascript-doc":                      t.veyronJSDoc,
+		"veyron-javascript-browser-integration-test": t.veyronJSBrowserIntegrationTest,
+		"veyron-javascript-node-integration-test":    t.veyronJSNodeIntegrationTest,
+		"veyron-javascript-unit-test":                t.veyronJSUnitTest,
+		"veyron-javascript-vdl":                      t.veyronJSVdlTest,
+		"veyron-javascript-vom":                      t.veyronJSVomTest,
+		"veyron-presubmit-poll":                      t.veyronPresubmitPoll,
+		"veyron-presubmit-test":                      t.veyronPresubmitTest,
+		"veyron-prod-services-test":                  t.veyronProdServicesTest,
+		"veyron-tutorial":                            t.veyronTutorial,
+		"veyron-vdl":                                 t.veyronVDL,
+		"veyron-www":                                 t.veyronWWW,
+	}
+	return t, nil
+}
+
+func (t *testEnv) setTestEnv(opts runutil.Opts) runutil.Opts {
+	opts.Env = t.snapshot.Map()
+	return opts
 }
 
 // RunProjectTests runs all tests associated with the given projects.
-func RunProjectTests(ctx *util.Context, projects []string) (map[string]*TestResult, error) {
+func RunProjectTests(ctx *util.Context, snapshot *envutil.Snapshot, projects []string) (map[string]*TestResult, error) {
+	curTestEnv, err := newTestEnv(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse tests and dependencies from config file.
 	var config util.CommonConfig
 	if err := util.LoadConfig("common", &config); err != nil {
@@ -139,7 +171,7 @@ run:
 			if !ready {
 				continue
 			}
-			if err := runTests(ctx, []string{test}, results); err != nil {
+			if err := curTestEnv.runTests(ctx, []string{test}, results); err != nil {
 				return nil, err
 			}
 			continue run
@@ -152,33 +184,42 @@ run:
 }
 
 // RunTests executes the given tests and reports the test results.
-func RunTests(ctx *util.Context, tests []string) (map[string]*TestResult, error) {
+func RunTests(ctx *util.Context, snapshot *envutil.Snapshot, tests []string) (map[string]*TestResult, error) {
+	curTestEnv, err := newTestEnv(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make(map[string]*TestResult, len(tests))
 	for _, test := range tests {
 		results[test] = &TestResult{}
 	}
-	if err := runTests(ctx, tests, results); err != nil {
+	if err := curTestEnv.runTests(ctx, tests, results); err != nil {
 		return nil, err
 	}
 	return results, nil
 }
 
 // TestList returns a list of all tests known by the testutil package.
-func TestList() []string {
+func TestList() ([]string, error) {
 	result := []string{}
-	for name := range testFunctions {
+	dummyTestEnv, err := newTestEnv(nil)
+	if err != nil {
+		return nil, err
+	}
+	for name := range dummyTestEnv.testFunctions {
 		if !strings.HasPrefix(name, "ignore") {
 			result = append(result, name)
 		}
 	}
 	sort.Strings(result)
-	return result
+	return result, nil
 }
 
 // runTests runs the given tests, populating the results map.
-func runTests(ctx *util.Context, tests []string, results map[string]*TestResult) error {
+func (t *testEnv) runTests(ctx *util.Context, tests []string, results map[string]*TestResult) error {
 	for _, test := range tests {
-		testFn, ok := testFunctions[test]
+		testFn, ok := t.testFunctions[test]
 		if !ok {
 			return fmt.Errorf("test %v does not exist", test)
 		}

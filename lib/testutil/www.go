@@ -7,14 +7,14 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-func VeyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func (t *testEnv) veyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := t.initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
@@ -25,12 +25,13 @@ func VeyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
 		return nil, err
 	}
 
-	if err := ctx.Run().Command("make", "clean"); err != nil {
+	opts := t.setTestEnv(ctx.Run().Opts())
+	if err := ctx.Run().CommandWithOpts(opts, "make", "clean"); err != nil {
 		return nil, err
 	}
 
 	// Invoke "make test"
-	if err := ctx.Run().Command("make", "test"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "make", "test"); err != nil {
 		return &TestResult{Status: TestFailed}, nil
 	}
 

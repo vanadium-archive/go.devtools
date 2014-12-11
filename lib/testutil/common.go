@@ -23,7 +23,7 @@ func binDirPath() string {
 }
 
 // initTest carries out the initial actions for the given test.
-func initTest(ctx *util.Context, testName string, profiles []string) (func() error, error) {
+func (t *testEnv) initTest(ctx *util.Context, testName string, profiles []string) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -52,8 +52,9 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 	}
 
 	// Setup profiles.
+	opts := t.setTestEnv(ctx.Run().Opts())
 	for _, profile := range profiles {
-		if err := ctx.Run().Command("veyron", "profile", "setup", profile); err != nil {
+		if err := ctx.Run().CommandWithOpts(opts, t.veyronBin, "profile", "setup", profile); err != nil {
 			return nil, err
 		}
 	}
@@ -72,7 +73,7 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 
 	// Remove all stale Go object files and binaries.
 	if cleanGo {
-		if err := ctx.Run().Command("veyron", "goext", "distclean"); err != nil {
+		if err := ctx.Run().CommandWithOpts(opts, t.veyronBin, "goext", "distclean"); err != nil {
 			return nil, err
 		}
 	}

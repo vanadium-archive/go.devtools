@@ -306,39 +306,47 @@ func ApplyToLocalMaster(ctx *Context, project Project, fn func() error) (e error
 	return fn()
 }
 
-// buildTool builds the given tool, placing the resulting binary into
-// the given directory.
-func buildTool(ctx *Context, outputDir string, tool Tool, project Project) error {
-	buildFn := func() error {
-		env, err := VeyronEnvironment(HostPlatform())
+// BuildTool builds the given tool specified by its name and package, sets its
+// version by counting the number of commits in current version-controlled
+// directory, and places the resulting binary into the given directory.
+func BuildTool(ctx *Context, outputDir, name, pkg string, toolsProject Project) error {
+	// Change to tools project's local dir.
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer ctx.Run().Chdir(wd)
+	if err := ctx.Run().Chdir(toolsProject.Path); err != nil {
+		return fmt.Errorf("Chdir(%v) failed: %v", toolsProject.Path, err)
+	}
+
+	env, err := VeyronEnvironment(HostPlatform())
+	if err != nil {
+		return err
+	}
+	output := filepath.Join(outputDir, name)
+	count := 0
+	switch toolsProject.Protocol {
+	case "git":
+		gitCount, err := ctx.Git().CountCommits("HEAD", "")
 		if err != nil {
 			return err
 		}
-		output := filepath.Join(outputDir, tool.Name)
-		var count int
-		switch project.Protocol {
-		case "git":
-			gitCount, err := ctx.Git().CountCommits("HEAD", "")
-			if err != nil {
-				return err
-			}
-			count = gitCount
-		default:
-			return UnsupportedProtocolErr(project.Protocol)
-		}
-		ldflags := fmt.Sprintf("-X veyron.io/tools/lib/version.Version %d", count)
-		args := []string{"build", "-ldflags", ldflags, "-o", output, tool.Package}
-		var stderr bytes.Buffer
-		opts := ctx.Run().Opts()
-		opts.Env = env.Map()
-		opts.Stdout = ioutil.Discard
-		opts.Stderr = &stderr
-		if err := ctx.Run().CommandWithOpts(opts, "go", args...); err != nil {
-			return fmt.Errorf("%v tool build failed\n%v", tool.Name, stderr.String())
-		}
-		return nil
+		count = gitCount
+	default:
+		return UnsupportedProtocolErr(toolsProject.Protocol)
 	}
-	return ApplyToLocalMaster(ctx, project, buildFn)
+	ldflags := fmt.Sprintf("-X veyron.io/tools/lib/version.Version %d", count)
+	args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
+	var stderr bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Env = env.Map()
+	opts.Stdout = ioutil.Discard
+	opts.Stderr = &stderr
+	if err := ctx.Run().CommandWithOpts(opts, "go", args...); err != nil {
+		return fmt.Errorf("%v tool build failed\n%v", name, stderr.String())
+	}
+	return nil
 }
 
 // buildTools builds and installs all veyron tools using the version
@@ -363,7 +371,9 @@ func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 			if !ok {
 				return fmt.Errorf("unknown project %v", tool.Project)
 			}
-			return buildTool(ctx, outputDir, tool, project)
+			return ApplyToLocalMaster(ctx, project, func() error {
+				return BuildTool(ctx, outputDir, tool.Name, tool.Package, project)
+			})
 		}
 		// Always log the output of updateFn, irrespective of
 		// the value of the verbose flag.

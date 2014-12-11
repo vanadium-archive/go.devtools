@@ -57,14 +57,14 @@ func generateTestSuite(ctx *util.Context, success bool, pkg string, duration tim
 }
 
 // testProdService test the given production service.
-func testProdService(ctx *util.Context, service prodService) (*testSuite, error) {
+func (t *testEnv) testProdService(ctx *util.Context, service prodService) (*testSuite, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 	bin := filepath.Join(root, "veyron", "go", "bin", "vrpc")
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := t.setTestEnv(ctx.Run().Opts())
 	opts.Stdout = &out
 	opts.Stderr = &out
 	start := time.Now()
@@ -83,17 +83,17 @@ type prodService struct {
 	signature  []string
 }
 
-// VeyronProdServicesTest runs a test of veyron production services.
-func VeyronProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// veyronProdServicesTest runs a test of veyron production services.
+func (t *testEnv) veyronProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := t.initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
-	if err := ctx.Run().Command("veyron", "go", "install", "veyron.io/veyron/veyron/tools/vrpc"); err != nil {
+	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "veyron.io/veyron/veyron/tools/vrpc"); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +134,7 @@ func VeyronProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, 
 	}
 
 	for _, service := range services {
-		suite, err := testProdService(ctx, service)
+		suite, err := t.testProdService(ctx, service)
 		if err != nil {
 			return nil, err
 		}

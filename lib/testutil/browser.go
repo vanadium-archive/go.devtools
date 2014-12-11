@@ -4,14 +4,13 @@ import (
 	"path/filepath"
 
 	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/util"
 )
 
-// VeyronBrowserTest runs an integration test for the veyron browser.
+// veyronBrowserTest runs an integration test for the veyron browser.
 //
 // TODO(aghassemi): Port the veyron browser test logic from shell to Go.
-func VeyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func (t *testEnv) veyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -19,7 +18,7 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e err
 	xUnitFile := XUnitReportPath(testName)
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := t.initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +29,7 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e err
 	if err := ctx.Run().Chdir(browserDir); err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Command("make", "clean"); err != nil {
+	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), "make", "clean"); err != nil {
 		return nil, err
 	}
 	if err := ctx.Run().RemoveAll(xUnitFile); err != nil {
@@ -38,10 +37,8 @@ func VeyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e err
 	}
 
 	// Invoke "make test" for the veyron browser.
-	opts := ctx.Run().Opts()
-	env := envutil.NewSnapshotFromOS()
-	env.Set("XUNIT_OUTPUT_FILE", xUnitFile)
-	opts.Env = env.Map()
+	opts := t.setTestEnv(ctx.Run().Opts())
+	opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
 	if err := ctx.Run().CommandWithOpts(opts, "make", "test"); err != nil {
 		return &TestResult{Status: TestFailed}, nil
 	}

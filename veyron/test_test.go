@@ -106,7 +106,11 @@ func TestTestList(t *testing.T) {
 	if err := runTestList(&command, []string{}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if got, want := strings.TrimSpace(out.String()), strings.Join(testutil.TestList(), "\n"); got != want {
+	testList, err := testutil.TestList()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if got, want := strings.TrimSpace(out.String()), strings.Join(testList, "\n"); got != want {
 		t.Fatalf("unexpected output:\ngot\n%v\nwant\n%v", got, want)
 	}
 }

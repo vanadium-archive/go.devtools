@@ -4,32 +4,29 @@ import (
 	"path/filepath"
 
 	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
 )
 
-// VeyronTutorial runs the veyron tutorial examples.
+// veyronTutorial runs the veyron tutorial examples.
 //
 // TODO(jregan): Merge the mdrip logic into this package.
-func VeyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func (t *testEnv) veyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := t.initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the mdrip tool.
-	opts := ctx.Run().Opts()
-	env := envutil.NewSnapshotFromOS()
-	env.Set("GOPATH", filepath.Join(root, "tutorial", "testing"))
-	opts.Env = env.Map()
+	opts := t.setTestEnv(ctx.Run().Opts())
+	opts.Env["GOPATH"] = filepath.Join(root, "tutorial", "testing")
 	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "mdrip"); err != nil {
 		return nil, err
 	}
@@ -42,7 +39,7 @@ func VeyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error)
 		filepath.Join(content, "tutorials", "basics.md"),
 		filepath.Join(content, "tutorials", "security.md"),
 	}
-	if err := ctx.Run().TimedCommand(DefaultTestTimeout, mdrip, args...); err != nil {
+	if err := ctx.Run().TimedCommandWithOpts(DefaultTestTimeout, opts, mdrip, args...); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &TestResult{Status: TestTimedOut}, nil
 		}

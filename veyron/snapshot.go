@@ -255,7 +255,7 @@ func runTests(ctx *util.Context, label string) error {
 		return nil
 	}
 	for _, test := range tests {
-		result, err := testutil.RunTests(ctx, []string{test})
+		result, err := testutil.RunTests(ctx, nil, []string{test})
 		if err != nil {
 			return err
 		}
