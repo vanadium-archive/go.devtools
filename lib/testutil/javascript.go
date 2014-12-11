@@ -81,11 +81,8 @@ func (t *testEnv) veyronJSDoc(ctx *util.Context, testName string) (*TestResult, 
 	return result, nil
 }
 
-// veyronJSBrowserIntegrationTest runs the veyron javascript integration test in a browser environment using nacl plugin.
-func (t *testEnv) veyronJSBrowserIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
-	// TODO(aghassemi): Re-enable the test when it is fixed.
-	return &TestResult{Status: TestPassed}, nil
-
+// veyronJSBrowserIntegration runs the veyron javascript integration test in a browser environment using nacl plugin.
+func (t *testEnv) veyronJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -98,8 +95,8 @@ func (t *testEnv) veyronJSBrowserIntegrationTest(ctx *util.Context, testName str
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSNodeIntegrationTest runs the veyron javascript integration test in NodeJS environment using wspr.
-func (t *testEnv) veyronJSNodeIntegrationTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSNodeIntegration runs the veyron javascript integration test in NodeJS environment using wspr.
+func (t *testEnv) veyronJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -112,8 +109,8 @@ func (t *testEnv) veyronJSNodeIntegrationTest(ctx *util.Context, testName string
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSUnitTest runs the veyron javascript unit test.
-func (t *testEnv) veyronJSUnitTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSUnit runs the veyron javascript unit test.
+func (t *testEnv) veyronJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -126,8 +123,8 @@ func (t *testEnv) veyronJSUnitTest(ctx *util.Context, testName string) (*TestRes
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSVdlTest runs the veyron javascript vdl test.
-func (t *testEnv) veyronJSVdlTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSVdl runs the veyron javascript vdl test.
+func (t *testEnv) veyronJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -140,8 +137,8 @@ func (t *testEnv) veyronJSVdlTest(ctx *util.Context, testName string) (*TestResu
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSVomTest runs the veyron javascript vom test.
-func (t *testEnv) veyronJSVomTest(ctx *util.Context, testName string) (*TestResult, error) {
+// veyronJSVom runs the veyron javascript vom test.
+func (t *testEnv) veyronJSVom(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
