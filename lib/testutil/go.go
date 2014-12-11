@@ -630,7 +630,8 @@ func isBuildFailure(err error, out, pkg string) bool {
 			// "setup failure" and "test failure".
 			if exitCode == 1 {
 				// Treat setup failure as build failure.
-				if strings.HasSuffix(out, "[setup failed]") {
+				if strings.HasPrefix(out, fmt.Sprintf("# %s", pkg)) &&
+					strings.HasSuffix(out, "[setup failed]\n") {
 					return true
 				}
 				return false
