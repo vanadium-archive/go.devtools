@@ -621,7 +621,20 @@ func isBuildFailure(err error, out, pkg string) bool {
 		// Try checking err's process state to determine the exit code.
 		// Exit code 2 means build failures.
 		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus() == 2
+			exitCode := status.ExitStatus()
+			// A exit code of 2 means build failure.
+			if exitCode == 2 {
+				return true
+			}
+			// When the exit code is 1, we need to check the output to distinguish
+			// "setup failure" and "test failure".
+			if exitCode == 1 {
+				// Treat setup failure as build failure.
+				if strings.HasSuffix(out, "[setup failed]") {
+					return true
+				}
+				return false
+			}
 		}
 	}
 	// As a fallback, check the output line.
