@@ -2,9 +2,15 @@ package testutil
 
 import (
 	"path/filepath"
+	"time"
 
 	"veyron.io/tools/lib/collect"
+	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
+)
+
+const (
+	defaultJSTestTimeout = 5 * time.Minute
 )
 
 // runJSTest is a harness for executing javascript tests.
@@ -36,7 +42,10 @@ func (t *testEnv) runJSTest(ctx *util.Context, testName, testDir, target string,
 	}
 
 	// Run the test target.
-	if err := ctx.Run().CommandWithOpts(opts, "make", target); err != nil {
+	if err := ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{Status: TestTimedOut}, nil
+		}
 		return &TestResult{Status: TestFailed}, nil
 	}
 

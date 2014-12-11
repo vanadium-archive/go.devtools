@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	DefaultIntegrationTestTimeout = 2 * time.Minute
+	defaultIntegrationTestTimeout = 2 * time.Minute
 )
 
 // binPackages enumerates the Go commands used by veyron integration tests.
@@ -223,7 +223,7 @@ func (t *testEnv) integrationTestWorker(root string, env map[string]string, task
 			fmt.Fprintf(os.Stderr, "unsupported type of integration test: %v\n", script)
 			continue
 		}
-		err := ctx.Run().TimedCommand(DefaultIntegrationTestTimeout, t.veyronBin, args...)
+		err := ctx.Run().TimedCommand(defaultIntegrationTestTimeout, t.veyronBin, args...)
 		result.time = time.Now().Sub(start)
 		result.output = out.String()
 		if err != nil {
