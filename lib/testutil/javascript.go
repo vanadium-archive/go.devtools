@@ -23,6 +23,9 @@ func (t *testEnv) runJSTest(ctx *util.Context, testName, testDir, target string,
 
 	// Clean up after previous instances of the test.
 	opts := t.setTestEnv(ctx.Run().Opts())
+	for key, value := range env {
+		opts.Env[key] = value
+	}
 	if err := ctx.Run().CommandWithOpts(opts, "make", "clean"); err != nil {
 		return nil, err
 	}
