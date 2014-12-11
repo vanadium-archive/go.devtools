@@ -211,7 +211,11 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 
 	// Pre-build non-test packages.
 	if err := buildTestDeps(ctx, pkgs); err != nil {
-		return nil, err
+		s := createTestSuiteWithFailure("BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error(), 0)
+		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+			return nil, err
+		}
+		return &TestResult{Status: TestFailed}, nil
 	}
 
 	// Enumerate the packages for which coverage is to be computed.
@@ -401,7 +405,11 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 
 	// Pre-build non-test packages.
 	if err := buildTestDeps(ctx, pkgs); err != nil {
-		return nil, err
+		s := createTestSuiteWithFailure("BuildTestDependencies", "Test", "dependencies build failure", err.Error(), 0)
+		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+			return nil, err
+		}
+		return &TestResult{Status: TestFailed}, nil
 	}
 
 	// Enumerate the packages to be built.
@@ -501,13 +509,16 @@ func testWorker(timeout string, args []string, pkgs <-chan string, results chan<
 func buildTestDeps(ctx *util.Context, pkgs []string) error {
 	fmt.Fprintf(ctx.Stdout(), "building test dependencies ... ")
 	args := append([]string{"go", "test", "-i"}, pkgs...)
-	err := ctx.Run().Command("veyron", args...)
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stderr = &out
+	err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
 	if err == nil {
 		fmt.Fprintf(ctx.Stdout(), "ok\n")
-	} else {
-		fmt.Fprintf(ctx.Stdout(), "failed\n")
+		return nil
 	}
-	return err
+	fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", out.String())
+	return fmt.Errorf("%v\n%s", err, out.String())
 }
 
 func createTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput string, duration time.Duration) *testSuite {
