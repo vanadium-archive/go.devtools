@@ -2,9 +2,15 @@ package testutil
 
 import (
 	"path/filepath"
+	"time"
 
 	"veyron.io/tools/lib/collect"
+	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
+)
+
+const (
+	defaultWWWTestTimeout = 5 * time.Minute
 )
 
 func (t *testEnv) veyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
@@ -31,7 +37,10 @@ func (t *testEnv) veyronWWW(ctx *util.Context, testName string) (_ *TestResult, 
 	}
 
 	// Invoke "make test"
-	if err := ctx.Run().CommandWithOpts(opts, "make", "test"); err != nil {
+	if err := ctx.Run().TimedCommandWithOpts(defaultWWWTestTimeout, opts, "make", "test"); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{Status: TestTimedOut}, nil
+		}
 		return &TestResult{Status: TestFailed}, nil
 	}
 

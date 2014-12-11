@@ -2,9 +2,15 @@ package testutil
 
 import (
 	"path/filepath"
+	"time"
 
 	"veyron.io/tools/lib/collect"
+	"veyron.io/tools/lib/runutil"
 	"veyron.io/tools/lib/util"
+)
+
+const (
+	defaultBrowserTestTimeout = 5 * time.Minute
 )
 
 // veyronBrowserTest runs an integration test for the veyron browser.
@@ -39,7 +45,10 @@ func (t *testEnv) veyronBrowserTest(ctx *util.Context, testName string) (_ *Test
 	// Invoke "make test" for the veyron browser.
 	opts := t.setTestEnv(ctx.Run().Opts())
 	opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
-	if err := ctx.Run().CommandWithOpts(opts, "make", "test"); err != nil {
+	if err := ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test"); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{Status: TestTimedOut}, nil
+		}
 		return &TestResult{Status: TestFailed}, nil
 	}
 
