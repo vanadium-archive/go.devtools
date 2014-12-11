@@ -44,6 +44,7 @@ func (t *testEnv) initTest(ctx *util.Context, testName string, profiles []string
 	if err := os.Setenv("TMPDIR", workDir); err != nil {
 		return nil, err
 	}
+	t.setEnv("TMPDIR", workDir)
 	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
 
 	// Create a temporary directory for storing binaries.

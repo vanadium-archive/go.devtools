@@ -111,6 +111,10 @@ func newTestEnv(snapshot *envutil.Snapshot) (*testEnv, error) {
 	return t, nil
 }
 
+func (t *testEnv) setEnv(key, value string) {
+	t.snapshot.Set(key, value)
+}
+
 func (t *testEnv) setTestEnv(opts runutil.Opts) runutil.Opts {
 	opts.Env = t.snapshot.Map()
 	return opts
