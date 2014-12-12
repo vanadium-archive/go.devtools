@@ -44,7 +44,10 @@ func (t *testEnv) runJSTest(ctx *util.Context, testName, testDir, target string,
 	// Run the test target.
 	if err := ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
 		if err == runutil.CommandTimedOutErr {
-			return &TestResult{Status: TestTimedOut}, nil
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultJSTestTimeout,
+			}, nil
 		}
 		return &TestResult{Status: TestFailed}, nil
 	}

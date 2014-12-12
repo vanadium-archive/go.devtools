@@ -14,7 +14,8 @@ import (
 type TestStatus int
 
 type TestResult struct {
-	Status TestStatus
+	Status       TestStatus
+	TimeoutValue time.Duration
 }
 
 const (

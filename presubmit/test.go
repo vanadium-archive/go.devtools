@@ -237,8 +237,12 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 		fmt.Fprintf(&report, "%s ➔ %s: %s", lastStatusString, curStatusString, name)
 
 		if result.Status == testutil.TestTimedOut {
-			fmt.Fprintf(&report, " [TIMED OUT after %s]\n", testutil.DefaultTestTimeout)
-			if err := generateReportForHangingTest(name, testutil.DefaultTestTimeout); err != nil {
+			timeoutValue := testutil.DefaultTestTimeout
+			if result.TimeoutValue != 0 {
+				timeoutValue = result.TimeoutValue
+			}
+			fmt.Fprintf(&report, " [TIMED OUT after %s]\n", timeoutValue)
+			if err := generateReportForHangingTest(name, timeoutValue); err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			}
 		} else {

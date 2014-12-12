@@ -39,7 +39,10 @@ func (t *testEnv) veyronWWW(ctx *util.Context, testName string) (_ *TestResult, 
 	// Invoke "make test"
 	if err := ctx.Run().TimedCommandWithOpts(defaultWWWTestTimeout, opts, "make", "test"); err != nil {
 		if err == runutil.CommandTimedOutErr {
-			return &TestResult{Status: TestTimedOut}, nil
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultWWWTestTimeout,
+			}, nil
 		}
 		return &TestResult{Status: TestFailed}, nil
 	}

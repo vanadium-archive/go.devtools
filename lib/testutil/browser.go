@@ -47,7 +47,10 @@ func (t *testEnv) veyronBrowserTest(ctx *util.Context, testName string) (_ *Test
 	opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
 	if err := ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test"); err != nil {
 		if err == runutil.CommandTimedOutErr {
-			return &TestResult{Status: TestTimedOut}, nil
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultBrowserTestTimeout,
+			}, nil
 		}
 		return &TestResult{Status: TestFailed}, nil
 	}
