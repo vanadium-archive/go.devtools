@@ -30,7 +30,7 @@
             "third_party-go-race"
         ],
         "https://veyron.googlesource.com/veyron-browser": [
-            "veyron-browser-test"
+            "veyron-namespace-browser-test"
         ],
         "https://veyron.googlesource.com/veyron.go.core": [
             "veyron-go-build",
@@ -40,7 +40,7 @@
             "veyron-javascript-vom",
             "veyron-javascript-browser-integration",
             "veyron-javascript-node-integration",
-            "veyron-browser-test",
+            "veyron-namespace-browser-test",
             "veyron-integration-test",
             "veyron-javascript-build-extension"
         ],
@@ -67,7 +67,7 @@
             "veyron-go-race",
             "veyron-javascript-browser-integration",
             "veyron-javascript-node-integration",
-            "veyron-browser-test",
+            "veyron-namespace-browser-test",
             "veyron-integration-test",
             "veyron-javascript-build-extension"
         ],
@@ -75,7 +75,7 @@
             "veyron-javascript-unit",
             "veyron-javascript-browser-integration",
             "veyron-javascript-node-integration",
-            "veyron-browser-test"
+            "veyron-namespace-browser-test"
         ],
         "https://veyron.googlesource.com/vom.js": [
             "veyron-javascript-vdl",
@@ -83,7 +83,7 @@
             "veyron-javascript-unit",
             "veyron-javascript-browser-integration",
             "veyron-javascript-node-integration",
-            "veyron-browser-test"
+            "veyron-namespace-browser-test"
         ],
         "https://github.com/veyron/veyron-www": [
             "veyron-www"
@@ -109,7 +109,7 @@
         "veyron-android-test": [
             "veyron-android-build"
         ],
-        "veyron-browser-test": [
+        "veyron-namespace-browser-test": [
             "veyron-go-build",
             "veyron-javascript-browser-integration",
             "veyron-javascript-node-integration"

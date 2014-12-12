@@ -87,7 +87,7 @@ func newTestEnv(snapshot *envutil.Snapshot) (*testEnv, error) {
 		"third_party-go-build":                  t.thirdPartyGoBuild,
 		"third_party-go-test":                   t.thirdPartyGoTest,
 		"third_party-go-race":                   t.thirdPartyGoRace,
-		"veyron-browser-test":                   t.veyronBrowserTest,
+		"veyron-namespace-browser-test":         t.veyronNamespaceBrowserTest,
 		"veyron-go-bench":                       t.veyronGoBench,
 		"veyron-go-build":                       t.veyronGoBuild,
 		"veyron-go-cover":                       t.veyronGoCoverage,

@@ -13,10 +13,10 @@ const (
 	defaultBrowserTestTimeout = 5 * time.Minute
 )
 
-// veyronBrowserTest runs an integration test for the veyron browser.
+// veyronBrowserTest runs an integration test for the veyron namespace browser.
 //
-// TODO(aghassemi): Port the veyron browser test logic from shell to Go.
-func (t *testEnv) veyronBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// TODO(aghassemi): Port the veyron namespace browser test logic from shell to Go.
+func (t *testEnv) veyronNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (t *testEnv) veyronBrowserTest(ctx *util.Context, testName string) (_ *Test
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Invoke "make clean" for the veyron browser and remove the test output file if it exists.
-	browserDir := filepath.Join(root, "veyron-browser")
+	browserDir := filepath.Join(root, "veyron-namespace-browser")
 	if err := ctx.Run().Chdir(browserDir); err != nil {
 		return nil, err
 	}
