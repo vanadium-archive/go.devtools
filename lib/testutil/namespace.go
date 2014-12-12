@@ -31,7 +31,7 @@ func (t *testEnv) veyronNamespaceBrowserTest(ctx *util.Context, testName string)
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Invoke "make clean" for the veyron browser and remove the test output file if it exists.
-	browserDir := filepath.Join(root, "veyron-namespace-browser")
+	browserDir := filepath.Join(root, "veyron-browser")
 	if err := ctx.Run().Chdir(browserDir); err != nil {
 		return nil, err
 	}
