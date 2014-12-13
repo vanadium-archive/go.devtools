@@ -102,7 +102,7 @@ func (t *testEnv) veyronJSBrowserIntegration(ctx *util.Context, testName string)
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-integration-browser"
 	env := map[string]string{}
-	env["XUNIT"] = "true"
+	setCommonJSEnv(env)
 	env["BROWSER_OUTPUT"] = XUnitReportPath(testName)
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
@@ -116,7 +116,7 @@ func (t *testEnv) veyronJSNodeIntegration(ctx *util.Context, testName string) (*
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-integration-node"
 	env := map[string]string{}
-	env["XUNIT"] = "true"
+	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
@@ -130,7 +130,7 @@ func (t *testEnv) veyronJSUnit(ctx *util.Context, testName string) (*TestResult,
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-unit"
 	env := map[string]string{}
-	env["XUNIT"] = "true"
+	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
@@ -144,7 +144,7 @@ func (t *testEnv) veyronJSVdl(ctx *util.Context, testName string) (*TestResult, 
 	testDir := filepath.Join(root, "veyron.js")
 	target := "test-vdl"
 	env := map[string]string{}
-	env["XUNIT"] = "true"
+	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
 }
@@ -158,7 +158,12 @@ func (t *testEnv) veyronJSVom(ctx *util.Context, testName string) (*TestResult, 
 	testDir := filepath.Join(root, "veyron", "javascript", "vom")
 	target := "test"
 	env := map[string]string{}
-	env["XUNIT"] = "true"
+	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
 	return t.runJSTest(ctx, testName, testDir, target, nil, env)
+}
+
+func setCommonJSEnv(env map[string]string) {
+	env["XUNIT"] = "true"
+	env["NOVDLGEN"] = "true"
 }
