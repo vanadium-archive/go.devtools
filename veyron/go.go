@@ -107,7 +107,7 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 	if err != nil {
 		return err
 	}
-	bin, err := targetEnv.LookPath(targetGo)
+	bin, err := targetEnv.LookPath(targetGoFlag)
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func computeGoDeps(ctx *util.Context, env *envutil.Snapshot, pkgs []string) ([]s
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
 	opts.Env = env.Map()
-	if err := ctx.Run().CommandWithOpts(opts, hostGo, goListArgs...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, hostGoFlag, goListArgs...); err != nil {
 		return nil, fmt.Errorf("failed to compute go deps: %v\n%s", err, stderr.String())
 	}
 	scanner := bufio.NewScanner(&stdout)

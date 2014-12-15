@@ -163,12 +163,12 @@ Usage:
    veyron project <command>
 
 The veyron project commands are:
-   list        List existing veyron projects
+   list        List existing veyron projects and branches
    poll        Poll existing veyron projects
 
 Veyron Project List
 
-Inspect the local filesystem and list the existing projects.
+Inspect the local filesystem and list the existing projects and branches.
 
 Usage:
    veyron project list [flags]
@@ -176,6 +176,27 @@ Usage:
 The veyron project list flags are:
  -branches=false
    Show project branches.
+ -nopristine=false
+   If true, omit pristine projects, i.e. projects with a clean master branch and
+   no other branches.
+
+Veyron Project Status
+
+Reports current branches of veyron projects (repositories) as well as an
+indication of each project's status:
+  *  indicates that a repository contains uncommitted changes
+  %  indicates that a repository contains untracked files
+
+Usage:
+   veyron project status [flags]
+
+The veyron project status flags are:
+ -check_dirty=true
+   If false, don't check for uncommitted changes or untracked files. Setting
+   this option to false is dangerous: dirty master branches will not appear in
+   the output.
+ -show_current_repo_name=false
+   Show the name of the current repo.
 
 Veyron Project Poll
 

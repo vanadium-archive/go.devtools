@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/util"
@@ -13,17 +15,68 @@ import (
 // cmdProject represents the "veyron project" command.
 var cmdProject = &cmdline.Command{
 	Name:     "project",
-	Short:    "Manage veyron projects",
-	Long:     "Manage veyron projects.",
-	Children: []*cmdline.Command{cmdProjectList, cmdProjectPoll},
+	Short:    "Manage the veyron projects",
+	Long:     "Manage the veyron projects.",
+	Children: []*cmdline.Command{cmdProjectList, cmdProjectStatus, cmdProjectPoll},
 }
 
 // cmdProjectList represents the "veyron project list" command.
 var cmdProjectList = &cmdline.Command{
 	Run:   runProjectList,
 	Name:  "list",
-	Short: "List existing veyron projects",
-	Long:  "Inspect the local filesystem and list the existing projects.",
+	Short: "List existing veyron projects and branches",
+	Long:  "Inspect the local filesystem and list the existing projects and branches.",
+}
+
+type repoState struct {
+	project        util.Project
+	branches       []string
+	currentBranch  string
+	hasUncommitted bool
+	hasUntracked   bool
+}
+
+func fillRepoState(ctx *util.Context, rs *repoState, checkDirty bool, ch chan<- error) {
+	// TODO(sadovsky): Create a common interface for Git and Hg.
+	var err error
+	switch rs.project.Protocol {
+	case "git":
+		scm := ctx.Git(util.RootDirOpt(rs.project.Path))
+		rs.branches, rs.currentBranch, err = scm.GetBranches()
+		if err != nil {
+			ch <- err
+			return
+		}
+		if checkDirty {
+			rs.hasUncommitted, err = scm.HasUncommittedChanges()
+			if err != nil {
+				ch <- err
+				return
+			}
+			rs.hasUntracked, err = scm.HasUntrackedFiles()
+			if err != nil {
+				ch <- err
+				return
+			}
+		}
+	case "hg":
+		scm := ctx.Hg(util.RootDirOpt(rs.project.Path))
+		rs.branches, rs.currentBranch, err = scm.GetBranches()
+		if err != nil {
+			ch <- err
+			return
+		}
+		if checkDirty {
+			// TODO(sadovsky): Extend hgutil so that we can populate these fields
+			// correctly.
+			rs.hasUncommitted = false
+			rs.hasUntracked = false
+		}
+	default:
+		ch <- util.UnsupportedProtocolErr(rs.project.Protocol)
+		return
+	}
+	ch <- nil
 }
 
 // runProjectList generates a listing of local projects.
@@ -38,30 +91,34 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	for _, name := range names {
-		project := projects[name]
-		fmt.Fprintf(ctx.Stdout(), "project=%q path=%q\n", path.Base(name), project.Path)
+
+	// Note, goroutine-based parallel forEach is clumsy. :(
+	repoStates := make([]repoState, len(names))
+	sem := make(chan error, len(names))
+	for i, name := range names {
+		rs := &repoStates[i]
+		rs.project = projects[name]
+		go fillRepoState(ctx, rs, noPristineFlag, sem)
+	}
+	for _ = range names {
+		err := <-sem
+		if err != nil {
+			return err
+		}
+	}
+
+	for i, name := range names {
+		rs := &repoStates[i]
+		if noPristineFlag {
+			pristine := len(rs.branches) == 1 && rs.currentBranch == "master" && !rs.hasUncommitted && !rs.hasUntracked
+			if pristine {
+				continue
+			}
+		}
+		fmt.Fprintf(ctx.Stdout(), "project=%q path=%q\n", path.Base(name), rs.project.Path)
 		if branchesFlag {
-			if err := ctx.Run().Chdir(project.Path); err != nil {
-				return err
-			}
-			branches, current := []string{}, ""
-			switch project.Protocol {
-			case "git":
-				branches, current, err = ctx.Git().GetBranches()
-				if err != nil {
-					return err
-				}
-			case "hg":
-				branches, current, err = ctx.Hg().GetBranches()
-				if err != nil {
-					return err
-				}
-			default:
-				return util.UnsupportedProtocolErr(project.Protocol)
-			}
-			for _, branch := range branches {
-				if branch == current {
+			for _, branch := range rs.branches {
+				if branch == rs.currentBranch {
 					fmt.Fprintf(ctx.Stdout(), "  * %v\n", branch)
 				} else {
 					fmt.Fprintf(ctx.Stdout(), "  %v\n", branch)
@@ -69,6 +126,82 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 			}
 		}
 	}
+	return nil
+}
+
+// cmdProjectStatus represents the "veyron project status" command.
+var cmdProjectStatus = &cmdline.Command{
+	Run:   runProjectStatus,
+	Name:  "status",
+	Short: "Print a succinct status of veyron projects",
+	Long: `
+Reports current branches of veyron projects (repositories) as well as an
+indication of each project's status:
+  *  indicates that a repository contains uncommitted changes
+  %  indicates that a repository contains untracked files
+`,
+}
+
+func runProjectStatus(command *cmdline.Command, args []string) error {
+	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	projects, err := util.LocalProjects(ctx)
+	if err != nil {
+		return err
+	}
+	names := []string{}
+	for name := range projects {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	// Note, goroutine-based parallel forEach is clumsy. :(
+	repoStates := make([]repoState, len(names))
+	sem := make(chan error, len(names))
+	for i, name := range names {
+		rs := &repoStates[i]
+		rs.project = projects[name]
+		go fillRepoState(ctx, rs, checkDirtyFlag, sem)
+	}
+	for _ = range names {
+		err := <-sem
+		if err != nil {
+			return err
+		}
+	}
+
+	// Get the name of the current repository, if applicable.
+	currentRepo, _ := ctx.Git().RepoName()
+	var statuses []string
+	for i, name := range names {
+		rs := &repoStates[i]
+		status := ""
+		if checkDirtyFlag {
+			if rs.hasUncommitted {
+				status += "*"
+			}
+			if rs.hasUntracked {
+				status += "%"
+			}
+		}
+		short := rs.currentBranch + status
+		long := filepath.Base(name) + ":" + short
+		if name == currentRepo {
+			if showCurrentRepoNameFlag {
+				statuses = append([]string{long}, statuses...)
+			} else {
+				statuses = append([]string{short}, statuses...)
+			}
+		} else {
+			pristine := rs.currentBranch == "master"
+			if checkDirtyFlag {
+				pristine = pristine && !rs.hasUncommitted && !rs.hasUntracked
+			}
+			if !pristine {
+				statuses = append(statuses, long)
+			}
+		}
+	}
+	fmt.Println(strings.Join(statuses, ","))
 	return nil
 }
 

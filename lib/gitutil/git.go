@@ -1,5 +1,8 @@
-// Package gitutil provides Go wrappers for a variety of git commands.
+// Package gitutil provides Go wrappers for various Git commands.
 package gitutil
+
+// TODO(sadovsky): This package should only be accessed via Context. We should
+// make it internal somehow (e.g. via GO.PACKAGE, or Go 1.4's "internal").
 
 import (
 	"bytes"
@@ -38,13 +41,15 @@ func (ge GitError) Error() string {
 }
 
 type Git struct {
-	runner *runutil.Run
+	runner  *runutil.Run
+	rootDir string
 }
 
 // New is the Git factory.
-func New(runner *runutil.Run) *Git {
+func New(runner *runutil.Run, rootDir string) *Git {
 	return &Git{
-		runner: runner,
+		runner:  runner,
+		rootDir: rootDir,
 	}
 }
 
@@ -69,7 +74,7 @@ func (g *Git) BranchExists(branchName string) bool {
 
 // BranchesDiffer tests whether two branches have any changes between them.
 func (g *Git) BranchesDiffer(branch1, branch2 string) (bool, error) {
-	out, err := g.runOutput("--no-pager", "diff", "-name-only", branch1+".."+branch2)
+	out, err := g.runOutput("--no-pager", "diff", "--name-only", branch1+".."+branch2)
 	if err != nil {
 		return false, err
 	}
@@ -116,10 +121,7 @@ func (g *Git) CommitAndEdit() error {
 	opts := g.runner.Opts()
 	opts.Stdout = os.Stdout
 	opts.Stderr = &stderr
-	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
-		return Error("", stderr.String(), args...)
-	}
-	return nil
+	return g.commandWithOpts(opts, args...)
 }
 
 // CommitFile commits the given file with the given commit message.
@@ -155,10 +157,7 @@ func (g *Git) CommitWithMessageAndEdit(message string) error {
 	opts := g.runner.Opts()
 	opts.Stdout = os.Stdout
 	opts.Stderr = &stderr
-	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
-		return Error("", stderr.String(), args...)
-	}
-	return nil
+	return g.commandWithOpts(opts, args...)
 }
 
 // Committers returns a list of committers for the current repository
@@ -399,11 +398,14 @@ func (g *Git) Pull(remote, branch string) error {
 	if err != nil {
 		return err
 	}
-	// Starting with git 1.8, "git pull remote branch" does not create
-	// the remote branch "origin/master" locally. To avoid the need to
-	// account for this, run "git pull", which fails but creates the
-	// missing branch, for git 1.7 and older.
+	// Starting with git 1.8, "git pull <remote> <branch>" does not create the
+	// branch "<remote>/<branch>" locally. To avoid the need to account for this,
+	// run "git pull", which fails but creates the missing branch, for git 1.7 and
+	// older.
 	if major < 2 && minor < 8 {
+		// This command is expected to fail (with desirable side effects).
+		// Use exec.Command instead of runner to prevent this failure from showing
+		// up in the console and confusing people.
 		command := exec.Command("git", "pull")
 		command.Run()
 	}
@@ -487,6 +489,7 @@ func (g *Git) StashPop() error {
 
 // TopLevel returns the top level path of the current repository.
 func (g *Git) TopLevel() (string, error) {
+	// TODO(sadovsky): If g.rootDir is set, perhaps simply return that?
 	out, err := g.runOutputWithOpts(g.disableDryRun(), "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", err
@@ -544,15 +547,32 @@ func (g *Git) disableDryRun() runutil.Opts {
 	return opts
 }
 
+func (g *Git) commandWithOpts(opts runutil.Opts, args ...string) error {
+	// http://git-scm.com/docs/git
+	if g.rootDir != "" {
+		args = append([]string{"-C", g.rootDir}, args...)
+	}
+	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
+		stdout, stderr := "", ""
+		buf, ok := opts.Stdout.(*bytes.Buffer)
+		if ok {
+			stdout = buf.String()
+		}
+		buf, ok = opts.Stderr.(*bytes.Buffer)
+		if ok {
+			stderr = buf.String()
+		}
+		return Error(stdout, stderr, args...)
+	}
+	return nil
+}
+
 func (g *Git) run(args ...string) error {
 	var stdout, stderr bytes.Buffer
 	opts := g.runner.Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
-		return Error(stdout.String(), stderr.String(), args...)
-	}
-	return nil
+	return g.commandWithOpts(opts, args...)
 }
 
 func (g *Git) runOutput(args ...string) ([]string, error) {
@@ -563,8 +583,8 @@ func (g *Git) runOutputWithOpts(opts runutil.Opts, args ...string) ([]string, er
 	var stdout, stderr bytes.Buffer
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
-		return nil, Error(stdout.String(), stderr.String(), args...)
+	if err := g.commandWithOpts(opts, args...); err != nil {
+		return nil, err
 	}
 	output := strings.TrimSpace(stdout.String())
 	if output == "" {

@@ -62,26 +62,6 @@ The git-veyron review flags are:
  -r=
    Comma-seperated list of emails or LDAPs to request review.
 
-Git-Veyron Status
-
-Reports current branches of existing veyron repositories as well as an
-indication of the status:
-  *  indicates whether a repository contains uncommitted changes
-  %  indicates whether a repository contains untracked files
-
-Usage:
-   git-veyron status [flags]
-
-The git-veyron status flags are:
- -show_current=false
-   Show the name of the current repo.
- -show_master=false
-   Show master branches in the status.
- -show_uncommitted=true
-   Indicate if there are any uncommitted changes.
- -show_untracked=true
-   Indicate if there are any untracked files.
-
 Git-Veyron Version
 
 Print version of the git-veyron tool.

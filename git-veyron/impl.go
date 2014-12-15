@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"veyron.io/lib/cmdline"
@@ -48,10 +47,6 @@ func init() {
 	cmdReview.Flags.BoolVar(&uncommittedFlag, "check_uncommitted", true, "Check that no uncommitted changes exist.")
 	cmdReview.Flags.BoolVar(&depcopFlag, "check_depcop", true, "Check that no go-depcop violations exist.")
 	cmdReview.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
-	cmdStatus.Flags.BoolVar(&masterFlag, "show_master", false, "Show master branches in the status.")
-	cmdStatus.Flags.BoolVar(&uncommittedFlag, "show_uncommitted", true, "Indicate if there are any uncommitted changes.")
-	cmdStatus.Flags.BoolVar(&untrackedFlag, "show_untracked", true, "Indicate if there are any untracked files.")
-	cmdStatus.Flags.BoolVar(&currentFlag, "show_current", false, "Show the name of the current repo.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -62,7 +57,7 @@ The git-veyron tool facilitates interaction with the Veyron Gerrit server.
 In particular, it can be used to export changelists from a local branch
 to the Gerrit server.
 `,
-	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdStatus, cmdVersion},
+	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdVersion},
 }
 
 // root returns a command that represents the root of the git-veyron tool.
@@ -70,7 +65,7 @@ func root() *cmdline.Command {
 	return cmdRoot
 }
 
-// cmmCleanup represents the 'cleanup' command of the git-veyron tool.
+// cmmCleanup represents the "cleanup" command of the git-veyron tool.
 var cmdCleanup = &cmdline.Command{
 	Run:   runCleanup,
 	Name:  "cleanup",
@@ -155,7 +150,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	return cleanup(ctx, args)
 }
 
-// cmdReview represents the 'review' command of the git-veyron tool.
+// cmdReview represents the "review" command of the git-veyron tool.
 var cmdReview = &cmdline.Command{
 	Run:   runReview,
 	Name:  "review",
@@ -584,86 +579,7 @@ func (r *review) getCommitMessageFilename() (string, error) {
 	return filepath.Join(topLevel, commitMessageFile), nil
 }
 
-// cmdStatus represents the 'status' command of the git-veyron tool.
-var cmdStatus = &cmdline.Command{
-	Run:   runStatus,
-	Name:  "status",
-	Short: "Print a succint status of the veyron repositories",
-	Long: `
-Reports current branches of existing veyron repositories as well as an
-indication of the status:
-  *  indicates whether a repository contains uncommitted changes
-  %  indicates whether a repository contains untracked files
-`,
-}
-
-func runStatus(command *cmdline.Command, args []string) (e error) {
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
-	projects, err := util.LocalProjects(ctx)
-	if err != nil {
-		return err
-	}
-	names := []string{}
-	for name, project := range projects {
-		if project.Protocol == "git" {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
-	// Get the name of the current repository, if applicable.
-	currentRepo, _ := ctx.Git().RepoName()
-	var statuses []string
-	for _, name := range names {
-		if err := ctx.Run().Chdir(projects[name].Path); err != nil {
-			return fmt.Errorf("Chdir(%v) failed: %v", projects[name].Path, err)
-		}
-		branch, err := ctx.Git().CurrentBranchName()
-		if err != nil {
-			return err
-		}
-		status := ""
-		if uncommittedFlag {
-			uncommitted, err := ctx.Git().HasUncommittedChanges()
-			if err != nil {
-				return err
-			}
-			if uncommitted {
-				status += "*"
-			}
-		}
-		if untrackedFlag {
-			untracked, err := ctx.Git().HasUntrackedFiles()
-			if err != nil {
-				return err
-			}
-			if untracked {
-				status += "%"
-			}
-		}
-		short := branch + status
-		long := filepath.Base(name) + ":" + short
-		if currentRepo == name {
-			if currentFlag {
-				statuses = append([]string{long}, statuses...)
-			} else {
-				statuses = append([]string{short}, statuses...)
-			}
-		} else {
-			if masterFlag || branch != "master" {
-				statuses = append(statuses, long)
-			}
-		}
-	}
-	fmt.Println(strings.Join(statuses, ","))
-	return nil
-}
-
-// cmdVersion represents the 'version' command of the git-veyron tool.
+// cmdVersion represents the "version" command of the git-veyron tool.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",

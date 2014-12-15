@@ -1,6 +1,8 @@
-// Package hgutil provides Go wrappers for a variety of mercurial
-// commands.
+// Package hgutil provides Go wrappers for various Mercurial commands.
 package hgutil
+
+// TODO(sadovsky): This package should only be accessed via Context. We should
+// make it internal somehow (e.g. via GO.PACKAGE, or Go 1.4's "internal").
 
 import (
 	"bytes"
@@ -33,12 +35,16 @@ func (he HgError) Error() string {
 }
 
 type Hg struct {
-	runner *runutil.Run
+	runner  *runutil.Run
+	rootDir string
 }
 
 // New is the Hg factory.
-func New(runner *runutil.Run) *Hg {
-	return &Hg{runner: runner}
+func New(runner *runutil.Run, rootDir string) *Hg {
+	return &Hg{
+		runner:  runner,
+		rootDir: rootDir,
+	}
 }
 
 // CheckoutBranch switches the current repository to the given branch.
@@ -115,15 +121,32 @@ func (h *Hg) disableDryRun() runutil.Opts {
 	return opts
 }
 
+func (h *Hg) commandWithOpts(opts runutil.Opts, args ...string) error {
+	// http://www.selenic.com/mercurial/hg.1.html
+	if h.rootDir != "" {
+		args = append([]string{"-R", h.rootDir}, args...)
+	}
+	if err := h.runner.CommandWithOpts(opts, "hg", args...); err != nil {
+		stdout, stderr := "", ""
+		buf, ok := opts.Stdout.(*bytes.Buffer)
+		if ok {
+			stdout = buf.String()
+		}
+		buf, ok = opts.Stderr.(*bytes.Buffer)
+		if ok {
+			stderr = buf.String()
+		}
+		return Error(stdout, stderr, args...)
+	}
+	return nil
+}
+
 func (h *Hg) run(args ...string) error {
 	var stdout, stderr bytes.Buffer
 	opts := h.runner.Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	if err := h.runner.CommandWithOpts(opts, "hg", args...); err != nil {
-		return Error(stdout.String(), stderr.String(), args...)
-	}
-	return nil
+	return h.commandWithOpts(opts, args...)
 }
 
 func (h *Hg) runOutput(args ...string) ([]string, error) {
@@ -134,8 +157,8 @@ func (h *Hg) runOutputWithOpts(opts runutil.Opts, args ...string) ([]string, err
 	var stdout, stderr bytes.Buffer
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	if err := h.runner.CommandWithOpts(opts, "hg", args...); err != nil {
-		return nil, Error(stdout.String(), stderr.String(), args...)
+	if err := h.commandWithOpts(opts, args...); err != nil {
+		return nil, err
 	}
 	output := strings.TrimSpace(stdout.String())
 	if output == "" {

@@ -14,27 +14,32 @@ import (
 )
 
 var (
-	hostGo             string
-	targetGo           string
-	branchesFlag       bool
-	gcFlag             bool
-	manifestFlag       string
-	novdlFlag          bool
-	platformFlag       string
-	numTestWorkersFlag int
-	noColorFlag        bool
-	verboseFlag        bool
-	dryRunFlag         bool
-	remoteFlag         bool
+	platformFlag            string
+	novdlFlag               bool
+	hostGoFlag              string
+	targetGoFlag            string
+	manifestFlag            string
+	branchesFlag            bool
+	noPristineFlag          bool
+	checkDirtyFlag          bool
+	showCurrentRepoNameFlag bool
+	verboseFlag             bool
+	dryRunFlag              bool
+	noColorFlag             bool
+	remoteFlag              bool
+	gcFlag                  bool
 )
 
 func init() {
 	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
 	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
-	cmdGo.Flags.StringVar(&hostGo, "host_go", "go", "Go command for the host platform.")
-	cmdGo.Flags.StringVar(&targetGo, "target_go", "go", "Go command for the target platform.")
+	cmdGo.Flags.StringVar(&hostGoFlag, "host_go", "go", "Go command for the host platform.")
+	cmdGo.Flags.StringVar(&targetGoFlag, "target_go", "go", "Go command for the target platform.")
 	cmdProject.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdProjectList.Flags.BoolVar(&branchesFlag, "branches", false, "Show project branches.")
+	cmdProjectList.Flags.BoolVar(&noPristineFlag, "nopristine", false, "If true, omit pristine projects, i.e. projects with a clean master branch and no other branches.")
+	cmdProjectStatus.Flags.BoolVar(&checkDirtyFlag, "check_dirty", true, "If false, don't check for uncommitted changes or untracked files. Setting this option to false is dangerous: dirty master branches will not appear in the output.")
+	cmdProjectStatus.Flags.BoolVar(&showCurrentRepoNameFlag, "show_current_repo_name", false, "Show the name of the current repo.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
