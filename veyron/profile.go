@@ -532,6 +532,7 @@ func setupMobileLinux(ctx *util.Context) (e error) {
 			return err
 		}
 		// Download Go head as of 11/11/2014.
+		// TODO(spetrovic): this doesn't look as if it's necessary as of go1.4
 		remote, revision := "https://code.google.com/p/go", "fba0ff340b22"
 		if err := run(ctx, "hg", []string{"clone", "--noninteractive", remote, "-r", revision}, nil); err != nil {
 			return err

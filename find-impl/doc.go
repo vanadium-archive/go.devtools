@@ -4,7 +4,7 @@
 /*
 A simple tool to find implementations of a specified interface.
 
-It uses code.google.com/p/go.tools/{loader,types} to load and examine the types
+It uses golang.org/x/tools/{loader,types} to load and examine the types
 of a collection of go files. The input must be valid go packages.
 
 find-impl --interface=veyron2/security.Context <packages> will find all

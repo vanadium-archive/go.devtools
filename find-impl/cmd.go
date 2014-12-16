@@ -5,8 +5,8 @@ import (
 	"io"
 	"regexp"
 
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/version"
@@ -44,7 +44,7 @@ var cmdRoot = &cmdline.Command{
 	Long: `
 A simple tool to find implementations of a specified interface.
 
-It uses code.google.com/p/go.tools/{loader,types} to load and examine
+It uses golang.org/x/tools/{loader,types} to load and examine
 the types of a collection of go files. The input must be valid go
 packages.
 

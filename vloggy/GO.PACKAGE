@@ -6,7 +6,7 @@
 		"outgoing": [
 			    {"allow": "veyron.io/lib/..."},
 			    {"allow": "veyron.io/tools/lib/..."},
-			    {"allow": "code.google.com/p/go.tools/..."},
+			    {"allow": "golang.org/x/tools/..."},
 			    {"deny": "..."}
 		]
 	}
