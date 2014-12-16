@@ -59,7 +59,13 @@
             "veyron-go-build",
             "veyron-go-test",
             "veyron-go-race",
-            "veyron-integration-test"
+            "veyron-javascript-vdl",
+            "veyron-javascript-vom",
+            "veyron-javascript-browser-integration",
+            "veyron-javascript-node-integration",
+            "veyron-namespace-browser-test",
+            "veyron-integration-test",
+            "veyron-javascript-build-extension"
         ],
         "https://veyron.googlesource.com/veyron.go.wspr": [
             "veyron-go-build",
