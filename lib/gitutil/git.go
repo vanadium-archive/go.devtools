@@ -549,8 +549,12 @@ func (g *Git) disableDryRun() runutil.Opts {
 
 func (g *Git) commandWithOpts(opts runutil.Opts, args ...string) error {
 	// http://git-scm.com/docs/git
+	//
+	// Note that the -C option is essentially equivalent to the combination of
+	// --git-dir and --work-tree, but isn't available on older versions of git, so
+	// we use the two args explicitly instead.
 	if g.rootDir != "" {
-		args = append([]string{"-C", g.rootDir}, args...)
+		args = append([]string{"--git-dir", filepath.Join(g.rootDir, ".git"), "--work-tree", g.rootDir}, args...)
 	}
 	if err := g.runner.CommandWithOpts(opts, "git", args...); err != nil {
 		stdout, stderr := "", ""
