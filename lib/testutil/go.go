@@ -564,7 +564,7 @@ func (t *testEnv) installGoCover(ctx *util.Context) error {
 	if scanner.Err() != nil {
 		return fmt.Errorf("Scan() failed: %v")
 	}
-	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "code.google.com/p/go.tools/cmd/cover"); err != nil {
+	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
 		return err
 	}
 	return nil
@@ -574,7 +574,7 @@ func (t *testEnv) installGoCover(ctx *util.Context) error {
 func (t *testEnv) installGoDoc(ctx *util.Context) error {
 	// Check if the tool exists.
 	if _, err := exec.LookPath("godoc"); err != nil {
-		if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "code.google.com/p/go.tools/cmd/godoc"); err != nil {
+		if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "golang.org/x/tools/cmd/godoc"); err != nil {
 			return err
 		}
 	}
@@ -683,9 +683,11 @@ func (t *testEnv) getListenerPID(ctx *util.Context, port string) (int, error) {
 	return pid, nil
 }
 
+var commonPkgs = []string{"golang.org/...", "code.google.com/...", "github.com/..."}
+
 // thirdPartyGoBuild runs Go build for third-party projects.
 func (t *testEnv) thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"code.google.com/...", "github.com/..."}
+	pkgs := commonPkgs
 	return t.goBuild(ctx, testName, pkgs)
 }
 
@@ -695,7 +697,7 @@ func (t *testEnv) thirdPartyGoTest(ctx *util.Context, testName string) (*TestRes
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	pkgs := []string{"code.google.com/...", "github.com/..."}
+	pkgs := commonPkgs
 	args := argsOpt([]string{"-run", "[^(TestTestmainPackage)]"})
 	return t.goTest(ctx, testName, pkgs, args)
 }
@@ -706,7 +708,7 @@ func (t *testEnv) thirdPartyGoRace(ctx *util.Context, testName string) (*TestRes
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	pkgs := []string{"code.google.com/...", "github.com/..."}
+	pkgs := commonPkgs
 	args := argsOpt([]string{"-race", "-run", "[^(TestTestmainPackage)]"})
 	return t.goTest(ctx, testName, pkgs, args)
 }
