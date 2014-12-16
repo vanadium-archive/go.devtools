@@ -141,6 +141,20 @@ var (
 			},
 		},
 	}
+	wantTestWithTestCaseSuffix = testSuites{
+		Suites: []testSuite{
+			testSuite{
+				Name: "veyron.io/tools/lib/testutil/testdata/foo",
+				Cases: []testCase{
+					testCase{
+						Classname: "veyron.io/tools/lib/testutil/testdata/foo",
+						Name:      "TestFoo [GoRace]",
+					},
+				},
+				Tests: 1,
+			},
+		},
+	}
 	wantCoverage = testCoverage{
 		LineRate:   0,
 		BranchRate: 0,
@@ -261,6 +275,14 @@ func TestGoCoverage(t *testing.T) {
 
 // TestGoTest checks the Go test based test logic.
 func TestGoTest(t *testing.T) {
+	runGoTest(t, "", wantTest)
+}
+
+func TestGoTestWithTestCaseSuffix(t *testing.T) {
+	runGoTest(t, " [GoRace]", wantTestWithTestCaseSuffix)
+}
+
+func runGoTest(t *testing.T, testCaseNameSuffix string, expectedTestSuite testSuites) {
 	ctx := util.DefaultContext()
 	env, err := newTestEnv(nil)
 	if err != nil {
@@ -269,7 +291,7 @@ func TestGoTest(t *testing.T) {
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := env.goTest(ctx, testName, []string{pkgName})
+	result, err := env.goTest(ctx, testName, []string{pkgName}, suffixOpt(testCaseNameSuffix))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -288,7 +310,7 @@ func TestGoTest(t *testing.T) {
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
 	}
-	if !suitesMatch(gotTest, wantTest) {
-		t.Fatalf("unexpected result:\ngot\n%v\nwant\n%v", gotTest, wantTest)
+	if !suitesMatch(gotTest, expectedTestSuite) {
+		t.Fatalf("unexpected result:\ngot\n%v\nwant\n%v", gotTest, expectedTestSuite)
 	}
 }

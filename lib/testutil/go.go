@@ -51,6 +51,7 @@ type goTestOpt interface {
 type argsOpt []string
 type profilesOpt []string
 type timeoutOpt string
+type suffixOpt string
 
 func (argsOpt) goBuildOpt()    {}
 func (argsOpt) goCoverageOpt() {}
@@ -62,6 +63,8 @@ func (profilesOpt) goTestOpt()     {}
 
 func (timeoutOpt) goCoverageOpt() {}
 func (timeoutOpt) goTestOpt()     {}
+
+func (suffixOpt) goTestOpt() {}
 
 // goBuild is a helper function for running Go builds.
 func (t *testEnv) goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
@@ -381,6 +384,7 @@ const defaultTestTimeout = "5m"
 func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
 	args, profiles := []string{}, []string{}
+	suffix := ""
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case timeoutOpt:
@@ -389,6 +393,8 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 			args = []string(typedOpt)
 		case profilesOpt:
 			profiles = []string(typedOpt)
+		case suffixOpt:
+			suffix = string(typedOpt)
 		}
 	}
 
@@ -406,7 +412,7 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 
 	// Pre-build non-test packages.
 	if err := t.buildTestDeps(ctx, pkgs); err != nil {
-		s := createTestSuiteWithFailure("BuildTestDependencies", "Test", "dependencies build failure", err.Error(), 0)
+		s := createTestSuiteWithFailure("BuildTestDependencies", "Test"+suffix, "dependencies build failure", err.Error(), 0)
 		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
 			return nil, err
 		}
@@ -461,6 +467,12 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 			} else {
 				Pass(ctx, "%s\n", result.pkg)
 			}
+			newCases := []testCase{}
+			for _, c := range s.Cases {
+				c.Name += suffix
+				newCases = append(newCases, c)
+			}
+			s.Cases = newCases
 			suites = append(suites, *s)
 		}
 	}
@@ -801,7 +813,8 @@ func (t *testEnv) veyronGoTest(ctx *util.Context, testName string) (*TestResult,
 	pkgs := []string{"veyron.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
-	return t.goTest(ctx, testName, pkgs, args, profiles)
+	suffix := suffixOpt(" [GoTest]")
+	return t.goTest(ctx, testName, pkgs, args, profiles, suffix)
 }
 
 // veyronGoRace runs Go data-race tests for veyron projects.
@@ -810,5 +823,6 @@ func (t *testEnv) veyronGoRace(ctx *util.Context, testName string) (*TestResult,
 	args := argsOpt([]string{"-race", "-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
 	timeout := timeoutOpt("7m")
-	return t.goTest(ctx, testName, pkgs, timeout, args, profiles)
+	suffix := suffixOpt(" [GoRace]")
+	return t.goTest(ctx, testName, pkgs, timeout, args, profiles, suffix)
 }
