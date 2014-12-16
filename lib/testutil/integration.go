@@ -104,6 +104,8 @@ func (t *testEnv) buildBinaries(ctx *util.Context, testName string) (*TestResult
 
 // findIntegrationTests finds all test.sh or testdata/integration_test.go files
 // from the given root dirs.
+//
+// TODO(sjr,jsimsa): Replace with go-based integration tests when available.
 func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 	if ctx.DryRun() {
 		// In "dry run" mode, no test scripts are executed.
@@ -112,8 +114,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 	matchedFiles := []string{}
 	for _, rootDir := range rootDirs {
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-			// TODO(sjr): remove /test.sh check once support for shell-based integration tests is removed.
-			if strings.HasSuffix(path, string(os.PathSeparator)+"test.sh") || strings.HasSuffix(path, filepath.Join("testdata", "integration_test.go")) {
+			if strings.HasSuffix(path, string(os.PathSeparator)+"test.sh") {
 				matchedFiles = append(matchedFiles, path)
 			}
 			return nil
