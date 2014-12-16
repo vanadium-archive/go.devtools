@@ -15,7 +15,6 @@ import (
 
 var (
 	platformFlag            string
-	novdlFlag               bool
 	hostGoFlag              string
 	targetGoFlag            string
 	manifestFlag            string
@@ -32,7 +31,6 @@ var (
 
 func init() {
 	cmdEnv.Flags.StringVar(&platformFlag, "platform", "", "Target platform.")
-	cmdGo.Flags.BoolVar(&novdlFlag, "novdl", false, "Disable automatic generation of vdl files.")
 	cmdGo.Flags.StringVar(&hostGoFlag, "host_go", "go", "Go command for the host platform.")
 	cmdGo.Flags.StringVar(&targetGoFlag, "target_go", "go", "Go command for the target platform.")
 	cmdProject.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")

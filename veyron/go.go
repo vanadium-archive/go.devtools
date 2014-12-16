@@ -133,9 +133,6 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 // TODO(toddw): Change the vdl tool to return vdl packages given the
 // full Go dependencies, after vdl config files are implemented.
 func generateVDL(ctx *util.Context, cmdArgs []string) error {
-	if novdlFlag {
-		return nil
-	}
 	hostEnv, err := util.VeyronEnvironment(util.HostPlatform())
 	if err != nil {
 		return err

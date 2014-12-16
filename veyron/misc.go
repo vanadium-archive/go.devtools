@@ -88,10 +88,10 @@ func runRun(command *cmdline.Command, args []string) error {
 	// For certain commands, veyron uses specialized wrappers that do
 	// more than just set up the veyron environment. If the user is
 	// trying to run any of these commands using the 'run' command,
-	// inform the user that they should use the specialized wrapper.
+	// warn the user that they might want to use the specialized wrapper.
 	switch args[0] {
 	case "go":
-		return fmt.Errorf(`use "veyron go" instead of "veyron run go"`)
+		fmt.Println(command.Stderr, `WARNING: using "veyron run go" instead of "veyron go" skips vdl generation`)
 	}
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = command.Stdout()
