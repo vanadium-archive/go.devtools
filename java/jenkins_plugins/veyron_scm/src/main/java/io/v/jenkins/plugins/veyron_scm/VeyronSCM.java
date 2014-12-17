@@ -243,8 +243,22 @@ public class VeyronSCM extends SCM {
       return false;
     }
 
-    // Run "veyron update -manifest=<manifest>".
+    // Run "veyron goext distclean".
     String veyronBin = getVeyronBin(workspaceDir);
+    List<String> distcleanCommandAndArgs =
+        new ArrayList<String>(Arrays.asList(veyronBin, "goext", "distclean"));
+    cr = runCommand(workspaceDir,
+        launcher,
+        listener,
+        true,
+        distcleanCommandAndArgs,
+        build.getEnvironment(listener));
+    if (cr.getExitCode() != 0) {
+      printf(listener, "Command \"%s\" failed.\n", getCommand(distcleanCommandAndArgs));
+      return false;
+    }
+
+    // Run "veyron update -manifest=<manifest>".
     List<String> updateCommandAndArgs = new ArrayList<String>(
         Arrays.asList(veyronBin, "update", String.format("-manifest=%s", manifestInput), "-gc"));
     cr = runCommand(workspaceDir,

@@ -9,7 +9,7 @@
   <name>Veyron SCM Plugin</name>
   <groupId>io.v.jenkins.plugins</groupId>
   <artifactId>veyron_scm</artifactId>
-  <version>0.4.3</version>
+  <version>0.4.4</version>
   <packaging>hpi</packaging>
 
   <licenses>
