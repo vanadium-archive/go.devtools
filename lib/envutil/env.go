@@ -14,11 +14,9 @@ package envutil
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
-
-	"veyron.io/tools/lib/collect"
 )
 
 // ToMap converts environment variables from the []`key=value` form to the
@@ -142,20 +140,21 @@ func (s *Snapshot) GetTokens(key, separator string) []string {
 
 // LookPath searches for an executable binary named file in the
 // directories named by the PATH environment variable of the snapshot.
-//
-// NOTE: This function temporarily modifies the global environment and
-// therefore is not thread-safe.
-func (s *Snapshot) LookPath(file string) (_ string, e error) {
-	oldPath := os.Getenv("PATH")
-	if err := os.Setenv("PATH", s.Get("PATH")); err != nil {
-		return "", fmt.Errorf("Setenv(%q, %q) failed: %v", "PATH", s.Get("PATH"), err)
+func (s *Snapshot) LookPath(file string) (string, error) {
+	if filepath.IsAbs(file) {
+		return file, nil
 	}
-	defer collect.Error(func() error { return os.Setenv("PATH", oldPath) }, &e)
-	path, err := exec.LookPath(file)
-	if err != nil {
-		return "", fmt.Errorf("LookPath(%q) failed: %v", file, err)
+	for _, dir := range strings.Split(s.Get("PATH"), string(os.PathListSeparator)) {
+		path := filepath.Join(dir, file)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		} else {
+			if !os.IsNotExist(err) {
+				return "", fmt.Errorf("Stat(%v) failed: %v", path)
+			}
+		}
 	}
-	return path, nil
+	return "", fmt.Errorf("failed to find %v in %v", file, s.Get("PATH"))
 }
 
 // Set assigns the value to the given key.

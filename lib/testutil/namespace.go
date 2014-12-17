@@ -16,7 +16,7 @@ const (
 // veyronBrowserTest runs an integration test for the veyron namespace browser.
 //
 // TODO(aghassemi): Port the veyron namespace browser test logic from shell to Go.
-func (t *testEnv) veyronNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func veyronNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func (t *testEnv) veyronNamespaceBrowserTest(ctx *util.Context, testName string)
 	xUnitFile := XUnitReportPath(testName)
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (t *testEnv) veyronNamespaceBrowserTest(ctx *util.Context, testName string)
 	if err := ctx.Run().Chdir(browserDir); err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), "make", "clean"); err != nil {
+	if err := ctx.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
 	if err := ctx.Run().RemoveAll(xUnitFile); err != nil {
@@ -43,7 +43,7 @@ func (t *testEnv) veyronNamespaceBrowserTest(ctx *util.Context, testName string)
 	}
 
 	// Invoke "make test" for the veyron browser.
-	opts := t.setTestEnv(ctx.Run().Opts())
+	opts := ctx.Run().Opts()
 	opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
 	if err := ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test"); err != nil {
 		if err == runutil.CommandTimedOutErr {

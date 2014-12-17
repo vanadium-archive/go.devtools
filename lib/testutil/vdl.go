@@ -10,14 +10,14 @@ import (
 )
 
 // veyronVDL checks that all VDL-based Go source files are up-to-date.
-func (t *testEnv) veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
+func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Install the vdl tool.
-	opts := t.setTestEnv(ctx.Run().Opts())
+	opts := ctx.Run().Opts()
 	opts.Env["GOPATH"] = filepath.Join(root, "veyron", "go")
 	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "veyron.io/veyron/veyron2/vdl/vdl"); err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (t *testEnv) veyronVDL(ctx *util.Context, testName string) (*TestResult, er
 
 	// Check that "vdl audit --lang=go all" produces no output.
 	var out bytes.Buffer
-	opts = t.setTestEnv(ctx.Run().Opts())
+	opts = ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
 	venv, err := util.VeyronEnvironment(util.HostPlatform())

@@ -48,14 +48,14 @@ var binPackages = []string{
 }
 
 // buildBinaries builds Go binaries enumerated by the binPackages list.
-func (t *testEnv) buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
+func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 	// Create a pool of workers.
 	fmt.Fprintf(ctx.Stdout(), "building binaries...\n")
 	numPkgs := len(binPackages)
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan buildResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go t.buildWorker(nil, tasks, taskResults)
+		go buildWorker(ctx, nil, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -125,7 +125,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 
 // runIntegrationTests runs all integration tests found under
 // $VEYRON_ROOT/roadmap/go/src and $VEYRON_ROOT/veyron/go/src.
-func (t *testEnv) runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
+func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func (t *testEnv) runIntegrationTests(ctx *util.Context, testName string) (*Test
 	// appear to hang after completing successfully. For now, only run one
 	// at a time to confirm.
 	//for i := 0; i < runtime.NumCPU(); i++ {
-	go t.integrationTestWorker(root, env.Map(), tasks, taskResults)
+	go integrationTestWorker(ctx, root, env.Map(), tasks, taskResults)
 	//}
 
 	// Send test scripts to free workers in the pool.
@@ -201,11 +201,11 @@ func (t *testEnv) runIntegrationTests(ctx *util.Context, testName string) (*Test
 
 // integrationTestWorker receives tasks from the <tasks> channel, runs
 // them, and sends results to the <results> channel.
-func (t *testEnv) integrationTestWorker(root string, env map[string]string, tasks <-chan string, results chan<- testResult) {
-	var out bytes.Buffer
-	env["PATH"] = t.snapshot.Get("PATH")
-	ctx := util.NewContext(env, os.Stdin, &out, &out, false, false, false)
+func integrationTestWorker(ctx *util.Context, root string, env map[string]string, tasks <-chan string, results chan<- testResult) {
+	opts := ctx.Run().Opts()
+	opts.Verbose = false
 	for script := range tasks {
+		var out bytes.Buffer
 		start := time.Now()
 		var args []string
 		pkgName := strings.TrimPrefix(path.Dir(script), root)
@@ -224,7 +224,9 @@ func (t *testEnv) integrationTestWorker(root string, env map[string]string, task
 			fmt.Fprintf(os.Stderr, "unsupported type of integration test: %v\n", script)
 			continue
 		}
-		err := ctx.Run().TimedCommand(defaultIntegrationTestTimeout, t.veyronBin, args...)
+		opts.Stdout = &out
+		opts.Stderr = &out
+		err := ctx.Run().TimedCommandWithOpts(defaultIntegrationTestTimeout, opts, "veyron", args...)
 		result.time = time.Now().Sub(start)
 		result.output = out.String()
 		if err != nil {
@@ -233,14 +235,13 @@ func (t *testEnv) integrationTestWorker(root string, env map[string]string, task
 			result.status = testPassed
 		}
 		results <- result
-		out.Reset()
 	}
 }
 
 // veyronIntegrationTest runs veyron integration tests.
-func (t *testEnv) veyronIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func veyronIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
@@ -252,14 +253,14 @@ func (t *testEnv) veyronIntegrationTest(ctx *util.Context, testName string) (_ *
 	if ctx.DryRun() {
 		binPackages = nil
 	}
-	result, err := t.buildBinaries(ctx, testName)
+	result, err := buildBinaries(ctx, testName)
 	if err != nil {
 		return nil, err
 	}
 	if result.Status == TestFailed {
 		return result, nil
 	}
-	result, err = t.runIntegrationTests(ctx, testName)
+	result, err = runIntegrationTests(ctx, testName)
 	if err != nil {
 		return nil, err
 	}

@@ -82,11 +82,23 @@ func (r *Run) TimedCommandWithOpts(timeout time.Duration, opts Opts, path string
 func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...string) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
+	// Lookup binary in the directories identified by PATH
+	// environment variable of the environment.
+	bin, err := envutil.NewSnapshot(opts.Env).LookPath(path)
+	if err == nil {
+		path = bin
+	}
 	command := exec.Command(path, args...)
 	command.Stdin = opts.Stdin
 	command.Stdout = opts.Stdout
 	command.Stderr = opts.Stderr
-	command.Env = envutil.ToSlice(opts.Env)
+	if len(opts.Env) != 0 {
+		snapshot := envutil.NewSnapshotFromOS()
+		for key, value := range opts.Env {
+			snapshot.Set(key, value)
+		}
+		command.Env = snapshot.Slice()
+	}
 	if opts.Verbose || opts.DryRun {
 		args := []string{}
 		for _, arg := range command.Args {

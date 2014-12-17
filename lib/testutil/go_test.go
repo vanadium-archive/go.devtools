@@ -194,14 +194,10 @@ var (
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
 	ctx := util.DefaultContext()
-	env, err := newTestEnv(nil)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := env.goBuild(ctx, testName, []string{pkgName})
+	result, err := goBuild(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -228,14 +224,10 @@ func TestGoBuild(t *testing.T) {
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
 	ctx := util.DefaultContext()
-	env, err := newTestEnv(nil)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := env.goCoverage(ctx, testName, []string{pkgName})
+	result, err := goCoverage(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -284,14 +276,10 @@ func TestGoTestWithTestCaseSuffix(t *testing.T) {
 
 func runGoTest(t *testing.T, testCaseNameSuffix string, expectedTestSuite testSuites) {
 	ctx := util.DefaultContext()
-	env, err := newTestEnv(nil)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
-	result, err := env.goTest(ctx, testName, []string{pkgName}, suffixOpt(testCaseNameSuffix))
+	result, err := goTest(ctx, testName, []string{pkgName}, suffixOpt(testCaseNameSuffix))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

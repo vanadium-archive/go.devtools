@@ -67,7 +67,7 @@ func (timeoutOpt) goTestOpt()     {}
 func (suffixOpt) goTestOpt() {}
 
 // goBuild is a helper function for running Go builds.
-func (t *testEnv) goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
+func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
 	args, profiles := []string{}, []string{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -79,14 +79,14 @@ func (t *testEnv) goBuild(ctx *util.Context, testName string, pkgs []string, opt
 	}
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Enumerate the packages to be built.
-	pkgList, err := t.goList(ctx, pkgs)
+	pkgList, err := goList(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (t *testEnv) goBuild(ctx *util.Context, testName string, pkgs []string, opt
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan buildResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go t.buildWorker(args, tasks, taskResults)
+		go buildWorker(ctx, args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -144,17 +144,17 @@ func (t *testEnv) goBuild(ctx *util.Context, testName string, pkgs []string, opt
 }
 
 // buildWorker builds packages.
-func (t *testEnv) buildWorker(args []string, pkgs <-chan string, results chan<- buildResult) {
+func buildWorker(ctx *util.Context, args []string, pkgs <-chan string, results chan<- buildResult) {
+	opts := ctx.Run().Opts()
+	opts.Verbose = false
 	for pkg := range pkgs {
 		var out bytes.Buffer
 		args := append([]string{"go", "build", "-o", filepath.Join(binDirPath(), path.Base(pkg))}, args...)
 		args = append(args, pkg)
-		cmd := exec.Command(t.veyronBin, args...)
-		cmd.Stdout = &out
-		cmd.Stderr = &out
-		cmd.Env = t.snapshot.Slice()
+		opts.Stdout = &out
+		opts.Stderr = &out
 		start := time.Now()
-		err := cmd.Run()
+		err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
 		duration := time.Now().Sub(start)
 		result := buildResult{
 			pkg:    pkg,
@@ -181,7 +181,7 @@ type coverageResult struct {
 const defaultTestCoverageTimeout = "5m"
 
 // goCoverage is a helper function for running Go coverage tests.
-func (t *testEnv) goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCoverageOpt) (_ *TestResult, e error) {
+func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCoverageOpt) (_ *TestResult, e error) {
 	timeout := defaultTestCoverageTimeout
 	args, profiles := []string{}, []string{}
 	for _, opt := range opts {
@@ -196,25 +196,25 @@ func (t *testEnv) goCoverage(ctx *util.Context, testName string, pkgs []string, 
 	}
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install dependencies.
-	if err := t.installGoCover(ctx); err != nil {
+	if err := installGoCover(ctx); err != nil {
 		return nil, err
 	}
-	if err := t.installGoCoverCobertura(ctx); err != nil {
+	if err := installGoCoverCobertura(ctx); err != nil {
 		return nil, err
 	}
-	if err := t.installGo2XUnit(ctx); err != nil {
+	if err := installGo2XUnit(ctx); err != nil {
 		return nil, err
 	}
 
 	// Pre-build non-test packages.
-	if err := t.buildTestDeps(ctx, pkgs); err != nil {
+	if err := buildTestDeps(ctx, pkgs); err != nil {
 		s := createTestSuiteWithFailure("BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error(), 0)
 		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
 			return nil, err
@@ -223,7 +223,7 @@ func (t *testEnv) goCoverage(ctx *util.Context, testName string, pkgs []string, 
 	}
 
 	// Enumerate the packages for which coverage is to be computed.
-	pkgList, err := t.goList(ctx, pkgs)
+	pkgList, err := goList(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (t *testEnv) goCoverage(ctx *util.Context, testName string, pkgs []string, 
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan coverageResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go coverageWorker(timeout, args, tasks, taskResults)
+		go coverageWorker(ctx, timeout, args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -316,7 +316,9 @@ func (t *testEnv) goCoverage(ctx *util.Context, testName string, pkgs []string, 
 }
 
 // coverageWorker generates test coverage.
-func coverageWorker(timeout string, args []string, pkgs <-chan string, results chan<- coverageResult) {
+func coverageWorker(ctx *util.Context, timeout string, args []string, pkgs <-chan string, results chan<- coverageResult) {
+	opts := ctx.Run().Opts()
+	opts.Verbose = false
 	for pkg := range pkgs {
 		// Compute the test coverage.
 		var out bytes.Buffer
@@ -329,11 +331,10 @@ func coverageWorker(timeout string, args []string, pkgs <-chan string, results c
 			coverageFile.Name(), "-timeout", timeout, "-v",
 		}, args...)
 		args = append(args, pkg)
-		cmd := exec.Command("veyron", args...)
-		cmd.Stdout = &out
-		cmd.Stderr = &out
+		opts.Stdout = &out
+		opts.Stderr = &out
 		start := time.Now()
-		err = cmd.Run()
+		err = ctx.Run().CommandWithOpts(opts, "veyron", args...)
 		result := coverageResult{
 			pkg:      pkg,
 			coverage: coverageFile,
@@ -354,13 +355,13 @@ func coverageWorker(timeout string, args []string, pkgs <-chan string, results c
 }
 
 // goList is a helper function for listing Go packages.
-func (t *testEnv) goList(ctx *util.Context, pkgs []string) ([]string, error) {
+func goList(ctx *util.Context, pkgs []string) ([]string, error) {
 	var out bytes.Buffer
-	opts := t.setTestEnv(ctx.Run().Opts())
+	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
 	args := append([]string{"go", "list"}, pkgs...)
-	if err := ctx.Run().CommandWithOpts(opts, t.veyronBin, args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "veyron", args...); err != nil {
 		fmt.Fprintln(ctx.Stdout(), out.String())
 		return nil, err
 	}
@@ -381,7 +382,7 @@ type testResult struct {
 const defaultTestTimeout = "5m"
 
 // goTest is a helper function for running Go tests.
-func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
+func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
 	args, profiles := []string{}, []string{}
 	suffix := ""
@@ -399,19 +400,19 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 	}
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install dependencies.
-	if err := t.installGo2XUnit(ctx); err != nil {
+	if err := installGo2XUnit(ctx); err != nil {
 		return nil, err
 	}
 
 	// Pre-build non-test packages.
-	if err := t.buildTestDeps(ctx, pkgs); err != nil {
+	if err := buildTestDeps(ctx, pkgs); err != nil {
 		s := createTestSuiteWithFailure("BuildTestDependencies", "Test"+suffix, "dependencies build failure", err.Error(), 0)
 		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
 			return nil, err
@@ -420,7 +421,7 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 	}
 
 	// Enumerate the packages to be built.
-	pkgList, err := t.goList(ctx, pkgs)
+	pkgList, err := goList(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +431,7 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan testResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go t.testWorker(timeout, args, tasks, taskResults)
+		go testWorker(ctx, timeout, args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -489,18 +490,18 @@ func (t *testEnv) goTest(ctx *util.Context, testName string, pkgs []string, opts
 }
 
 // testWorker tests packages.
-func (t *testEnv) testWorker(timeout string, args []string, pkgs <-chan string, results chan<- testResult) {
+func testWorker(ctx *util.Context, timeout string, args []string, pkgs <-chan string, results chan<- testResult) {
+	opts := ctx.Run().Opts()
+	opts.Verbose = false
 	for pkg := range pkgs {
 		// Run the test.
 		var out bytes.Buffer
 		args := append([]string{"go", "test", "-timeout", timeout, "-v"}, args...)
 		args = append(args, pkg)
-		cmd := exec.Command(t.veyronBin, args...)
-		cmd.Stdout = &out
-		cmd.Stderr = &out
-		cmd.Env = t.snapshot.Slice()
+		opts.Stdout = &out
+		opts.Stderr = &out
 		start := time.Now()
-		err := cmd.Run()
+		err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
 		result := testResult{
 			pkg:    pkg,
 			time:   time.Now().Sub(start),
@@ -520,13 +521,13 @@ func (t *testEnv) testWorker(timeout string, args []string, pkgs <-chan string, 
 }
 
 // buildTestDeps builds dependencies for the given test packages
-func (t *testEnv) buildTestDeps(ctx *util.Context, pkgs []string) error {
+func buildTestDeps(ctx *util.Context, pkgs []string) error {
 	fmt.Fprintf(ctx.Stdout(), "building test dependencies ... ")
 	args := append([]string{"go", "test", "-i"}, pkgs...)
 	var out bytes.Buffer
-	opts := t.setTestEnv(ctx.Run().Opts())
+	opts := ctx.Run().Opts()
 	opts.Stderr = &out
-	err := ctx.Run().CommandWithOpts(opts, t.veyronBin, args...)
+	err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
 	if err == nil {
 		fmt.Fprintf(ctx.Stdout(), "ok\n")
 		return nil
@@ -558,7 +559,7 @@ func createTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput
 // TODO(jsimsa): Unify the installation functions by moving the
 // gocover-cobertura and go2xunit tools into the third_party
 // repository.
-func (t *testEnv) installGoCover(ctx *util.Context) error {
+func installGoCover(ctx *util.Context) error {
 	// Check if the tool exists.
 	var out bytes.Buffer
 	cmd := exec.Command("go", "tool")
@@ -576,17 +577,17 @@ func (t *testEnv) installGoCover(ctx *util.Context) error {
 	if scanner.Err() != nil {
 		return fmt.Errorf("Scan() failed: %v")
 	}
-	if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
+	if err := ctx.Run().Command("veyron", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
 		return err
 	}
 	return nil
 }
 
 // installGoDoc makes sure the "go doc" tool is installed.
-func (t *testEnv) installGoDoc(ctx *util.Context) error {
+func installGoDoc(ctx *util.Context) error {
 	// Check if the tool exists.
 	if _, err := exec.LookPath("godoc"); err != nil {
-		if err := ctx.Run().CommandWithOpts(t.setTestEnv(ctx.Run().Opts()), t.veyronBin, "go", "install", "golang.org/x/tools/cmd/godoc"); err != nil {
+		if err := ctx.Run().Command("veyron", "go", "install", "golang.org/x/tools/cmd/godoc"); err != nil {
 			return err
 		}
 	}
@@ -595,7 +596,7 @@ func (t *testEnv) installGoDoc(ctx *util.Context) error {
 
 // installGoCoverCobertura makes sure the "gocover-cobertura" tool is
 // installed.
-func (t *testEnv) installGoCoverCobertura(ctx *util.Context) error {
+func installGoCoverCobertura(ctx *util.Context) error {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -606,9 +607,9 @@ func (t *testEnv) installGoCoverCobertura(ctx *util.Context) error {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		opts := t.setTestEnv(ctx.Run().Opts())
+		opts := ctx.Run().Opts()
 		opts.Env["GOPATH"] = filepath.Join(root, "environment", "golib")
-		if err := ctx.Run().CommandWithOpts(opts, t.veyronBin, "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
+		if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
 			return err
 		}
 	}
@@ -616,7 +617,7 @@ func (t *testEnv) installGoCoverCobertura(ctx *util.Context) error {
 }
 
 // installGo2XUnit makes sure the "go2xunit" tool is installed.
-func (t *testEnv) installGo2XUnit(ctx *util.Context) error {
+func installGo2XUnit(ctx *util.Context) error {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return err
@@ -627,9 +628,9 @@ func (t *testEnv) installGo2XUnit(ctx *util.Context) error {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		opts := t.setTestEnv(ctx.Run().Opts())
+		opts := ctx.Run().Opts()
 		opts.Env["GOPATH"] = filepath.Join(root, "environment", "golib")
-		if err := ctx.Run().CommandWithOpts(opts, t.veyronBin, "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+		if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 			return err
 		}
 	}
@@ -667,7 +668,7 @@ func isBuildFailure(err error, out, pkg string) bool {
 // getListenerPID finds the process ID of the process listening on the
 // given port. If no process is listening on the given port (or an
 // error is encountered), the function returns -1.
-func (t *testEnv) getListenerPID(ctx *util.Context, port string) (int, error) {
+func getListenerPID(ctx *util.Context, port string) (int, error) {
 	// Make sure "lsof" exists.
 	_, err := exec.LookPath("lsof")
 	if err != nil {
@@ -676,7 +677,7 @@ func (t *testEnv) getListenerPID(ctx *util.Context, port string) (int, error) {
 
 	// Use "lsof" to find the process ID of the listener.
 	var out bytes.Buffer
-	opts := t.setTestEnv(ctx.Run().Opts())
+	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
 	if err := ctx.Run().CommandWithOpts(opts, "lsof", "-i", ":"+port, "-sTCP:LISTEN", "-F", "p"); err != nil {
@@ -695,81 +696,80 @@ func (t *testEnv) getListenerPID(ctx *util.Context, port string) (int, error) {
 	return pid, nil
 }
 
-var commonPkgs = []string{"golang.org/...", "code.google.com/...", "github.com/..."}
+var thirdPartyPkgs = []string{"golang.org/...", "code.google.com/...", "github.com/..."}
 
 // thirdPartyGoBuild runs Go build for third-party projects.
-func (t *testEnv) thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := commonPkgs
-	return t.goBuild(ctx, testName, pkgs)
+func thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
+	return goBuild(ctx, testName, thirdPartyPkgs)
 }
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
-func (t *testEnv) thirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
+func thirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Run the tests excluding TestTestmainPackage from
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	pkgs := commonPkgs
+	pkgs := thirdPartyPkgs
 	args := argsOpt([]string{"-run", "[^(TestTestmainPackage)]"})
-	return t.goTest(ctx, testName, pkgs, args)
+	return goTest(ctx, testName, pkgs, args)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
-func (t *testEnv) thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
+func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	// Run the tests excluding TestTestmainPackage from
 	// code.google.com/p/go.tools/go/ssa/interp as the package has
 	// a test that expects to see FAIL: TestBar which causes
 	// go2xunit to fail.
-	pkgs := commonPkgs
+	pkgs := thirdPartyPkgs
 	args := argsOpt([]string{"-race", "-run", "[^(TestTestmainPackage)]"})
-	return t.goTest(ctx, testName, pkgs, args)
+	return goTest(ctx, testName, pkgs, args)
 }
 
 // veyronGoBench runs Go benchmarks for veyron projects.
-func (t *testEnv) veyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
+func veyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth", "-bench", ".", "-run", "XXX"})
 	profiles := profilesOpt([]string{"proximity"})
-	return t.goTest(ctx, testName, pkgs, args, profiles)
+	return goTest(ctx, testName, pkgs, args, profiles)
 }
 
 // veyronGoBuild runs Go build for the veyron projects.
-func (t *testEnv) veyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
+func veyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
-	return t.goBuild(ctx, testName, pkgs, args, profiles)
+	return goBuild(ctx, testName, pkgs, args, profiles)
 }
 
 // veyronGoCoverage runs Go coverage tests for veyron projects.
-func (t *testEnv) veyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
+func veyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
 	profiles := profilesOpt([]string{"proximity"})
-	return t.goCoverage(ctx, testName, pkgs, profiles)
+	return goCoverage(ctx, testName, pkgs, profiles)
 }
 
 // veyronGoDoc (re)starts the godoc server for veyron projects.
-func (t *testEnv) veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install dependencies.
-	if err := t.installGoDoc(ctx); err != nil {
+	if err := installGoDoc(ctx); err != nil {
 		return nil, err
 	}
 
 	// Terminate previous instance of godoc if it is still running.
 	godocPort := "8002"
-	pid, err := t.getListenerPID(ctx, godocPort)
+	pid, err := getListenerPID(ctx, godocPort)
 	if err != nil {
 		return nil, err
 	}
@@ -811,20 +811,20 @@ func (t *testEnv) veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult
 }
 
 // veyronGoTest runs Go tests for veyron projects.
-func (t *testEnv) veyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
+func veyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
 	suffix := suffixOpt(" [GoTest]")
-	return t.goTest(ctx, testName, pkgs, args, profiles, suffix)
+	return goTest(ctx, testName, pkgs, args, profiles, suffix)
 }
 
 // veyronGoRace runs Go data-race tests for veyron projects.
-func (t *testEnv) veyronGoRace(ctx *util.Context, testName string) (*TestResult, error) {
+func veyronGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"veyron.io/..."}
 	args := argsOpt([]string{"-race", "-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
 	timeout := timeoutOpt("7m")
 	suffix := suffixOpt(" [GoRace]")
-	return t.goTest(ctx, testName, pkgs, timeout, args, profiles, suffix)
+	return goTest(ctx, testName, pkgs, timeout, args, profiles, suffix)
 }

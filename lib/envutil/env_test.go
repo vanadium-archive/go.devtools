@@ -2,6 +2,8 @@ package envutil
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -286,5 +288,39 @@ func TestNewSnapshotFromOS(t *testing.T) {
 	s := NewSnapshotFromOS()
 	if got, want := s.Get(testKey), testVal; got != want {
 		t.Errorf("Get(%q) got %q, want %q", testKey, got, want)
+	}
+}
+
+func TestLookPath(t *testing.T) {
+	s := NewSnapshotFromOS()
+	// Test that LookPath() successfully looks up the "go" binary.
+	existentCmd := "go"
+	want, err := exec.LookPath(existentCmd)
+	if err != nil {
+		t.Fatalf("LookPath(%v) failed: %v", existentCmd, err)
+	}
+	got, err := s.LookPath(existentCmd)
+	if err != nil {
+		t.Fatalf("LookPath(%v) failed: %v", existentCmd, err)
+	}
+	if got != want {
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
+	}
+	// Test that LookPath() fails to look-up a non-existent binary.
+	nonExistentCmd := "veyron-unlikely-binary-name"
+	if _, err := s.LookPath(nonExistentCmd); err == nil {
+		t.Fatalf("LookPath(%v) did not fail when it should", nonExistentCmd)
+	}
+	// Test that LookPath() is a no-op when passed an absolute path.
+	want, err = filepath.Abs(nonExistentCmd)
+	if err != nil {
+		t.Fatalf("Abs(%v) failed: %v", nonExistentCmd, err)
+	}
+	got, err = s.LookPath(want)
+	if err != nil {
+		t.Fatalf("LookPath(%v) failed: %v", want, err)
+	}
+	if got != want {
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 }

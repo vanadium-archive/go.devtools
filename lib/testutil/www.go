@@ -13,14 +13,14 @@ const (
 	defaultWWWTestTimeout = 5 * time.Minute
 )
 
-func (t *testEnv) veyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func veyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +31,12 @@ func (t *testEnv) veyronWWW(ctx *util.Context, testName string) (_ *TestResult, 
 		return nil, err
 	}
 
-	opts := t.setTestEnv(ctx.Run().Opts())
-	if err := ctx.Run().CommandWithOpts(opts, "make", "clean"); err != nil {
+	if err := ctx.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
 
 	// Invoke "make test"
-	if err := ctx.Run().TimedCommandWithOpts(defaultWWWTestTimeout, opts, "make", "test"); err != nil {
+	if err := ctx.Run().TimedCommand(defaultWWWTestTimeout, "make", "test"); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &TestResult{
 				Status:       TestTimedOut,

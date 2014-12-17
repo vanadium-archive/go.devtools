@@ -11,21 +11,21 @@ import (
 // veyronTutorial runs the veyron tutorial examples.
 //
 // TODO(jregan): Merge the mdrip logic into this package.
-func (t *testEnv) veyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func veyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := t.initTest(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the mdrip tool.
-	opts := t.setTestEnv(ctx.Run().Opts())
+	opts := ctx.Run().Opts()
 	opts.Env["GOPATH"] = filepath.Join(root, "tutorial", "testing")
 	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "mdrip"); err != nil {
 		return nil, err

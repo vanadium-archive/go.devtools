@@ -21,7 +21,6 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/envutil"
 	"veyron.io/tools/lib/gerrit"
 	"veyron.io/tools/lib/gitutil"
 	"veyron.io/tools/lib/testutil"
@@ -144,9 +143,9 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 
 	// Rebuild vdl and veyron tool.
 	toolsProject, ok := projects[util.VeyronGitRepoHost()+"veyron.go.tools"]
-	envSnapshot := envutil.NewSnapshotFromOS()
+	env := map[string]string{}
 	if !ok {
-		printf(ctx.Stderr(), "tools project not found. Not rebuilding tools.\n")
+		printf(ctx.Stderr(), "tools project not found, not rebuilding tools.\n")
 	} else {
 		// Find target Tools.
 		targetTools := []util.Tool{}
@@ -161,13 +160,15 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 				printf(ctx.Stderr(), "%v\n", err)
 			}
 		}
-		newPATH := strings.Replace(envSnapshot.Get("PATH"), filepath.Join(veyronRoot, "bin"), tmpBinDir, -1)
-		envSnapshot.Set("PATH", newPATH)
+		// Create a new PATH that replaces VEYRON_ROOT/bin
+		// with the temporary directory in which the tools
+		// were rebuilt.
+		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(veyronRoot, "bin"), tmpBinDir, -1)
 	}
 
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the tests\n")
-	results, err := testutil.RunProjectTests(ctx, envSnapshot, repos)
+	results, err := testutil.RunProjectTests(ctx, env, repos)
 	if err != nil {
 		return err
 	}
