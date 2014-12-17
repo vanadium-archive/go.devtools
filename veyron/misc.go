@@ -91,7 +91,7 @@ func runRun(command *cmdline.Command, args []string) error {
 	// warn the user that they might want to use the specialized wrapper.
 	switch args[0] {
 	case "go":
-		fmt.Println(command.Stderr, `WARNING: using "veyron run go" instead of "veyron go" skips vdl generation`)
+		fmt.Fprintln(command.Stderr(), `WARNING: using "veyron run go" instead of "veyron go" skips vdl generation`)
 	}
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = command.Stdout()
