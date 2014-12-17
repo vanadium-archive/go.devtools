@@ -145,17 +145,19 @@ specified, it must be preceeded by a single ++ argument, to distinguish it from
 the files.  If no command is given, runs the first file from <files...>.
 
 We run the following logic on each matching node, in parallel by default:
-  1) Create a temporary directory based on a random number.
-  2) Copy all files into the temporary directory.
-  3) Runs the [command...], or if no command is given, runs the first run file.
-     All occurrences of the string literal '+TMPDIR' are replaced in the command
-     with the temporary directory.  No replacement occurs for the run files,
-     since the run files are all local.
-  4) Delete the temporary directory.
+  1) Create a temporary directory TMPDIR based on a random number.
+  2) Copy run files to TMPDIR.
+  3) Change current directory to TMPDIR.
+  4) Runs the [command...], or if no command is given, runs the first run file.
+  5) If -outdir is specified, remove run files from TMPDIR, and copy TMPDIR from
+     the node to the local -outdir.
+  6) Delete TMPDIR.
 
 The vcloud run flags are:
  -failfast=false
    Skip unstarted nodes after the first failing node.
+ -outdir=
+   Output directory to store results from each node.
  -p=-1
    Copy/run on this many nodes in parallel.
      <0   means all nodes in parallel
