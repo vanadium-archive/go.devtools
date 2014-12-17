@@ -37,7 +37,10 @@ func (t *testEnv) veyronTutorial(ctx *util.Context, testName string) (_ *TestRes
 	args := []string{"--subshell", "1",
 		filepath.Join(content, "docs", "installation", "index.md"),
 		filepath.Join(content, "tutorials", "basics.md"),
-		filepath.Join(content, "tutorials", "security.md"),
+		filepath.Join(content, "tutorials", "security", "principals_and_blessings.md"),
+		filepath.Join(content, "tutorials", "security", "custom_authorizer.md"),
+		filepath.Join(content, "tutorials", "security", "acl_authorizer.md"),
+		filepath.Join(content, "tutorials", "security", "delegation_and_caveats.md"),
 	}
 	if err := ctx.Run().TimedCommandWithOpts(DefaultTestTimeout, opts, mdrip, args...); err != nil {
 		if err == runutil.CommandTimedOutErr {
