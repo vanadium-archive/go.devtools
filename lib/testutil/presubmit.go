@@ -103,6 +103,9 @@ func veyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e e
 	// Use the "presubmit query" command to poll for new changes.
 	logfile := filepath.Join(root, ".presubmit_log")
 	args := []string{"-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "query", "-log_file", logfile}
+	if ctx.Verbose() {
+		args = append(args, "-v")
+	}
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
@@ -141,6 +144,9 @@ func veyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e e
 		"-build_number", os.Getenv("BUILD_NUMBER"),
 		"-repos", os.Getenv("REPOS"),
 		"-refs", os.Getenv("REFS"),
+	}
+	if ctx.Verbose() {
+		args = append(args, "-v")
 	}
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
