@@ -123,13 +123,13 @@ specified, it must be preceeded by a single ++ argument, to distinguish it from
 the files.  If no command is given, runs the first file from <files...>.
 
 We run the following logic on each matching node, in parallel by default:
-  1) Create a temporary directory based on a random number.
-  2) Copy all files into the temporary directory.
-  3) Runs the [command...], or if no command is given, runs the first run file.
-     All occurrences of the string literal '+TMPDIR' are replaced in the command
-     with the temporary directory.  No replacement occurs for the run files,
-     since the run files are all local.
-  4) Delete the temporary directory.
+  1) Create a temporary directory TMPDIR based on a random number.
+  2) Copy run files to TMPDIR.
+  3) Change current directory to TMPDIR.
+  4) Runs the [command...], or if no command is given, runs the first run file.
+  5) If -outdir is specified, remove run files from TMPDIR, and copy TMPDIR from
+     the node to the local -outdir.
+  6) Delete TMPDIR.
 `,
 }
 
@@ -159,6 +159,7 @@ var (
 	flagListNoHeader bool
 	flagP            int
 	flagFailFast     bool
+	flagOutDir       string
 )
 
 func init() {
@@ -169,6 +170,7 @@ func init() {
 	cmdCP.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
 	cmdSH.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
 	cmdCopyAndRun.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
+	cmdCopyAndRun.Flags.StringVar(&flagOutDir, "outdir", "", "Output directory to store results from each node.")
 }
 
 // nodeInfo represents the node info returned by 'gcloud compute instances list'
@@ -390,7 +392,13 @@ func (x nodeInfos) run(w io.Writer, fn func(node nodeInfo) runResult) error {
 }
 
 // RunCopy runs the copy from srcs to dst on all nodes in x.
-func (x nodeInfos) RunCopy(run *runutil.Run, srcs []string, dst string, makeSubdir bool) error {
+func (x nodeInfos) RunCopy(run *runutil.Run, srcs []string, dst string) error {
+	makeSubdir := false
+	if len(x) > 1 && !strings.HasPrefix(dst, ":") {
+		// If we have more than one node and dst is local, it'd be pointless to copy
+		// into the same dst dir; the remote copies would overwrite each other.
+		makeSubdir = true
+	}
 	fn := func(node nodeInfo) runResult { return node.RunCopy(run, srcs, dst, makeSubdir) }
 	return x.run(run.Opts().Stdout, fn)
 }
@@ -402,35 +410,44 @@ func (x nodeInfos) RunCommand(run *runutil.Run, cmdline []string) error {
 }
 
 // RunCopyAndRun implements the 'vcloud run' command.
-func (x nodeInfos) RunCopyAndRun(run *runutil.Run, files, cmdline []string) error {
+func (x nodeInfos) RunCopyAndRun(run *runutil.Run, files, cmds []string, outdir string) error {
 	// 0) Pick a random number so that we use the same tmpdir on each node.
 	rand.Seed(time.Now().UnixNano())
 	tmpdir := fmt.Sprintf("./tmp_%X", rand.Int63())
 	fn := func(node nodeInfo) runResult {
-		cmdline := cmdline
 		result := runResult{node: node}
 		// 1) Create temporary directory.
 		result.Merge(node.RunCommand(run, []string{"mkdir", tmpdir}), "[run] create tmpdir %q", tmpdir)
 		if result.err != nil {
 			return result
 		}
-		// 2) Copy all files into the temporary directory.
-		result.Merge(node.RunCopy(run, files, ":"+tmpdir, false), "[run] copy files %v", files)
+		// 2) Copy all run files into the temporary directory.
+		result.Merge(node.RunCopy(run, files, ":"+tmpdir, false), "[run] copy files to node %v", files)
 		if result.err == nil {
-			// 3) Runs the cmdline (only if copy successful), expanding +TMPDIR.
-			if len(cmdline) == 0 {
-				// Run the first file if no commands are specified.
-				cmdline = []string{tmpdir + "/" + filepath.Base(files[0])}
+			// 3,4) Change dir to TMPDIR and run the cmdline, or the first run file if
+			// no commands are specified.
+			cmdline := []string{"cd", tmpdir, ";"}
+			if len(cmds) == 0 {
+				cmdline = append(cmdline, "./"+filepath.Base(files[0]))
 			} else {
-				copycmds := make([]string, len(cmdline))
-				for i, cmd := range cmdline {
-					copycmds[i] = strings.Replace(cmd, "+TMPDIR", tmpdir, -1)
-				}
-				cmdline = copycmds
+				cmdline = append(cmdline, cmds...)
 			}
 			result.Merge(node.RunCommand(run, cmdline), "[run] run cmdline %v", cmdline)
+			// 5) If outdir is specified, remove the run files from TMPDIR, and copy
+			// TMPDIR from the node to the local outdir.
+			if outdir != "" {
+				rmcmds := []string{"cd", tmpdir, "&&", "rm"}
+				for _, file := range files {
+					rmcmds = append(rmcmds, filepath.Base(file))
+				}
+				result.Merge(node.RunCommand(run, rmcmds), "[run] remove run files %v", rmcmds)
+				// If we have more than one node, it'd be pointless to copy into the
+				// same dst dir; the remote copies would overwrite each other.
+				makeSubdir := len(x) > 1
+				result.Merge(node.RunCopy(run, []string{":" + tmpdir}, outdir, makeSubdir), "[run] copy tmpdir from node")
+			}
 		}
-		// 4) Delete the temporary directory (always, if created successfully).
+		// 6) Delete the temporary directory (always, if created successfully).
 		result.Merge(node.RunCommand(run, []string{"rm", "-rf", tmpdir}), "[run] delete tmpdir %q", tmpdir)
 		return result
 	}
@@ -608,7 +625,6 @@ func runCP(cmd *cmdline.Command, args []string) error {
 	}
 	// If dst is remote, all srcs must be local.  If dst is local, all srcs must
 	// be remote.
-	makeSubdir := false
 	dstIndex := len(args) - 1
 	srcs, dst := args[1:dstIndex], args[dstIndex]
 	if strings.HasPrefix(dst, ":") {
@@ -623,14 +639,8 @@ func runCP(cmd *cmdline.Command, args []string) error {
 				return cmd.UsageErrorf("dst is local; all srcs must be remote")
 			}
 		}
-		// If we have more than one matching node, and dst is local and srcs are
-		// remote, it's be pointless to copy into the same dst dir; the remote
-		// copies will overwrite each other.
-		if len(nodes) > 1 {
-			makeSubdir = true
-		}
 	}
-	return nodes.RunCopy(run, srcs, dst, makeSubdir)
+	return nodes.RunCopy(run, srcs, dst)
 }
 
 func runSH(cmd *cmdline.Command, args []string) error {
@@ -659,12 +669,15 @@ func runCopyAndRun(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return cmd.UsageErrorf("%v", err)
 	}
+	if strings.HasPrefix(flagOutDir, ":") {
+		return cmd.UsageErrorf("-outdir must be local")
+	}
 	run := newRun(cmd)
 	nodes, err := listMatching(run, args[0])
 	if err != nil {
 		return cmd.UsageErrorf("%v", err)
 	}
-	return nodes.RunCopyAndRun(run, files, cmdline)
+	return nodes.RunCopyAndRun(run, files, cmdline, flagOutDir)
 }
 
 func splitCopyAndRunArgs(args []string) (files, cmdline []string, _ error) {
