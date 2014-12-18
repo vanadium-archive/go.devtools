@@ -82,11 +82,19 @@ func (r *Run) TimedCommandWithOpts(timeout time.Duration, opts Opts, path string
 func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...string) error {
 	r.increaseIndent()
 	defer r.decreaseIndent()
-	// Lookup binary in the directories identified by PATH
-	// environment variable of the environment.
-	bin, err := envutil.NewSnapshot(opts.Env).LookPath(path)
+	// Check if <path> identifies a binary in the PATH environment
+	// variable of the opts.Env.
+	binary, err := envutil.NewSnapshot(opts.Env).LookPath(path)
 	if err == nil {
-		path = bin
+		// If so, make sure to execute this binary. This step
+		// enables us to "shadow" binaries included in the
+		// PATH environment variable of the host OS (which
+		// would be otherwise used to lookup <path>).
+		//
+		// This mechanism is used instead of modifying the
+		// PATH environment variable of the host OS as the
+		// latter is not thread-safe.
+		path = binary
 	}
 	command := exec.Command(path, args...)
 	command.Stdin = opts.Stdin
@@ -181,15 +189,24 @@ func (r *Run) timedCommand(timeout time.Duration, opts Opts, command *exec.Cmd) 
 	return nil
 }
 
-// terminateProcessGroup sends SIGTERM followed by SIGKILL to the process group
-// (the negative value of the process's pid).
+// terminateProcessGroup sends SIGTERM followed by SIGKILL to the
+// process group (the negative value of the process's pid).
 func (r *Run) terminateProcessGroup(command *exec.Cmd) {
 	pid := -command.Process.Pid
 	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
 		fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", pid, syscall.SIGTERM, err)
 	}
 	fmt.Fprintf(r.opts.Stderr, "Waiting for command to exit: %q\n", command.Path)
-	time.Sleep(10 * time.Second)
+	// Give the process some time to shut down cleanly.
+	for i := 0; i < 10; i++ {
+		select {
+		case <-time.After(time.Second):
+			if err := syscall.Kill(pid, 0); err != nil {
+				return
+			}
+		}
+	}
+	// If it still exists, send SIGKILL to it.
 	if err := syscall.Kill(pid, 0); err == nil {
 		if err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL); err != nil {
 			fmt.Fprintf(r.opts.Stderr, "Kill(%v, %v) failed: %v\n", pid, syscall.SIGKILL, err)
