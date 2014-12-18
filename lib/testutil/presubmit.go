@@ -102,10 +102,11 @@ func veyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e e
 
 	// Use the "presubmit query" command to poll for new changes.
 	logfile := filepath.Join(root, ".presubmit_log")
-	args := []string{"-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "query", "-log_file", logfile}
+	args := []string{}
 	if ctx.Verbose() {
 		args = append(args, "-v")
 	}
+	args = append(args, "-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "query", "-log_file", logfile)
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
@@ -139,15 +140,12 @@ func veyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e e
 	}
 
 	// Use the "presubmit test" command to run the presubmit test.
-	args := []string{
-		"-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "test",
-		"-build_number", os.Getenv("BUILD_NUMBER"),
-		"-repos", os.Getenv("REPOS"),
-		"-refs", os.Getenv("REFS"),
-	}
+	args := []string{}
 	if ctx.Verbose() {
 		args = append(args, "-v")
 	}
+	args = append(args, "-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "test",
+		"-build_number", os.Getenv("BUILD_NUMBER"), "-repos", os.Getenv("REPOS"), "-refs", os.Getenv("REFS"))
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
