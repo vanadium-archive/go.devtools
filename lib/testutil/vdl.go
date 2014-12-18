@@ -11,6 +11,8 @@ import (
 
 // veyronVDL checks that all VDL-based Go source files are up-to-date.
 func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'veyron run vdl generate all'.\n")
+
 	root, err := util.VeyronRoot()
 	if err != nil {
 		return nil, err
