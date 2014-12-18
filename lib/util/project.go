@@ -158,21 +158,22 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	if err != nil {
 		return nil, err
 	}
-	ops, err := computeOperations(localProjects, remoteProjects, false)
+	ops, err := computeOperations(localProjects, remoteProjects, manifest, false)
 	if err != nil {
 		return nil, err
 	}
 	for _, op := range ops {
+		name := op.Project().Name
 		if len(projectSet) > 0 {
-			if _, ok := projectSet[op.project.Name]; !ok {
+			if _, ok := projectSet[name]; !ok {
 				continue
 			}
 		}
 		cls := []CL{}
-		if op.ty == updateOperation {
-			switch op.project.Protocol {
+		if updateOp, ok := op.(updateOperation); ok {
+			switch updateOp.project.Protocol {
 			case "git":
-				if err := ctx.Run().Chdir(op.destination); err != nil {
+				if err := ctx.Run().Chdir(updateOp.destination); err != nil {
 					return nil, err
 				}
 				if err := ctx.Git().Fetch("origin", "master"); err != nil {
@@ -193,10 +194,10 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 					})
 				}
 			default:
-				return nil, UnsupportedProtocolErr(op.project.Protocol)
+				return nil, UnsupportedProtocolErr(updateOp.project.Protocol)
 			}
 		}
-		update[op.project.Name] = cls
+		update[name] = cls
 	}
 	return update, nil
 }
@@ -247,7 +248,7 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) (e error) {
 		return err
 	}
 	// 1. Update all local projects to match their remote counterparts.
-	if err := updateProjects(ctx, remoteProjects, gc); err != nil {
+	if err := updateProjects(ctx, remoteProjects, manifest, gc); err != nil {
 		return err
 	}
 	// 2. Build all tools in a temporary directory.
@@ -667,21 +668,23 @@ func snapshotLocalProjects(ctx *Context) (*Manifest, error) {
 }
 
 // updateProjects updates all veyron projects.
-func updateProjects(ctx *Context, remoteProjects Projects, gc bool) error {
+func updateProjects(ctx *Context, remoteProjects Projects, manifest string, gc bool) error {
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
 		return err
 	}
-	ops, err := computeOperations(localProjects, remoteProjects, gc)
+	ops, err := computeOperations(localProjects, remoteProjects, manifest, gc)
 	if err != nil {
 		return err
 	}
-	if err := testOperations(ops); err != nil {
-		return err
+	for _, op := range ops {
+		if err := op.Test(); err != nil {
+			return err
+		}
 	}
 	failed := false
 	for _, op := range ops {
-		updateFn := func() error { return runOperation(ctx, op) }
+		updateFn := func() error { return op.Run(ctx) }
 		// Always log the output of updateFn, irrespective of
 		// the value of the verbose flag.
 		opts := runutil.Opts{Verbose: true}
@@ -697,125 +700,48 @@ func updateProjects(ctx *Context, remoteProjects Projects, gc bool) error {
 	return nil
 }
 
-// operation represents a project operation.
-type operation struct {
+type operation interface {
+	// Project identifies the project this operation pertains to.
+	Project() Project
+	// Run executes the operation.
+	Run(ctx *Context) error
+	// String returns a string representation of the operation.
+	String() string
+	// Test checks whether the operation would fail.
+	Test() error
+}
+
+// commonOperation represents a project operation.
+type commonOperation struct {
 	// project holds information about the project such as its
 	// name, local path, and the protocol it uses for version
 	// control.
 	project Project
-	// Destination is the new project path.
+	// destination is the new project path.
 	destination string
-	// Source is the current project path.
+	// source is the current project path.
 	source string
-	// ty is the type of the operation.
-	ty operationType
 }
 
-func (op operation) String() string {
-	name := path.Base(op.project.Name)
-	switch op.ty {
-	case createOperation:
-		return fmt.Sprintf("create project %q in %q and advance it to %q", name, op.destination, op.project.Revision)
-	case deleteOperation:
-		return fmt.Sprintf("delete project %q from %q", name, op.source)
-	case moveOperation:
-		return fmt.Sprintf("move project %q located in %q to %q and advance it to %q", name, op.source, op.destination, op.project.Revision)
-	case updateOperation:
-		return fmt.Sprintf("advance project %q located in %q to %q", name, op.source, op.project.Revision)
-	default:
-		return fmt.Sprintf("unknown operation type: %v", op.ty)
-	}
+func (commonOperation) Run(*Context) error {
+	return nil
 }
 
-// operations is a sortable collection of operations
-type operations []operation
-
-// Len returns the length of the collection.
-func (ops operations) Len() int {
-	return len(ops)
+func (op commonOperation) Project() Project {
+	return op.project
 }
 
-// Less defines the order of operations. Operations are ordered first
-// by their type and then by their project name.
-func (ops operations) Less(i, j int) bool {
-	if ops[i].ty != ops[j].ty {
-		return ops[i].ty < ops[j].ty
-	}
-	return ops[i].project.Name < ops[j].project.Name
+func (commonOperation) String() string {
+	return ""
 }
 
-// Swap swaps two elements of the collection.
-func (ops operations) Swap(i, j int) {
-	ops[i], ops[j] = ops[j], ops[i]
+func (commonOperation) Test() error {
+	return nil
 }
 
-type operationType int
-
-const (
-	// The order in which operation types are defined determines
-	// the order in which operations are performed. For
-	// correctness and also to minimize the chance of a conflict,
-	// the delete operations should happen before move operations,
-	// which should happen before create operations.
-	deleteOperation operationType = iota
-	moveOperation
-	createOperation
-	updateOperation
-)
-
-// computeOperations inputs a set of projects to update and the set of
-// current and new projects (as defined by contents of the local file
-// system and manifest file respectively) and outputs a collection of
-// operations that describe the actions needed to update the target
-// projects.
-func computeOperations(localProjects, remoteProjects Projects, gc bool) (operations, error) {
-	result := operations{}
-	allProjects := map[string]struct{}{}
-	for name, _ := range localProjects {
-		allProjects[name] = struct{}{}
-	}
-	for name, _ := range remoteProjects {
-		allProjects[name] = struct{}{}
-	}
-	for name, _ := range allProjects {
-		if localProject, ok := localProjects[name]; ok {
-			if remoteProject, ok := remoteProjects[name]; ok {
-				if localProject.Path == remoteProject.Path {
-					result = append(result, operation{
-						project:     remoteProject,
-						destination: remoteProject.Path,
-						source:      localProject.Path,
-						ty:          updateOperation,
-					})
-				} else {
-					result = append(result, operation{
-						project:     remoteProject,
-						destination: remoteProject.Path,
-						source:      localProject.Path,
-						ty:          moveOperation,
-					})
-				}
-			} else if gc {
-				result = append(result, operation{
-					project:     localProject,
-					destination: "",
-					source:      localProject.Path,
-					ty:          deleteOperation,
-				})
-			}
-		} else if remoteProject, ok := remoteProjects[name]; ok {
-			result = append(result, operation{
-				project:     remoteProject,
-				destination: remoteProject.Path,
-				source:      "",
-				ty:          createOperation,
-			})
-		} else {
-			return nil, fmt.Errorf("project %v does not exist", name)
-		}
-	}
-	sort.Sort(result)
-	return result, nil
+// createOperation represents the creation of a project.
+type createOperation struct {
+	commonOperation
 }
 
 // preCommitHook is a git hook installed to all new projects. It
@@ -861,148 +787,286 @@ fi
 exit 0
 `
 
-// runOperation executes the given operation.
-//
-// TODO(jsimsa): Decide what to do in case we would want to update the
-// commit hooks for existing repositories. Overwriting the existing
-// hooks is not a good idea as developers might have customized the
-// hooks.
-func runOperation(ctx *Context, op operation) (e error) {
-	switch op.ty {
-	case createOperation:
-		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
-		if err := ctx.Run().MkdirAll(path, perm); err != nil {
+func (op createOperation) Run(ctx *Context) (e error) {
+	path, perm := filepath.Dir(op.destination), os.FileMode(0755)
+	if err := ctx.Run().MkdirAll(path, perm); err != nil {
+		return err
+	}
+	switch op.project.Protocol {
+	case "git":
+		if err := ctx.Git().Clone(op.project.Name, op.destination); err != nil {
 			return err
 		}
-		switch op.project.Protocol {
-		case "git":
-			if err := ctx.Git().Clone(op.project.Name, op.destination); err != nil {
-				return err
+		if strings.HasPrefix(op.project.Name, VeyronGitRepoHost()) {
+			// Setup the repository for Gerrit code reviews.
+			//
+			// TODO(jsimsa): Decide what to do in case we would want to update the
+			// commit hooks for existing repositories. Overwriting the existing
+			// hooks is not a good idea as developers might have customized the
+			// hooks.
+			file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
+			url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
+			args := []string{"-Lo", file, url}
+			var stderr bytes.Buffer
+			opts := ctx.Run().Opts()
+			opts.Stdout = ioutil.Discard
+			opts.Stderr = &stderr
+			if err := ctx.Run().CommandWithOpts(opts, "curl", args...); err != nil {
+				return fmt.Errorf("failed to download commit message hook: %v\n%v", err, stderr.String())
 			}
-			if strings.HasPrefix(op.project.Name, VeyronGitRepoHost()) {
-				// Setup the repository for Gerrit code reviews.
-				file := filepath.Join(op.destination, ".git", "hooks", "commit-msg")
-				url := "https://gerrit-review.googlesource.com/tools/hooks/commit-msg"
-				args := []string{"-Lo", file, url}
-				var stderr bytes.Buffer
-				opts := ctx.Run().Opts()
-				opts.Stdout = ioutil.Discard
-				opts.Stderr = &stderr
-				if err := ctx.Run().CommandWithOpts(opts, "curl", args...); err != nil {
-					return fmt.Errorf("failed to download commit message hook: %v\n%v", err, stderr.String())
-				}
-				if err := os.Chmod(file, perm); err != nil {
-					return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
-				}
-				file = filepath.Join(op.destination, ".git", "hooks", "pre-commit")
-				if err := ctx.Run().WriteFile(file, []byte(preCommitHook), perm); err != nil {
-					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
-				}
-				file = filepath.Join(op.destination, ".git", "hooks", "pre-push")
-				if err := ctx.Run().WriteFile(file, []byte(prePushHook), perm); err != nil {
-					return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
-				}
+			if err := os.Chmod(file, perm); err != nil {
+				return fmt.Errorf("Chmod(%v, %v) failed: %v", file, perm, err)
 			}
-			cwd, err := os.Getwd()
-			if err != nil {
-				return err
+			file = filepath.Join(op.destination, ".git", "hooks", "pre-commit")
+			if err := ctx.Run().WriteFile(file, []byte(preCommitHook), perm); err != nil {
+				return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
 			}
-			defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
-			if err := ctx.Run().Chdir(op.destination); err != nil {
-				return err
+			file = filepath.Join(op.destination, ".git", "hooks", "pre-push")
+			if err := ctx.Run().WriteFile(file, []byte(prePushHook), perm); err != nil {
+				return fmt.Errorf("WriteFile(%v, %v) failed: %v", file, perm, err)
 			}
-			if err := ctx.Git().Reset(op.project.Revision); err != nil {
-				return err
-			}
-		case "hg":
-			if err := ctx.Hg().Clone(op.project.Name, op.destination); err != nil {
-				return err
-			}
-			cwd, err := os.Getwd()
-			if err != nil {
-				return err
-			}
-			defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
-			if err := ctx.Run().Chdir(op.destination); err != nil {
-				return err
-			}
-			if err := ctx.Hg().CheckoutRevision(op.project.Revision); err != nil {
-				return err
-			}
-		default:
-			return UnsupportedProtocolErr(op.project.Protocol)
 		}
-	case deleteOperation:
-		if err := ctx.Run().RemoveAll(op.source); err != nil {
+		cwd, err := os.Getwd()
+		if err != nil {
 			return err
 		}
-	case moveOperation:
-		path, perm := filepath.Dir(op.destination), os.FileMode(0755)
-		if err := ctx.Run().MkdirAll(path, perm); err != nil {
+		defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
+		if err := ctx.Run().Chdir(op.destination); err != nil {
 			return err
 		}
-		if err := ctx.Run().Rename(op.source, op.destination); err != nil {
+		if err := ctx.Git().Reset(op.project.Revision); err != nil {
 			return err
 		}
-		if err := reportNonMaster(ctx, op.project); err != nil {
+	case "hg":
+		if err := ctx.Hg().Clone(op.project.Name, op.destination); err != nil {
 			return err
 		}
-		if err := pullProject(ctx, op.project); err != nil {
+		cwd, err := os.Getwd()
+		if err != nil {
 			return err
 		}
-	case updateOperation:
-		if err := reportNonMaster(ctx, op.project); err != nil {
+		defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
+		if err := ctx.Run().Chdir(op.destination); err != nil {
 			return err
 		}
-		if err := pullProject(ctx, op.project); err != nil {
+		if err := ctx.Hg().CheckoutRevision(op.project.Revision); err != nil {
 			return err
 		}
 	default:
-		return fmt.Errorf("%v", op)
+		return UnsupportedProtocolErr(op.project.Protocol)
 	}
 	return nil
 }
 
-// testOperations checks if the target set of operations can be
-// carried out given the current state of the local file system.
-func testOperations(ops operations) error {
-	for _, op := range ops {
-		switch op.ty {
-		case createOperation:
-			// Check the local file system.
-			if _, err := os.Stat(op.destination); err != nil {
-				if !os.IsNotExist(err) {
-					return fmt.Errorf("Stat(%v) failed: %v", op.destination, err)
-				}
-			} else {
-				return fmt.Errorf("cannot create %q as it already exists", op.destination)
-			}
-		case deleteOperation:
-			if _, err := os.Stat(op.source); err != nil {
-				if os.IsNotExist(err) {
-					return fmt.Errorf("cannot delete %q as it does not exist", op.source)
-				}
-				return fmt.Errorf("Stat(%v) failed: %v", op.source, err)
-			}
-		case moveOperation:
-			if _, err := os.Stat(op.source); err != nil {
-				if os.IsNotExist(err) {
-					return fmt.Errorf("cannot move %q to %q as the source does not exist", op.source, op.destination)
-				}
-				return fmt.Errorf("Stat(%v) failed: %v", op.source, err)
-			}
-			if _, err := os.Stat(op.destination); err != nil {
-				if !os.IsNotExist(err) {
-					return fmt.Errorf("Stat(%v) failed: %v", op.destination, err)
-				}
-			} else {
-				return fmt.Errorf("cannot move %q to %q as the destination already exists", op.source, op.destination)
-			}
-		case updateOperation:
-			continue
-		default:
-			return fmt.Errorf("%v", op)
+func (op createOperation) String() string {
+	return fmt.Sprintf("create project %q in %q and advance it to %q", path.Base(op.project.Name), op.destination, op.project.Revision)
+}
+
+func (op createOperation) Test() error {
+	// Check the local file system.
+	if _, err := os.Stat(op.destination); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("Stat(%v) failed: %v", op.destination, err)
 		}
+	} else {
+		return fmt.Errorf("cannot create %q as it already exists", op.destination)
 	}
 	return nil
+}
+
+// deleteOperation represents the deletion of a project.
+type deleteOperation struct {
+	commonOperation
+	// gc determines whether the operation should be executed or
+	// whether it should only print a notification.
+	gc bool
+	// manifest records the name of the current project manifest.
+	manifest string
+}
+
+func (op deleteOperation) Run(ctx *Context) error {
+	if op.gc {
+		return ctx.Run().RemoveAll(op.source)
+	}
+	lines := []string{
+		fmt.Sprintf("NOTE: this project was not found in the %q manifest", op.manifest),
+		"it was not automatically removed to avoid deleting uncommitted work",
+		fmt.Sprintf(`if you no longer need it, invoke "rm -rf %v"`, op.source),
+		`or invoke "veyron update -gc" to remove all such local projects`,
+	}
+	opts := runutil.Opts{Verbose: true}
+	ctx.Run().OutputWithOpts(opts, lines)
+	return nil
+}
+
+func (op deleteOperation) String() string {
+	return fmt.Sprintf("delete project %q from %q", path.Base(op.project.Name), op.source)
+}
+
+func (op deleteOperation) Test() error {
+	if _, err := os.Stat(op.source); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("cannot delete %q as it does not exist", op.source)
+		}
+		return fmt.Errorf("Stat(%v) failed: %v", op.source, err)
+	}
+	return nil
+}
+
+// moveOperation represents the relocation of a project.
+type moveOperation struct {
+	commonOperation
+}
+
+func (op moveOperation) Run(ctx *Context) error {
+	path, perm := filepath.Dir(op.destination), os.FileMode(0755)
+	if err := ctx.Run().MkdirAll(path, perm); err != nil {
+		return err
+	}
+	if err := ctx.Run().Rename(op.source, op.destination); err != nil {
+		return err
+	}
+	if err := reportNonMaster(ctx, op.project); err != nil {
+		return err
+	}
+	if err := pullProject(ctx, op.project); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (op moveOperation) String() string {
+	return fmt.Sprintf("move project %q located in %q to %q and advance it to %q", path.Base(op.project.Name), op.source, op.destination, op.project.Revision)
+}
+
+func (op moveOperation) Test() error {
+	if _, err := os.Stat(op.source); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("cannot move %q to %q as the source does not exist", op.source, op.destination)
+		}
+		return fmt.Errorf("Stat(%v) failed: %v", op.source, err)
+	}
+	if _, err := os.Stat(op.destination); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("Stat(%v) failed: %v", op.destination, err)
+		}
+	} else {
+		return fmt.Errorf("cannot move %q to %q as the destination already exists", op.source, op.destination)
+	}
+	return nil
+}
+
+// updateOperation represents the update of a project.
+type updateOperation struct {
+	commonOperation
+}
+
+func (op updateOperation) Run(ctx *Context) error {
+	if err := reportNonMaster(ctx, op.project); err != nil {
+		return err
+	}
+	if err := pullProject(ctx, op.project); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (op updateOperation) String() string {
+	return fmt.Sprintf("advance project %q located in %q to %q", path.Base(op.project.Name), op.source, op.project.Revision)
+}
+
+func (op updateOperation) Test() error {
+	return nil
+}
+
+// operations is a sortable collection of operations
+type operations []operation
+
+// Len returns the length of the collection.
+func (ops operations) Len() int {
+	return len(ops)
+}
+
+// Less defines the order of operations. Operations are ordered first
+// by their type and then by their project name.
+//
+// The order in which operation types are defined determines the order
+// in which operations are performed. For correctness and also to
+// minimize the chance of a conflict, the delete operations should
+// happen before move operations, which should happen before create
+// operations.
+func (ops operations) Less(i, j int) bool {
+	vals := make([]int, 2)
+	for idx, op := range []operation{ops[i], ops[j]} {
+		switch op.(type) {
+		case deleteOperation:
+			vals[idx] = 0
+		case moveOperation:
+			vals[idx] = 1
+		case createOperation:
+			vals[idx] = 2
+		case updateOperation:
+			vals[idx] = 3
+		}
+	}
+	if vals[0] != vals[1] {
+		return vals[0] < vals[1]
+	}
+	return path.Base(ops[i].Project().Name) < path.Base(ops[j].Project().Name)
+}
+
+// Swap swaps two elements of the collection.
+func (ops operations) Swap(i, j int) {
+	ops[i], ops[j] = ops[j], ops[i]
+}
+
+// computeOperations inputs a set of projects to update and the set of
+// current and new projects (as defined by contents of the local file
+// system and manifest file respectively) and outputs a collection of
+// operations that describe the actions needed to update the target
+// projects.
+func computeOperations(localProjects, remoteProjects Projects, manifest string, gc bool) (operations, error) {
+	result := operations{}
+	allProjects := map[string]struct{}{}
+	for name, _ := range localProjects {
+		allProjects[name] = struct{}{}
+	}
+	for name, _ := range remoteProjects {
+		allProjects[name] = struct{}{}
+	}
+	for name, _ := range allProjects {
+		if localProject, ok := localProjects[name]; ok {
+			if remoteProject, ok := remoteProjects[name]; ok {
+				if localProject.Path == remoteProject.Path {
+					result = append(result, updateOperation{commonOperation{
+						destination: remoteProject.Path,
+						project:     remoteProject,
+						source:      localProject.Path,
+					}})
+				} else {
+					result = append(result, moveOperation{commonOperation{
+						destination: remoteProject.Path,
+						project:     remoteProject,
+						source:      localProject.Path,
+					}})
+				}
+			} else {
+				result = append(result, deleteOperation{commonOperation{
+					destination: "",
+					project:     localProject,
+					source:      localProject.Path,
+				}, gc, manifest})
+			}
+		} else if remoteProject, ok := remoteProjects[name]; ok {
+			result = append(result, createOperation{commonOperation{
+				destination: remoteProject.Path,
+				project:     remoteProject,
+				source:      "",
+			}})
+		} else {
+			return nil, fmt.Errorf("project %v does not exist", name)
+		}
+	}
+	sort.Sort(result)
+	return result, nil
 }
