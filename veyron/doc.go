@@ -180,7 +180,7 @@ The veyron project list flags are:
    If true, omit pristine projects, i.e. projects with a clean master branch and
    no other branches.
 
-Veyron Project Status
+Veyron Project Shell-Prompt
 
 Reports current branches of veyron projects (repositories) as well as an
 indication of each project's status:
@@ -188,9 +188,9 @@ indication of each project's status:
   %  indicates that a repository contains untracked files
 
 Usage:
-   veyron project status [flags]
+   veyron project shell-prompt [flags]
 
-The veyron project status flags are:
+The veyron project shell-prompt flags are:
  -check_dirty=true
    If false, don't check for uncommitted changes or untracked files. Setting
    this option to false is dangerous: dirty master branches will not appear in
