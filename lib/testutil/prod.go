@@ -98,7 +98,7 @@ func veyronProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, 
 	}
 
 	// Describe the test cases.
-	namespaceRoot := "/proxy.envyor.com:8101"
+	namespaceRoot := "/ns.dev.v.io:8101"
 	allPassed, suites := true, []testSuite{}
 	services := []prodService{
 		prodService{
