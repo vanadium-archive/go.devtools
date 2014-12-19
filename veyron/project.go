@@ -17,7 +17,7 @@ var cmdProject = &cmdline.Command{
 	Name:     "project",
 	Short:    "Manage the veyron projects",
 	Long:     "Manage the veyron projects.",
-	Children: []*cmdline.Command{cmdProjectList, cmdProjectStatus, cmdProjectPoll},
+	Children: []*cmdline.Command{cmdProjectList, cmdProjectShellPrompt, cmdProjectPoll},
 }
 
 // cmdProjectList represents the "veyron project list" command.
@@ -129,11 +129,11 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 	return nil
 }
 
-// cmdProjectStatus represents the "veyron project status" command.
-var cmdProjectStatus = &cmdline.Command{
-	Run:   runProjectStatus,
-	Name:  "status",
-	Short: "Print a succinct status of veyron projects",
+// cmdProjectShellPrompt represents the "veyron project shell-prompt" command.
+var cmdProjectShellPrompt = &cmdline.Command{
+	Run:   runProjectShellPrompt,
+	Name:  "shell-prompt",
+	Short: "Print a succinct status of projects, suitable for shell prompts",
 	Long: `
 Reports current branches of veyron projects (repositories) as well as an
 indication of each project's status:
@@ -142,7 +142,7 @@ indication of each project's status:
 `,
 }
 
-func runProjectStatus(command *cmdline.Command, args []string) error {
+func runProjectShellPrompt(command *cmdline.Command, args []string) error {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	projects, err := util.LocalProjects(ctx)
 	if err != nil {
