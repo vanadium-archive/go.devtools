@@ -300,12 +300,8 @@ func TestCreate(t *testing.T) {
 		remoteProjects = append(remoteProjects, remoteProject)
 	}
 	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
-	config := util.CommonConfig{
-		SnapshotLabelTests: map[string][]string{
-			"remote-snapshot": []string{},
-		},
-	}
-	createConfig(t, ctx, &config)
+	config := util.NewConfig(util.SnapshotLabelTestsOpt(map[string][]string{"remote-snapshot": []string{}}))
+	createConfig(t, ctx, config)
 	ignoreDirs(t, rootDir, []string{"remote"})
 
 	// Create initial commits in the remote projects and use

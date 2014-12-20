@@ -14,14 +14,14 @@ import (
 )
 
 const (
-	defaultConfigFile                  = "$VEYRON_ROOT/veyron/go/src/veyron.io/tools/conf/presubmit"
-	defaultGerritBaseUrl               = "https://veyron-review.googlesource.com"
-	defaultLogFilePath                 = "$HOME/tmp/presubmit_log"
-	defaultNetRcFilePath               = "$HOME/.netrc"
-	defaultPresubmitTestJenkinsProject = "veyron-presubmit-test"
-	defaultQueryString                 = "(status:open -project:experimental)"
-	jenkinsBaseJobUrl                  = "https://dev.v.io/jenkins/job"
-	outputPrefix                       = "[VEYRON PRESUBMIT]"
+	defaultConfigFile    = "$VEYRON_ROOT/veyron/go/src/veyron.io/tools/conf/presubmit"
+	defaultGerritBaseUrl = "https://veyron-review.googlesource.com"
+	defaultLogFilePath   = "$HOME/tmp/presubmit_log"
+	defaultNetRcFilePath = "$HOME/.netrc"
+	defaultPresubmitTest = "veyron-presubmit-test"
+	defaultQueryString   = "(status:open -project:experimental)"
+	jenkinsBaseJobUrl    = "https://dev.v.io/jenkins/job"
+	outputPrefix         = "[VEYRON PRESUBMIT]"
 )
 
 type credential struct {
@@ -31,21 +31,21 @@ type credential struct {
 
 var (
 	// flags
-	dryRunFlag                      bool
-	gerritBaseUrlFlag               string
-	jenkinsBuildNumberFlag          int
-	jenkinsHostFlag                 string
-	jenkinsTokenFlag                string
-	logFilePathFlag                 string
-	manifestFlag                    string
-	netRcFilePathFlag               string
-	noColorFlag                     bool
-	presubmitTestJenkinsProjectFlag string
-	queryStringFlag                 string
-	reposFlag                       string
-	reviewMessageFlag               string
-	reviewTargetRefsFlag            string
-	verboseFlag                     bool
+	dryRunFlag             bool
+	gerritBaseUrlFlag      string
+	jenkinsBuildNumberFlag int
+	jenkinsHostFlag        string
+	jenkinsTokenFlag       string
+	logFilePathFlag        string
+	manifestFlag           string
+	netRcFilePathFlag      string
+	noColorFlag            bool
+	presubmitTestFlag      string
+	queryStringFlag        string
+	reposFlag              string
+	reviewMessageFlag      string
+	reviewTargetRefsFlag   string
+	verboseFlag            bool
 
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
 	reNotIdentifierChars *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
@@ -62,7 +62,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
-	cmdQuery.Flags.StringVar(&presubmitTestJenkinsProjectFlag, "project", defaultPresubmitTestJenkinsProject, "The name of the Jenkins project to add presubmit-test builds to.")
+	cmdQuery.Flags.StringVar(&presubmitTestFlag, "project", defaultPresubmitTest, "The name of the Jenkins project to add presubmit-test builds to.")
 	cmdTest.Flags.StringVar(&reposFlag, "repos", "", "The base names of remote repositories containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")

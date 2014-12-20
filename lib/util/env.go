@@ -19,26 +19,6 @@ const (
 	rootEnv = "VEYRON_ROOT"
 )
 
-// CommonConfig holds configuration common to veyron tools.
-type CommonConfig struct {
-	// GoRepos identifies top-level VEYRON_ROOT directories that
-	// contain a Go workspace.
-	GoRepos []string `json:"go-repos"`
-	// VDLRepos identifies top-level VEYRON_ROOT directories that
-	// contain a VDL workspace.
-	VDLRepos []string `json:"vdl-repos"`
-	// SnapshotLabelTests maps snapshot labels to sets of tests
-	// that determine whether a snapshot for the given label can
-	// be created.
-	SnapshotLabelTests map[string][]string `json:"snapshot-label-tests"`
-	// ProjectTests maps veyron projects to sets of tests that
-	// should be executed to test changes in the given project.
-	ProjectTests map[string][]string `json:"project-tests"`
-	// TestDependencies maps tests to sets of tests that the given
-	// test depends on.
-	TestDependencies map[string][]string `json:"test-dependencies"`
-}
-
 // LocalManifestFile returns the path to the local manifest.
 func LocalManifestFile() (string, error) {
 	root, err := VeyronRoot()
@@ -134,7 +114,7 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	var config CommonConfig
+	var config Config
 	if err := LoadConfig("common", &config); err != nil {
 		return nil, err
 	}
@@ -253,24 +233,24 @@ func setArmEnv(env *envutil.Snapshot, platform Platform) error {
 
 // setGoPath adds the paths to veyron Go workspaces to the GOPATH
 // variable.
-func setGoPath(env *envutil.Snapshot, root string, config *CommonConfig) {
+func setGoPath(env *envutil.Snapshot, root string, config *Config) {
 	gopath := env.GetTokens("GOPATH", ":")
-	// Append an entry to gopath for each veyron go repo.
-	for _, repo := range config.GoRepos {
+	// Append an entry to gopath for each veyron go workspace.
+	for _, repo := range config.GoWorkspaces() {
 		gopath = append(gopath, filepath.Join(root, repo, "go"))
 	}
 	env.SetTokens("GOPATH", gopath, ":")
 }
 
-// setVdlPath adds the paths to veyron Go workspaces to the VDLPATH
+// setVdlPath adds the paths to veyron VDL workspaces to the VDLPATH
 // variable.
-func setVdlPath(env *envutil.Snapshot, root string, config *CommonConfig) {
+func setVdlPath(env *envutil.Snapshot, root string, config *Config) {
 	vdlpath := env.GetTokens("VDLPATH", ":")
-	// Append an entry to vdlpath for each veyron go repo.
+	// Append an entry to vdlpath for each veyron vdl workspace.
 	//
 	// TODO(toddw): This logic will change when we pull vdl into a
 	// separate repo.
-	for _, repo := range config.VDLRepos {
+	for _, repo := range config.VDLWorkspaces() {
 		vdlpath = append(vdlpath, filepath.Join(root, repo, "go"))
 	}
 	env.SetTokens("VDLPATH", vdlpath, ":")

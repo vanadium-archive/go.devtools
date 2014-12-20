@@ -9,7 +9,7 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-func createConfig(t *testing.T, ctx *util.Context, config *util.CommonConfig) {
+func createConfig(t *testing.T, ctx *util.Context, config *util.Config) {
 	configFile, err := util.ConfigFile("common")
 	if err != nil {
 		t.Fatalf("%v", err)

@@ -26,12 +26,8 @@ func TestTestProject(t *testing.T) {
 	}
 	defer os.Setenv("VEYRON_ROOT", oldRoot)
 
-	config := util.CommonConfig{
-		ProjectTests: map[string][]string{
-			"https://test-project": []string{"ignore-this"},
-		},
-	}
-	createConfig(t, ctx, &config)
+	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{"https://test-project": []string{"ignore-this"}}))
+	createConfig(t, ctx, config)
 
 	// Check that running the tests for the test project generates
 	// the expected output.

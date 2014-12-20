@@ -224,15 +224,15 @@ tests are specified, all projects are polled by default.
 func runProjectPoll(command *cmdline.Command, args []string) error {
 	projectSet := map[string]struct{}{}
 	if len(args) > 0 {
-		var config util.CommonConfig
+		var config util.Config
 		if err := util.LoadConfig("common", &config); err != nil {
 			return err
 		}
-		// Invert the config.ProjectTests map that maps
-		// projects to tests to run.
+		// Compute a map from tests to projects that can change the
+		// outcome of the test.
 		testProjects := map[string][]string{}
-		for project, tests := range config.ProjectTests {
-			for _, test := range tests {
+		for _, project := range config.Projects() {
+			for _, test := range config.ProjectTests(project) {
 				testProjects[test] = append(testProjects[test], project)
 			}
 		}

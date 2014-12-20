@@ -26,8 +26,8 @@ var (
 	noColorFlag      bool
 	verboseFlag      bool
 
-	// A root project watches changes and triggers other projects.
-	defaultRootProjects = map[string]struct{}{
+	// A root test watches changes and triggers other tests.
+	defaultRootTests = map[string]struct{}{
 		"veyron-go-build":                       struct{}{},
 		"third_party-go-build":                  struct{}{},
 		"veyron-javascript-browser-integration": struct{}{},
@@ -84,99 +84,103 @@ func runPoll(command *cmdline.Command, _ []string) error {
 		return nil
 	})
 
-	// Get repos with new changes from the latest snapshots.
+	// Get projects with new changes from the latest snapshots.
 	snapshotFileBytes, err := ioutil.ReadFile(latestSnapshotFile)
 	if err != nil {
 		return fmt.Errorf("ReadAll() failed: %v", err)
 	}
-	repos, err := getChangedReposFromSnapshot(ctx, root, snapshotFileBytes)
+	projects, err := getChangedProjectsFromSnapshot(ctx, root, snapshotFileBytes)
 	if err != nil {
 		return err
 	}
-	if len(repos) == 0 {
+	if len(projects) == 0 {
 		fmt.Fprintf(ctx.Stdout(), "No changes.\n")
 		return nil
 	}
-	fmt.Fprintf(ctx.Stdout(), "Repos with new changes:\n%s\n", strings.Join(repos, "\n"))
+	fmt.Fprintf(ctx.Stdout(), "Projects with new changes:\n%s\n", strings.Join(projects, "\n"))
 
-	// Identify the Jenkins projects that should be started.
-	jenkinsProjects, err := jenkinsProjectsToStart(repos)
+	// Identify the Jenkins tests that should be started.
+	jenkinsTests, err := jenkinsTestsToStart(projects)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(ctx.Stdout(), "\nJenkins projects to start:\n%s\n", strings.Join(jenkinsProjects, "\n"))
+	fmt.Fprintf(ctx.Stdout(), "\nJenkins tests to start:\n%s\n", strings.Join(jenkinsTests, "\n"))
 
-	// Start Jenkins projects.
+	// Start Jenkins tests.
 	fmt.Fprintf(ctx.Stdout(), "\nStarting new builds:\n")
-	if err := startJenkinsProjects(ctx, jenkinsProjects); err != nil {
+	if err := startJenkinsTests(ctx, jenkinsTests); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// getChangedReposFromSnapshot returns a slice of repos that have changes by
-// comparing the revisions in the given snapshot with master branches.
-func getChangedReposFromSnapshot(ctx *util.Context, veyronRoot string, snapshotContent []byte) ([]string, error) {
+// getChangedProjectsFromSnapshot returns a slice of projects that
+// have changes by comparing the revisions in the given snapshot with
+// master branches.
+func getChangedProjectsFromSnapshot(ctx *util.Context, veyronRoot string, snapshotContent []byte) ([]string, error) {
 	// Parse snapshot.
 	snapshot := util.Manifest{}
 	if err := xml.Unmarshal(snapshotContent, &snapshot); err != nil {
 		return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(snapshotContent))
 	}
 
-	// Use "git log" to detect changes for each repo.
-	repos := []string{}
+	// Use "git log" to detect changes for each project.
+	//
+	// TODO(jingjin, jsimsa): Add support for non-git projects.
+	projects := []string{}
 	for _, project := range snapshot.Projects {
-		git := ctx.Git(util.RootDirOpt(filepath.Join(veyronRoot, project.Path)))
-		commits, err := git.Log("master", project.Revision, "")
-		if err != nil {
-			return nil, err
-		}
-		if len(commits) != 0 {
-			repos = append(repos, project.Name)
-		}
-	}
-	return repos, nil
-}
-
-// jenkinsProjectsToStart get a list of jenkins projects that need to be started
-// based on the given repos.
-func jenkinsProjectsToStart(repos []string) ([]string, error) {
-	// Parse tools config to get project-tests map.
-	var config util.CommonConfig
-	if err := util.LoadConfig("common", &config); err != nil {
-		return nil, err
-	}
-	projectTestsMap := config.ProjectTests
-
-	// Get all Jenkins projects for the given repos.
-	jenkinsProjectsMap := map[string]struct{}{}
-	for _, repo := range repos {
-		if projects, ok := projectTestsMap[repo]; ok {
-			for _, project := range projects {
-				jenkinsProjectsMap[project] = struct{}{}
+		switch project.Protocol {
+		case "git":
+			git := ctx.Git(util.RootDirOpt(filepath.Join(veyronRoot, project.Path)))
+			commits, err := git.Log("master", project.Revision, "")
+			if err != nil {
+				return nil, err
+			}
+			if len(commits) != 0 {
+				projects = append(projects, project.Name)
 			}
 		}
 	}
-	jenkinsProjects := []string{}
-	for p := range jenkinsProjectsMap {
-		jenkinsProjects = append(jenkinsProjects, p)
-	}
-	sort.Strings(jenkinsProjects)
-
-	// Only return the "root" projects.
-	rootProjects := []string{}
-	for _, p := range jenkinsProjects {
-		if _, ok := defaultRootProjects[p]; ok {
-			rootProjects = append(rootProjects, p)
-		}
-	}
-	return rootProjects, nil
+	return projects, nil
 }
 
-// startJenkinsProjects uses Jenkins API to start a build to each of the given
-// Jenkins projects.
-func startJenkinsProjects(ctx *util.Context, projects []string) error {
+// jenkinsTestsToStart returns a list of jenkins tests that need to be
+// started based on the given projects.
+func jenkinsTestsToStart(projects []string) ([]string, error) {
+	// Parse tools config to get project-tests map.
+	var config util.Config
+	if err := util.LoadConfig("common", &config); err != nil {
+		return nil, err
+	}
+
+	// Get all Jenkins tests for the given projects.
+	jenkinsTestsSet := map[string]struct{}{}
+	for _, project := range projects {
+		tests := config.ProjectTests(project)
+		for _, test := range tests {
+			jenkinsTestsSet[test] = struct{}{}
+		}
+	}
+	jenkinsTests := []string{}
+	for test := range jenkinsTestsSet {
+		jenkinsTests = append(jenkinsTests, test)
+	}
+	sort.Strings(jenkinsTests)
+
+	// Only return the "root" tests.
+	rootTests := []string{}
+	for _, test := range jenkinsTests {
+		if _, ok := defaultRootTests[test]; ok {
+			rootTests = append(rootTests, test)
+		}
+	}
+	return rootTests, nil
+}
+
+// startJenkinsTests uses Jenkins API to start a build to each of the
+// given Jenkins tests.
+func startJenkinsTests(ctx *util.Context, tests []string) error {
 	urlParam := url.Values{
 		"token": {jenkinsTokenFlag},
 	}.Encode()
@@ -184,12 +188,12 @@ func startJenkinsProjects(ctx *util.Context, projects []string) error {
 	if err != nil {
 		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	for _, p := range projects {
+	for _, test := range tests {
 		addBuildUrl := jenkinsUrl
-		addBuildUrl.Path = fmt.Sprintf("%s/job/%s/build", jenkinsUrl.Path, p)
+		addBuildUrl.Path = fmt.Sprintf("%s/job/%s/build", jenkinsUrl.Path, test)
 		addBuildUrl.RawQuery = urlParam
 		resp, err := http.Get(addBuildUrl.String())
-		msg := fmt.Sprintf("add build to %q\n", p)
+		msg := fmt.Sprintf("add build to %q\n", test)
 		if err == nil {
 			resp.Body.Close()
 			testutil.Pass(ctx, "%s", msg)

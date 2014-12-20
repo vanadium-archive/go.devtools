@@ -213,9 +213,8 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 			continue
 		}
 
-		// Get the status of the last completed build for this
-		// test from Jenkins.
-		lastStatus, err := lastCompletedBuildStatusForProject(name)
+		// Get the status of the last completed build for this Jenkins test.
+		lastStatus, err := lastCompletedBuildStatus(name)
 		lastStatusString := "?"
 		if err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -259,10 +258,9 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 		fmt.Fprintf(&report, "\n%s\n", failedTestsReport)
 	}
 
-	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n",
-		jenkinsBaseJobUrl, presubmitTestJenkinsProjectFlag, jenkinsBuildNumberFlag)
+	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestFlag, jenkinsBuildNumberFlag)
 	link := fmt.Sprintf("https://dev.v.io/jenkins/job/%s/buildWithParameters?REFS=%s&REPOS=%s",
-		presubmitTestJenkinsProjectFlag,
+		presubmitTestFlag,
 		url.QueryEscape(reviewTargetRefsFlag),
 		url.QueryEscape(reposFlag))
 	fmt.Fprintf(&report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
@@ -417,15 +415,15 @@ func resetRepo(ctx *util.Context) error {
 	return nil
 }
 
-// lastCompletedBuildStatusForProject gets the status of the last
-// completed build for a given jenkins project.
-func lastCompletedBuildStatusForProject(projectName string) (_ string, e error) {
+// lastCompletedBuildStatus gets the status of the last completed
+// build for a given jenkins test.
+func lastCompletedBuildStatus(testName string) (_ string, e error) {
 	// Construct rest API url to get build status.
 	statusUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
 		return "", fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	statusUrl.Path = fmt.Sprintf("%s/job/%s/lastCompletedBuild/api/json", statusUrl.Path, projectName)
+	statusUrl.Path = fmt.Sprintf("%s/job/%s/lastCompletedBuild/api/json", statusUrl.Path, testName)
 	statusUrl.RawQuery = url.Values{
 		"token": {jenkinsTokenFlag},
 	}.Encode()
@@ -494,18 +492,19 @@ func (t failureType) String() string {
 // failedTestLinks maps from failure type to links.
 type failedTestLinksMap map[failureType][]string
 
-// failedTests gets a list of failed test cases from the most recent build of the given Jenkins project.
-func failedTests(jenkinsProject string) (_ []testCase, e error) {
-	getTestRerpotUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", jenkinsProject)
+// failedTestCases gets a list of failed test cases from the most
+// recent build of the given Jenkins test.
+func failedTestCases(testName string) (_ []testCase, e error) {
+	getTestRerpotUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", testName)
 	getTestReportRes, err := jenkinsAPI(getTestRerpotUri, "GET", nil)
 	if err != nil {
 		return []testCase{}, err
 	}
 	defer collect.Error(func() error { return getTestReportRes.Body.Close() }, &e)
-	return parseFailedTests(getTestReportRes.Body)
+	return parseFailedTestCases(getTestReportRes.Body)
 }
 
-func parseFailedTests(reader io.Reader) ([]testCase, error) {
+func parseFailedTestCases(reader io.Reader) ([]testCase, error) {
 	r := bufio.NewReader(reader)
 	var testCases struct {
 		Suites []struct {
@@ -550,7 +549,7 @@ func createFailedTestsReport(ctx *util.Context, allTestNames []string) (_ string
 			continue
 		}
 		defer collect.Error(func() error { return fdReport.Close() }, &e)
-		curLinksMap, err := genFailedTestLinks(ctx, fdReport, seenTests, testName, failedTests)
+		curLinksMap, err := genFailedTestLinks(ctx, fdReport, seenTests, testName, failedTestCases)
 		if err != nil {
 			printf(ctx.Stderr(), "%v\n", err)
 			continue
@@ -578,8 +577,8 @@ func createFailedTestsReport(ctx *util.Context, allTestNames []string) (_ string
 
 func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[string]int, testName string,
 	getFailedTestCases func(string) ([]testCase, error)) (failedTestLinksMap, error) {
-	// Get failed tests from the corresponding Jenkins project to compare with the
-	// failed tests from presubmit.
+	// Get failed test cases from the corresponding Jenkins test to
+	// compare with the failed tests from presubmit.
 	failedTestCases, err := getFailedTestCases(testName)
 	if err != nil {
 		printf(ctx.Stderr(), "%v\n", err)

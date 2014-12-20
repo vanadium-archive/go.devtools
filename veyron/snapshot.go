@@ -243,18 +243,24 @@ func revisionChanges(ctx *util.Context, snapshotDir, snapshotFile, label string)
 
 // runTests runs the tests associated with the given snapshot label.
 func runTests(ctx *util.Context, label string) error {
-	var config util.CommonConfig
+	var config util.Config
 	if err := util.LoadConfig("common", &config); err != nil {
 		return err
 	}
-	tests, ok := config.SnapshotLabelTests[label]
-	if !ok {
+	found := false
+	for _, l := range config.SnapshotLabels() {
+		if label == l {
+			found = true
+			break
+		}
+	}
+	if !found {
 		if remoteFlag {
 			return fmt.Errorf("no configuration for label %v found", label)
 		}
 		return nil
 	}
-	for _, test := range tests {
+	for _, test := range config.SnapshotLabelTests(label) {
 		result, err := testutil.RunTests(ctx, nil, []string{test})
 		if err != nil {
 			return err

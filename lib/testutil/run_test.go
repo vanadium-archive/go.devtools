@@ -8,14 +8,15 @@ import (
 )
 
 func TestProjectTests(t *testing.T) {
-	projects := map[string][]string{
+	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{
 		"veyron":  []string{"veyron-go-build", "veyron-go-test"},
 		"default": []string{"tools-go-build", "tools-go-test"},
-	}
+	}))
+
 	ctx := util.DefaultContext()
 
 	// Get tests for a repo that is in the config file.
-	got, err := projectTests(ctx, projects, []string{"veyron"})
+	got, err := projectTests(ctx, config, []string{"veyron"})
 	expected := []string{
 		"veyron-go-build",
 		"veyron-go-test",
@@ -29,7 +30,7 @@ func TestProjectTests(t *testing.T) {
 
 	// Get tests for a repo that is NOT in the config file.
 	// This should return empty tests.
-	got, err = projectTests(ctx, projects, []string{"non-exist-repo"})
+	got, err = projectTests(ctx, config, []string{"non-exist-repo"})
 	expected = nil
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
@@ -41,7 +42,7 @@ func TestProjectTests(t *testing.T) {
 
 func TestCreateDepGraph(t *testing.T) {
 	type testCase struct {
-		dep           map[string][]string
+		config        *util.Config
 		tests         []string
 		expectedTests testDepGraph
 		expectDepLoop bool
@@ -49,10 +50,8 @@ func TestCreateDepGraph(t *testing.T) {
 	testCases := []testCase{
 		// A single test without any dependencies.
 		testCase{
-			dep: map[string][]string{
-				"A": []string{},
-			},
-			tests: []string{"A"},
+			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{}})),
+			tests:  []string{"A"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
 					deps:    []string{},
@@ -62,10 +61,8 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> B
 		testCase{
-			dep: map[string][]string{
-				"A": []string{"B"},
-			},
-			tests: []string{"A", "B"},
+			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{"B"}})),
+			tests:  []string{"A", "B"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
 					deps:    []string{"B"},
@@ -79,10 +76,8 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> {B, C, D}
 		testCase{
-			dep: map[string][]string{
-				"A": []string{"B", "C", "D"},
-			},
-			tests: []string{"A", "B", "C", "D"},
+			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{"B", "C", "D"}})),
+			tests:  []string{"A", "B", "C", "D"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
 					deps:    []string{"B", "C", "D"},
@@ -104,7 +99,8 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// Same as above, but "dep" has no data.
 		testCase{
-			tests: []string{"A", "B", "C", "D"},
+			config: util.NewConfig(),
+			tests:  []string{"A", "B", "C", "D"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
 					deps:    []string{},
@@ -126,10 +122,8 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> {B, C, D}, but A is the only given test to resolve dependency for.
 		testCase{
-			dep: map[string][]string{
-				"A": []string{"B", "C", "D"},
-			},
-			tests: []string{"A"},
+			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{"B", "C", "D"}})),
+			tests:  []string{"A"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
 					deps:    []string{},
@@ -139,12 +133,12 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> {B, C, D} -> E
 		testCase{
-			dep: map[string][]string{
+			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{
 				"A": []string{"B", "C", "D"},
 				"B": []string{"E"},
 				"C": []string{"E"},
 				"D": []string{"E"},
-			},
+			})),
 			tests: []string{"A", "B", "C", "D", "E"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
@@ -173,17 +167,17 @@ func TestCreateDepGraph(t *testing.T) {
 		// A -> B
 		// B -> C, C -> B
 		testCase{
-			dep: map[string][]string{
+			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{
 				"A": []string{"B"},
 				"B": []string{"C"},
 				"C": []string{"B"},
-			},
+			})),
 			tests:         []string{"A", "B", "C"},
 			expectDepLoop: true,
 		},
 	}
 	for index, test := range testCases {
-		got, err := createTestDepGraph(test.dep, test.tests)
+		got, err := createTestDepGraph(test.config, test.tests)
 		if test.expectDepLoop {
 			if err == nil {
 				t.Fatalf("test case %d: want errors, got: %v", index, err)

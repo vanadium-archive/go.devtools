@@ -106,11 +106,11 @@ func RunProjectTests(ctx *util.Context, env map[string]string, projects []string
 	testCtx := newTestContext(ctx, env)
 
 	// Parse tests and dependencies from config file.
-	var config util.CommonConfig
+	var config util.Config
 	if err := util.LoadConfig("common", &config); err != nil {
 		return nil, err
 	}
-	tests, err := projectTests(testCtx, config.ProjectTests, projects)
+	tests, err := projectTests(testCtx, &config, projects)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func RunProjectTests(ctx *util.Context, env map[string]string, projects []string
 		return nil, nil
 	}
 	sort.Strings(tests)
-	graph, err := createTestDepGraph(config.TestDependencies, tests)
+	graph, err := createTestDepGraph(&config, tests)
 	if err != nil {
 		return nil, err
 	}
@@ -209,21 +209,20 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult)
 }
 
 // projectTest returns all the tests for the given projects.
-func projectTests(ctx *util.Context, projectsMap map[string][]string, projects []string) ([]string, error) {
-	tests := map[string]struct{}{}
+func projectTests(ctx *util.Context, config *util.Config, projects []string) ([]string, error) {
+	testsSet := map[string]struct{}{}
 	for _, project := range projects {
-		if projectTests, ok := projectsMap[project]; ok {
-			for _, t := range projectTests {
-				tests[t] = struct{}{}
-			}
+		tests := config.ProjectTests(project)
+		for _, test := range tests {
+			testsSet[test] = struct{}{}
 		}
 	}
-	if len(tests) == 0 {
+	if len(testsSet) == 0 {
 		fmt.Fprintf(ctx.Stdout(), "no tests found for projects %v.\n", projects)
 		return nil, nil
 	}
 	sortedTests := []string{}
-	for test := range tests {
+	for test := range testsSet {
 		sortedTests = append(sortedTests, test)
 	}
 	sort.Strings(sortedTests)
@@ -232,20 +231,15 @@ func projectTests(ctx *util.Context, projectsMap map[string][]string, projects [
 
 // createTestDepGraph creates a test dependency graph given a map of
 // dependencies and a list of tests.
-func createTestDepGraph(testDeps map[string][]string, tests []string) (testDepGraph, error) {
+func createTestDepGraph(config *util.Config, tests []string) (testDepGraph, error) {
 	// For the given list of tests, build a map from the test name
 	// to its testInfo object using the dependency data extracted
 	// from the given dependency config data "dep".
 	depGraph := testDepGraph{}
 	for _, test := range tests {
-		depTests := []string{}
-		if deps, ok := testDeps[test]; ok {
-			depTests = deps
-		}
-		// Make sure the tests in depTests are in the given
-		// "tests".
+		// Make sure the test dependencies are included in <tests>.
 		deps := []string{}
-		for _, curDep := range depTests {
+		for _, curDep := range config.TestDependencies(test) {
 			isDepInTests := false
 			for _, test := range tests {
 				if curDep == test {

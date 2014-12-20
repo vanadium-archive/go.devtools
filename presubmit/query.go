@@ -116,12 +116,12 @@ func runQuery(command *cmdline.Command, args []string) error {
 	}
 
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastStatus, err := lastCompletedBuildStatusForProject(presubmitTestJenkinsProjectFlag)
+	lastStatus, err := lastCompletedBuildStatus(presubmitTestFlag)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
 		if lastStatus == "FAILURE" {
-			printf(ctx.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJenkinsProjectFlag)
+			printf(ctx.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestFlag)
 			return nil
 		}
 	}
@@ -428,7 +428,7 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 	}
 
 	// Ongoing presubmit-test builds.
-	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestJenkinsProjectFlag)
+	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestFlag)
 	getLastBuildRes, err := jenkinsAPI(getLastBuildUri, "GET", nil)
 	if err != nil {
 		errs = append(errs, err)
@@ -445,7 +445,7 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 		}
 
 		// Cancel it.
-		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestJenkinsProjectFlag, build.buildNumber)
+		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestFlag, build.buildNumber)
 		cancelOngoingBuildRes, err := jenkinsAPI(cancelOngoingBuildUri, "POST", nil)
 		if err != nil {
 			errs = append(errs, err)
@@ -484,7 +484,7 @@ func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) (_ []queu
 
 	queuedItems := []queuedItem{}
 	for _, item := range items.Items {
-		if item.Task.Name != presubmitTestJenkinsProjectFlag {
+		if item.Task.Name != presubmitTestFlag {
 			continue
 		}
 		// Parse the ref, and append the id/ref of the build
@@ -685,7 +685,7 @@ func addPresubmitTestBuild(cls clList) error {
 		refs = append(refs, cl.Ref)
 		repos = append(repos, cl.Repo)
 	}
-	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestJenkinsProjectFlag)
+	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestFlag)
 	addBuildUrl.RawQuery = url.Values{
 		"token": {jenkinsTokenFlag},
 		"REFS":  {strings.Join(refs, ":")},

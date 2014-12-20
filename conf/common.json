@@ -1,6 +1,8 @@
 {
     "go-repos" : [ "roadmap", "third_party", "veyron" ],
+    "go-workspaces" : [ "roadmap", "third_party", "veyron" ],
     "vdl-repos" : [ "roadmap", "veyron" ],
+    "vdl-workspaces" : [ "roadmap", "veyron" ],
     "project-tests": {
         "https://veyron.googlesource.com/roadmap.go.examples": [
             "veyron-go-build",

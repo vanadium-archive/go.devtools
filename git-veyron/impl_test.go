@@ -120,7 +120,7 @@ func createConfig(t *testing.T, ctx *util.Context, rootDir string) {
 	if err := ctx.Run().MkdirAll(filepath.Dir(configFile), os.FileMode(0755)); err != nil {
 		t.Fatalf("%v", err)
 	}
-	config := util.CommonConfig{}
+	config := util.Config{}
 	data, err := json.Marshal(config)
 	if err != nil {
 		t.Fatalf("%v", err)
