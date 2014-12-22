@@ -1,145 +1,125 @@
 {
-    "go-repos" : [ "roadmap", "third_party", "veyron" ],
-    "go-workspaces" : [ "roadmap", "third_party", "veyron" ],
-    "vdl-repos" : [ "roadmap", "veyron" ],
-    "vdl-workspaces" : [ "roadmap", "veyron" ],
-    "project-tests": {
-        "https://veyron.googlesource.com/roadmap.go.examples": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race",
-            "veyron-integration-test"
-        ],
-        "https://veyron.googlesource.com/roadmap.go.proximity": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race"
-        ],
-        "https://veyron.googlesource.com/roadmap.go.store": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race",
-            "veyron-integration-test"
-        ],
-        "https://veyron.googlesource.com/roadmap.profiles": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race"
-        ],
-        "https://veyron.googlesource.com/third_party": [
-            "third_party-go-build",
-            "third_party-go-test",
-            "third_party-go-race"
-        ],
-        "https://veyron.googlesource.com/veyron-browser": [
-            "veyron-namespace-browser-test"
-        ],
-        "https://veyron.googlesource.com/veyron.go.core": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race",
-            "veyron-javascript-vdl",
-            "veyron-javascript-vom",
-            "veyron-javascript-browser-integration",
-            "veyron-javascript-node-integration",
-            "veyron-namespace-browser-test",
-            "veyron-integration-test",
-            "veyron-javascript-build-extension",
-            "veyron-prod-services-test"
-        ],
-        "https://veyron.googlesource.com/veyron.go.lib": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race"
-        ],
-        "https://veyron.googlesource.com/veyron.go.playground": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race",
-            "veyron-integration-test"
-        ],
-        "https://veyron.googlesource.com/veyron.go.tools": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race",
-            "veyron-javascript-vdl",
-            "veyron-javascript-vom",
-            "veyron-javascript-browser-integration",
-            "veyron-javascript-node-integration",
-            "veyron-namespace-browser-test",
-            "veyron-integration-test",
-            "veyron-javascript-build-extension",
-            "veyron-prod-services-test"
-        ],
-        "https://veyron.googlesource.com/veyron.go.wspr": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race",
-            "veyron-javascript-browser-integration",
-            "veyron-javascript-node-integration",
-            "veyron-namespace-browser-test",
-            "veyron-integration-test",
-            "veyron-javascript-build-extension"
-        ],
-        "https://veyron.googlesource.com/veyron.js": [
-            "veyron-javascript-unit",
-            "veyron-javascript-browser-integration",
-            "veyron-javascript-node-integration",
-            "veyron-namespace-browser-test"
-        ],
-        "https://veyron.googlesource.com/vom.js": [
-            "veyron-javascript-vdl",
-            "veyron-javascript-vom",
-            "veyron-javascript-unit",
-            "veyron-javascript-browser-integration",
-            "veyron-javascript-node-integration",
-            "veyron-namespace-browser-test"
-        ],
-        "https://github.com/veyron/veyron-www": [
-            "veyron-www"
-        ]
-    },
-    "snapshot-label-tests": {
-        "stable-go": [
-            "veyron-go-build",
-            "veyron-go-test",
-            "veyron-go-race"
-        ]
-    },
-    "test-dependencies": {
-        "third_party-go-race": [
-            "third_party-go-test"
-        ],
-        "third_party-go-test": [
-            "third_party-go-build"
-        ],
-        "veyron-android-build": [
-            "veyron-android-build-native"
-        ],
-        "veyron-android-test": [
-            "veyron-android-build"
-        ],
-        "veyron-namespace-browser-test": [
-            "veyron-go-build",
-            "veyron-javascript-browser-integration",
-            "veyron-javascript-node-integration"
-        ],
-        "veyron-go-race": [
-            "veyron-go-test"
-        ],
-        "veyron-go-test": [
-            "veyron-go-build"
-        ],
-        "veyron-javascript-browser-integration": [
-            "veyron-go-build",
-            "veyron-javascript-unit"
-        ],
-        "veyron-javascript-node-integration": [
-            "veyron-go-build",
-            "veyron-javascript-unit"
-        ],
-        "veyron-integration-test": [
-            "veyron-go-build"
-        ]
-    }
+  "go-repos" : [ "roadmap", "third_party", "veyron" ],
+  "go-workspaces" : [ "roadmap", "third_party", "veyron" ],
+  "vdl-repos" : [ "roadmap", "veyron" ],
+  "vdl-workspaces" : [ "roadmap", "veyron" ],
+  "project-tests": {
+    "https://veyron.googlesource.com/roadmap.go.examples": [
+      "go"
+    ],
+    "https://veyron.googlesource.com/roadmap.go.store": [
+      "go"
+    ],
+    "https://veyron.googlesource.com/third_party": [
+      "third_party-go",
+      "go",
+      "javascript",
+      "projects"
+    ],
+    "https://veyron.googlesource.com/veyron-browser": [
+      "veyron-namespace-browser-test"
+    ],
+    "https://veyron.googlesource.com/veyron.go.core": [
+      "go",
+      "javascript",
+      "projects"
+    ],
+    "https://veyron.googlesource.com/veyron.go.lib": [
+      "go",
+      "javascript",
+      "projects"
+    ],
+    "https://veyron.googlesource.com/veyron.go.playground": [
+      "go"
+    ],
+    "https://veyron.googlesource.com/veyron.go.tools": [
+      "go",
+      "javascript",
+      "projects"
+    ],
+    "https://veyron.googlesource.com/veyron.go.wspr": [
+      "go",
+      "javascript",
+      "projects"
+    ],
+    "https://veyron.googlesource.com/veyron.js": [
+      "javascript",
+      "projects"
+    ],
+    "https://veyron.googlesource.com/vom.js": [
+      "javascript",
+      "projects"
+    ],
+    "https://github.com/veyron/veyron-www": [
+      "veyron-www"
+    ]
+  },
+  "snapshot-label-tests": {
+    "stable-go": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race"
+    ]
+  },
+  "test-dependencies": {
+    "third_party-go-race": [
+      "third_party-go-test"
+    ],
+    "third_party-go-test": [
+      "third_party-go-build"
+    ],
+    "veyron-android-build": [
+      "veyron-android-build-native"
+    ],
+    "veyron-android-test": [
+      "veyron-android-build"
+    ],
+    "veyron-namespace-browser-test": [
+      "veyron-go-build",
+      "veyron-javascript-browser-integration",
+      "veyron-javascript-node-integration"
+    ],
+    "veyron-go-race": [
+      "veyron-go-test"
+    ],
+    "veyron-go-test": [
+      "veyron-go-build"
+    ],
+    "veyron-javascript-browser-integration": [
+      "veyron-go-build",
+      "veyron-javascript-unit"
+    ],
+    "veyron-javascript-node-integration": [
+      "veyron-go-build",
+      "veyron-javascript-unit"
+    ],
+    "veyron-integration-test": [
+      "veyron-go-build"
+    ]
+  },
+  "test-groups": {
+    "go": [
+      "veyron-go-build",
+      "veyron-go-test",
+      "veyron-go-race",
+      "veyron-integration-test",
+      "veyron-prod-services-test",
+      "veyron-vdl"
+    ],
+    "javascript": [
+      "veyron-javascript-vdl",
+      "veyron-javascript-vom",
+      "veyron-javascript-browser-integration",
+      "veyron-javascript-node-integration",
+      "veyron-javascript-build-extension"
+    ],
+    "projects": [
+      "veyron-namespace-browser-test"
+    ],
+    "third_party-go": [
+      "third_party-go-build",
+      "third_party-go-test",
+      "third_party-go-race"
+    ]
+  }
 }
