@@ -28,11 +28,12 @@ var (
 
 	// A root test watches changes and triggers other tests.
 	defaultRootTests = map[string]struct{}{
-		"veyron-go-build":                       struct{}{},
 		"third_party-go-build":                  struct{}{},
+		"veyron-go-build":                       struct{}{},
 		"veyron-javascript-browser-integration": struct{}{},
 		"veyron-javascript-build-extension":     struct{}{},
 		"veyron-javascript-node-integration":    struct{}{},
+		"veyron-www":                            struct{}{},
 	}
 )
 

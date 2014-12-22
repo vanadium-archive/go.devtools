@@ -82,6 +82,7 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"veyron-javascript-unit":                veyronJSUnit,
 	"veyron-javascript-vdl":                 veyronJSVdl,
 	"veyron-javascript-vom":                 veyronJSVom,
+	"veyron-postsubmit-poll":                veyronPostsubmitPoll,
 	"veyron-presubmit-poll":                 veyronPresubmitPoll,
 	"veyron-presubmit-test":                 veyronPresubmitTest,
 	"veyron-prod-services-test":             veyronProdServicesTest,
