@@ -26,7 +26,7 @@ var (
 	noColorFlag      bool
 	verboseFlag      bool
 
-	// A root test watches changes and triggers other tests.
+	// A root test watches changes and triggers other Jenkins targets.
 	defaultRootTests = map[string]struct{}{
 		"third_party-go-build":                  struct{}{},
 		"veyron-go-build":                       struct{}{},
