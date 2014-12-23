@@ -189,9 +189,10 @@ func startJenkinsTests(ctx *util.Context, tests []string) error {
 	if err != nil {
 		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
+	basePath := jenkinsUrl.Path
 	for _, test := range tests {
 		addBuildUrl := jenkinsUrl
-		addBuildUrl.Path = fmt.Sprintf("%s/job/%s/build", jenkinsUrl.Path, test)
+		addBuildUrl.Path = fmt.Sprintf("%s/job/%s/build", basePath, test)
 		addBuildUrl.RawQuery = urlParam
 		resp, err := http.Get(addBuildUrl.String())
 		msg := fmt.Sprintf("add build to %q\n", test)
