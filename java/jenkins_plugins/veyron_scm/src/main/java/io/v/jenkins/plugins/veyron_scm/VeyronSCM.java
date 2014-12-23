@@ -52,6 +52,11 @@ public class VeyronSCM extends SCM {
   private static final int VEYRON_MIN_VERSION = 355;
 
   /**
+   * Number of times to attempt "veyron update" command.
+   */
+  private static final int VEYRON_UPDATE_ATTEMPTS = 3;
+
+  /**
    * This field will automatically get the content of the VEYRON_ROOT text field in the UI.
    *
    * See: resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM/config.jelly.
@@ -261,14 +266,21 @@ public class VeyronSCM extends SCM {
     // Run "veyron update -manifest=<manifest>".
     List<String> updateCommandAndArgs = new ArrayList<String>(
         Arrays.asList(veyronBin, "update", String.format("-manifest=%s", manifestInput), "-gc"));
-    cr = runCommand(workspaceDir,
-        launcher,
-        listener,
-        true,
-        updateCommandAndArgs,
-        build.getEnvironment(listener));
+    for (int i = 0; i < VEYRON_UPDATE_ATTEMPTS; i++) {
+      printf(listener, String.format("Attempt #%d:\n", i + 1));
+      cr = runCommand(workspaceDir,
+          launcher,
+          listener,
+          true,
+          updateCommandAndArgs,
+          build.getEnvironment(listener));
+      if (cr.getExitCode() != 0) {
+        printf(listener, "Update command \"%s\" failed.\n", getCommand(updateCommandAndArgs));
+      } else {
+        break;
+      }
+    }
     if (cr.getExitCode() != 0) {
-      printf(listener, "Update command \"%s\" failed.\n", getCommand(updateCommandAndArgs));
       return false;
     }
 
