@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -55,6 +56,11 @@ public class VeyronSCM extends SCM {
    * Number of times to attempt "veyron update" command.
    */
   private static final int VEYRON_UPDATE_ATTEMPTS = 3;
+
+  /**
+   * Global command timeout in minutes.
+   */
+  private static final int CMD_TIMEOUT_MINUTES = 10;
 
   /**
    * This field will automatically get the content of the VEYRON_ROOT text field in the UI.
@@ -421,7 +427,7 @@ public class VeyronSCM extends SCM {
         stderrLines.add(line);
       }
       bre.close();
-      exitCode = proc.join();
+      exitCode = proc.joinWithTimeout(CMD_TIMEOUT_MINUTES, TimeUnit.MINUTES, listener);
     } catch (Exception e) {
       e.printStackTrace(listener.getLogger());
     }
