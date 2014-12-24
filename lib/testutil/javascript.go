@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"bytes"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -42,12 +44,26 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	}
 
 	// Run the test target.
+	var stderr bytes.Buffer
+	opts.Stderr = &stderr
 	if err := ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &TestResult{
 				Status:       TestTimedOut,
 				TimeoutValue: defaultJSTestTimeout,
 			}, nil
+		}
+		// Generate an xunit report if none exists.
+		// This can happen when errors are not in javascript tests themselves.
+		xunitFilePath := XUnitReportPath(testName)
+		if _, err := os.Stat(xunitFilePath); err != nil {
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+			s := createTestSuiteWithFailure(testName, "Test", "failure", stderr.String(), 0)
+			if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+				return nil, err
+			}
 		}
 		return &TestResult{Status: TestFailed}, nil
 	}

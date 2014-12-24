@@ -77,6 +77,11 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 		}
 	}
 
+	// Remove xunit test report file.
+	if err := ctx.Run().RemoveAll(XUnitReportPath(testName)); err != nil {
+		return nil, err
+	}
+
 	return func() error {
 		return ctx.Run().Chdir(cwd)
 	}, nil
