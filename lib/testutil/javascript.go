@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -45,8 +46,10 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 
 	// Run the test target.
 	var stderr bytes.Buffer
+	opts = ctx.Run().Opts()
 	opts.Stderr = &stderr
 	if err := ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
+		fmt.Fprintf(ctx.Stderr(), "Stderr:\n%s\n", stderr.String())
 		if err == runutil.CommandTimedOutErr {
 			return &TestResult{
 				Status:       TestTimedOut,
