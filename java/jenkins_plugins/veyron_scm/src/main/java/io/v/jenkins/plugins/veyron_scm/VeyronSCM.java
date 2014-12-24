@@ -2,6 +2,7 @@ package io.v.jenkins.plugins.veyron_scm;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.FileFileFilter;
+import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -14,7 +15,6 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Launcher.ProcStarter;
-import hudson.Proc;
 import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 import hudson.model.AbstractBuild;
@@ -25,12 +25,13 @@ import hudson.scm.PollingResult.Change;
 import hudson.scm.SCMDescriptor;
 import hudson.scm.SCMRevisionState;
 import hudson.scm.SCM;
+import hudson.util.ForkOutputStream;
 import hudson.util.FormValidation;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -80,22 +81,16 @@ public class VeyronSCM extends SCM {
    * A wrapper class for storing result data of a command run.
    */
   private static final class CommandResult {
-    private List<String> stdoutLines;
-    private List<String> stderrLines;
-    private int exitCode;
+    private final String stdout;
+    private final int exitCode;
 
-    public CommandResult(List<String> stdoutLines, List<String> stderrLines, int exitCode) {
-      this.stdoutLines = stdoutLines;
-      this.stderrLines = stderrLines;
+    public CommandResult(String stdout, int exitCode) {
+      this.stdout = stdout;
       this.exitCode = exitCode;
     }
 
     public String getStdout() {
-      return StringUtils.join(stdoutLines.toArray(), "\n");
-    }
-
-    public String getStderr() {
-      return StringUtils.join(stderrLines.toArray(), "\n");
+      return stdout;
     }
 
     public int getExitCode() {
@@ -194,11 +189,7 @@ public class VeyronSCM extends SCM {
         String.format("-manifest=%s", manifestInput), "poll", jobName));
     List<String> checkVeyronVersionCommandAndArgs =
         new ArrayList<String>(Arrays.asList(veyronBin, "version"));
-    CommandResult cr = runCommand(workspaceDir,
-        launcher,
-        listener,
-        true,
-        checkVeyronVersionCommandAndArgs,
+    CommandResult cr = runCommand(workspaceDir, launcher, true, checkVeyronVersionCommandAndArgs,
         lastBuild.getEnvironment(listener));
     if (cr.getExitCode() == 0) {
       String[] parts = cr.getStdout().split(" ");
@@ -213,18 +204,11 @@ public class VeyronSCM extends SCM {
         pollCommandAndArgs =
             new ArrayList<String>(Arrays.asList(veyronBin, "project", "poll", jobName));
       }
-    } else {
-      printf(listener, "command \"%s\" failed.\n", getCommand(checkVeyronVersionCommandAndArgs));
     }
 
-    cr = runCommand(workspaceDir,
-        launcher,
-        listener,
-        true,
-        pollCommandAndArgs,
+    cr = runCommand(workspaceDir, launcher, true, pollCommandAndArgs,
         lastBuild.getEnvironment(listener));
     if (cr.getExitCode() != 0) {
-      printf(listener, "Polling command \"%s\" failed.\n", getCommand(pollCommandAndArgs));
       return new PollingResult(Change.NONE);
     }
 
@@ -243,14 +227,9 @@ public class VeyronSCM extends SCM {
     String home = build.getEnvironment(listener).get("HOME");
     List<String> initVeyronCommandAndArgs =
         new ArrayList<String>(Arrays.asList(joinPath(home, "scripts", "init-veyron.sh")));
-    CommandResult cr = runCommand(workspaceDir,
-        launcher,
-        listener,
-        true,
-        initVeyronCommandAndArgs,
+    CommandResult cr = runCommand(workspaceDir, launcher, true, initVeyronCommandAndArgs,
         build.getEnvironment(listener));
     if (cr.getExitCode() != 0) {
-      printf(listener, "Init veyron script \"%s\" failed.\n", getCommand(initVeyronCommandAndArgs));
       return false;
     }
 
@@ -258,14 +237,9 @@ public class VeyronSCM extends SCM {
     String veyronBin = getVeyronBin(workspaceDir);
     List<String> distcleanCommandAndArgs =
         new ArrayList<String>(Arrays.asList(veyronBin, "goext", "distclean"));
-    cr = runCommand(workspaceDir,
-        launcher,
-        listener,
-        true,
-        distcleanCommandAndArgs,
+    cr = runCommand(workspaceDir, launcher, true, distcleanCommandAndArgs,
         build.getEnvironment(listener));
     if (cr.getExitCode() != 0) {
-      printf(listener, "Command \"%s\" failed.\n", getCommand(distcleanCommandAndArgs));
       return false;
     }
 
@@ -274,15 +248,9 @@ public class VeyronSCM extends SCM {
         Arrays.asList(veyronBin, "update", String.format("-manifest=%s", manifestInput), "-gc"));
     for (int i = 0; i < VEYRON_UPDATE_ATTEMPTS; i++) {
       printf(listener, String.format("Attempt #%d:\n", i + 1));
-      cr = runCommand(workspaceDir,
-          launcher,
-          listener,
-          true,
-          updateCommandAndArgs,
+      cr = runCommand(workspaceDir, launcher, true, updateCommandAndArgs,
           build.getEnvironment(listener));
-      if (cr.getExitCode() != 0) {
-        printf(listener, "Update command \"%s\" failed.\n", getCommand(updateCommandAndArgs));
-      } else {
+      if (cr.getExitCode() == 0) {
         break;
       }
     }
@@ -327,14 +295,9 @@ public class VeyronSCM extends SCM {
           "--no-merges",
           "--no-abbrev",
           String.format("%s..master", snapshot.getRevision())));
-      cr = runCommand(workspaceDir,
-          launcher,
-          listener,
-          false,
-          gitLogCommandAndArgs,
+      cr = runCommand(workspaceDir, launcher, false, gitLogCommandAndArgs,
           build.getEnvironment(listener));
       if (cr.getExitCode() != 0) {
-        printf(listener, "\"%s\" failed.\n%s\n", getCommand(gitLogCommandAndArgs), cr.getStderr());
         continue;
       }
       String commitRaw = cr.getStdout();
@@ -350,15 +313,9 @@ public class VeyronSCM extends SCM {
     String buildCopLDAP = "";
     List<String> buildCopCommandAndArgs =
         new ArrayList<String>(Arrays.asList(veyronBin, "buildcop"));
-    cr = runCommand(workspaceDir,
-        launcher,
-        listener,
-        false,
-        buildCopCommandAndArgs,
+    cr = runCommand(workspaceDir, launcher, false, buildCopCommandAndArgs,
         build.getEnvironment(listener));
-    if (cr.getExitCode() != 0) {
-      printf(listener, "Command \"%s\" failed.\n", getCommand(buildCopCommandAndArgs));
-    } else {
+    if (cr.getExitCode() == 0) {
       buildCopLDAP = cr.getStdout();
     }
     build.addAction(new VeyronBuildData(buildCopLDAP, snapshots));
@@ -393,45 +350,46 @@ public class VeyronSCM extends SCM {
     }
   }
 
-  private CommandResult runCommand(String workspaceDir,
-      Launcher launcher,
-      TaskListener listener,
-      boolean verbose,
-      List<String> commandAndArgs,
-      Map<String, String> env) {
-    List<String> stdoutLines = new ArrayList<String>();
-    List<String> stderrLines = new ArrayList<String>();
+  private CommandResult runCommand(String workspaceDir, Launcher launcher, boolean verbose,
+      List<String> commandAndArgs, Map<String, String> env) {
+    String stdout = "";
+    String stderr = "";
     int exitCode = -1;
+    TaskListener listener = launcher.getListener();
     if (verbose) {
       printf(listener, "Running command: %s.\n", getCommand(commandAndArgs));
     }
     try {
-      ProcStarter ps = launcher.new ProcStarter();
       env.put("VEYRON_ROOT", getVeyronRoot(workspaceDir));
-      ps.envs(env).cmds(commandAndArgs).pwd(workspaceDir).quiet(true).readStdout().readStderr();
-      Proc proc = launcher.launch(ps);
-      BufferedReader bri = new BufferedReader(new InputStreamReader(proc.getStdout()));
-      BufferedReader bre = new BufferedReader(new InputStreamReader(proc.getStderr()));
-      String line;
-      while ((line = bri.readLine()) != null) {
-        if (verbose) {
-          printf(listener, "%s\n", line);
-        }
-        stdoutLines.add(line);
-      }
-      bri.close();
-      while ((line = bre.readLine()) != null) {
-        if (verbose) {
-          printf(listener, "%s\n", line);
-        }
-        stderrLines.add(line);
-      }
-      bre.close();
-      exitCode = proc.joinWithTimeout(CMD_TIMEOUT_MINUTES, TimeUnit.MINUTES, listener);
+      ByteArrayOutputStream bosStdout = new ByteArrayOutputStream();
+      ByteArrayOutputStream bosStderr = new ByteArrayOutputStream();
+      OutputStream osStdout = new ForkOutputStream(
+          verbose ? listener.getLogger() : NullOutputStream.NULL_OUTPUT_STREAM, bosStdout);
+      OutputStream osStderr = new ForkOutputStream(
+          verbose ? listener.getLogger() : NullOutputStream.NULL_OUTPUT_STREAM, bosStderr);
+      ProcStarter ps = launcher
+          .launch()
+          .envs(env)
+          .cmds(commandAndArgs)
+          .pwd(workspaceDir)
+          .quiet(true)
+          .stdout(osStdout)
+          .stderr(osStderr);
+      exitCode = ps.start().joinWithTimeout(CMD_TIMEOUT_MINUTES, TimeUnit.MINUTES, listener);
+      stdout = bosStdout.toString();
+      stderr = bosStderr.toString();
+      bosStdout.close();
+      bosStderr.close();
     } catch (Exception e) {
       e.printStackTrace(listener.getLogger());
     }
-    return new CommandResult(stdoutLines, stderrLines, exitCode);
+    if (exitCode != 0) {
+      printf(listener, "Command '%s' failed.\n", getCommand(commandAndArgs));
+      if (!verbose) {
+        printf(listener, "%s\n%s\n", stdout, stderr);
+      }
+    }
+    return new CommandResult(stdout, exitCode);
   }
 
   /**
