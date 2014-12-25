@@ -4,7 +4,7 @@ package test1
 
 import (
 	"fmt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vlog"
 )
 
 type Type1 struct{}

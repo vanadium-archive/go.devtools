@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"veyron.io/tools/lib/gerrit"
-	"veyron.io/tools/lib/gitutil"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/gerrit"
+	"v.io/tools/lib/gitutil"
+	"v.io/tools/lib/util"
 )
 
 // assertCommitCount asserts that the commit count between two
@@ -131,7 +131,7 @@ func createConfig(t *testing.T, ctx *util.Context, rootDir string) {
 }
 
 func createTestGoDependencyPackages(t *testing.T, ctx *util.Context, rootDir string) {
-	fooDir := filepath.Join(rootDir, "src", "veyron.io", "foo")
+	fooDir := filepath.Join(rootDir, "src", "v.io", "foo")
 	if err := ctx.Run().MkdirAll(fooDir, os.FileMode(0755)); err != nil {
 		t.Fatalf("MkdirAll(%v) failed: %v", fooDir, err)
 	}
@@ -148,14 +148,14 @@ func Foo() string {
 	if err := ctx.Git().CommitFile(fooFile, "commit foo.go"); err != nil {
 		t.Fatalf("%v", err)
 	}
-	barDir := filepath.Join(rootDir, "src", "veyron.io", "bar")
+	barDir := filepath.Join(rootDir, "src", "v.io", "bar")
 	if err := ctx.Run().MkdirAll(barDir, os.FileMode(0755)); err != nil {
 		t.Fatalf("MkdirAll(%v) failed: %v", barDir, err)
 	}
 	barFile := filepath.Join(barDir, "bar.go")
 	barData := `package bar
 
-import "veyron.io/foo"
+import "v.io/foo"
 
 func Bar() string {
 	return foo.Foo()
@@ -170,7 +170,7 @@ func Bar() string {
 }
 
 func createTestGoDependencyConstraint(t *testing.T, ctx *util.Context, rootDir, command string) {
-	depFile := filepath.Join(rootDir, "src", "veyron.io", "foo", "GO.PACKAGE")
+	depFile := filepath.Join(rootDir, "src", "v.io", "foo", "GO.PACKAGE")
 	depData := `{
   "dependencies": {
     "incoming": [

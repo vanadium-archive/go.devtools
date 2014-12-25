@@ -3,9 +3,9 @@ package testutil
 import (
 	"path/filepath"
 
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/runutil"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/runutil"
+	"v.io/tools/lib/util"
 )
 
 // veyronTutorial runs the veyron tutorial examples.

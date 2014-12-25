@@ -11,10 +11,10 @@ import (
 	"sort"
 	"strings"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/tools/lib/testutil"
-	"veyron.io/tools/lib/util"
-	"veyron.io/tools/lib/version"
+	"v.io/lib/cmdline"
+	"v.io/tools/lib/testutil"
+	"v.io/tools/lib/util"
+	"v.io/tools/lib/version"
 )
 
 var (

@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/gitutil"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/gitutil"
+	"v.io/tools/lib/util"
 )
 
 var (

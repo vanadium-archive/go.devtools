@@ -5,7 +5,7 @@
 // pointer.
 package test6
 
-import "veyron.io/veyron/veyron2/vlog"
+import "v.io/veyron/veyron2/vlog"
 
 type Type struct{}
 

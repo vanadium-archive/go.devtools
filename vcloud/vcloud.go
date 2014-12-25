@@ -1,5 +1,5 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/veyron/go/src/veyron.io/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $VANADIUM_ROOT/veyron/go/src/v.io/lib/cmdline/testdata/gendoc.go .
 package main
 
 import (
@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/runutil"
+	"v.io/lib/cmdline"
+	"v.io/tools/lib/envutil"
+	"v.io/tools/lib/runutil"
 )
 
 // TODO(toddw): Add tests by mocking out gcloud.

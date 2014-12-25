@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/util"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
@@ -23,7 +23,7 @@ const (
 	// log package is imported.
 	logPackageIdentifier = "vlog"
 	// logPackageImportPath is the import path for the log package.
-	logPackageImportPath = "veyron.io/veyron/veyron2/vlog"
+	logPackageImportPath = "v.io/veyron/veyron2/vlog"
 	// logCallFuncName is the name of the default logging function.
 	logCallFuncName = "LogCall"
 	// logCallfFuncName is the name of the formattable logging function.

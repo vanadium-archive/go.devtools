@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/util"
 )
 
 // veyronVDL checks that all VDL-based Go source files are up-to-date.
@@ -21,7 +21,7 @@ func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	// Install the vdl tool.
 	opts := ctx.Run().Opts()
 	opts.Env["GOPATH"] = filepath.Join(root, "veyron", "go")
-	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "veyron.io/veyron/veyron2/vdl/vdl"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/veyron/veyron2/vdl/vdl"); err != nil {
 		return nil, err
 	}
 

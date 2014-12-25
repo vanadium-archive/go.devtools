@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/util"
 )
 
 type TestStatus int

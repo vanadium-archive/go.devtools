@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/util"
 )
 
 func TestParseQueryResults(t *testing.T) {

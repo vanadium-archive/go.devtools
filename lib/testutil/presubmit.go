@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/util"
 )
 
 var (

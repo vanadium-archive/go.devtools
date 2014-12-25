@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/util"
 )
 
 func TestParseRefsAndRepos(t *testing.T) {
@@ -137,14 +137,14 @@ func TestGenFailedTestLinks(t *testing.T) {
   <testsuite name="ts1" tests="4" errors="2" failures="2" skip="0">
     <testcase classname="c1.n" name="n1" time="0">
 		  <failure message="error">
-# veyron.io/tools/presubmit
-veyron/go/src/veyron.io/tools/presubmit/main.go:106: undefined: test
+# v.io/tools/presubmit
+veyron/go/src/v.io/tools/presubmit/main.go:106: undefined: test
 		  </failure>
     </testcase>
     <testcase classname="c2.n" name="n2" time="0">
 		  <failure message="error">
-# veyron.io/tools/veyron
-veyron/go/src/veyron.io/tools/veyron/main.go:1: you should feel bad
+# v.io/tools/veyron
+veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
 		  </failure>
     </testcase>
     <testcase classname="c3.n" name="n3" time="0">
@@ -155,8 +155,8 @@ veyron/go/src/veyron.io/tools/veyron/main.go:1: you should feel bad
     </testcase>
     <testcase classname="go.veyron.abc" name="n5" time="0">
 		  <failure message="error">
-# veyron.io/tools/veyron
-veyron/go/src/veyron.io/tools/veyron/main.go:1: you should feel bad
+# v.io/tools/veyron
+veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
 		  </failure>
     </testcase>
   </testsuite>

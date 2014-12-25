@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/runutil"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/runutil"
+	"v.io/tools/lib/util"
 )
 
 const (

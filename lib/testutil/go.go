@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/envutil"
+	"v.io/tools/lib/util"
 )
 
 type taskStatus int
@@ -727,7 +727,7 @@ func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronGoBench runs Go benchmarks for veyron projects.
 func veyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"veyron.io/..."}
+	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth", "-bench", ".", "-run", "XXX"})
 	profiles := profilesOpt([]string{"proximity"})
 	return goTest(ctx, testName, pkgs, args, profiles)
@@ -735,7 +735,7 @@ func veyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronGoBuild runs Go build for the veyron projects.
 func veyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"veyron.io/..."}
+	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
 	return goBuild(ctx, testName, pkgs, args, profiles)
@@ -743,7 +743,7 @@ func veyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronGoCoverage runs Go coverage tests for veyron projects.
 func veyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"veyron.io/..."}
+	pkgs := []string{"v.io/..."}
 	profiles := profilesOpt([]string{"proximity"})
 	return goCoverage(ctx, testName, pkgs, profiles)
 }
@@ -812,7 +812,7 @@ func veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
 
 // veyronGoTest runs Go tests for veyron projects.
 func veyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"veyron.io/..."}
+	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
 	suffix := suffixOpt(" [GoTest]")
@@ -821,7 +821,7 @@ func veyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronGoRace runs Go data-race tests for veyron projects.
 func veyronGoRace(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"veyron.io/..."}
+	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-race", "-tags", "veyronbluetooth"})
 	profiles := profilesOpt([]string{"proximity"})
 	timeout := timeoutOpt("7m")

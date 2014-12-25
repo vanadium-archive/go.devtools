@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/util"
 )
 
 func init() {
@@ -116,10 +116,10 @@ var (
 	wantBuild = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "veyron.io/tools/lib/testutil/testdata/foo",
+				Name: "v.io/tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "veyron.io/tools/lib/testutil/testdata/foo",
+						Classname: "v.io/tools/lib/testutil/testdata/foo",
 						Name:      "Build",
 					},
 				},
@@ -130,10 +130,10 @@ var (
 	wantTest = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "veyron.io/tools/lib/testutil/testdata/foo",
+				Name: "v.io/tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "veyron.io/tools/lib/testutil/testdata/foo",
+						Classname: "v.io/tools/lib/testutil/testdata/foo",
 						Name:      "TestFoo",
 					},
 				},
@@ -144,10 +144,10 @@ var (
 	wantTestWithTestCaseSuffix = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "veyron.io/tools/lib/testutil/testdata/foo",
+				Name: "v.io/tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "veyron.io/tools/lib/testutil/testdata/foo",
+						Classname: "v.io/tools/lib/testutil/testdata/foo",
 						Name:      "TestFoo [GoRace]",
 					},
 				},
@@ -160,14 +160,14 @@ var (
 		BranchRate: 0,
 		Packages: []testCoveragePkg{
 			testCoveragePkg{
-				Name:       "veyron.io/tools/lib/testutil/testdata/foo",
+				Name:       "v.io/tools/lib/testutil/testdata/foo",
 				LineRate:   0,
 				BranchRate: 0,
 				Complexity: 0,
 				Classes: []testCoverageClass{
 					testCoverageClass{
 						Name:       "-",
-						Filename:   "veyron.io/tools/lib/testutil/testdata/foo/foo.go",
+						Filename:   "v.io/tools/lib/testutil/testdata/foo/foo.go",
 						LineRate:   0,
 						BranchRate: 0,
 						Complexity: 0,
@@ -196,7 +196,7 @@ func TestGoBuild(t *testing.T) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
-	testName, pkgName := "test-go-build", "veyron.io/tools/lib/testutil/testdata/foo"
+	testName, pkgName := "test-go-build", "v.io/tools/lib/testutil/testdata/foo"
 	result, err := goBuild(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -226,7 +226,7 @@ func TestGoCoverage(t *testing.T) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
-	testName, pkgName := "test-go-coverage", "veyron.io/tools/lib/testutil/testdata/foo"
+	testName, pkgName := "test-go-coverage", "v.io/tools/lib/testutil/testdata/foo"
 	result, err := goCoverage(ctx, testName, []string{pkgName})
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -278,7 +278,7 @@ func runGoTest(t *testing.T, testCaseNameSuffix string, expectedTestSuite testSu
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
-	testName, pkgName := "test-go-test", "veyron.io/tools/lib/testutil/testdata/foo"
+	testName, pkgName := "test-go-test", "v.io/tools/lib/testutil/testdata/foo"
 	result, err := goTest(ctx, testName, []string{pkgName}, suffixOpt(testCaseNameSuffix))
 	if err != nil {
 		t.Fatalf("%v", err)

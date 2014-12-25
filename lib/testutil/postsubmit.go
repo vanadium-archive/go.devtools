@@ -1,8 +1,8 @@
 package testutil
 
 import (
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/util"
 )
 
 // veyronPostsubmitPoll polls for new changes in all projects' master branches,

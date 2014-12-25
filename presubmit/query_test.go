@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/tools/lib/gerrit"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/gerrit"
+	"v.io/tools/lib/util"
 )
 
 func TestMultiPartCLSet(t *testing.T) {

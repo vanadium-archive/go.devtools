@@ -9,12 +9,12 @@ import (
 	"regexp"
 	"strings"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/gerrit"
-	"veyron.io/tools/lib/gitutil"
-	"veyron.io/tools/lib/util"
-	"veyron.io/tools/lib/version"
+	"v.io/lib/cmdline"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/gerrit"
+	"v.io/tools/lib/gitutil"
+	"v.io/tools/lib/util"
+	"v.io/tools/lib/version"
 )
 
 const commitMessageFile = ".gerrit_commit_message"
@@ -349,7 +349,7 @@ func (r *review) checkGoDependencies() error {
 	opts := r.ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := r.ctx.Run().CommandWithOpts(opts, "v23", "go", "list", "veyron.io/..."); err != nil {
+	if err := r.ctx.Run().CommandWithOpts(opts, "v23", "go", "list", "v.io/..."); err != nil {
 		fmt.Println(out.String())
 		return err
 	}

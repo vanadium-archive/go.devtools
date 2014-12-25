@@ -62,16 +62,16 @@ type dependencyRuleTest struct {
 
 func TestVerifyDependency(t *testing.T) {
 	var packageTests = []packageTest{
-		{"veyron.io/tools/go-depcop/testdata/test-a", false},
-		{"veyron.io/tools/go-depcop/testdata/test-b", true},
-		{"veyron.io/tools/go-depcop/testdata/test-c", true},
-		{"veyron.io/tools/go-depcop/testdata/test-c/child", false},
-		{"veyron.io/tools/go-depcop/testdata/import-C", false},
-		{"veyron.io/tools/go-depcop/testdata/import-unsafe", false},
-		{"veyron.io/tools/go-depcop/testdata/test-internal", false},
-		{"veyron.io/tools/go-depcop/testdata/test-internal/child", false},
-		{"veyron.io/tools/go-depcop/testdata/test-internal/internal/child", false},
-		{"veyron.io/tools/go-depcop/testdata/test-internal-fail", true},
+		{"v.io/tools/go-depcop/testdata/test-a", false},
+		{"v.io/tools/go-depcop/testdata/test-b", true},
+		{"v.io/tools/go-depcop/testdata/test-c", true},
+		{"v.io/tools/go-depcop/testdata/test-c/child", false},
+		{"v.io/tools/go-depcop/testdata/import-C", false},
+		{"v.io/tools/go-depcop/testdata/import-unsafe", false},
+		{"v.io/tools/go-depcop/testdata/test-internal", false},
+		{"v.io/tools/go-depcop/testdata/test-internal/child", false},
+		{"v.io/tools/go-depcop/testdata/test-internal/internal/child", false},
+		{"v.io/tools/go-depcop/testdata/test-internal-fail", true},
 	}
 
 	for _, test := range packageTests {
@@ -123,7 +123,7 @@ func TestComputeIncomingDependency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
-	this, that := "veyron.io/tools/lib/version", "veyron.io/tools/go-depcop"
+	this, that := "v.io/tools/lib/version", "v.io/tools/go-depcop"
 	if deps, ok := allDeps[this]; !ok {
 		t.Fatalf("no incoming dependencies for %v", this)
 	} else {

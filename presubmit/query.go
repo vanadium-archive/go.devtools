@@ -14,10 +14,10 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/gerrit"
-	"veyron.io/tools/lib/util"
+	"v.io/lib/cmdline"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/gerrit"
+	"v.io/tools/lib/util"
 )
 
 type clList []gerrit.QueryResult

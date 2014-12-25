@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/tools/lib/collect"
-	"veyron.io/tools/lib/envutil"
-	"veyron.io/tools/lib/util"
+	"v.io/tools/lib/collect"
+	"v.io/tools/lib/envutil"
+	"v.io/tools/lib/util"
 )
 
 const (
@@ -24,27 +24,27 @@ const (
 // TODO(jingjin): port the integration test scripts from shell to Go
 // and make them use a build cache to share binaries.
 var binPackages = []string{
-	"veyron.io/apps/tunnel/tunneld",
-	"veyron.io/apps/tunnel/vsh",
-	"veyron.io/playground/builder",
-	"veyron.io/veyron/veyron/security/agent/agentd",
-	"veyron.io/veyron/veyron/security/agent/pingpong",
-	"veyron.io/veyron/veyron/services/mgmt/application/applicationd",
-	"veyron.io/veyron/veyron/services/mgmt/binary/binaryd",
-	"veyron.io/veyron/veyron/services/mgmt/build/buildd",
-	"veyron.io/veyron/veyron/services/mgmt/profile/profiled",
-	"veyron.io/veyron/veyron/services/mounttable/mounttabled",
-	"veyron.io/veyron/veyron/services/proxy/proxyd",
-	"veyron.io/veyron/veyron/tools/application",
-	"veyron.io/veyron/veyron/tools/binary",
-	"veyron.io/veyron/veyron/tools/build",
-	"veyron.io/veyron/veyron/tools/debug",
-	"veyron.io/veyron/veyron/tools/mounttable",
-	"veyron.io/veyron/veyron/tools/principal",
-	"veyron.io/veyron/veyron/tools/profile",
-	"veyron.io/veyron/veyron/tools/naming/simulator",
-	"veyron.io/veyron/veyron2/vdl/vdl",
-	"veyron.io/wspr/veyron/services/wsprd",
+	"v.io/apps/tunnel/tunneld",
+	"v.io/apps/tunnel/vsh",
+	"v.io/playground/builder",
+	"v.io/veyron/veyron/security/agent/agentd",
+	"v.io/veyron/veyron/security/agent/pingpong",
+	"v.io/veyron/veyron/services/mgmt/application/applicationd",
+	"v.io/veyron/veyron/services/mgmt/binary/binaryd",
+	"v.io/veyron/veyron/services/mgmt/build/buildd",
+	"v.io/veyron/veyron/services/mgmt/profile/profiled",
+	"v.io/veyron/veyron/services/mounttable/mounttabled",
+	"v.io/veyron/veyron/services/proxy/proxyd",
+	"v.io/veyron/veyron/tools/application",
+	"v.io/veyron/veyron/tools/binary",
+	"v.io/veyron/veyron/tools/build",
+	"v.io/veyron/veyron/tools/debug",
+	"v.io/veyron/veyron/tools/mounttable",
+	"v.io/veyron/veyron/tools/principal",
+	"v.io/veyron/veyron/tools/profile",
+	"v.io/veyron/veyron/tools/naming/simulator",
+	"v.io/veyron/veyron2/vdl/vdl",
+	"v.io/wspr/veyron/services/wsprd",
 }
 
 // buildBinaries builds Go binaries enumerated by the binPackages list.
@@ -209,7 +209,7 @@ func integrationTestWorker(ctx *util.Context, root string, env map[string]string
 		start := time.Now()
 		var args []string
 		pkgName := strings.TrimPrefix(path.Dir(script), root)
-		if index := strings.Index(pkgName, "veyron.io"); index != -1 {
+		if index := strings.Index(pkgName, "v.io"); index != -1 {
 			pkgName = pkgName[index:]
 		}
 		result := testResult{}
