@@ -64,7 +64,7 @@ public class VeyronSCM extends SCM {
   private static final int CMD_TIMEOUT_MINUTES = 10;
 
   /**
-   * This field will automatically get the content of the VEYRON_ROOT text field in the UI.
+   * This field will automatically get the content of the VANADIUM_ROOT text field in the UI.
    *
    * See: resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM/config.jelly.
    */
@@ -344,7 +344,7 @@ public class VeyronSCM extends SCM {
      */
     public FormValidation doCheckVeyronRootInput(@QueryParameter String value) {
       if (value.isEmpty()) {
-        return FormValidation.error("VEYRON_ROOT cannot be empty.");
+        return FormValidation.error("VANADIUM_ROOT cannot be empty.");
       }
       return FormValidation.ok();
     }
@@ -360,7 +360,7 @@ public class VeyronSCM extends SCM {
       printf(listener, "Running command: %s.\n", getCommand(commandAndArgs));
     }
     try {
-      env.put("VEYRON_ROOT", getVeyronRoot(workspaceDir));
+      env.put("VANADIUM_ROOT", getVeyronRoot(workspaceDir));
       ByteArrayOutputStream bosStdout = new ByteArrayOutputStream();
       ByteArrayOutputStream bosStderr = new ByteArrayOutputStream();
       OutputStream osStdout = new ForkOutputStream(
@@ -393,7 +393,7 @@ public class VeyronSCM extends SCM {
   }
 
   /**
-   * Gets the latest snapshot file from $VEYRON_ROOT/.update_history directory.
+   * Gets the latest snapshot file from $VANADIUM_ROOT/.update_history directory.
    */
   private FilePath getLatestSnapshotFile(FilePath workspace, TaskListener listener) {
     FilePath updateHistoryDir = new FilePath(workspace.getChannel(),
@@ -456,7 +456,7 @@ public class VeyronSCM extends SCM {
   }
 
   /**
-   * Gets the full path of VEYRON_ROOT.
+   * Gets the full path of VANADIUM_ROOT.
    */
   private String getVeyronRoot(String workspaceDir) {
     if (veyronRootInput.startsWith(File.separator)) {

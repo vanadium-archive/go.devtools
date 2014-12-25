@@ -45,17 +45,17 @@ func createBuildCopFile(t *testing.T, ctx *Context, veyronRoot string) {
 func TestBuildCop(t *testing.T) {
 	ctx := DefaultContext()
 
-	// Setup a fake VEYRON_ROOT.
+	// Setup a fake VANADIUM_ROOT.
 	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
 	oldRoot, err := VeyronRoot()
-	if err := os.Setenv("VEYRON_ROOT", tmpDir); err != nil {
+	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	// Create a buildcop.xml file.
 	createBuildCopFile(t, ctx, tmpDir)

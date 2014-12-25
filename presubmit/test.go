@@ -160,7 +160,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 				printf(ctx.Stderr(), "%v\n", err)
 			}
 		}
-		// Create a new PATH that replaces VEYRON_ROOT/bin
+		// Create a new PATH that replaces VANADIUM_ROOT/bin
 		// with the temporary directory in which the tools
 		// were rebuilt.
 		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(veyronRoot, "bin"), tmpBinDir, -1)

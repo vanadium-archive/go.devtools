@@ -37,7 +37,7 @@ src/main/resources/io/v/jenkins/plugins/veyron_scm/GitChangeSetList:
 src/main/resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM:
   - config.jelly, help-veyronRootInput.html:
     These files are used by Jenkins to create UI elements for the VeyronSCM
-    plugin. For now, we only have a "VEYRON_ROOT" field.
+    plugin. For now, we only have a "VANADIUM_ROOT" field.
 
 
 src/main/resources/io/v/jenkins/plugins/veyron_scm/VeyronBuildData:

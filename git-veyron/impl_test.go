@@ -400,11 +400,11 @@ func TestGoDependencyError(t *testing.T) {
 	ctx := util.DefaultContext()
 	workingDir, repoPath, _, gerritPath := setup(t, ctx, true)
 	defer teardown(t, ctx, workingDir)
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", workingDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", workingDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 	oldGoPath := os.Getenv("GOPATH")
 	if err := os.Setenv("GOPATH", repoPath); err != nil {
 		t.Fatalf("%v", err)
@@ -433,11 +433,11 @@ func TestGoDependencyOK(t *testing.T) {
 	ctx := util.DefaultContext()
 	workingDir, repoPath, _, gerritPath := setup(t, ctx, true)
 	defer teardown(t, ctx, workingDir)
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", workingDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", workingDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 	oldGoPath := os.Getenv("GOPATH")
 	if err := os.Setenv("GOPATH", repoPath); err != nil {
 		t.Fatalf("%v", err)

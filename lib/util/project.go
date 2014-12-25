@@ -60,11 +60,11 @@ type Project struct {
 	// Name is the URL at which the project is hosted.
 	Name string `xml:"name,attr"`
 	// Path is the path used to store the project locally. Project
-	// manifest uses paths that are relative to the VEYRON_ROOT
+	// manifest uses paths that are relative to the VANADIUM_ROOT
 	// environment variable. When a manifest is parsed (e.g. in
 	// RemoteProjects), the program logic converts the relative
 	// paths to an absolute paths, using the current value of the
-	// VEYRON_ROOT environment variable as a prefix.
+	// VANADIUM_ROOT environment variable as a prefix.
 	Path string `xml:"path,attr"`
 	// Protocol is the version control protocol used by the
 	// project. If not set, "git" is used as the default.
@@ -260,7 +260,7 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) (e error) {
 	if err := buildTools(ctx, remoteTools, tmpDir); err != nil {
 		return err
 	}
-	// 3. Install the tools into $VEYRON_ROOT/bin.
+	// 3. Install the tools into $VANADIUM_ROOT/bin.
 	return installTools(ctx, tmpDir)
 }
 
@@ -466,7 +466,7 @@ func findLocalProjects(ctx *Context, path string, projects Projects) (e error) {
 }
 
 // installTools installs the tools from the given directory into
-// $VEYRON_ROOT/bin.
+// $VANADIUM_ROOT/bin.
 func installTools(ctx *Context, dir string) error {
 	if ctx.DryRun() {
 		// In "dry run" mode, no binaries are built.

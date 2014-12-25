@@ -124,7 +124,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 }
 
 // runIntegrationTests runs all integration tests found under
-// $VEYRON_ROOT/roadmap/go/src and $VEYRON_ROOT/veyron/go/src.
+// $VANADIUM_ROOT/roadmap/go/src and $VANADIUM_ROOT/veyron/go/src.
 func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VeyronRoot()
 	if err != nil {

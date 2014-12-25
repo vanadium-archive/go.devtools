@@ -57,17 +57,17 @@ type label struct {
 func TestList(t *testing.T) {
 	ctx := util.DefaultContext()
 
-	// Setup a fake VEYRON_ROOT.
+	// Setup a fake VANADIUM_ROOT.
 	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
 	oldRoot, err := util.VeyronRoot()
-	if err := os.Setenv("VEYRON_ROOT", tmpDir); err != nil {
+	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	remoteManifestDir, err := util.RemoteManifestDir()
 	if err != nil {
@@ -285,11 +285,11 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(rootDir)
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 	remoteDir := filepath.Join(rootDir, "remote")
 	localManifest := setupNewProject(t, ctx, rootDir, ".manifest")
 	remoteManifest := setupNewProject(t, ctx, remoteDir, "test-remote-manifest")

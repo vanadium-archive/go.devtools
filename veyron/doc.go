@@ -248,7 +248,7 @@ checks that all of these tests pass.
 
 Next, the command captures the current state of the veyron project as a manifest
 and, depending on the value of the -remote flag, the command either stores the
-manifest in the local $VEYRON_ROOT/.snapshots directory, or in the manifest
+manifest in the local $VANADIUM_ROOT/.snapshots directory, or in the manifest
 repository, pushing the change to the remote repository and thus making it
 available globally.
 
@@ -332,13 +332,13 @@ Usage:
 Veyron Update
 
 Updates all veyron projects, builds the latest version of veyron tools, and
-installs the resulting binaries into $VEYRON_ROOT/bin. The sequence in which the
+installs the resulting binaries into $VANADIUM_ROOT/bin. The sequence in which the
 individual updates happen guarantees that we end up with a consistent set of
 tools and source code.
 
 The set of project and tools to update is describe by a manifest. Veyron
 manifests are revisioned and stored in a "manifest" repository, that is
-available locally in $VEYRON_ROOT/.manifest. The manifest uses the following XML
+available locally in $VANADIUM_ROOT/.manifest. The manifest uses the following XML
 schema:
 
  <manifest>
@@ -360,15 +360,15 @@ schema:
  </manifest>
 
 The <import> element can be used to share settings across multiple manifests.
-Import names are interpreted relative to the $VEYRON_ROOT/.manifest/v1
+Import names are interpreted relative to the $VANADIUM_ROOT/.manifest/v1
 directory. Import cycles are not allowed and if a project or a tool is specified
 multiple times, the last specification takes effect. In particular, the elements
 <project name="foo" exclude="true"/> and <tool name="bar" exclude="true"/> can
 be used to exclude previously included projects and tools.
 
 The tool identifies which manifest to use using the following algorithm. If the
-$VEYRON_ROOT/.local_manifest file exists, then it is used. Otherwise, the
-$VEYRON_ROOT/.manifest/v1/<manifest>.xml file is used, which <manifest> is the
+$VANADIUM_ROOT/.local_manifest file exists, then it is used. Otherwise, the
+$VANADIUM_ROOT/.manifest/v1/<manifest>.xml file is used, which <manifest> is the
 value of the -manifest command-line flag, which defaults to "default".
 
 NOTE: Unlike the veyron tool commands, the above manifest file format is not an

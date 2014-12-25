@@ -6,7 +6,7 @@ import (
 
 // Config holds configuration common to veyron tools.
 type Config struct {
-	// goWorkspaces identifies VEYRON_ROOT subdirectories that contain a
+	// goWorkspaces identifies VANADIUM_ROOT subdirectories that contain a
 	// Go workspace.
 	goWorkspaces []string
 	// projectTests maps veyron projects to sets of tests that should be
@@ -21,7 +21,7 @@ type Config struct {
 	// testGroups maps test group labels to sets of tests that the label
 	// identifies.
 	testGroups map[string][]string
-	// vdlWorkspaces identifies VEYRON_ROOT subdirectories that contain
+	// vdlWorkspaces identifies VANADIUM_ROOT subdirectories that contain
 	// a VDL workspace.
 	vdlWorkspaces []string
 }

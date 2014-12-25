@@ -280,11 +280,11 @@ func TestUpdateUniverse(t *testing.T) {
 	}
 	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
 	ignoreDirs(t, rootDir, []string{"remote"})
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	// Check that calling UpdateUniverse() creates local copies of
 	// the remote repositories, advancing projects to HEAD or to

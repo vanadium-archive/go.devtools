@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	rootEnv = "VEYRON_ROOT"
+	rootEnv = "VANADIUM_ROOT"
 )
 
 // LocalManifestFile returns the path to the local manifest.

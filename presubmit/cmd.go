@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultConfigFile    = "$VEYRON_ROOT/veyron/go/src/veyron.io/tools/conf/presubmit"
+	defaultConfigFile    = "$VANADIUM_ROOT/veyron/go/src/veyron.io/tools/conf/presubmit"
 	defaultGerritBaseUrl = "https://veyron-review.googlesource.com"
 	defaultLogFilePath   = "$HOME/tmp/presubmit_log"
 	defaultNetRcFilePath = "$HOME/.netrc"

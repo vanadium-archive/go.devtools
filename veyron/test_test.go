@@ -20,11 +20,11 @@ func TestTestProject(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(rootDir)
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{"https://test-project": []string{"ignore-this"}}))
 	createConfig(t, ctx, config)
@@ -56,11 +56,11 @@ func TestTestRun(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(rootDir)
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	// Check that running the test generates the expected output.
 	var out bytes.Buffer
@@ -88,11 +88,11 @@ func TestTestList(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(rootDir)
-	oldRoot := os.Getenv("VEYRON_ROOT")
-	if err := os.Setenv("VEYRON_ROOT", rootDir); err != nil {
+	oldRoot := os.Getenv("VANADIUM_ROOT")
+	if err := os.Setenv("VANADIUM_ROOT", rootDir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VEYRON_ROOT", oldRoot)
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	// Check that listing existing tests generates the expected
 	// output.
