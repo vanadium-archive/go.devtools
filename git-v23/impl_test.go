@@ -260,7 +260,7 @@ func createTestRepos(t *testing.T, ctx *util.Context, workingDir string) (string
 
 // setup creates a set up for testing the review tool.
 func setup(t *testing.T, ctx *util.Context, installHook bool) (string, string, string, string) {
-	workingDir, err := ctx.Run().TempDir("", "test-git-veyron-review")
+	workingDir, err := ctx.Run().TempDir("", "test-git-v23-review")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}

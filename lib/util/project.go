@@ -437,7 +437,7 @@ func findLocalProjects(ctx *Context, path string, projects Projects) (e error) {
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("Stat(%v) failed: %v", hgDir, err)
 	}
-	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".veyronignore")
+	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".v23ignore")
 	file, err := os.Open(ignorePath)
 	if err == nil {
 		defer collect.Error(func() error { return file.Close() }, &e)

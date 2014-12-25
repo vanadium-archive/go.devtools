@@ -27,13 +27,13 @@ func NewContext(env map[string]string, stdin io.Reader, stdout, stderr io.Writer
 // NewContextFromCommand returns a new context instance based on the
 // given command.
 func NewContextFromCommand(command *cmdline.Command, color, dryRun, verbose bool) *Context {
-	run := runutil.New(nil, os.Stdin, command.Stdout(), command.Stderr(), color, dryRun, verbose)
+	run := runutil.New(map[string]string{}, os.Stdin, command.Stdout(), command.Stderr(), color, dryRun, verbose)
 	return &Context{run: run}
 }
 
 // DefaultContext returns the default context.
 func DefaultContext() *Context {
-	run := runutil.New(nil, os.Stdin, os.Stdout, os.Stderr, false, false, true)
+	run := runutil.New(map[string]string{}, os.Stdin, os.Stdout, os.Stderr, false, false, true)
 	return &Context{run: run}
 }
 

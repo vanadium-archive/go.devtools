@@ -175,7 +175,7 @@ func ignoreDirs(t *testing.T, rootDir string, projects []string) {
 	for _, project := range projects {
 		contents += project + "\n"
 	}
-	path, perm := filepath.Join(rootDir, ".veyronignore"), os.FileMode(0644)
+	path, perm := filepath.Join(rootDir, ".v23ignore"), os.FileMode(0644)
 	if err := ioutil.WriteFile(path, []byte(contents), perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", path, perm, err)
 	}

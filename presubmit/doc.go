@@ -17,8 +17,12 @@ Run "presubmit help [command]" for command usage.
 The presubmit flags are:
  -host=
    The Jenkins host. Presubmit will not send any CLs to an empty host.
+ -n=false
+   Show what commands will run but do not execute them.
  -netrc=$HOME/.netrc
    The path to the .netrc file that stores Gerrit's credentials.
+ -nocolor=false
+   Do not use color to format output.
  -token=
    The Jenkins API token.
  -url=https://veyron-review.googlesource.com
@@ -57,10 +61,11 @@ The presubmit test flags are:
    The number of the Jenkins build.
  -manifest=default
    Name of the project manifest.
- -ref=
-   The ref where the review is posted.
- -repo=
-   The URL of the repository containing the CL pointed by the ref.
+ -refs=
+   The review references separated by ':'.
+ -repos=
+   The base names of remote repositories containing the CLs pointed by the refs,
+   separated by ':'.
 
 Presubmit Version
 

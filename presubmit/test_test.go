@@ -21,50 +21,50 @@ func TestParseRefsAndRepos(t *testing.T) {
 		// Single ref and repo.
 		testCase{
 			refs:      "refs/changes/10/1000/1",
-			repos:     "veyron.go.core",
+			repos:     "release.go.core",
 			expectErr: false,
 			expectedCLs: []cl{
 				cl{
 					clNumber: 1000,
 					patchset: 1,
 					ref:      "refs/changes/10/1000/1",
-					repo:     "https://veyron.googlesource.com/veyron.go.core",
+					repo:     "https://vanadium.googlesource.com/release.go.core",
 				},
 			},
 			expectedRefs:  []string{"refs/changes/10/1000/1"},
-			expectedRepos: []string{"https://veyron.googlesource.com/veyron.go.core"},
+			expectedRepos: []string{"https://vanadium.googlesource.com/release.go.core"},
 		},
 
 		// Multiple refs and repos.
 		testCase{
 			refs:      "refs/changes/10/1000/1:refs/changes/20/1020/1",
-			repos:     "veyron.go.core:veyron.js",
+			repos:     "release.go.core:release.js.core",
 			expectErr: false,
 			expectedCLs: []cl{
 				cl{
 					clNumber: 1000,
 					patchset: 1,
 					ref:      "refs/changes/10/1000/1",
-					repo:     "https://veyron.googlesource.com/veyron.go.core",
+					repo:     "https://vanadium.googlesource.com/release.go.core",
 				},
 				cl{
 					clNumber: 1020,
 					patchset: 1,
 					ref:      "refs/changes/20/1020/1",
-					repo:     "https://veyron.googlesource.com/veyron.js",
+					repo:     "https://vanadium.googlesource.com/release.js.core",
 				},
 			},
 			expectedRefs: []string{"refs/changes/10/1000/1", "refs/changes/20/1020/1"},
 			expectedRepos: []string{
-				"https://veyron.googlesource.com/veyron.go.core",
-				"https://veyron.googlesource.com/veyron.js",
+				"https://vanadium.googlesource.com/release.go.core",
+				"https://vanadium.googlesource.com/release.js.core",
 			},
 		},
 
 		// len(refs) != len(repos)
 		testCase{
 			refs:      "refs/changes/10/1000/1:refs/changes/20/1020/1",
-			repos:     "veyron.go.core",
+			repos:     "release.go.core",
 			expectErr: true,
 		},
 	}
@@ -99,7 +99,7 @@ func TestParseLastCompletedBuildStatusJsonResponse(t *testing.T) {
 	input := `
 	{
 		"building": false,
-		"fullDisplayName": "veyron-android-build #182",
+		"fullDisplayName": "vanadium-android-build #182",
 		"result": "SUCCESS"
 	}
 	`
@@ -116,7 +116,7 @@ func TestParseLastCompletedBuildStatusJsonResponse(t *testing.T) {
 	input = `
 	{
 		"building": false,
-		"fullDisplayName": "veyron-android-build #182",
+		"fullDisplayName": "vanadium-android-build #182",
 		"result": "FAILURE"
 	}
 	`

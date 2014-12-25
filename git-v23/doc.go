@@ -2,41 +2,44 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The git-veyron tool facilitates interaction with the Veyron Gerrit server. In
+The git-v23 tool facilitates interaction with Vanadium code review system. In
 particular, it can be used to export changelists from a local branch to the
 Gerrit server.
 
 Usage:
-   git-veyron [flags] <command>
+   git-v23 [flags] <command>
 
-The git-veyron commands are:
+The git-v23 commands are:
    cleanup     Clean up branches that have been merged
    review      Send a changelist from a local branch to Gerrit for review
-   status      Print a succint status of the veyron repositories
    version     Print version
    help        Display help for commands or topics
-Run "git-veyron help [command]" for command usage.
+Run "git-v23 help [command]" for command usage.
 
-The git-veyron flags are:
+The git-v23 flags are:
+ -n=false
+   Show what commands will run but do not execute them.
+ -nocolor=false
+   Do not use color to format output.
  -v=false
    Print verbose output.
 
-Git-Veyron Cleanup
+Git-V23 Cleanup
 
 The cleanup command checks that the given branches have been merged into the
 master branch. If a branch differs from the master, it reports the difference
 and stops. Otherwise, it deletes the branch.
 
 Usage:
-   git-veyron cleanup [flags] <branches>
+   git-v23 cleanup [flags] <branches>
 
 <branches> is a list of branches to cleanup.
 
-The git-veyron cleanup flags are:
+The git-v23 cleanup flags are:
  -f=false
    Ignore unmerged changes.
 
-Git-Veyron Review
+Git-V23 Review
 
 Squashes all commits of a local branch into a single "changelist" and sends this
 changelist to Gerrit as a single commit. First time the command is invoked, it
@@ -46,9 +49,9 @@ default, informing Gerrit that the incomming commit is an update of an existing
 changelist.
 
 Usage:
-   git-veyron review [flags]
+   git-v23 review [flags]
 
-The git-veyron review flags are:
+The git-v23 review flags are:
  -cc=
    Comma-seperated list of emails or LDAPs to cc.
  -check_depcop=true
@@ -62,14 +65,14 @@ The git-veyron review flags are:
  -r=
    Comma-seperated list of emails or LDAPs to request review.
 
-Git-Veyron Version
+Git-V23 Version
 
-Print version of the git-veyron tool.
+Print version of the git-v23 tool.
 
 Usage:
-   git-veyron version
+   git-v23 version
 
-Git-Veyron Help
+Git-V23 Help
 
 Help with no args displays the usage of the parent command.
 
@@ -84,11 +87,11 @@ CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
 if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
-   git-veyron help [flags] [command/topic ...]
+   git-v23 help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The git-veyron help flags are:
+The git-v23 help flags are:
  -style=text
    The formatting style for help output, either "text" or "godoc".
 */

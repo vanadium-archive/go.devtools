@@ -50,22 +50,22 @@ func init() {
 }
 
 var cmdRoot = &cmdline.Command{
-	Name:  "git-veyron",
-	Short: "Tool for interacting with the Veyron Gerrit server",
+	Name:  "git-v23",
+	Short: "Tool for Vanadium code reviews",
 	Long: `
-The git-veyron tool facilitates interaction with the Veyron Gerrit server.
-In particular, it can be used to export changelists from a local branch
-to the Gerrit server.
+The git-v23 tool facilitates interaction with Vanadium code review
+system. In particular, it can be used to export changelists from a
+local branch to the Gerrit server.
 `,
 	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdVersion},
 }
 
-// root returns a command that represents the root of the git-veyron tool.
+// root returns a command that represents the root of the git-v23 tool.
 func root() *cmdline.Command {
 	return cmdRoot
 }
 
-// cmmCleanup represents the "cleanup" command of the git-veyron tool.
+// cmmCleanup represents the "cleanup" command of the git-v23 tool.
 var cmdCleanup = &cmdline.Command{
 	Run:   runCleanup,
 	Name:  "cleanup",
@@ -150,7 +150,7 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	return cleanup(ctx, args)
 }
 
-// cmdReview represents the "review" command of the git-veyron tool.
+// cmdReview represents the "review" command of the git-v23 tool.
 var cmdReview = &cmdline.Command{
 	Run:   runReview,
 	Name:  "review",
@@ -169,7 +169,7 @@ type changeConflictError string
 
 func (s changeConflictError) Error() string {
 	result := "changelist conflicts with the remote master branch\n\n"
-	result += "To resolve this problem, run 'veyron update; git merge master',\n"
+	result += "To resolve this problem, run 'v23 update; git merge master',\n"
 	result += "resolve the conflicts identified below, and then try again.\n"
 	result += string(s)
 	return result
@@ -579,15 +579,15 @@ func (r *review) getCommitMessageFilename() (string, error) {
 	return filepath.Join(topLevel, commitMessageFile), nil
 }
 
-// cmdVersion represents the "version" command of the git-veyron tool.
+// cmdVersion represents the "version" command of the git-v23 tool.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
 	Short: "Print version",
-	Long:  "Print version of the git-veyron tool.",
+	Long:  "Print version of the git-v23 tool.",
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "git-veyron tool version %v\n", version.Version)
+	fmt.Fprintf(command.Stdout(), "git-v23 tool version %v\n", version.Version)
 	return nil
 }
