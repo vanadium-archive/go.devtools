@@ -51,7 +51,7 @@ func TestBuildCop(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
-	oldRoot, err := VeyronRoot()
+	oldRoot, err := VanadiumRoot()
 	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
 		t.Fatalf("%v", err)
 	}

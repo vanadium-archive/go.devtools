@@ -354,7 +354,7 @@ schema:
      ...
    </projects>
    <tools>
-     <tool name="veyron" package="veyron.io/tools/veyron"/>
+     <tool name="v23" package="veyron.io/tools/v23"/>
      ...
    </tools>
  </manifest>

@@ -1,28 +1,28 @@
-package io.v.jenkins.plugins.veyron_scm;
+package io.v.jenkins.plugins.vanadium_scm;
 
 import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.AbstractBuild;
-import io.v.jenkins.plugins.veyron_scm.VeyronSCM.ProjectSnapshot;
+import io.v.jenkins.plugins.vanadium_scm.VanadiumSCM.ProjectSnapshot;
 
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 /**
- * Captures the Veyron related information for a build.
+ * Captures the Vanadium related information for a build.
  *
  * <p>
- * This object is added to {@link AbstractBuild#getActions()}, and persists the Veyron related
+ * This object is added to {@link AbstractBuild#getActions()}, and persists the Vanadium related
  * information of that build.
  */
-public class VeyronBuildData implements Action {
+public class VanadiumBuildData implements Action {
 
   private String curBuildCop;
 
   private List<ProjectSnapshot> snapshots;
 
-  public VeyronBuildData(String curBuildCop, List<ProjectSnapshot> snapshots) {
+  public VanadiumBuildData(String curBuildCop, List<ProjectSnapshot> snapshots) {
     this.curBuildCop = curBuildCop;
     this.snapshots = snapshots;
 
@@ -45,16 +45,16 @@ public class VeyronBuildData implements Action {
 
   @Override
   public String getIconFileName() {
-    return Functions.getResourcePath() + "/plugin/veyron_scm/icons/v-48x48.png";
+    return Functions.getResourcePath() + "/plugin/vanadium_scm/icons/v-48x48.png";
   }
 
   @Override
   public String getDisplayName() {
-    return "Veyron Build Data";
+    return "Vanadium Build Data";
   }
 
   @Override
   public String getUrlName() {
-    return "veyron";
+    return "vanadium";
   }
 }

@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// TestVeyronRootSymlink checks that VeyronRoot interprets the value
+// TestVanadiumRootSymlink checks that VanadiumRoot interprets the value
 // of the VANADIUM_ROOT environment variable as a path, evaluates any
 // symlinks the path might contain, and returns the result.
-func TestVeyronRootSymlink(t *testing.T) {
+func TestVanadiumRootSymlink(t *testing.T) {
 	ctx := DefaultContext()
 
 	// Create a temporary directory.
@@ -36,11 +36,11 @@ func TestVeyronRootSymlink(t *testing.T) {
 	}
 
 	// Set the VANADIUM_ROOT to the symlink created above and check
-	// that VeyronRoot() evaluates the symlink.
+	// that VanadiumRoot() evaluates the symlink.
 	if err := os.Setenv("VANADIUM_ROOT", symRoot); err != nil {
 		t.Fatalf("%v", err)
 	}
-	got, err := VeyronRoot()
+	got, err := VanadiumRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

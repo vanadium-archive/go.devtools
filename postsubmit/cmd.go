@@ -69,7 +69,7 @@ var cmdPoll = &cmdline.Command{
 
 func runPoll(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}

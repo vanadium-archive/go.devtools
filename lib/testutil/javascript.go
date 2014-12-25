@@ -76,7 +76,7 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 
 // veyronJSBuildExtension tests the veyron javascript build extension.
 func veyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func veyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, er
 // veyronJSDoc (re)generates the content of the veyron javascript
 // documentation server.
 func veyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func veyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronJSBrowserIntegration runs the veyron javascript integration test in a browser environment using nacl plugin.
 func veyronJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func veyronJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult
 
 // veyronJSNodeIntegration runs the veyron javascript integration test in NodeJS environment using wspr.
 func veyronJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func veyronJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, e
 
 // veyronJSUnit runs the veyron javascript unit test.
 func veyronJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func veyronJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronJSVdl runs the veyron javascript vdl test.
 func veyronJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func veyronJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronJSVom runs the veyron javascript vom test.
 func veyronJSVom(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}

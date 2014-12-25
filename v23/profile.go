@@ -22,33 +22,33 @@ var (
 	defaultDirPerm  = os.FileMode(0755)
 	defaultFilePerm = os.FileMode(0644)
 	knownProfiles   = map[string]string{
-		"arm":           "ARM cross-compilation components of the veyron project",
-		"mobile":        "mobile components of the veyron project",
-		"proximity":     "proximity components of the veyron project",
-		"proximity-arm": "ARM cross-compilation of the proximity components of the veyron project",
-		"web":           "web components of the veyron project",
+		"arm":           "ARM cross-compilation components of the vanadium project",
+		"mobile":        "mobile components of the vanadium project",
+		"proximity":     "proximity components of the vanadium project",
+		"proximity-arm": "ARM cross-compilation of the proximity components of the vanadium project",
+		"web":           "web components of the vanadium project",
 	}
 )
 
-// cmdProfile represents the "veyron profile" command.
+// cmdProfile represents the "v23 profile" command.
 var cmdProfile = &cmdline.Command{
 	Name:  "profile",
-	Short: "Manage veyron profiles",
+	Short: "Manage vanadium profiles",
 	Long: `
-To facilitate development across different platforms, veyron defines
+To facilitate development across different platforms, vanadium defines
 platform-independent profiles that map different platforms to a set
-of libraries and tools that can be used for a factor of veyron
+of libraries and tools that can be used for a factor of vanadium
 development.
 `,
 	Children: []*cmdline.Command{cmdProfileList, cmdProfileSetup},
 }
 
-// cmdProfileList represents the "veyron profile list" command.
+// cmdProfileList represents the "v23 profile list" command.
 var cmdProfileList = &cmdline.Command{
 	Run:   runProfileList,
 	Name:  "list",
-	Short: "List known veyron profiles",
-	Long:  "List known veyron profiles.",
+	Short: "List known vanadium profiles",
+	Long:  "List known vanadium profiles.",
 }
 
 func runProfileList(command *cmdline.Command, _ []string) error {
@@ -59,12 +59,12 @@ func runProfileList(command *cmdline.Command, _ []string) error {
 	return nil
 }
 
-// cmdProfileSetup represents the "veyron profile setup" command.
+// cmdProfileSetup represents the "v23 profile setup" command.
 var cmdProfileSetup = &cmdline.Command{
 	Run:      runProfileSetup,
 	Name:     "setup",
-	Short:    "Set up the given veyron profiles",
-	Long:     "Set up the given veyron profiles.",
+	Short:    "Set up the given vanadium profiles",
+	Long:     "Set up the given vanadium profiles.",
 	ArgsName: "<profiles>",
 	ArgsLong: "<profiles> is a list of profiles to set up.",
 }
@@ -267,7 +267,7 @@ func run(ctx *util.Context, bin string, args []string, env map[string]string) er
 // For more on Go cross-compilation for arm/linux information see:
 // http://www.bootc.net/archives/2012/05/26/how-to-build-a-cross-compiler-for-your-raspberry-pi/
 func setupArmLinux(ctx *util.Context) (e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func setupArmLinux(ctx *util.Context) (e error) {
 		if err != nil {
 			return fmt.Errorf("ReadFile(%v) failed: %v", configFile, err)
 		}
-		old, new := "/usr/local/veyron", filepath.Join(root, "environment", "cout")
+		old, new := "/usr/local/vanadium", filepath.Join(root, "environment", "cout")
 		newConfig := strings.Replace(string(config), old, new, -1)
 		newConfigFile := filepath.Join(tmpDir, ".config")
 		if err := ctx.Run().WriteFile(newConfigFile, []byte(newConfig), defaultFilePerm); err != nil {
@@ -419,7 +419,7 @@ func setupArmLinux(ctx *util.Context) (e error) {
 
 // setupMobileLinux sets up the mobile profile for linux.
 func setupMobileLinux(ctx *util.Context) (e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -605,7 +605,7 @@ func setupProximityLinux(ctx *util.Context) error {
 
 // setupProximityArmLinux sets up the proximity componenets for for arm/linux.
 func setupProximityArmLinux(ctx *util.Context) error {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -637,7 +637,7 @@ ac_cv_func_realloc_works=yes
 
 // setupProximityLinuxHelper sets up the proximity profile for linux.
 func setupProximityLinuxHelper(ctx *util.Context, arch, host, path string) (e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -979,7 +979,7 @@ func setupWebLinux(ctx *util.Context) error {
 
 // setupWebHelper sets up the web profile.
 func setupWebHelper(ctx *util.Context) error {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -1008,7 +1008,7 @@ func setupWebHelper(ctx *util.Context) error {
 
 	missingHgrcMessage := `No .hgrc file found in $HOME. Please visit
 https://code.google.com/a/google.com/hosting/settings to get a googlecode.com password.
-Then add the following to your $HOME/.hgrc, and run "veyron profile setup web" again.
+Then add the following to your $HOME/.hgrc, and run "v23 profile setup web" again.
 [auth]
 codegoogle.prefix=code.google.com
 codegoogle.username=YOUR_EMAIL

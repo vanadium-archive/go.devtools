@@ -328,7 +328,7 @@ func (r *review) checkGoFormat() (e error) {
 			opts := r.ctx.Run().Opts()
 			opts.Stdout = &out
 			opts.Stderr = &out
-			if err := r.ctx.Run().CommandWithOpts(opts, "veyron", "go", "fmt", path); err != nil {
+			if err := r.ctx.Run().CommandWithOpts(opts, "v23", "go", "fmt", path); err != nil {
 				return err
 			}
 			if out.Len() != 0 {
@@ -349,7 +349,7 @@ func (r *review) checkGoDependencies() error {
 	opts := r.ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := r.ctx.Run().CommandWithOpts(opts, "veyron", "go", "list", "veyron.io/..."); err != nil {
+	if err := r.ctx.Run().CommandWithOpts(opts, "v23", "go", "list", "veyron.io/..."); err != nil {
 		fmt.Println(out.String())
 		return err
 	}
@@ -357,7 +357,7 @@ func (r *review) checkGoDependencies() error {
 	args := []string{"run", "go-depcop", "check"}
 	args = append(args, pkgs...)
 	out.Reset()
-	if err := r.ctx.Run().CommandWithOpts(opts, "veyron", args...); err != nil {
+	if err := r.ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
 		return goDependencyError(out.String())
 	}
 	return nil

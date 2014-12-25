@@ -1,4 +1,4 @@
-package io.v.jenkins.plugins.veyron_scm;
+package io.v.jenkins.plugins.vanadium_scm;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.LineIterator;

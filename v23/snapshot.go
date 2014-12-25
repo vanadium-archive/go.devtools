@@ -17,10 +17,10 @@ import (
 
 var cmdSnapshot = &cmdline.Command{
 	Name:  "snapshot",
-	Short: "Manage snapshots of the veyron project",
+	Short: "Manage snapshots of the vanadium project",
 	Long: `
-The "veyron snapshot" command can be used to manage snapshots of the
-veyron project. In particular, it can be used to create new snapshots
+The "v23 snapshot" command can be used to manage snapshots of the
+vanadium project. In particular, it can be used to create new snapshots
 and to list existing snapshots.
 
 The command-line flag "-remote" determines whether the command
@@ -30,17 +30,17 @@ snapshots the are revisioned in the manifest repository.
 	Children: []*cmdline.Command{cmdSnapshotCreate, cmdSnapshotList},
 }
 
-// cmdSnapshotCreate represents the "veyron snapshot create" command.
+// cmdSnapshotCreate represents the "v23 snapshot create" command.
 var cmdSnapshotCreate = &cmdline.Command{
 	Run:   runSnapshotCreate,
 	Name:  "create",
-	Short: "Create a new snapshot of the veyron project",
+	Short: "Create a new snapshot of the vanadium project",
 	Long: `
-The "veyron snapshot create <label>" command first checks whether the
-veyron tool configuration associates the given label with any
+The "v23 snapshot create <label>" command first checks whether the
+vanadium project configuration associates the given label with any
 tests. If so, the command checks that all of these tests pass.
 
-Next, the command captures the current state of the veyron project as a
+Next, the command captures the current state of the vanadium project as a
 manifest and, depending on the value of the -remote flag, the command
 either stores the manifest in the local $VANADIUM_ROOT/.snapshots
 directory, or in the manifest repository, pushing the change to the
@@ -64,7 +64,7 @@ Internally, snapshots are organized as follows:
    <label2> # a symlink to the latest <label2-snapshot*>
    ...
 
-NOTE: Unlike the veyron tool commands, the above internal organization
+NOTE: Unlike the v23 tool commands, the above internal organization
 is not an API. It is an implementation and can change without notice.
 `,
 	ArgsName: "<label>",
@@ -85,7 +85,7 @@ func runSnapshotCreate(command *cmdline.Command, args []string) error {
 
 	// Run the tests associated with the given label. The creation
 	// of "remote" snapshots requires that the label exists in the
-	// veyron tool configuration, while creationg "local"
+	// vanadium project  configuration, while creationg "local"
 	// snapshots does not have that requirement.
 	if err := runTests(ctx, label); err != nil {
 		return err
@@ -97,7 +97,7 @@ func runSnapshotCreate(command *cmdline.Command, args []string) error {
 	}
 	snapshotFile := filepath.Join(snapshotDir, "labels", label, time.Now().Format(time.RFC3339))
 	// Either atomically create a new snapshot that captures the
-	// state of the veyron project and push the changes to the
+	// state of the vanadium project and push the changes to the
 	// remote repository (if applicable), or fail with no effect.
 	createFn := func() error {
 		revision, err := ctx.Git().LatestCommitID()
@@ -272,11 +272,11 @@ func runTests(ctx *util.Context, label string) error {
 	return nil
 }
 
-// cmdSnapshotList represents the "veyron snapshot list" command.
+// cmdSnapshotList represents the "v23 snapshot list" command.
 var cmdSnapshotList = &cmdline.Command{
 	Run:   runSnapshotList,
 	Name:  "list",
-	Short: "List existing snapshots of veyron projects",
+	Short: "List existing snapshots of vanadium projects",
 	Long: `
 The "snapshot list" command lists existing snapshots of the labels
 specified as command-line arguments. If no arguments are provided, the

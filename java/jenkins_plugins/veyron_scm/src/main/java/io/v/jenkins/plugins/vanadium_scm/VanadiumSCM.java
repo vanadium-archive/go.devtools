@@ -1,4 +1,4 @@
-package io.v.jenkins.plugins.veyron_scm;
+package io.v.jenkins.plugins.vanadium_scm;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.FileFileFilter;
@@ -43,20 +43,20 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 /**
- * Veyron SCM Jenkins plugin.
+ * Vanadium SCM Jenkins plugin.
  */
-public class VeyronSCM extends SCM {
-  private static final String LOG_PREFIX = "[Veyron-SCM]";
+public class VanadiumSCM extends SCM {
+  private static final String LOG_PREFIX = "[Vanadium-SCM]";
 
   /**
-   * The minimum version of veyron tool to support "-manifest" flag in "veyron project" command.
+   * The minimum version of v23 tool to support "-manifest" flag in "v23 project" command.
    */
-  private static final int VEYRON_MIN_VERSION = 355;
+  private static final int V23_MIN_VERSION = 355;
 
   /**
-   * Number of times to attempt "veyron update" command.
+   * Number of times to attempt "v23 update" command.
    */
-  private static final int VEYRON_UPDATE_ATTEMPTS = 3;
+  private static final int V23_UPDATE_ATTEMPTS = 3;
 
   /**
    * Global command timeout in minutes.
@@ -66,14 +66,14 @@ public class VeyronSCM extends SCM {
   /**
    * This field will automatically get the content of the VANADIUM_ROOT text field in the UI.
    *
-   * See: resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM/config.jelly.
+   * See: resources/io/v/jenkins/plugins/vanadium_scm/VanadiumSCM/config.jelly.
    */
-  private String veyronRootInput;
+  private String vanadiumRootInput;
 
   /**
    * This field will automatically get the content of the Manifest text field in the UI.
    *
-   * See: resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM/config.jelly.
+   * See: resources/io/v/jenkins/plugins/vanadium_scm/VanadiumSCM/config.jelly.
    */
   private String manifestInput;
 
@@ -136,16 +136,16 @@ public class VeyronSCM extends SCM {
   }
 
   @DataBoundConstructor
-  public VeyronSCM(String veyronRootInput, String manifestInput) {
-    this.veyronRootInput = veyronRootInput;
+  public VanadiumSCM(String vanadiumRootInput, String manifestInput) {
+    this.vanadiumRootInput = vanadiumRootInput;
     this.manifestInput = manifestInput;
   }
 
   /**
-   * This is required to bind veyronRootInput variable to the corresponding UI element.
+   * This is required to bind vanadiumRootInput variable to the corresponding UI element.
    */
-  public String getVeyronRootInput() {
-    return veyronRootInput;
+  public String getVanadiumRootInput() {
+    return vanadiumRootInput;
   }
 
   /**
@@ -157,7 +157,7 @@ public class VeyronSCM extends SCM {
 
   /**
    * We don't need to implement this method since we handle revision recording ourselves through the
-   * veyron tool.
+   * v23 tool.
    */
   @Override
   public SCMRevisionState calcRevisionsFromBuild(AbstractBuild<?, ?> build, Launcher launcher,
@@ -179,17 +179,17 @@ public class VeyronSCM extends SCM {
       return PollingResult.BUILD_NOW;
     }
 
-    // Run "veyron project poll <JOB_NAME>".
+    // Run "v23 project poll <JOB_NAME>".
     String jobName = lastBuild.getEnvironment(listener).get("JOB_NAME");
     String workspaceDir = workspace.getRemote();
-    String veyronBin = getVeyronBin(workspaceDir);
+    String v23Bin = getV23Bin(workspaceDir);
 
-    // Check "veyron" tool's version to decide whether to add "-manifest" flag.
-    List<String> pollCommandAndArgs = new ArrayList<String>(Arrays.asList(veyronBin, "project",
+    // Check "v23" tool's version to decide whether to add "-manifest" flag.
+    List<String> pollCommandAndArgs = new ArrayList<String>(Arrays.asList(v23Bin, "project",
         String.format("-manifest=%s", manifestInput), "poll", jobName));
-    List<String> checkVeyronVersionCommandAndArgs =
-        new ArrayList<String>(Arrays.asList(veyronBin, "version"));
-    CommandResult cr = runCommand(workspaceDir, launcher, true, checkVeyronVersionCommandAndArgs,
+    List<String> checkV23VersionCommandAndArgs =
+        new ArrayList<String>(Arrays.asList(v23Bin, "version"));
+    CommandResult cr = runCommand(workspaceDir, launcher, true, checkV23VersionCommandAndArgs,
         lastBuild.getEnvironment(listener));
     if (cr.getExitCode() == 0) {
       String[] parts = cr.getStdout().split(" ");
@@ -200,9 +200,9 @@ public class VeyronSCM extends SCM {
       } catch (NumberFormatException e) {
         e.printStackTrace(listener.getLogger());
       }
-      if (version > 0 && version < VEYRON_MIN_VERSION) {
+      if (version > 0 && version < V23_MIN_VERSION) {
         pollCommandAndArgs =
-            new ArrayList<String>(Arrays.asList(veyronBin, "project", "poll", jobName));
+            new ArrayList<String>(Arrays.asList(v23Bin, "project", "poll", jobName));
       }
     }
 
@@ -222,31 +222,31 @@ public class VeyronSCM extends SCM {
   @Override
   public boolean checkout(AbstractBuild<?, ?> build, Launcher launcher, FilePath workspace,
       BuildListener listener, File changelogFile) throws IOException, InterruptedException {
-    // Run "init-veyron.sh" script.
+    // Run "init-vanadium.sh" script.
     String workspaceDir = workspace.getRemote();
     String home = build.getEnvironment(listener).get("HOME");
-    List<String> initVeyronCommandAndArgs =
-        new ArrayList<String>(Arrays.asList(joinPath(home, "scripts", "init-veyron.sh")));
-    CommandResult cr = runCommand(workspaceDir, launcher, true, initVeyronCommandAndArgs,
+    List<String> initVanadiumCommandAndArgs =
+        new ArrayList<String>(Arrays.asList(joinPath(home, "scripts", "init-vanadium.sh")));
+    CommandResult cr = runCommand(workspaceDir, launcher, true, initVanadiumCommandAndArgs,
         build.getEnvironment(listener));
     if (cr.getExitCode() != 0) {
       return false;
     }
 
-    // Run "veyron goext distclean".
-    String veyronBin = getVeyronBin(workspaceDir);
+    // Run "v23 goext distclean".
+    String v23Bin = get23Bin(workspaceDir);
     List<String> distcleanCommandAndArgs =
-        new ArrayList<String>(Arrays.asList(veyronBin, "goext", "distclean"));
+        new ArrayList<String>(Arrays.asList(v23Bin, "goext", "distclean"));
     cr = runCommand(workspaceDir, launcher, true, distcleanCommandAndArgs,
         build.getEnvironment(listener));
     if (cr.getExitCode() != 0) {
       return false;
     }
 
-    // Run "veyron update -manifest=<manifest>".
+    // Run "v23 update -manifest=<manifest>".
     List<String> updateCommandAndArgs = new ArrayList<String>(
-        Arrays.asList(veyronBin, "update", String.format("-manifest=%s", manifestInput), "-gc"));
-    for (int i = 0; i < VEYRON_UPDATE_ATTEMPTS; i++) {
+        Arrays.asList(v23Bin, "update", String.format("-manifest=%s", manifestInput), "-gc"));
+    for (int i = 0; i < V23_UPDATE_ATTEMPTS; i++) {
       printf(listener, String.format("Attempt #%d:\n", i + 1));
       cr = runCommand(workspaceDir, launcher, true, updateCommandAndArgs,
           build.getEnvironment(listener));
@@ -286,7 +286,7 @@ public class VeyronSCM extends SCM {
         continue;
       }
 
-      String curGitDir = joinPath(getVeyronRoot(workspaceDir), snapshot.getRelativePath(), ".git");
+      String curGitDir = joinPath(getVanadiumRoot(workspaceDir), snapshot.getRelativePath(), ".git");
       List<String> gitLogCommandAndArgs = new ArrayList<String>(Arrays.asList("git",
           String.format("--git-dir=%s", curGitDir),
           "log",
@@ -308,17 +308,17 @@ public class VeyronSCM extends SCM {
     changelogWriter.close();
     printf(listener, "OK\n");
 
-    // Create a VeyronBuildData to store Veyron related data for this build, and add it to the
+    // Create a VanadiumBuildData to store Vanadium related data for this build, and add it to the
     // current build object.
     String buildCopLDAP = "";
     List<String> buildCopCommandAndArgs =
-        new ArrayList<String>(Arrays.asList(veyronBin, "buildcop"));
+        new ArrayList<String>(Arrays.asList(v23Bin, "buildcop"));
     cr = runCommand(workspaceDir, launcher, false, buildCopCommandAndArgs,
         build.getEnvironment(listener));
     if (cr.getExitCode() == 0) {
       buildCopLDAP = cr.getStdout();
     }
-    build.addAction(new VeyronBuildData(buildCopLDAP, snapshots));
+    build.addAction(new VanadiumBuildData(buildCopLDAP, snapshots));
 
     return true;
   }
@@ -329,20 +329,20 @@ public class VeyronSCM extends SCM {
   }
 
   @Extension
-  public static final class DescriptorImpl extends SCMDescriptor<VeyronSCM> {
+  public static final class DescriptorImpl extends SCMDescriptor<VanadiumSCM> {
     public DescriptorImpl() {
-      super(VeyronSCM.class, null);
+      super(VanadiumSCM.class, null);
     }
 
     @Override
     public String getDisplayName() {
-      return "Veyron SCM";
+      return "Vanadium SCM";
     }
 
     /**
-     * Validates "veyronRootInput" field to make sure it is not empty.
+     * Validates "vanadiumRootInput" field to make sure it is not empty.
      */
-    public FormValidation doCheckVeyronRootInput(@QueryParameter String value) {
+    public FormValidation doCheckVanadiumRootInput(@QueryParameter String value) {
       if (value.isEmpty()) {
         return FormValidation.error("VANADIUM_ROOT cannot be empty.");
       }
@@ -360,7 +360,7 @@ public class VeyronSCM extends SCM {
       printf(listener, "Running command: %s.\n", getCommand(commandAndArgs));
     }
     try {
-      env.put("VANADIUM_ROOT", getVeyronRoot(workspaceDir));
+      env.put("VANADIUM_ROOT", getVanadiumRoot(workspaceDir));
       ByteArrayOutputStream bosStdout = new ByteArrayOutputStream();
       ByteArrayOutputStream bosStderr = new ByteArrayOutputStream();
       OutputStream osStdout = new ForkOutputStream(
@@ -397,7 +397,7 @@ public class VeyronSCM extends SCM {
    */
   private FilePath getLatestSnapshotFile(FilePath workspace, TaskListener listener) {
     FilePath updateHistoryDir = new FilePath(workspace.getChannel(),
-        joinPath(getVeyronRoot(workspace.getRemote()), ".update_history"));
+        joinPath(getVanadiumRoot(workspace.getRemote()), ".update_history"));
     FilePath latest = null;
     try {
       List<FilePath> files = updateHistoryDir.list(FileFileFilter.FILE);
@@ -458,19 +458,19 @@ public class VeyronSCM extends SCM {
   /**
    * Gets the full path of VANADIUM_ROOT.
    */
-  private String getVeyronRoot(String workspaceDir) {
-    if (veyronRootInput.startsWith(File.separator)) {
-      return veyronRootInput;
+  private String getVanadiumRoot(String workspaceDir) {
+    if (vanadiumRootInput.startsWith(File.separator)) {
+      return vanadiumRootInput;
     } else {
-      return joinPath(workspaceDir, veyronRootInput);
+      return joinPath(workspaceDir, vanadiumRootInput);
     }
   }
 
   /**
-   * Gets the full path of the veyron tool.
+   * Gets the full path of the v23 tool.
    */
-  private String getVeyronBin(String workspaceDir) {
-    return joinPath(getVeyronRoot(workspaceDir), "bin", "veyron");
+  private String getV23Bin(String workspaceDir) {
+    return joinPath(getVanadiumRoot(workspaceDir), "bin", "v23");
   }
 
   /**

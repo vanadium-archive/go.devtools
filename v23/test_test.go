@@ -14,7 +14,7 @@ import (
 func TestTestProject(t *testing.T) {
 	ctx := util.DefaultContext()
 
-	// Setup an instance of veyron universe.
+	// Setup an instance of vanadium universe.
 	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
@@ -50,7 +50,7 @@ ignore-this PASSED
 func TestTestRun(t *testing.T) {
 	ctx := util.DefaultContext()
 
-	// Setup an instance of veyron universe.
+	// Setup an instance of vanadium universe.
 	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
@@ -82,7 +82,7 @@ ignore-this PASSED
 func TestTestList(t *testing.T) {
 	ctx := util.DefaultContext()
 
-	// Setup an instance of veyron universe.
+	// Setup an instance of vanadium universe.
 	rootDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)

@@ -8,19 +8,19 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// cmdUpdate represents the "veyron update" command.
+// cmdUpdate represents the "v23 update" command.
 var cmdUpdate = &cmdline.Command{
 	Run:   runUpdate,
 	Name:  "update",
-	Short: "Update all veyron tools and projects",
+	Short: "Update all vanadium tools and projects",
 	Long: `
-Updates all veyron projects, builds the latest version of veyron
+Updates all vanadium projects, builds the latest version of vanadium
 tools, and installs the resulting binaries into $VANADIUM_ROOT/bin. The
 sequence in which the individual updates happen guarantees that we end
 up with a consistent set of tools and source code.
 
 The set of project and tools to update is describe by a
-manifest. Veyron manifests are revisioned and stored in a "manifest"
+manifest. Vanadium manifests are revisioned and stored in a "manifest"
 repository, that is available locally in $VANADIUM_ROOT/.manifest. The
 manifest uses the following XML schema:
 
@@ -30,14 +30,14 @@ manifest uses the following XML schema:
      ...
    </imports>
    <projects>
-     <project name="https://veyron.googlesource.com/veyron"
+     <project name="https://vanadium.googlesource.com/vanadium.go.core"
               path="veyron/go/src/veyron.io/veyron"
               protocol="git"
               revision="HEAD"/>
      ...
    </projects>
    <tools>
-     <tool name="veyron" package="veyron.io/tools/veyron"/>
+     <tool name="v23" package="veyron.io/tools/v23"/>
      ...
    </tools>
  </manifest>
@@ -56,7 +56,7 @@ used. Otherwise, the $VANADIUM_ROOT/.manifest/v1/<manifest>.xml file is
 used, which <manifest> is the value of the -manifest command-line
 flag, which defaults to "default".
 
-NOTE: Unlike the veyron tool commands, the above manifest file format
+NOTE: Unlike the v23 tool commands, the above manifest file format
 is not an API. It is an implementation and can change without notice.
 `,
 }
@@ -66,7 +66,7 @@ func runUpdate(command *cmdline.Command, _ []string) error {
 
 	// Create a snapshot of the current state of all projects and
 	// write it to the $VANADIUM_ROOT/.update_history folder.
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}

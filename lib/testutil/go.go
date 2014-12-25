@@ -154,7 +154,7 @@ func buildWorker(ctx *util.Context, args []string, pkgs <-chan string, results c
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
-		err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
+		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
 		duration := time.Now().Sub(start)
 		result := buildResult{
 			pkg:    pkg,
@@ -334,7 +334,7 @@ func coverageWorker(ctx *util.Context, timeout string, args []string, pkgs <-cha
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
-		err = ctx.Run().CommandWithOpts(opts, "veyron", args...)
+		err = ctx.Run().CommandWithOpts(opts, "v23", args...)
 		result := coverageResult{
 			pkg:      pkg,
 			coverage: coverageFile,
@@ -361,7 +361,7 @@ func goList(ctx *util.Context, pkgs []string) ([]string, error) {
 	opts.Stdout = &out
 	opts.Stderr = &out
 	args := append([]string{"go", "list"}, pkgs...)
-	if err := ctx.Run().CommandWithOpts(opts, "veyron", args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
 		fmt.Fprintln(ctx.Stdout(), out.String())
 		return nil, err
 	}
@@ -501,7 +501,7 @@ func testWorker(ctx *util.Context, timeout string, args []string, pkgs <-chan st
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
-		err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
+		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
 		result := testResult{
 			pkg:    pkg,
 			time:   time.Now().Sub(start),
@@ -527,7 +527,7 @@ func buildTestDeps(ctx *util.Context, pkgs []string) error {
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stderr = &out
-	err := ctx.Run().CommandWithOpts(opts, "veyron", args...)
+	err := ctx.Run().CommandWithOpts(opts, "v23", args...)
 	if err == nil {
 		fmt.Fprintf(ctx.Stdout(), "ok\n")
 		return nil
@@ -577,7 +577,7 @@ func installGoCover(ctx *util.Context) error {
 	if scanner.Err() != nil {
 		return fmt.Errorf("Scan() failed: %v")
 	}
-	if err := ctx.Run().Command("veyron", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
+	if err := ctx.Run().Command("v23", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
 		return err
 	}
 	return nil
@@ -587,7 +587,7 @@ func installGoCover(ctx *util.Context) error {
 func installGoDoc(ctx *util.Context) error {
 	// Check if the tool exists.
 	if _, err := exec.LookPath("godoc"); err != nil {
-		if err := ctx.Run().Command("veyron", "go", "install", "golang.org/x/tools/cmd/godoc"); err != nil {
+		if err := ctx.Run().Command("v23", "go", "install", "golang.org/x/tools/cmd/godoc"); err != nil {
 			return err
 		}
 	}
@@ -597,7 +597,7 @@ func installGoDoc(ctx *util.Context) error {
 // installGoCoverCobertura makes sure the "gocover-cobertura" tool is
 // installed.
 func installGoCoverCobertura(ctx *util.Context) error {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -609,7 +609,7 @@ func installGoCoverCobertura(ctx *util.Context) error {
 		}
 		opts := ctx.Run().Opts()
 		opts.Env["GOPATH"] = filepath.Join(root, "environment", "golib")
-		if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
+		if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
 			return err
 		}
 	}
@@ -618,7 +618,7 @@ func installGoCoverCobertura(ctx *util.Context) error {
 
 // installGo2XUnit makes sure the "go2xunit" tool is installed.
 func installGo2XUnit(ctx *util.Context) error {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -630,7 +630,7 @@ func installGo2XUnit(ctx *util.Context) error {
 		}
 		opts := ctx.Run().Opts()
 		opts.Env["GOPATH"] = filepath.Join(root, "environment", "golib")
-		if err := ctx.Run().CommandWithOpts(opts, "veyron", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+		if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 			return err
 		}
 	}
@@ -750,7 +750,7 @@ func veyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
 
 // veyronGoDoc (re)starts the godoc server for veyron projects.
 func veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -800,7 +800,7 @@ func veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	godocCmd.Stderr = fd
 	env := envutil.NewSnapshotFromOS()
 	env.Set("BUILD_ID", "dontKillMe")
-	env.Set("GOPATH", fmt.Sprintf("%v:%v", filepath.Join(root, "veyron", "go"), filepath.Join(root, "roadmap", "go")))
+	env.Set("GOPATH", fmt.Sprintf("%v:%v", filepath.Join(root, "v23", "go"), filepath.Join(root, "roadmap", "go")))
 	godocCmd.Env = env.Slice()
 	fmt.Fprintf(ctx.Stdout(), "%v %v\n", godocCmd.Env, strings.Join(godocCmd.Args, " "))
 	if err := godocCmd.Start(); err != nil {

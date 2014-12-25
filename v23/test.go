@@ -14,24 +14,24 @@ func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
-// cmdTest represents the "veyron test" command.
+// cmdTest represents the "v23 test" command.
 var cmdTest = &cmdline.Command{
 	Name:     "test",
-	Short:    "Manage veyron tests",
-	Long:     "Manage veyron tests.",
+	Short:    "Manage vanadium tests",
+	Long:     "Manage vanadium tests.",
 	Children: []*cmdline.Command{cmdTestProject, cmdTestRun, cmdTestList},
 }
 
-// cmdTestProject represents the "veyron test project" command.
+// cmdTestProject represents the "v23 test project" command.
 var cmdTestProject = &cmdline.Command{
 	Run:   runTestProject,
 	Name:  "project",
-	Short: "Run tests for a veyron project",
+	Short: "Run tests for a vanadium project",
 	Long: `
-Runs tests for a veyron project that is by the remote URL specified as
+Runs tests for a vanadium project that is by the remote URL specified as
 the command-line argument. Projects hosted on googlesource.com, can be
-specified using the basename of the URL (e.g. "veyron.go.core" implies
-"https://veyron.googlesource.com/veyron.go.core").
+specified using the basename of the URL (e.g. "vanadium.go.core" implies
+"https://vanadium.googlesource.com/vanadium.go.core").
 `,
 	ArgsName: "<project>",
 	ArgsLong: "<project> identifies the project for which to run tests.",
@@ -44,7 +44,7 @@ func runTestProject(command *cmdline.Command, args []string) error {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	project := args[0]
 	if !strings.HasPrefix(project, "http") {
-		project = util.VeyronGitRepoHost() + project
+		project = util.VanadiumGitRepoHost() + project
 	}
 	results, err := testutil.RunProjectTests(ctx, nil, []string{project})
 	if err != nil {
@@ -59,12 +59,12 @@ func runTestProject(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// cmdTestRun represents the "veyron test run" command.
+// cmdTestRun represents the "v23 test run" command.
 var cmdTestRun = &cmdline.Command{
 	Run:      runTestRun,
 	Name:     "run",
-	Short:    "Run veyron tests",
-	Long:     "Run veyron tests.",
+	Short:    "Run vanadium tests",
+	Long:     "Run vanadium tests.",
 	ArgsName: "<name ...>",
 	ArgsLong: "<name ...> is a list names identifying the tests to run.",
 }
@@ -94,12 +94,12 @@ func printSummary(ctx *util.Context, results map[string]*testutil.TestResult) {
 	}
 }
 
-// cmdTestList represents the "veyron test list" command.
+// cmdTestList represents the "v23 test list" command.
 var cmdTestList = &cmdline.Command{
 	Run:   runTestList,
 	Name:  "list",
-	Short: "List veyron tests",
-	Long:  "List veyron tests.",
+	Short: "List vanadium tests",
+	Long:  "List vanadium tests.",
 }
 
 func runTestList(command *cmdline.Command, _ []string) error {

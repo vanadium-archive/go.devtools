@@ -13,7 +13,7 @@ import (
 func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'veyron run vdl generate all'.\n")
 
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	opts = ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	venv, err := util.VeyronEnvironment(util.HostPlatform())
+	venv, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		return nil, err
 	}

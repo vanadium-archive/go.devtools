@@ -17,7 +17,7 @@ const (
 //
 // TODO(aghassemi): Port the veyron namespace browser test logic from shell to Go.
 func veyronNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,7 @@ import (
 //
 // TODO(jregan): Merge the mdrip logic into this package.
 func veyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}

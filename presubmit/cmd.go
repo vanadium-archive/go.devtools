@@ -83,7 +83,7 @@ func printf(out io.Writer, format string, args ...interface{}) {
 // values of relevant flags.
 func substituteVarsInFlags() {
 	var err error
-	veyronRoot, err = util.VeyronRoot()
+	veyronRoot, err = util.VanadiumRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 		os.Exit(1)

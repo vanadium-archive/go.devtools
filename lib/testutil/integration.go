@@ -126,7 +126,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 // runIntegrationTests runs all integration tests found under
 // $VANADIUM_ROOT/roadmap/go/src and $VANADIUM_ROOT/veyron/go/src.
 func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func integrationTestWorker(ctx *util.Context, root string, env map[string]string
 		}
 		opts.Stdout = &out
 		opts.Stderr = &out
-		err := ctx.Run().TimedCommandWithOpts(defaultIntegrationTestTimeout, opts, "veyron", args...)
+		err := ctx.Run().TimedCommandWithOpts(defaultIntegrationTestTimeout, opts, "v23", args...)
 		result.time = time.Now().Sub(start)
 		result.output = out.String()
 		if err != nil {

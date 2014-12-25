@@ -129,7 +129,7 @@ func CreateSnapshot(ctx *Context, path string) error {
 // LocalProjects scans the local filesystem to identify existing
 // projects.
 func LocalProjects(ctx *Context) (Projects, error) {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 // what projects and tools are to be updated.
 func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
 	// Update the manifest repository.
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -321,7 +321,7 @@ func BuildTool(ctx *Context, outputDir, name, pkg string, toolsProject Project) 
 		return fmt.Errorf("Chdir(%v) failed: %v", toolsProject.Path, err)
 	}
 
-	env, err := VeyronEnvironment(HostPlatform())
+	env, err := VanadiumEnvironment(HostPlatform())
 	if err != nil {
 		return err
 	}
@@ -472,7 +472,7 @@ func installTools(ctx *Context, dir string) error {
 		// In "dry run" mode, no binaries are built.
 		return nil
 	}
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -551,7 +551,7 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 		delete(stack, manifest.Name)
 	}
 	// Process all projects.
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -635,7 +635,7 @@ func snapshotLocalProjects(ctx *Context) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -797,7 +797,7 @@ func (op createOperation) Run(ctx *Context) (e error) {
 		if err := ctx.Git().Clone(op.project.Name, op.destination); err != nil {
 			return err
 		}
-		if strings.HasPrefix(op.project.Name, VeyronGitRepoHost()) {
+		if strings.HasPrefix(op.project.Name, VanadiumGitRepoHost()) {
 			// Setup the repository for Gerrit code reviews.
 			//
 			// TODO(jsimsa): Decide what to do in case we would want to update the

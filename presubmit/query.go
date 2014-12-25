@@ -384,7 +384,7 @@ outer:
 
 // isInDefaultManifest checks whether the given cl's repo is in the default manifest.
 func isInDefaultManifest(ctx *util.Context, cl gerrit.QueryResult, defaultProjects map[string]util.Project) bool {
-	url := fmt.Sprintf("%s%s", util.VeyronGitRepoHost(), cl.Repo)
+	url := fmt.Sprintf("%s%s", util.VanadiumGitRepoHost(), cl.Repo)
 	if _, ok := defaultProjects[url]; !ok {
 		printf(ctx.Stdout(), "project=%q (%s) not found in the default manifest. Skipped.\n", url, cl.Ref)
 		return false

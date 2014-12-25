@@ -44,20 +44,20 @@ func init() {
 	cmdSnapshot.Flags.BoolVar(&remoteFlag, "remote", false, "Manage remote snapshots.")
 	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
 	cmdUpdate.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
-	// The "veyron xgo" commands has the same flags as "veyron go".
+	// The "v23 xgo" commands has the same flags as "v23 go".
 	cmdXGo.Flags = cmdGo.Flags
 }
 
-// root returns a command that represents the root of the veyron tool.
+// root returns a command that represents the root of the v23 tool.
 func root() *cmdline.Command {
 	return cmdRoot
 }
 
-// cmdRoot represents the root of the veyron tool.
+// cmdRoot represents the root of the v23 tool.
 var cmdRoot = &cmdline.Command{
-	Name:  "veyron",
-	Short: "Tool for managing veyron development",
-	Long:  "The veyron tool helps manage veyron development.",
+	Name:  "v23",
+	Short: "Tool for managing vanadium development",
+	Long:  "The v23 tool helps manage vanadium development.",
 	Children: []*cmdline.Command{
 		cmdBuildCop,
 		cmdContributors,
@@ -75,15 +75,15 @@ var cmdRoot = &cmdline.Command{
 	},
 }
 
-// cmdContributors represents the "veyron contributors" command.
+// cmdContributors represents the "v23 contributors" command.
 var cmdContributors = &cmdline.Command{
 	Run:   runContributors,
 	Name:  "contributors",
-	Short: "List veyron project contributors",
+	Short: "List vanadium project contributors",
 	Long: `
-Lists veyron project contributors and the number of their
-commits. Veyron projects to consider can be specified as an
-argument. If no projects are specified, all veyron projects are
+Lists vanadium project contributors and the number of their
+commits. Vanadium projects to consider can be specified as an
+argument. If no projects are specified, all vanadium projects are
 considered by default.
 `,
 	ArgsName: "<projects>",
@@ -162,15 +162,15 @@ func listCommitters(git *gitutil.Git) (_ []string, e error) {
 	return git.Committers()
 }
 
-// cmdVersion represents the "veyron version" command.
+// cmdVersion represents the "v23 version" command.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
 	Short: "Print version",
-	Long:  "Print version of the veyron tool.",
+	Long:  "Print version of the v23 tool.",
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "veyron tool version %v\n", version.Version)
+	fmt.Fprintf(command.Stdout(), "v23 tool version %v\n", version.Version)
 	return nil
 }

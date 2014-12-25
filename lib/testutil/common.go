@@ -53,7 +53,7 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 
 	// Setup profiles.
 	for _, profile := range profiles {
-		if err := ctx.Run().Command("veyron", "profile", "setup", profile); err != nil {
+		if err := ctx.Run().Command("v23", "profile", "setup", profile); err != nil {
 			return nil, err
 		}
 	}
@@ -72,7 +72,7 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 
 	// Remove all stale Go object files and binaries.
 	if cleanGo {
-		if err := ctx.Run().Command("veyron", "goext", "distclean"); err != nil {
+		if err := ctx.Run().Command("v23", "goext", "distclean"); err != nil {
 			return nil, err
 		}
 	}

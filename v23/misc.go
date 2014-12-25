@@ -23,18 +23,18 @@ func translateExitCode(err error) error {
 	return err
 }
 
-// cmdEnv represents the "veyron env" command.
+// cmdEnv represents the "v23 env" command.
 var cmdEnv = &cmdline.Command{
 	Run:   runEnv,
 	Name:  "env",
-	Short: "Print veyron environment variables",
+	Short: "Print vanadium environment variables",
 	Long: `
-Print veyron environment variables.
+Print vanadium environment variables.
 
 If no arguments are given, prints all variables in NAME="VALUE" format,
 each on a separate line ordered by name.  This format makes it easy to set
 all vars by running the following bash command (or similar for other shells):
-   eval $(veyron env)
+   eval $(v23 env)
 
 If arguments are given, prints only the value of each named variable,
 each on a separate line in the same order as the arguments.
@@ -48,7 +48,7 @@ func runEnv(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	env, err := util.VeyronEnvironment(platform)
+	env, err := util.VanadiumEnvironment(platform)
 	if err != nil {
 		return err
 	}
@@ -64,12 +64,12 @@ func runEnv(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// cmdRun represents the "veyron run" command.
+// cmdRun represents the "v23 run" command.
 var cmdRun = &cmdline.Command{
 	Run:      runRun,
 	Name:     "run",
-	Short:    "Run an executable using the veyron environment",
-	Long:     "Run an executable using the veyron environment.",
+	Short:    "Run an executable using the vanadium environment",
+	Long:     "Run an executable using the vanadium environment.",
 	ArgsName: "<executable> [arg ...]",
 	ArgsLong: `
 <executable> [arg ...] is the executable to run and any arguments to pass
@@ -81,17 +81,17 @@ func runRun(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("no command to run")
 	}
-	env, err := util.VeyronEnvironment(util.HostPlatform())
+	env, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		return err
 	}
-	// For certain commands, veyron uses specialized wrappers that do
-	// more than just set up the veyron environment. If the user is
+	// For certain commands, vanadium uses specialized wrappers that do
+	// more than just set up the vanadium environment. If the user is
 	// trying to run any of these commands using the 'run' command,
 	// warn the user that they might want to use the specialized wrapper.
 	switch args[0] {
 	case "go":
-		fmt.Fprintln(command.Stderr(), `WARNING: using "veyron run go" instead of "veyron go" skips vdl generation`)
+		fmt.Fprintln(command.Stderr(), `WARNING: using "v23 run go" instead of "v23 go" skips vdl generation`)
 	}
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = command.Stdout()

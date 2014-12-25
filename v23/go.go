@@ -16,19 +16,19 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// cmdGo represents the "veyron go" command.
+// cmdGo represents the "v23 go" command.
 var cmdGo = &cmdline.Command{
 	Run:   runGo,
 	Name:  "go",
-	Short: "Execute the go tool using the veyron environment",
+	Short: "Execute the go tool using the vanadium environment",
 	Long: `
 Wrapper around the 'go' tool that can be used for compilation of
-veyron Go sources. It takes care of veyron-specific setup, such as
+vanadium Go sources. It takes care of vanadium-specific setup, such as
 setting up the Go specific environment variables or making sure that
 VDL generated files are regenerated before compilation.
 
 In particular, the tool invokes the following command before invoking
-any go tool commands that compile veyron Go code:
+any go tool commands that compile vanadium Go code:
 
 vdl generate -lang=go all
 `,
@@ -44,19 +44,19 @@ func runGo(command *cmdline.Command, args []string) error {
 	return runGoForPlatform(ctx, util.HostPlatform(), command, args)
 }
 
-// cmdXGo represents the "veyron xgo" command.
+// cmdXGo represents the "v23 xgo" command.
 var cmdXGo = &cmdline.Command{
 	Run:   runXGo,
 	Name:  "xgo",
-	Short: "Execute the go tool using the veyron environment and cross-compilation",
+	Short: "Execute the go tool using the vanadium environment and cross-compilation",
 	Long: `
 Wrapper around the 'go' tool that can be used for cross-compilation of
-veyron Go sources. It takes care of veyron-specific setup, such as
+vanadium Go sources. It takes care of vanadium-specific setup, such as
 setting up the Go specific environment variables or making sure that
 VDL generated files are regenerated before compilation.
 
 In particular, the tool invokes the following command before invoking
-any go tool commands that compile veyron Go code:
+any go tool commands that compile vanadium Go code:
 
 vdl generate -lang=go all
 
@@ -103,7 +103,7 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 	}
 
 	// Run the go tool for the given platform.
-	targetEnv, err := util.VeyronEnvironment(platform)
+	targetEnv, err := util.VanadiumEnvironment(platform)
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func runGoForPlatform(ctx *util.Context, platform util.Platform, command *cmdlin
 // TODO(toddw): Change the vdl tool to return vdl packages given the
 // full Go dependencies, after vdl config files are implemented.
 func generateVDL(ctx *util.Context, cmdArgs []string) error {
-	hostEnv, err := util.VeyronEnvironment(util.HostPlatform())
+	hostEnv, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func reportOutdatedBranches(ctx *util.Context) (e error) {
 				fmt.Fprintf(ctx.Stderr(), "NOTE: project=%q path=%q\n", path.Base(project.Name), project.Path)
 				fmt.Fprintf(ctx.Stderr(), "This project is on a non-master branch that is out of date.\n")
 				fmt.Fprintf(ctx.Stderr(), "Please update this branch using %q.\n", "git merge master")
-				fmt.Fprintf(ctx.Stderr(), "Until then the %q tool might not function properly.\n", "veyron")
+				fmt.Fprintf(ctx.Stderr(), "Until then the %q tool might not function properly.\n", "v23")
 			}
 		}
 	}
@@ -357,23 +357,23 @@ func computeGoDeps(ctx *util.Context, env *envutil.Snapshot, pkgs []string) ([]s
 	return deps, nil
 }
 
-// cmdGoExt represents the "veyron goext" command.
+// cmdGoExt represents the "v23 goext" command.
 var cmdGoExt = &cmdline.Command{
 	Name:     "goext",
-	Short:    "Veyron extensions of the go tool",
-	Long:     "Veyron extension of the go tool.",
+	Short:    "Vanadium extensions of the go tool",
+	Long:     "Vanadium extension of the go tool.",
 	Children: []*cmdline.Command{cmdGoExtDistClean},
 }
 
-// cmdGoExtDistClean represents the 'veyron goext distclean" command.
+// cmdGoExtDistClean represents the "v23 goext distclean" command.
 var cmdGoExtDistClean = &cmdline.Command{
 	Run:   runGoExtDistClean,
 	Name:  "distclean",
-	Short: "Restore the veyron Go repositories to their pristine state",
+	Short: "Restore the vanadium Go workspaces to their pristine state",
 	Long: `
 Unlike the 'go clean' command, which only removes object files for
 packages in the source tree, the 'goext disclean' command removes all
-object files from veyron Go workspaces. This functionality is needed
+object files from vanadium Go workspaces. This functionality is needed
 to avoid accidental use of stale object files that correspond to
 packages that no longer exist in the source tree.
 `,
@@ -381,7 +381,7 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(command *cmdline.Command, _ []string) error {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
-	env, err := util.VeyronEnvironment(util.HostPlatform())
+	env, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		return err
 	}

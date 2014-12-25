@@ -142,7 +142,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 	}
 
 	// Rebuild vdl and veyron tool.
-	toolsProject, ok := projects[util.VeyronGitRepoHost()+"veyron.go.tools"]
+	toolsProject, ok := projects[util.VanadiumGitRepoHost()+"veyron.go.tools"]
 	env := map[string]string{}
 	if !ok {
 		printf(ctx.Stderr(), "tools project not found, not rebuilding tools.\n")
@@ -150,7 +150,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 		// Find target Tools.
 		targetTools := []util.Tool{}
 		for name, tool := range tools {
-			if name == "veyron" || name == "vdl" || name == "go-depcop" {
+			if name == "v23" || name == "veyron" || name == "vdl" || name == "go-depcop" {
 				targetTools = append(targetTools, tool)
 			}
 		}
@@ -289,7 +289,7 @@ func parseRefsAndRepos() ([]cl, []string, []string, error) {
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		fullRepo := util.VeyronGitRepoHost() + repo
+		fullRepo := util.VanadiumGitRepoHost() + repo
 		fullRepos = append(fullRepos, fullRepo)
 		cls = append(cls, cl{
 			clNumber: clNumber,

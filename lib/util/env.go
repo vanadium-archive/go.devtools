@@ -21,7 +21,7 @@ const (
 
 // LocalManifestFile returns the path to the local manifest.
 func LocalManifestFile() (string, error) {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return "", err
 	}
@@ -30,7 +30,7 @@ func LocalManifestFile() (string, error) {
 
 // LocalSnapshotDir returns the path to the local snapshots directory.
 func LocalSnapshotDir() (string, error) {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return "", err
 	}
@@ -39,7 +39,7 @@ func LocalSnapshotDir() (string, error) {
 
 // RemoteManifestDir returns the path to the local manifest directory.
 func RemoteManifestDir() (string, error) {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return "", err
 	}
@@ -68,9 +68,9 @@ func ResolveManifestPath(path string) (string, error) {
 }
 
 // ConfigDir returns the local path to the directory storing config
-// files for the veyron tools.
+// files for the vanadium tools.
 func ConfigDir() (string, error) {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return "", err
 	}
@@ -103,14 +103,14 @@ func LoadConfig(name string, config interface{}) error {
 	return nil
 }
 
-// VeyronEnvironment returns the environment variables setting for
-// veyron. The util package captures the original state of the
+// VanadiumEnvironment returns the environment variables setting for
+// vanadium. The util package captures the original state of the
 // relevant environment variables when the tool is initialized, and
 // every invocation of this function updates this original state
-// according to the current config of the veyron tool.
-func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
+// according to the current config of the v23 tool.
+func VanadiumEnvironment(platform Platform) (*envutil.Snapshot, error) {
 	env := envutil.NewSnapshotFromOS()
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -151,29 +151,17 @@ func VeyronEnvironment(platform Platform) (*envutil.Snapshot, error) {
 	default:
 		return nil, UnsupportedPlatformErr{platform}
 	}
-	// If VEYRON_ENV_SETUP==none, revert all deltas to their
-	// original base value. We can't just skip the above logic or
-	// revert to the BaseMap completely, since we still need
-	// DeltaMap to tell us which variables we care about.
-	//
-	// TODO(toddw): Remove this logic when Cos' old setup stops
-	// depending on it.
-	if env.Get("VEYRON_ENV_SETUP") == "none" {
-		for key := range env.DeltaMap() {
-			env.Set(key, env.BaseMap()[key])
-		}
-	}
 	return env, nil
 }
 
-// VeyronGitRepoHost returns the URL that hosts veyron git
+// VanadiumGitRepoHost returns the URL that hosts vanadium git
 // repositories.
-func VeyronGitRepoHost() string {
-	return "https://veyron.googlesource.com/"
+func VanadiumGitRepoHost() string {
+	return "https://vanadium.googlesource.com/"
 }
 
-// VeyronRoot returns the root of the veyron universe.
-func VeyronRoot() (string, error) {
+// VanadiumRoot returns the root of the vanadium universe.
+func VanadiumRoot() (string, error) {
 	root := os.Getenv(rootEnv)
 	if root == "" {
 		return "", fmt.Errorf("%v is not set", rootEnv)
@@ -188,7 +176,7 @@ func VeyronRoot() (string, error) {
 // setAndroidEnv sets the environment variables used for android
 // cross-compilation.
 func setAndroidEnv(env *envutil.Snapshot, platform Platform) error {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -200,7 +188,7 @@ func setAndroidEnv(env *envutil.Snapshot, platform Platform) error {
 	if err := setJniCgoEnv(env, root, platform.OS); err != nil {
 		return err
 	}
-	// Add the paths to veyron cross-compilation tools to the PATH.
+	// Add the paths to vanadium cross-compilation tools to the PATH.
 	path := env.GetTokens("PATH", ":")
 	path = append([]string{
 		filepath.Join(root, "environment", "android", "go", "bin"),
@@ -212,7 +200,7 @@ func setAndroidEnv(env *envutil.Snapshot, platform Platform) error {
 // setArmEnv sets the environment variables used for android
 // cross-compilation.
 func setArmEnv(env *envutil.Snapshot, platform Platform) error {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return err
 	}
@@ -221,7 +209,7 @@ func setArmEnv(env *envutil.Snapshot, platform Platform) error {
 	env.Set("GOARM", strings.TrimPrefix(platform.SubArch, "v"))
 	env.Set("GOOS", platform.OS)
 
-	// Add the paths to veyron cross-compilation tools to the PATH.
+	// Add the paths to vanadium cross-compilation tools to the PATH.
 	path := env.GetTokens("PATH", ":")
 	path = append([]string{
 		filepath.Join(root, "environment", "cout", "xgcc", "cross_arm"),
@@ -231,22 +219,22 @@ func setArmEnv(env *envutil.Snapshot, platform Platform) error {
 	return nil
 }
 
-// setGoPath adds the paths to veyron Go workspaces to the GOPATH
+// setGoPath adds the paths to vanadium Go workspaces to the GOPATH
 // variable.
 func setGoPath(env *envutil.Snapshot, root string, config *Config) {
 	gopath := env.GetTokens("GOPATH", ":")
-	// Append an entry to gopath for each veyron go workspace.
+	// Append an entry to gopath for each vanadium go workspace.
 	for _, repo := range config.GoWorkspaces() {
 		gopath = append(gopath, filepath.Join(root, repo, "go"))
 	}
 	env.SetTokens("GOPATH", gopath, ":")
 }
 
-// setVdlPath adds the paths to veyron VDL workspaces to the VDLPATH
+// setVdlPath adds the paths to vanadium VDL workspaces to the VDLPATH
 // variable.
 func setVdlPath(env *envutil.Snapshot, root string, config *Config) {
 	vdlpath := env.GetTokens("VDLPATH", ":")
-	// Append an entry to vdlpath for each veyron vdl workspace.
+	// Append an entry to vdlpath for each vanadium vdl workspace.
 	//
 	// TODO(toddw): This logic will change when we pull vdl into a
 	// separate repo.
@@ -257,10 +245,10 @@ func setVdlPath(env *envutil.Snapshot, root string, config *Config) {
 }
 
 // setBluetoothCgoEnv sets the CGO_ENABLED variable and adds the
-// bluetooth third-party C libraries veyron Go code depends on to the
+// bluetooth third-party C libraries vanadium Go code depends on to the
 // CGO_CFLAGS and CGO_LDFLAGS variables.
 func setBluetoothCgoEnv(env *envutil.Snapshot, root, arch string) error {
-	// Set the CGO_* variables for the veyron proximity component.
+	// Set the CGO_* variables for the vanadium proximity component.
 	env.Set("CGO_ENABLED", "1")
 	libs := []string{
 		"dbus-1.6.14",
@@ -292,7 +280,7 @@ func setBluetoothCgoEnv(env *envutil.Snapshot, root, arch string) error {
 }
 
 // setJniCgoEnv sets the CGO_ENABLED variable and adds the JNI
-// third-party C libraries veyron Go code depends on to the CGO_CFLAGS
+// third-party C libraries vanadium Go code depends on to the CGO_CFLAGS
 // and CGO_LDFLAGS variables.
 func setJniCgoEnv(env *envutil.Snapshot, root, arch string) error {
 	env.Set("CGO_ENABLED", "1")
@@ -322,7 +310,7 @@ func setNaclEnv(env *envutil.Snapshot, platform Platform) error {
 
 // BuildCopRotationPath returns the path to the build cop rotation file.
 func BuildCopRotationPath() (string, error) {
-	root, err := VeyronRoot()
+	root, err := VanadiumRoot()
 	if err != nil {
 		return "", err
 	}

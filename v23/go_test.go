@@ -11,10 +11,10 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// TestGoVeyronEnvironment checks that the implementation of the
-// 'veyron go' command sets up the veyron environment and then
+// TestGoVanadiumEnvironment checks that the implementation of the
+// "v23 go" command sets up the vanadium environment and then
 // dispatches calls to the go tool.
-func TestGoVeyronEnvironment(t *testing.T) {
+func TestGoVanadiumEnvironment(t *testing.T) {
 	testCmd := *cmdGo
 	var stdout, stderr bytes.Buffer
 	testCmd.Init(nil, &stdout, &stderr)
@@ -24,7 +24,7 @@ func TestGoVeyronEnvironment(t *testing.T) {
 	if err := runGo(&testCmd, []string{"env", "GOPATH"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	env, err := util.VeyronEnvironment(util.HostPlatform())
+	env, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -33,8 +33,8 @@ func TestGoVeyronEnvironment(t *testing.T) {
 	}
 }
 
-// TestGoVDLGeneration checks that the implementation of the 'veyron
-// go' command generates up-to-date VDL files for select go tool
+// TestGoVDLGeneration checks that the implementation of the "v23
+// go" command generates up-to-date VDL files for select go tool
 // commands before dispatching these commands to the go tool.
 func TestGoVDLGeneration(t *testing.T) {
 	ctx, testCmd := util.DefaultContext(), *cmdGo
@@ -223,7 +223,7 @@ func TestExtractGoPackagesOrFiles(t *testing.T) {
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
 	ctx := util.DefaultContext()
-	hostEnv, err := util.VeyronEnvironment(util.HostPlatform())
+	hostEnv, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -233,10 +233,10 @@ func TestComputeGoDeps(t *testing.T) {
 		// This is checking the actual dependencies of the specified packages, so it
 		// may break if we change the implementation; we try to pick dependencies
 		// that are likely to remain in these packages.
-		{nil, []string{"veyron.io/tools/veyron", "fmt"}},
-		{[]string{"."}, []string{"veyron.io/tools/veyron", "fmt"}},
-		{[]string{"veyron.io/tools/veyron"}, []string{"veyron.io/tools/veyron", "fmt"}},
-		{[]string{"veyron.io/tools/veyron/..."}, []string{"veyron.io/tools/veyron", "fmt"}},
+		{nil, []string{"veyron.io/tools/v23", "fmt"}},
+		{[]string{"."}, []string{"veyron.io/tools/v23", "fmt"}},
+		{[]string{"veyron.io/tools/v23"}, []string{"veyron.io/tools/v23", "fmt"}},
+		{[]string{"veyron.io/tools/v23/..."}, []string{"veyron.io/tools/v23", "fmt"}},
 	}
 	for _, test := range tests {
 		t.Logf("%v\n", test.Pkgs)

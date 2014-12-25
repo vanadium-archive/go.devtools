@@ -63,7 +63,7 @@ func TestList(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
-	oldRoot, err := util.VeyronRoot()
+	oldRoot, err := util.VanadiumRoot()
 	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -108,8 +108,8 @@ func TestList(t *testing.T) {
 			createLabelDir(t, ctx, test.dir, label.name, label.snapshots)
 		}
 
-		// Check that running "veyron snapshot list" with no
-		// arguments returns the expected output.
+		// Check that running "v23 snapshot list" with no arguments
+		// returns the expected output.
 		var stdout bytes.Buffer
 		command := cmdline.Command{}
 		command.Init(nil, &stdout, nil)
@@ -124,8 +124,8 @@ func TestList(t *testing.T) {
 			t.Fatalf("unexpected output:\ngot\n%v\nwant\n%v\n", got, want)
 		}
 
-		// Check that running "veyron snapshot list" with one
-		// argument returns the expected output.
+		// Check that running "v23 snapshot list" with one argument
+		// returns the expected output.
 		stdout.Reset()
 		if err := runSnapshotList(&command, []string{"stable"}); err != nil {
 			t.Fatalf("%v", err)
@@ -135,7 +135,7 @@ func TestList(t *testing.T) {
 			t.Fatalf("unexpected output:\ngot\n%v\nwant\n%v\n", got, want)
 		}
 
-		// Check that running "veyron snapshot list" with
+		// Check that running "v23 snapshot list" with
 		// multiple arguments returns the expected output.
 		stdout.Reset()
 		if err := runSnapshotList(&command, []string{"beta", "stable"}); err != nil {
@@ -220,7 +220,7 @@ func ignoreDirs(t *testing.T, rootDir string, projects []string) {
 	for _, project := range projects {
 		contents += project + "\n"
 	}
-	path, perm := filepath.Join(rootDir, ".veyronignore"), os.FileMode(0644)
+	path, perm := filepath.Join(rootDir, ".v23ignore"), os.FileMode(0644)
 	if err := ioutil.WriteFile(path, []byte(contents), perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", path, perm, err)
 	}
@@ -275,7 +275,7 @@ func writeReadme(t *testing.T, ctx *util.Context, projectDir, message string) {
 }
 
 func TestCreate(t *testing.T) {
-	// Setup an instance of veyron universe, creating the remote
+	// Setup an instance of vanadium universe, creating the remote
 	// repositories for the manifest and projects under the
 	// "remote" directory, which is ignored from the consideration
 	// of LocalProjects().

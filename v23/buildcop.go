@@ -8,19 +8,19 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// cmdBuildCop represents the "veyron buildcop" command.
+// cmdBuildCop represents the "v23 buildcop" command.
 var cmdBuildCop = &cmdline.Command{
 	Run:   runBuildCop,
 	Name:  "buildcop",
-	Short: "Manage veyron build cop schedule",
+	Short: "Manage vanadium build cop schedule",
 	Long: `
-Manage veyron build cop schedule. If no subcommand is given, it shows the LDAP
+Manage vanadium build cop schedule. If no subcommand is given, it shows the LDAP
 of the current build cop.
 `,
 	Children: []*cmdline.Command{cmdBuildCopList},
 }
 
-// cmdBuildCopList represents the "veyron buildcop list" command.
+// cmdBuildCopList represents the "v23 buildcop list" command.
 var cmdBuildCopList = &cmdline.Command{
 	Run:   runBuildCopList,
 	Name:  "list",

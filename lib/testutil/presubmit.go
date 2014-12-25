@@ -37,7 +37,7 @@ const (
 // results.
 func findTestResultFiles(ctx *util.Context) ([]string, error) {
 	result := []string{}
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func requireEnv(names []string) error {
 // veyronPresubmitPoll polls veyron projects for new patchsets for
 // which to run presubmit tests.
 func veyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}

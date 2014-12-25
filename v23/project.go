@@ -12,19 +12,19 @@ import (
 	"veyron.io/tools/lib/util"
 )
 
-// cmdProject represents the "veyron project" command.
+// cmdProject represents the "v23 project" command.
 var cmdProject = &cmdline.Command{
 	Name:     "project",
-	Short:    "Manage the veyron projects",
-	Long:     "Manage the veyron projects.",
+	Short:    "Manage the vanadium projects",
+	Long:     "Manage the vanadium projects.",
 	Children: []*cmdline.Command{cmdProjectList, cmdProjectShellPrompt, cmdProjectPoll},
 }
 
-// cmdProjectList represents the "veyron project list" command.
+// cmdProjectList represents the "v23 project list" command.
 var cmdProjectList = &cmdline.Command{
 	Run:   runProjectList,
 	Name:  "list",
-	Short: "List existing veyron projects and branches",
+	Short: "List existing vanadium projects and branches",
 	Long:  "Inspect the local filesystem and list the existing projects and branches.",
 }
 
@@ -129,13 +129,13 @@ func runProjectList(command *cmdline.Command, _ []string) error {
 	return nil
 }
 
-// cmdProjectShellPrompt represents the "veyron project shell-prompt" command.
+// cmdProjectShellPrompt represents the "v23 project shell-prompt" command.
 var cmdProjectShellPrompt = &cmdline.Command{
 	Run:   runProjectShellPrompt,
 	Name:  "shell-prompt",
 	Short: "Print a succinct status of projects, suitable for shell prompts",
 	Long: `
-Reports current branches of veyron projects (repositories) as well as an
+Reports current branches of vanadium projects (repositories) as well as an
 indication of each project's status:
   *  indicates that a repository contains uncommitted changes
   %  indicates that a repository contains untracked files
@@ -205,13 +205,13 @@ func runProjectShellPrompt(command *cmdline.Command, args []string) error {
 	return nil
 }
 
-// cmdProjectPoll represents the "veyron project poll" command.
+// cmdProjectPoll represents the "v23 project poll" command.
 var cmdProjectPoll = &cmdline.Command{
 	Run:   runProjectPoll,
 	Name:  "poll",
-	Short: "Poll existing veyron projects",
+	Short: "Poll existing vanadium projects",
 	Long: `
-Poll veyron projects that can affect the outcome of the given tests
+Poll vanadium projects that can affect the outcome of the given tests
 and report whether any new changes in these projects exist. If no
 tests are specified, all projects are polled by default.
 `,

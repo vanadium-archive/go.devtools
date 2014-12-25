@@ -58,7 +58,7 @@ func generateTestSuite(ctx *util.Context, success bool, pkg string, duration tim
 
 // testProdService test the given production service.
 func testProdService(ctx *util.Context, service prodService) (*testSuite, error) {
-	root, err := util.VeyronRoot()
+	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func veyronProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, 
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
-	if err := ctx.Run().Command("veyron", "go", "install", "veyron.io/veyron/veyron/tools/vrpc"); err != nil {
+	if err := ctx.Run().Command("v23", "go", "install", "veyron.io/veyron/veyron/tools/vrpc"); err != nil {
 		return nil, err
 	}
 
