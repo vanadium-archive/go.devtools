@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 )
 
-// Config holds configuration common to veyron tools.
+// Config holds configuration common to vanadium tools.
 type Config struct {
 	// goWorkspaces identifies VANADIUM_ROOT subdirectories that contain a
 	// Go workspace.
 	goWorkspaces []string
-	// projectTests maps veyron projects to sets of tests that should be
+	// projectTests maps vanadium projects to sets of tests that should be
 	// executed to test changes in the given project.
 	projectTests map[string][]string
 	// snapshotLabelTests maps snapshot labels to sets of tests that

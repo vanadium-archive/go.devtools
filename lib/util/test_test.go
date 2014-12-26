@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func createBuildCopFile(t *testing.T, ctx *Context, veyronRoot string) {
+func createBuildCopFile(t *testing.T, ctx *Context) {
 	content := `<?xml version="1.0" ?>
 <rotation>
   <shift>
@@ -58,7 +58,7 @@ func TestBuildCop(t *testing.T) {
 	defer os.Setenv("VANADIUM_ROOT", oldRoot)
 
 	// Create a buildcop.xml file.
-	createBuildCopFile(t, ctx, tmpDir)
+	createBuildCopFile(t, ctx)
 	type testCase struct {
 		targetTime       time.Time
 		expectedBuildCop string

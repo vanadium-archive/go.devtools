@@ -254,12 +254,12 @@ func writeReadme(t *testing.T, ctx *Context, projectDir, message string) {
 	}
 }
 
-// TestUpdateUniverse is a comprehensive test of the "veyron update"
+// TestUpdateUniverse is a comprehensive test of the "v23 update"
 // logic that handles projects.
 //
 // TODO(jsimsa): Add tests for the logic that updates tools.
 func TestUpdateUniverse(t *testing.T) {
-	// Setup an instance of veyron universe, creating the remote
+	// Setup an instance of vanadium universe, creating the remote
 	// repositories for the manifest and projects under the
 	// "remote" directory, which is ignored from the consideration
 	// of LocalProjects().

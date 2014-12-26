@@ -1,4 +1,4 @@
-// Package util provides utility functions for veyron tools.
+// Package util provides utility functions for vanadium tools.
 //
 // TODO(jsimsa): Create a repoutil package that hides different
 // version control systems behind a single interface.
@@ -32,7 +32,7 @@ type CL struct {
 	Description string
 }
 
-// Manifest represents a setting used for updating the veyron universe.
+// Manifest represents a setting used for updating the vanadium universe.
 type Manifest struct {
 	Imports  []Import  `xml:"imports>import"`
 	Projects []Project `xml:"projects>project"`
@@ -50,10 +50,10 @@ type Import struct {
 	Name string `xml:"name,attr"`
 }
 
-// Projects maps veyron project names to their detailed description.
+// Projects maps vanadium project names to their detailed description.
 type Projects map[string]Project
 
-// Project represents a veyron project.
+// Project represents a vanadium project.
 type Project struct {
 	// Exclude is flag used to exclude previously included projects.
 	Exclude bool `xml:"exclude,attr"`
@@ -70,15 +70,15 @@ type Project struct {
 	// project. If not set, "git" is used as the default.
 	Protocol string `xml:"protocol,attr"`
 	// Revision is the revision the project should be advanced to
-	// during "veyron update". If not set, "HEAD" is used as the
+	// during "v23 update". If not set, "HEAD" is used as the
 	// default.
 	Revision string `xml:"revision,attr"`
 }
 
-// Tools maps veyron tool names, to their detailed description.
+// Tools maps vanadium tool names, to their detailed description.
 type Tools map[string]Tool
 
-// Tool represents a veyron tool.
+// Tool represents a vanadium tool.
 type Tool struct {
 	// Exclude is flag used to exclude previously included projects.
 	Exclude bool `xml:"exclude,attr"`
@@ -86,9 +86,9 @@ type Tool struct {
 	Name string `xml:"name,attr"`
 	// Package is the package path of the tool.
 	Package string `xml:"package,attr"`
-	// Project identifies the project that contains the tool. If
-	// not set, "https://veyron.googlesource.com/tools" is used as
-	// the default.
+	// Project identifies the project that contains the tool. If not
+	// set, "https://vanadium.googlesource.com/release.go.tools" is used
+	// as the default.
 	Project string `xml:"project,attr"`
 }
 
@@ -98,7 +98,7 @@ func (e UnsupportedProtocolErr) Error() string {
 	return fmt.Sprintf("unsupported protocol %v", e)
 }
 
-// Update represents an update of veyron projects as a map from
+// Update represents an update of vanadium projects as a map from
 // project names to a collections of commits.
 type Update map[string][]CL
 
@@ -140,9 +140,9 @@ func LocalProjects(ctx *Context) (Projects, error) {
 	return projects, nil
 }
 
-// PollProjects returns the set of changelists that exist remotely
-// but not locally. Changes are grouped by veyron repositories and
-// contain author identification and a description of their content.
+// PollProjects returns the set of changelists that exist remotely but
+// not locally. Changes are grouped by vanadium projects and contain
+// author identification and a description of their content.
 func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{}) (_ Update, e error) {
 	update := Update{}
 	cwd, err := os.Getwd()
@@ -252,7 +252,7 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) (e error) {
 		return err
 	}
 	// 2. Build all tools in a temporary directory.
-	tmpDir, err := ctx.Run().TempDir("", "tmp-veyron-tools-build")
+	tmpDir, err := ctx.Run().TempDir("", "tmp-vanadium-tools-build")
 	if err != nil {
 		return fmt.Errorf("TempDir() failed: %v", err)
 	}
@@ -350,7 +350,7 @@ func BuildTool(ctx *Context, outputDir, name, pkg string, toolsProject Project) 
 	return nil
 }
 
-// buildTools builds and installs all veyron tools using the version
+// buildTools builds and installs all vanadium tools using the version
 // available in the local master branch of the tools
 // repository. Notably, this function does not perform any version
 // control operation on the master branch.
@@ -588,9 +588,9 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 			delete(tools, tool.Name)
 			continue
 		}
-		// Use the "veyron.go.tools" project as the default project.
+		// Use the "release.go.tools" project as the default project.
 		if tool.Project == "" {
-			tool.Project = "https://veyron.googlesource.com/veyron.go.tools"
+			tool.Project = "https://vanadium.googlesource.com/release.go.tools"
 		}
 		tools[tool.Name] = tool
 	}
@@ -615,7 +615,7 @@ func reportNonMaster(ctx *Context, project Project) (e error) {
 			return err
 		}
 		if current != "master" {
-			line1 := fmt.Sprintf(`NOTE: "veyron update" only updates the "master" branch and the current branch is %q`, current)
+			line1 := fmt.Sprintf(`NOTE: "v23 update" only updates the "master" branch and the current branch is %q`, current)
 			line2 := fmt.Sprintf(`to update the %q branch once the master branch is updated, run "git merge master"`, current)
 			opts := runutil.Opts{Verbose: true}
 			ctx.Run().OutputWithOpts(opts, []string{line1, line2})
@@ -667,7 +667,7 @@ func snapshotLocalProjects(ctx *Context) (*Manifest, error) {
 	return &manifest, nil
 }
 
-// updateProjects updates all veyron projects.
+// updateProjects updates all vanadium projects.
 func updateProjects(ctx *Context, remoteProjects Projects, manifest string, gc bool) error {
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
@@ -756,7 +756,7 @@ readonly BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [ "${BRANCH}" == "master" ]
 then
   echo "========================================================================="
-  echo "Veyron code cannot be committed to master using the 'git commit' command."
+  echo "Vanadium code cannot be committed to master using the 'git commit' command."
   echo "Please make a feature branch and commit your code there."
   echo "========================================================================="
   exit 1
@@ -778,8 +778,8 @@ readonly BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [ "${REMOTE}" == "origin" ] && [ "${BRANCH}" == "master" ]
 then
   echo "======================================================================="
-  echo "Veyron code cannot be pushed to master using the 'git push' command."
-  echo "Use the 'git veyron review' command to follow the code review workflow."
+  echo "Vanadium code cannot be pushed to master using the 'git push' command."
+  echo "Use the 'git v23 review' command to follow the code review workflow."
   echo "======================================================================="
   exit 1
 fi
@@ -892,7 +892,7 @@ func (op deleteOperation) Run(ctx *Context) error {
 		fmt.Sprintf("NOTE: this project was not found in the %q manifest", op.manifest),
 		"it was not automatically removed to avoid deleting uncommitted work",
 		fmt.Sprintf(`if you no longer need it, invoke "rm -rf %v"`, op.source),
-		`or invoke "veyron update -gc" to remove all such local projects`,
+		`or invoke "v23 update -gc" to remove all such local projects`,
 	}
 	opts := runutil.Opts{Verbose: true}
 	ctx.Run().OutputWithOpts(opts, lines)

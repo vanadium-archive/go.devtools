@@ -15,7 +15,7 @@ func TestParseQueryResults(t *testing.T) {
 		{
 			"change_id": "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
 			"current_revision": "3654e38b2f80a5410ea94f1d7321477d89cac391",
-			"project": "veyron",
+			"project": "vanadium",
 			"revisions": {
 				"3654e38b2f80a5410ea94f1d7321477d89cac391": {
 					"fetch": {
@@ -46,7 +46,7 @@ func TestParseQueryResults(t *testing.T) {
 	expected := []QueryResult{
 		{
 			Ref:      "refs/changes/40/4440/1",
-			Repo:     "veyron",
+			Repo:     "vanadium",
 			ChangeID: "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
 		},
 		{

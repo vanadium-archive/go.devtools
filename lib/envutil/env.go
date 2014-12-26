@@ -1,10 +1,10 @@
 // Package envutil implements utilities for processing environment variables.
 // There are three representations of environment variables:
-//    1) map[key]value   # used by veyron libraries
+//    1) map[key]value   # used by vanadium libraries
 //    2) []`key=value`   # used by standard Go packages
 //    3) []`key="value"` # used by shells for setting the environment
 //
-// The map form (1) is used by veyron since it's more convenient for read,
+// The map form (1) is used by vanadium since it's more convenient for read,
 // modification, and write of individual variables.  The slice form (2) is used
 // by standard Go packages, presumably since it's similar to the underlying os
 // implementation.  The slice form (3) is used by shells, which need the
@@ -19,8 +19,9 @@ import (
 	"strings"
 )
 
-// ToMap converts environment variables from the []`key=value` form to the
-// map[key]value form.  This is the representation used by veyron libraries.
+// ToMap converts environment variables from the []`key=value` form to
+// the map[key]value form. This is the representation used by
+// vanadium libraries.
 func ToMap(env []string) map[string]string {
 	ret := make(map[string]string, len(env))
 	for _, entry := range env {

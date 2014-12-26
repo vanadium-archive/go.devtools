@@ -236,7 +236,7 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 	return ref
 }
 
-// repoName returns the URL of the veyron Gerrit repository with
+// repoName returns the URL of the vanadium Gerrit repository with
 // respect to the repository identified by the current working
 // directory.
 func repoName(ctx *util.Context) (string, error) {
@@ -248,7 +248,7 @@ func repoName(ctx *util.Context) (string, error) {
 	if err := ctx.Run().CommandWithOpts(opts, "git", args...); err != nil {
 		return "", gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
-	return "https://veyron-review.googlesource.com/" + filepath.Base(strings.TrimSpace(stdout.String())), nil
+	return "https://vanadium-review.googlesource.com/" + filepath.Base(strings.TrimSpace(stdout.String())), nil
 }
 
 // Review pushes the branch to Gerrit.
