@@ -25,7 +25,7 @@ The presubmit flags are:
    Do not use color to format output.
  -token=
    The Jenkins API token.
- -url=https://veyron-review.googlesource.com
+ -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false
    Print verbose output.
