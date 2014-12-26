@@ -18,10 +18,10 @@ const (
 	defaultGerritBaseUrl = "https://vanadium-review.googlesource.com"
 	defaultLogFilePath   = "$HOME/tmp/presubmit_log"
 	defaultNetRcFilePath = "$HOME/.netrc"
-	defaultPresubmitTest = "veyron-presubmit-test"
+	defaultPresubmitTest = "vanadium-presubmit-test"
 	defaultQueryString   = "(status:open -project:experimental)"
 	jenkinsBaseJobUrl    = "https://dev.v.io/jenkins/job"
-	outputPrefix         = "[VEYRON PRESUBMIT]"
+	outputPrefix         = "[VANADIUM PRESUBMIT]"
 )
 
 type credential struct {

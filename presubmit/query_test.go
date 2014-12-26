@@ -292,9 +292,9 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 	)
 
 	// Check output and return value.
-	expectedOutput := `[VEYRON PRESUBMIT] FAIL: Add http://go/vcl/1000/1
-[VEYRON PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:release.js.core ChangeID: MultiPart:<nil>}]) failed: err
-[VEYRON PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
+	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
+[VANADIUM PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:release.js.core ChangeID: MultiPart:<nil>}]) failed: err
+[VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
 `
 	if got := buf.String(); expectedOutput != got {
 		t.Fatalf("output: want:\n%v\n, got:\n%v", expectedOutput, got)
@@ -312,20 +312,20 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 			"id": 10,
 			"params": "\nREPOS=release.js.core release.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
 			"task" : {
-				"name": "veyron-presubmit-test"
+				"name": "vanadium-presubmit-test"
 			}
 		},
 	  {
 			"id": 20,
 			"params": "\nREPOS=release.js.core\nREFS=refs/changes/99/4799/2",
 			"task" : {
-				"name": "veyron-presubmit-test"
+				"name": "vanadium-presubmit-test"
 			}
 		},
 	  {
 			"id": 30,
 			"task" : {
-				"name": "veyron-go-test"
+				"name": "vanadium-go-test"
 			}
 		}
 	]

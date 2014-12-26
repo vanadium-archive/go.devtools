@@ -226,7 +226,7 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 		failedTestGetterFn := func(string) ([]testCase, error) {
 			return curTest.failedTestGetterResult, nil
 		}
-		linksMap, err := genFailedTestLinks(ctx, strings.NewReader(reportFileContent), seenTests, "veyron-go-test", failedTestGetterFn)
+		linksMap, err := genFailedTestLinks(ctx, strings.NewReader(reportFileContent), seenTests, "vanadium-go-test", failedTestGetterFn)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}

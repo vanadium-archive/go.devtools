@@ -43,7 +43,7 @@ Usage:
 The presubmit query flags are:
  -log_file=$HOME/tmp/presubmit_log
    The file that stores the refs from the previous Gerrit query.
- -project=veyron-presubmit-test
+ -project=vanadium-presubmit-test
    The name of the Jenkins project to add presubmit-test builds to.
  -query=(status:open -project:experimental)
    The string used to query Gerrit for open CLs.
