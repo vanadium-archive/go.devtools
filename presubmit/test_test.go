@@ -138,13 +138,13 @@ func TestGenFailedTestLinks(t *testing.T) {
     <testcase classname="c1.n" name="n1" time="0">
 		  <failure message="error">
 # v.io/tools/presubmit
-veyron/go/src/v.io/tools/presubmit/main.go:106: undefined: test
+release/go/src/v.io/tools/presubmit/main.go:106: undefined: test
 		  </failure>
     </testcase>
     <testcase classname="c2.n" name="n2" time="0">
 		  <failure message="error">
-# v.io/tools/veyron
-veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
+# v.io/tools/v23
+release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 		  </failure>
     </testcase>
     <testcase classname="c3.n" name="n3" time="0">
@@ -153,10 +153,10 @@ veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
     </testcase>
     <testcase name="&quot;n9&quot;" time="0">
     </testcase>
-    <testcase classname="go.veyron.abc" name="n5" time="0">
+    <testcase classname="go.vanadium.abc" name="n5" time="0">
 		  <failure message="error">
-# v.io/tools/veyron
-veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
+# v.io/tools/v23
+release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 		  </failure>
     </testcase>
   </testsuite>
@@ -177,15 +177,15 @@ veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
 				newFailure: []string{
 					"- c1::n::n1\nhttp://goto.google.com/vpst/10/testReport/c1/n/n1",
 					"- c2::n::n2\nhttp://goto.google.com/vpst/10/testReport/c2/n/n2",
-					"- go::veyron::abc::n5\nhttp://goto.google.com/vpst/10/testReport/go.veyron/abc/n5",
+					"- go::vanadium::abc::n5\nhttp://goto.google.com/vpst/10/testReport/go.vanadium/abc/n5",
 				},
 			},
 			expectedSeenTests: map[string]int{
-				"c1::n::n1":           1,
-				"c2::n::n2":           1,
-				"c3::n::n3":           2,
-				`ts1::"n9"`:           1,
-				"go::veyron::abc::n5": 1,
+				"c1::n::n1":             1,
+				"c2::n::n2":             1,
+				"c3::n::n3":             2,
+				`ts1::"n9"`:             1,
+				"go::vanadium::abc::n5": 1,
 			},
 		},
 		test{
@@ -202,7 +202,7 @@ veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
 			expectedLinksMap: failedTestLinksMap{
 				newFailure: []string{
 					"- c2::n::n2\nhttp://goto.google.com/vpst/10/testReport/c2/n/n2",
-					"- go::veyron::abc::n5\nhttp://goto.google.com/vpst/10/testReport/go.veyron/abc/n5",
+					"- go::vanadium::abc::n5\nhttp://goto.google.com/vpst/10/testReport/go.vanadium/abc/n5",
 				},
 				knownFailure: []string{
 					"- c1::n::n1\nhttp://goto.google.com/vpst/10/testReport/c1/n/n1",
@@ -212,11 +212,11 @@ veyron/go/src/v.io/tools/veyron/main.go:1: you should feel bad
 				},
 			},
 			expectedSeenTests: map[string]int{
-				"c1::n::n1":           1,
-				"c2::n::n2":           1,
-				"c3::n::n3":           2,
-				`ts1::"n9"`:           1,
-				"go::veyron::abc::n5": 1,
+				"c1::n::n1":             1,
+				"c2::n::n2":             1,
+				"c3::n::n3":             2,
+				`ts1::"n9"`:             1,
+				"go::vanadium::abc::n5": 1,
 			},
 		},
 	}

@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	defaultConfigFile    = "$VANADIUM_ROOT/veyron/go/src/v.io/tools/conf/presubmit"
-	defaultGerritBaseUrl = "https://veyron-review.googlesource.com"
+	defaultConfigFile    = "$VANADIUM_ROOT/release/go/src/v.io/tools/conf/presubmit"
+	defaultGerritBaseUrl = "https://vanadium-review.googlesource.com"
 	defaultLogFilePath   = "$HOME/tmp/presubmit_log"
 	defaultNetRcFilePath = "$HOME/.netrc"
 	defaultPresubmitTest = "veyron-presubmit-test"
@@ -49,7 +49,7 @@ var (
 
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
 	reNotIdentifierChars *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
-	veyronRoot           string
+	vroot                string
 )
 
 func init() {
@@ -83,7 +83,7 @@ func printf(out io.Writer, format string, args ...interface{}) {
 // values of relevant flags.
 func substituteVarsInFlags() {
 	var err error
-	veyronRoot, err = util.VanadiumRoot()
+	vroot, err = util.VanadiumRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 		os.Exit(1)

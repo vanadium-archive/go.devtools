@@ -43,7 +43,7 @@ func findTestResultFiles(ctx *util.Context) ([]string, error) {
 	}
 
 	// Collect javascript test results.
-	jsDir := filepath.Join(root, "veyron.js", "test_out")
+	jsDir := filepath.Join(root, "release/javascript/core", "test_out")
 	if _, err := os.Stat(jsDir); err == nil {
 		fileInfoList, err := ioutil.ReadDir(jsDir)
 		if err != nil {

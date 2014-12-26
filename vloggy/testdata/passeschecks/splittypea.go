@@ -1,6 +1,6 @@
 package passeschecks
 
-import "v.io/veyron/veyron2/vlog"
+import "v.io/core/veyron2/vlog"
 
 type SplitType struct{}
 

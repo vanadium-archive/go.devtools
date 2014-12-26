@@ -27,23 +27,23 @@ var binPackages = []string{
 	"v.io/apps/tunnel/tunneld",
 	"v.io/apps/tunnel/vsh",
 	"v.io/playground/builder",
-	"v.io/veyron/veyron/security/agent/agentd",
-	"v.io/veyron/veyron/security/agent/pingpong",
-	"v.io/veyron/veyron/services/mgmt/application/applicationd",
-	"v.io/veyron/veyron/services/mgmt/binary/binaryd",
-	"v.io/veyron/veyron/services/mgmt/build/buildd",
-	"v.io/veyron/veyron/services/mgmt/profile/profiled",
-	"v.io/veyron/veyron/services/mounttable/mounttabled",
-	"v.io/veyron/veyron/services/proxy/proxyd",
-	"v.io/veyron/veyron/tools/application",
-	"v.io/veyron/veyron/tools/binary",
-	"v.io/veyron/veyron/tools/build",
-	"v.io/veyron/veyron/tools/debug",
-	"v.io/veyron/veyron/tools/mounttable",
-	"v.io/veyron/veyron/tools/principal",
-	"v.io/veyron/veyron/tools/profile",
-	"v.io/veyron/veyron/tools/naming/simulator",
-	"v.io/veyron/veyron2/vdl/vdl",
+	"v.io/core/veyron/security/agent/agentd",
+	"v.io/core/veyron/security/agent/pingpong",
+	"v.io/core/veyron/services/mgmt/application/applicationd",
+	"v.io/core/veyron/services/mgmt/binary/binaryd",
+	"v.io/core/veyron/services/mgmt/build/buildd",
+	"v.io/core/veyron/services/mgmt/profile/profiled",
+	"v.io/core/veyron/services/mounttable/mounttabled",
+	"v.io/core/veyron/services/proxy/proxyd",
+	"v.io/core/veyron/tools/application",
+	"v.io/core/veyron/tools/binary",
+	"v.io/core/veyron/tools/build",
+	"v.io/core/veyron/tools/debug",
+	"v.io/core/veyron/tools/mounttable",
+	"v.io/core/veyron/tools/principal",
+	"v.io/core/veyron/tools/profile",
+	"v.io/core/veyron/tools/naming/simulator",
+	"v.io/core/veyron2/vdl/vdl",
 	"v.io/wspr/veyron/services/wsprd",
 }
 
@@ -124,7 +124,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 }
 
 // runIntegrationTests runs all integration tests found under
-// $VANADIUM_ROOT/roadmap/go/src and $VANADIUM_ROOT/veyron/go/src.
+// $VANADIUM_ROOT/roadmap/go/src and $VANADIUM_ROOT/release/go/src.
 func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
@@ -133,7 +133,7 @@ func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error
 
 	// Find all integration tests.
 	testScripts := findIntegrationTests(ctx, []string{
-		filepath.Join(root, "veyron", "go", "src"),
+		filepath.Join(root, "release", "go", "src"),
 		filepath.Join(root, "roadmap", "go", "src"),
 		filepath.Join(root, "scripts"),
 	})

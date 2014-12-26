@@ -17,7 +17,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	checkMultiPartCLSet(t, -1, map[int]gerrit.QueryResult{}, set)
 
 	// Add a non-multipart cl.
-	cl := genCL(1000, 1, "veyron.go.core")
+	cl := genCL(1000, 1, "relase.go.core")
 	if err := set.addCL(cl); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
@@ -42,7 +42,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	}
 
 	// Add another multi part cl with the wrong "Total" number.
-	cl2 := genMultiPartCL(1050, 2, "veyron.js", "test", 2, 3)
+	cl2 := genMultiPartCL(1050, 2, "release.js.core", "test", 2, 3)
 	if err := set.addCL(cl2); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
@@ -51,7 +51,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	}, set)
 
 	// Add another multi part cl with duplicated "Index" number.
-	cl3 := genMultiPartCL(1052, 2, "veyron.js", "Test", 1, 2)
+	cl3 := genMultiPartCL(1052, 2, "release.js.core", "Test", 1, 2)
 	if err := set.addCL(cl3); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
@@ -60,7 +60,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	}, set)
 
 	// Add another multi part cl with the wrong "Topic".
-	cl4 := genMultiPartCL(1062, 2, "veyron.js", "test123", 1, 2)
+	cl4 := genMultiPartCL(1062, 2, "release.js.core", "test123", 1, 2)
 	if err := set.addCL(cl4); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
@@ -69,7 +69,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	}, set)
 
 	// Add a valid multi part cl.
-	cl5 := genMultiPartCL(1072, 2, "veyron.js", "test", 2, 2)
+	cl5 := genMultiPartCL(1072, 2, "release.js.core", "test", 2, 2)
 	if err := set.addCL(cl5); err != nil {
 		t.Fatalf("addCL(%v) failed: %v", cl, err)
 	}
@@ -101,16 +101,16 @@ func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[
 func TestParseValidNetRcFile(t *testing.T) {
 	// Valid content.
 	netrcFileContent := `
-machine veyron.googlesource.com login git-jingjin.google.com password 12345
-machine veyron-review.googlesource.com login git-jingjin.google.com password 54321
+machine vanadium.googlesource.com login git-jingjin.google.com password 12345
+machine vanadium-review.googlesource.com login git-jingjin.google.com password 54321
 	`
 	got, err := parseNetRcFile(strings.NewReader(netrcFileContent))
 	expected := map[string]credential{
-		"veyron.googlesource.com": credential{
+		"vanadium.googlesource.com": credential{
 			username: "git-jingjin.google.com",
 			password: "12345",
 		},
-		"veyron-review.googlesource.com": credential{
+		"vanadium-review.googlesource.com": credential{
 			username: "git-jingjin.google.com",
 			password: "54321",
 		},
@@ -126,15 +126,15 @@ machine veyron-review.googlesource.com login git-jingjin.google.com password 543
 func TestParseInvalidNetRcFile(t *testing.T) {
 	// Content with invalid entries which should be skipped.
 	netRcFileContentWithInvalidEntries := `
-machine veyron.googlesource.com login git-jingjin.google.com password
-machine_blah veyron3.googlesource.com login git-jingjin.google.com password 12345
-machine veyron2.googlesource.com login_blah git-jingjin.google.com password 12345
-machine veyron4.googlesource.com login git-jingjin.google.com password_blah 12345
-machine veyron-review.googlesource.com login git-jingjin.google.com password 54321
+machine vanadium.googlesource.com login git-jingjin.google.com password
+machine_blah vanadium3.googlesource.com login git-jingjin.google.com password 12345
+machine vanadium2.googlesource.com login_blah git-jingjin.google.com password 12345
+machine vanadium4.googlesource.com login git-jingjin.google.com password_blah 12345
+machine vanadium-review.googlesource.com login git-jingjin.google.com password 54321
 	`
 	got, err := parseNetRcFile(strings.NewReader(netRcFileContentWithInvalidEntries))
 	expected := map[string]credential{
-		"veyron-review.googlesource.com": credential{
+		"vanadium-review.googlesource.com": credential{
 			username: "git-jingjin.google.com",
 			password: "54321",
 		},
@@ -150,24 +150,24 @@ machine veyron-review.googlesource.com login git-jingjin.google.com password 543
 func TestNewOpenCLs(t *testing.T) {
 	ctx := util.DefaultContext()
 	nonMultiPartCLs := clList{
-		genCL(1010, 1, "veyron"),
-		genCL(1020, 2, "tools"),
-		genCL(1030, 3, "veyron.js"),
+		genCL(1010, 1, "release.go.core"),
+		genCL(1020, 2, "release.go.tools"),
+		genCL(1030, 3, "release.js.core"),
 
-		genMultiPartCL(1000, 1, "veyron.js", "T1", 1, 2),
-		genMultiPartCL(1001, 1, "veyron.go.core", "T1", 2, 2),
-		genMultiPartCL(1002, 2, "veyron.go.core", "T2", 2, 2),
-		genMultiPartCL(1001, 2, "veyron.go.core", "T1", 2, 2),
+		genMultiPartCL(1000, 1, "release.js.core", "T1", 1, 2),
+		genMultiPartCL(1001, 1, "release.go.core", "T1", 2, 2),
+		genMultiPartCL(1002, 2, "release.go.core", "T2", 2, 2),
+		genMultiPartCL(1001, 2, "release.go.core", "T1", 2, 2),
 	}
 	multiPartCLs := clList{
 		// Multi part CLs.
 		// The first two form a complete set for topic T1.
 		// The third one looks like the second one, but has a different topic.
 		// The last one has a larger patchset than the second one.
-		genMultiPartCL(1000, 1, "veyron.js", "T1", 1, 2),
-		genMultiPartCL(1001, 1, "veyron.go.core", "T1", 2, 2),
-		genMultiPartCL(1002, 2, "veyron.go.core", "T2", 2, 2),
-		genMultiPartCL(1001, 2, "veyron.go.core", "T1", 2, 2),
+		genMultiPartCL(1000, 1, "release.js.core", "T1", 1, 2),
+		genMultiPartCL(1001, 1, "release.go.core", "T1", 2, 2),
+		genMultiPartCL(1002, 2, "release.go.core", "T2", 2, 2),
+		genMultiPartCL(1001, 2, "release.go.core", "T1", 2, 2),
 	}
 
 	type testCase struct {
@@ -267,11 +267,11 @@ func TestNewOpenCLs(t *testing.T) {
 func TestSendCLListsToPresubmitTest(t *testing.T) {
 	clLists := []clList{
 		clList{
-			genCL(1000, 1, "veyron.js"),
+			genCL(1000, 1, "release.js.core"),
 		},
 		clList{
-			genMultiPartCL(1001, 1, "veyron.js", "t", 1, 2),
-			genMultiPartCL(1002, 1, "veyron.go.core", "t", 2, 2),
+			genMultiPartCL(1001, 1, "release.js.core", "t", 1, 2),
+			genMultiPartCL(1002, 1, "release.go.core", "t", 2, 2),
 		},
 	}
 	var buf bytes.Buffer
@@ -293,7 +293,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 	// Check output and return value.
 	expectedOutput := `[VEYRON PRESUBMIT] FAIL: Add http://go/vcl/1000/1
-[VEYRON PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:veyron.js ChangeID: MultiPart:<nil>}]) failed: err
+[VEYRON PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:release.js.core ChangeID: MultiPart:<nil>}]) failed: err
 [VEYRON PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
 `
 	if got := buf.String(); expectedOutput != got {
@@ -310,14 +310,14 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 	"items" : [
 	  {
 			"id": 10,
-			"params": "\nREPOS=veyron.js veyron.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
+			"params": "\nREPOS=release.js.core release.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
 			"task" : {
 				"name": "veyron-presubmit-test"
 			}
 		},
 	  {
 			"id": 20,
-			"params": "\nREPOS=veyron.js\nREFS=refs/changes/99/4799/2",
+			"params": "\nREPOS=release.js.core\nREFS=refs/changes/99/4799/2",
 			"task" : {
 				"name": "veyron-presubmit-test"
 			}
@@ -408,7 +408,7 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 				"parameters": [
 				  {
 						"name": "REPOS",
-						"value": "veyron.go.core"
+						"value": "release.go.core"
 					},
 					{
 						"name": "REFS",
@@ -428,7 +428,7 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 				"parameters": [
 				  {
 						"name": "REPOS",
-						"value": "veyron.js veyron.go.core"
+						"value": "release.js.core release.go.core"
 					},
 					{
 						"name": "REFS",

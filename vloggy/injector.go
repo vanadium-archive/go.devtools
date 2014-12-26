@@ -23,7 +23,7 @@ const (
 	// log package is imported.
 	logPackageIdentifier = "vlog"
 	// logPackageImportPath is the import path for the log package.
-	logPackageImportPath = "v.io/veyron/veyron2/vlog"
+	logPackageImportPath = "v.io/core/veyron2/vlog"
 	// logCallFuncName is the name of the default logging function.
 	logCallFuncName = "LogCall"
 	// logCallfFuncName is the name of the formattable logging function.

@@ -1,5 +1,5 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/veyron/go/src/v.io/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
 package main
 
 import (
@@ -30,7 +30,7 @@ func main() {
 
 var cmdVCloud = &cmdline.Command{
 	Name:  "vcloud",
-	Short: "Veyron wrapper over gcloud, to manage GCE resources.",
+	Short: "Vanadium wrapper over gcloud, to manage GCE resources.",
 	Long: `
 The vcloud tool is a wrapper over the gcloud GCE resource management tool, to
 simplify common usage scenarios.

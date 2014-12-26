@@ -1,5 +1,5 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/veyron/go/src/v.io/lib/cmdline/testdata/gendoc.go . -help
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go . -help
 package main
 
 import (
@@ -24,10 +24,10 @@ var cmdGoPkg = &cmdline.Command{
 Print information about go package(s).
 
 Example of printing all top-level information about the vdl package:
-  veyron run gopkg v.io/veyron/veyron2/vdl
+  veyron run gopkg v.io/core/veyron2/vdl
 
 Example of printing the names of all Test* funcs from the vdl package:
-  veyron run gopkg -test -kind=func -name_re 'Test.*' -type_re 'func\(.*testing\.T\)' -noheader -notype v.io/veyron/veyron2/vdl
+  veyron run gopkg -test -kind=func -name_re 'Test.*' -type_re 'func\(.*testing\.T\)' -noheader -notype v.io/core/veyron2/vdl
 `,
 	ArgsName: "<args>",
 	ArgsLong: loader.FromArgsUsage,

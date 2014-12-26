@@ -11,7 +11,7 @@ import (
 
 // veyronVDL checks that all VDL-based Go source files are up-to-date.
 func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'veyron run vdl generate all'.\n")
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'v23 run vdl generate all'.\n")
 
 	root, err := util.VanadiumRoot()
 	if err != nil {
@@ -20,8 +20,8 @@ func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
 
 	// Install the vdl tool.
 	opts := ctx.Run().Opts()
-	opts.Env["GOPATH"] = filepath.Join(root, "veyron", "go")
-	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/veyron/veyron2/vdl/vdl"); err != nil {
+	opts.Env["GOPATH"] = filepath.Join(root, "release", "go")
+	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/core/veyron2/vdl/vdl"); err != nil {
 		return nil, err
 	}
 
@@ -35,7 +35,7 @@ func veyronVDL(ctx *util.Context, testName string) (*TestResult, error) {
 		return nil, err
 	}
 	opts.Env["VDLPATH"] = venv.Get("VDLPATH")
-	vdl := filepath.Join(root, "veyron", "go", "bin", "vdl")
+	vdl := filepath.Join(root, "release", "go", "bin", "vdl")
 	err = ctx.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
 	output := strings.TrimSpace(out.String())
 	if err != nil || len(output) != 0 {

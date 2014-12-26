@@ -10,7 +10,7 @@ construct, and 2) automatically inject such logging constructs.
 
 LIMITATIONS:
 
-vloggy requires the "v.io/veyron/veyron2/vlog" to be imported as "vlog".
+vloggy requires the "v.io/core/veyron2/vlog" to be imported as "vlog".
 Aliasing the log package to another name makes vloggy ignore the calls.
 Importing any other package with the name "vlog" will invoke undefined behavior.
 

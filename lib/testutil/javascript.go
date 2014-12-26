@@ -80,7 +80,7 @@ func veyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, er
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron.js")
+	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "extension/veyron.crx"
 	return runJSTest(ctx, testName, testDir, target, nil, nil)
 }
@@ -92,7 +92,7 @@ func veyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron.js")
+	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "docs"
 	webDir, jsDocDir := "/usr/share/nginx/www/jsdoc", filepath.Join(testDir, "docs")
 	cleanFn := func() error {
@@ -118,7 +118,7 @@ func veyronJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron.js")
+	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "test-integration-browser"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -132,7 +132,7 @@ func veyronJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, e
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron.js")
+	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "test-integration-node"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -146,7 +146,7 @@ func veyronJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron.js")
+	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "test-unit"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -160,7 +160,7 @@ func veyronJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron.js")
+	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "test-vdl"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -174,7 +174,7 @@ func veyronJSVom(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "veyron", "javascript", "vom")
+	testDir := filepath.Join(root, "release", "javascript", "vom")
 	target := "test"
 	env := map[string]string{}
 	setCommonJSEnv(env)

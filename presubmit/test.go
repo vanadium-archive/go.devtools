@@ -94,9 +94,9 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		return err
 	}
 
-	// tmpBinDir is where vdl and veyron are built after changes are pulled from
-	// the target CLs.
-	tmpBinDir := filepath.Join(veyronRoot, "tmpBin")
+	// tmpBinDir is where developer tools are built after changes are
+	// pulled from the target CLs.
+	tmpBinDir := filepath.Join(vroot, "tmpBin")
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() error {
@@ -141,8 +141,8 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 		return err
 	}
 
-	// Rebuild vdl and veyron tool.
-	toolsProject, ok := projects[util.VanadiumGitRepoHost()+"veyron.go.tools"]
+	// Rebuild the developer tool.
+	toolsProject, ok := projects[util.VanadiumGitRepoHost()+"release.go.tools"]
 	env := map[string]string{}
 	if !ok {
 		printf(ctx.Stderr(), "tools project not found, not rebuilding tools.\n")
@@ -150,7 +150,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 		// Find target Tools.
 		targetTools := []util.Tool{}
 		for name, tool := range tools {
-			if name == "v23" || name == "veyron" || name == "vdl" || name == "go-depcop" {
+			if name == "v23" || name == "vdl" || name == "go-depcop" {
 				targetTools = append(targetTools, tool)
 			}
 		}
@@ -163,7 +163,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 		// Create a new PATH that replaces VANADIUM_ROOT/bin
 		// with the temporary directory in which the tools
 		// were rebuilt.
-		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(veyronRoot, "bin"), tmpBinDir, -1)
+		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "bin"), tmpBinDir, -1)
 	}
 
 	// Run the tests.
@@ -542,7 +542,7 @@ func createFailedTestsReport(ctx *util.Context, allTestNames []string) (_ string
 		// For a given test script this-is-a-test.sh, its test
 		// report file is: tests_this_is_a_test.xml.
 		junitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
-		junitReportFile := filepath.Join(veyronRoot, "..", junitReportFileName)
+		junitReportFile := filepath.Join(vroot, "..", junitReportFileName)
 		fdReport, err := os.Open(junitReportFile)
 		if err != nil {
 			printf(ctx.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
@@ -730,7 +730,7 @@ func generateReportForHangingTest(testName string, timeout time.Duration) (e err
 		return fmt.Errorf("Parse(%q) failed: %v", timeoutReportTmpl, err)
 	}
 	reportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
-	reportFile := filepath.Join(veyronRoot, "..", reportFileName)
+	reportFile := filepath.Join(vroot, "..", reportFileName)
 	f, err := os.Create(reportFile)
 	if err != nil {
 		return fmt.Errorf("Create(%q) failed: %v", reportFile, err)

@@ -116,8 +116,8 @@ func TestComputeIncomingDependency(t *testing.T) {
 	}
 	oldPath := os.Getenv("GOPATH")
 	defer os.Setenv("GOPATH", oldPath)
-	if err := os.Setenv("GOPATH", filepath.Join(root, "veyron", "go")); err != nil {
-		t.Fatalf("Setenv(%v, %v) failed: %v", "GOPATH", filepath.Join(root, "veyron", "go"))
+	if err := os.Setenv("GOPATH", filepath.Join(root, "release", "go")); err != nil {
+		t.Fatalf("Setenv(%v, %v) failed: %v", "GOPATH", filepath.Join(root, "release", "go"))
 	}
 	allDeps, err := computeIncomingDependencies()
 	if err != nil {

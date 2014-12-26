@@ -2,7 +2,7 @@
 // all the necessary logging constructs.
 package passeschecks
 
-import "v.io/veyron/veyron2/vlog"
+import "v.io/core/veyron2/vlog"
 
 type Type1 struct{}
 
