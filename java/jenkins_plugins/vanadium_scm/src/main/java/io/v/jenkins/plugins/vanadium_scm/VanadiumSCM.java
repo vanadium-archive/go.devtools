@@ -234,7 +234,7 @@ public class VanadiumSCM extends SCM {
     }
 
     // Run "v23 goext distclean".
-    String v23Bin = get23Bin(workspaceDir);
+    String v23Bin = getV23Bin(workspaceDir);
     List<String> distcleanCommandAndArgs =
         new ArrayList<String>(Arrays.asList(v23Bin, "goext", "distclean"));
     cr = runCommand(workspaceDir, launcher, true, distcleanCommandAndArgs,

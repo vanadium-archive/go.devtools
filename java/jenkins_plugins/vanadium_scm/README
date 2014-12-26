@@ -1,9 +1,9 @@
-Here is an overview of VeyronSCM plugin's source code structure.
+Here is an overview of VanadiumSCM plugin's source code structure.
 
-src/main/java/io/v/jenkins/plugins/veyron_scm:
-  - VeyronSCM.java:
+src/main/java/io/v/jenkins/plugins/vanadium_scm:
+  - VanadiumSCM.java:
     The main class that implements the logic of polling changes, initializing
-    Veyron universe, updating code, parsing the snapshot, and generating the
+    Vanadium universe, updating code, parsing the snapshot, and generating the
     changelog file. The commit format used in changelog file is identical to
     the one used in the Git plugin so I can reuse their parsing related
     classes.
@@ -12,41 +12,41 @@ src/main/java/io/v/jenkins/plugins/veyron_scm:
     These three classes work together to parse the changelog file and produce
     change sets that are recognized by Jenkins. They were taken from the
     Jenkins Git plugin. I only made minimal changes to make them work with
-    VeyronSCM, e.g. changing the package declaration.
+    VanadiumSCM, e.g. changing the package declaration.
     (The original source code: http://git.io/0jM-9g)
 
   - ChangeIdAnnotator.java:
     This class turns changeID strings in the recent changes page into links
     to the corresponding Gerrit pages.
 
-  - VeyronBuildData.java:
-    This class captures the Veyron related build data, such as current build cop
+  - VanadiumBuildData.java:
+    This class captures the Vanadium related build data, such as current build cop
     and revisions of all repos.
 
-  - VeyronBuildCopTokenMacro.java
+  - VanadiumBuildCopTokenMacro.java
     This class will be used when other plugins (such as email-ext) expand
-    the VEYRON_BUILDCOP token which stores the LDAP of the current build cop.
+    the VANADIUM_BUILDCOP token which stores the LDAP of the current build cop.
 
 
-src/main/resources/io/v/jenkins/plugins/veyron_scm/GitChangeSetList:
+src/main/resources/io/v/jenkins/plugins/vanadium_scm/GitChangeSetList:
   - digest.jelly, index.jelly:
     These two files are used by Jenkins to format recent changes summary and
     detail pages. They were taken from the Jenkins Git plugin.
 
 
-src/main/resources/io/v/jenkins/plugins/veyron_scm/VeyronSCM:
-  - config.jelly, help-veyronRootInput.html:
-    These files are used by Jenkins to create UI elements for the VeyronSCM
+src/main/resources/io/v/jenkins/plugins/vanadium_scm/VanadiumSCM:
+  - config.jelly, help-vanadiumRootInput.html:
+    These files are used by Jenkins to create UI elements for the VanadiumSCM
     plugin. For now, we only have a "VANADIUM_ROOT" field.
 
 
-src/main/resources/io/v/jenkins/plugins/veyron_scm/VeyronBuildData:
+src/main/resources/io/v/jenkins/plugins/vanadium_scm/VanadiumBuildData:
   - index.jelly, summary.jelly:
     These two files are used by Jenkins to render the detail and summary page
-    of Veyron Build Data.
+    of Vanadium Build Data.
 
 
 To build and use the plugin:
 - Run: mvn install
-- Upload target/veyron_scm.hpi to Jenkins using "Upload Plugin" at:
+- Upload target/vanadium_scm.hpi to Jenkins using "Upload Plugin" at:
   http://dev.v.io/jenkins/pluginManager/advanced.
