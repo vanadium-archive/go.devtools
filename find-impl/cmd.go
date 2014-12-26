@@ -31,7 +31,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 }
 
-// root returns a command that represents the root of the veyron tool.
+// root returns a command that represents the root of the find-impl tool.
 func root() *cmdline.Command {
 	return cmdRoot
 }
@@ -154,15 +154,15 @@ func findImplementations(stdout io.Writer, re *regexp.Regexp, ifObject types.Obj
 	}
 }
 
-// cmdVersion represents the 'version' command of the veyron tool.
+// cmdVersion represents the 'version' command of the find-impl tool.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
 	Short: "Print version",
-	Long:  "Print version of the veyron tool.",
+	Long:  "Print version of the find-impl tool.",
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "veyron tool version %v\n", version.Version)
+	fmt.Fprintf(command.Stdout(), "find-impl tool version %v\n", version.Version)
 	return nil
 }

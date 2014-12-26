@@ -28,12 +28,12 @@ var (
 
 	// A root test watches changes and triggers other Jenkins targets.
 	defaultRootTests = map[string]struct{}{
-		"third_party-go-build":                  struct{}{},
-		"veyron-go-build":                       struct{}{},
-		"veyron-javascript-browser-integration": struct{}{},
-		"veyron-javascript-build-extension":     struct{}{},
-		"veyron-javascript-node-integration":    struct{}{},
-		"veyron-www":                            struct{}{},
+		"third_party-go-build":                    struct{}{},
+		"vanadium-go-build":                       struct{}{},
+		"vanadium-javascript-browser-integration": struct{}{},
+		"vanadium-javascript-build-extension":     struct{}{},
+		"vanadium-javascript-node-integration":    struct{}{},
+		"vanadium-www":                            struct{}{},
 	}
 )
 
@@ -119,7 +119,7 @@ func runPoll(command *cmdline.Command, _ []string) error {
 // getChangedProjectsFromSnapshot returns a slice of projects that
 // have changes by comparing the revisions in the given snapshot with
 // master branches.
-func getChangedProjectsFromSnapshot(ctx *util.Context, veyronRoot string, snapshotContent []byte) ([]string, error) {
+func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotContent []byte) ([]string, error) {
 	// Parse snapshot.
 	snapshot := util.Manifest{}
 	if err := xml.Unmarshal(snapshotContent, &snapshot); err != nil {
@@ -133,7 +133,7 @@ func getChangedProjectsFromSnapshot(ctx *util.Context, veyronRoot string, snapsh
 	for _, project := range snapshot.Projects {
 		switch project.Protocol {
 		case "git":
-			git := ctx.Git(util.RootDirOpt(filepath.Join(veyronRoot, project.Path)))
+			git := ctx.Git(util.RootDirOpt(filepath.Join(vroot, project.Path)))
 			commits, err := git.Log("master", project.Revision, "")
 			if err != nil {
 				return nil, err
