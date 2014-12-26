@@ -85,9 +85,9 @@ func requireEnv(names []string) error {
 	return nil
 }
 
-// veyronPresubmitPoll polls veyron projects for new patchsets for
+// vanadiumPresubmitPoll polls vanadium projects for new patchsets for
 // which to run presubmit tests.
-func veyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -114,8 +114,8 @@ func veyronPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e e
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// veyronPresubmitTest runs presubmit tests for veyron projects.
-func veyronPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// vanadiumPresubmitTest runs presubmit tests for vanadium projects.
+func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "WORKSPACE"}); err != nil {
 		return nil, err
 	}

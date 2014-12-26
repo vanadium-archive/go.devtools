@@ -5,9 +5,9 @@ import (
 	"v.io/tools/lib/util"
 )
 
-// veyronPostsubmitPoll polls for new changes in all projects' master branches,
+// vanadiumPostsubmitPoll polls for new changes in all projects' master branches,
 // and starts the corresponding Jenkins targets based on the changes.
-func veyronPostsubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumPostsubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {

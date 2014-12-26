@@ -8,10 +8,10 @@ import (
 	"v.io/tools/lib/util"
 )
 
-// veyronTutorial runs the veyron tutorial examples.
+// vanadiumTutorial runs the vanadium tutorial examples.
 //
 // TODO(jregan): Merge the mdrip logic into this package.
-func veyronTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumTutorial(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err

@@ -13,7 +13,7 @@ const (
 	defaultWWWTestTimeout = 5 * time.Minute
 )
 
-func veyronWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err

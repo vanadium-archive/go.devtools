@@ -74,8 +74,8 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// veyronJSBuildExtension tests the veyron javascript build extension.
-func veyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumJSBuildExtension tests the vanadium javascript build extension.
+func vanadiumJSBuildExtension(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -85,9 +85,9 @@ func veyronJSBuildExtension(ctx *util.Context, testName string) (*TestResult, er
 	return runJSTest(ctx, testName, testDir, target, nil, nil)
 }
 
-// veyronJSDoc (re)generates the content of the veyron javascript
+// vanadiumJSDoc (re)generates the content of the vanadium javascript
 // documentation server.
-func veyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
+func vanadiumJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -112,8 +112,8 @@ func veyronJSDoc(ctx *util.Context, testName string) (*TestResult, error) {
 	return result, nil
 }
 
-// veyronJSBrowserIntegration runs the veyron javascript integration test in a browser environment using nacl plugin.
-func veyronJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumJSBrowserIntegration runs the vanadium javascript integration test in a browser environment using nacl plugin.
+func vanadiumJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -126,8 +126,8 @@ func veyronJSBrowserIntegration(ctx *util.Context, testName string) (*TestResult
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSNodeIntegration runs the veyron javascript integration test in NodeJS environment using wspr.
-func veyronJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumJSNodeIntegration runs the vanadium javascript integration test in NodeJS environment using wspr.
+func vanadiumJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -140,8 +140,8 @@ func veyronJSNodeIntegration(ctx *util.Context, testName string) (*TestResult, e
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSUnit runs the veyron javascript unit test.
-func veyronJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumJSUnit runs the vanadium javascript unit test.
+func vanadiumJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -154,8 +154,8 @@ func veyronJSUnit(ctx *util.Context, testName string) (*TestResult, error) {
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSVdl runs the veyron javascript vdl test.
-func veyronJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumJSVdl runs the vanadium javascript vdl test.
+func vanadiumJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -168,8 +168,8 @@ func veyronJSVdl(ctx *util.Context, testName string) (*TestResult, error) {
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
-// veyronJSVom runs the veyron javascript vom test.
-func veyronJSVom(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumJSVom runs the vanadium javascript vom test.
+func vanadiumJSVom(ctx *util.Context, testName string) (*TestResult, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err

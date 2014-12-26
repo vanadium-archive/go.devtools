@@ -725,31 +725,27 @@ func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	return goTest(ctx, testName, pkgs, args)
 }
 
-// veyronGoBench runs Go benchmarks for veyron projects.
-func veyronGoBench(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumGoBench runs Go benchmarks for vanadium projects.
+func vanadiumGoBench(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	args := argsOpt([]string{"-tags", "veyronbluetooth", "-bench", ".", "-run", "XXX"})
-	profiles := profilesOpt([]string{"proximity"})
-	return goTest(ctx, testName, pkgs, args, profiles)
+	args := argsOpt([]string{"-bench", ".", "-run", "XXX"})
+	return goTest(ctx, testName, pkgs, args)
 }
 
-// veyronGoBuild runs Go build for the veyron projects.
-func veyronGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumGoBuild runs Go build for the vanadium projects.
+func vanadiumGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	args := argsOpt([]string{"-tags", "veyronbluetooth"})
-	profiles := profilesOpt([]string{"proximity"})
-	return goBuild(ctx, testName, pkgs, args, profiles)
+	return goBuild(ctx, testName, pkgs)
 }
 
-// veyronGoCoverage runs Go coverage tests for veyron projects.
-func veyronGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumGoCoverage runs Go coverage tests for vanadium projects.
+func vanadiumGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	profiles := profilesOpt([]string{"proximity"})
-	return goCoverage(ctx, testName, pkgs, profiles)
+	return goCoverage(ctx, testName, pkgs)
 }
 
-// veyronGoDoc (re)starts the godoc server for veyron projects.
-func veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// vanadiumGoDoc (re)starts the godoc server for vanadium projects.
+func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -810,21 +806,18 @@ func veyronGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// veyronGoTest runs Go tests for veyron projects.
-func veyronGoTest(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumGoTest runs Go tests for vanadium projects.
+func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	args := argsOpt([]string{"-tags", "veyronbluetooth"})
-	profiles := profilesOpt([]string{"proximity"})
 	suffix := suffixOpt(" [GoTest]")
-	return goTest(ctx, testName, pkgs, args, profiles, suffix)
+	return goTest(ctx, testName, pkgs, suffix)
 }
 
-// veyronGoRace runs Go data-race tests for veyron projects.
-func veyronGoRace(ctx *util.Context, testName string) (*TestResult, error) {
+// vanadiumGoRace runs Go data-race tests for vanadium projects.
+func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	args := argsOpt([]string{"-race", "-tags", "veyronbluetooth"})
-	profiles := profilesOpt([]string{"proximity"})
+	args := argsOpt([]string{"-race"})
 	timeout := timeoutOpt("7m")
 	suffix := suffixOpt(" [GoRace]")
-	return goTest(ctx, testName, pkgs, timeout, args, profiles, suffix)
+	return goTest(ctx, testName, pkgs, args, timeout, suffix)
 }

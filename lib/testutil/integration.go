@@ -19,7 +19,7 @@ const (
 	defaultIntegrationTestTimeout = 2 * time.Minute
 )
 
-// binPackages enumerates the Go commands used by veyron integration tests.
+// binPackages enumerates the Go commands used by vanadium integration tests.
 //
 // TODO(jingjin): port the integration test scripts from shell to Go
 // and make them use a build cache to share binaries.
@@ -238,8 +238,8 @@ func integrationTestWorker(ctx *util.Context, root string, env map[string]string
 	}
 }
 
-// veyronIntegrationTest runs veyron integration tests.
-func veyronIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// vanadiumIntegrationTest runs vanadium integration tests.
+func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {

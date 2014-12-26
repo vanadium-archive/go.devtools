@@ -9,17 +9,17 @@ import (
 
 func TestProjectTests(t *testing.T) {
 	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{
-		"veyron":  []string{"veyron-go-build", "veyron-go-test"},
-		"default": []string{"tools-go-build", "tools-go-test"},
+		"vanadium": []string{"vanadium-go-build", "vanadium-go-test"},
+		"default":  []string{"tools-go-build", "tools-go-test"},
 	}))
 
 	ctx := util.DefaultContext()
 
 	// Get tests for a repo that is in the config file.
-	got, err := projectTests(ctx, config, []string{"veyron"})
+	got, err := projectTests(ctx, config, []string{"vanadium"})
 	expected := []string{
-		"veyron-go-build",
-		"veyron-go-test",
+		"vanadium-go-build",
+		"vanadium-go-test",
 	}
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
