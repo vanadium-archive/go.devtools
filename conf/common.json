@@ -3,7 +3,7 @@
   "vdl-workspaces" : [ "release", "roadmap" ],
   "project-tests": {
     "https://vanadium.googlesource.com/namespace_browser": [
-      "veyron-namespace-browser-test"
+      "vanadium-namespace-browser-test"
     ],
     "https://vanadium.googlesource.com/release.go.core": [
       "go",
@@ -49,14 +49,14 @@
       "projects"
     ],
     "https://github.com/core/veyron-www": [
-      "veyron-www"
+      "vanadium-www"
     ]
   },
   "snapshot-label-tests": {
     "stable-go": [
-      "veyron-go-build",
-      "veyron-go-test",
-      "veyron-go-race"
+      "vanadium-go-build",
+      "vanadium-go-test",
+      "vanadium-go-race"
     ]
   },
   "test-dependencies": {
@@ -66,53 +66,53 @@
     "third_party-go-test": [
       "third_party-go-build"
     ],
-    "veyron-android-build": [
-      "veyron-android-build-native"
+    "vanadium-android-build": [
+      "vanadium-android-build-native"
     ],
-    "veyron-android-test": [
-      "veyron-android-build"
+    "vanadium-android-test": [
+      "vanadium-android-build"
     ],
-    "veyron-namespace-browser-test": [
-      "veyron-go-build",
-      "veyron-javascript-browser-integration",
-      "veyron-javascript-node-integration"
+    "vanadium-namespace-browser-test": [
+      "vanadium-go-build",
+      "vanadium-javascript-browser-integration",
+      "vanadium-javascript-node-integration"
     ],
-    "veyron-go-race": [
-      "veyron-go-test"
+    "vanadium-go-race": [
+      "vanadium-go-test"
     ],
-    "veyron-go-test": [
-      "veyron-go-build"
+    "vanadium-go-test": [
+      "vanadium-go-build"
     ],
-    "veyron-javascript-browser-integration": [
-      "veyron-go-build",
-      "veyron-javascript-unit"
+    "vanadium-javascript-browser-integration": [
+      "vanadium-go-build",
+      "vanadium-javascript-unit"
     ],
-    "veyron-javascript-node-integration": [
-      "veyron-go-build",
-      "veyron-javascript-unit"
+    "vanadium-javascript-node-integration": [
+      "vanadium-go-build",
+      "vanadium-javascript-unit"
     ],
-    "veyron-integration-test": [
-      "veyron-go-build"
+    "vanadium-integration-test": [
+      "vanadium-go-build"
     ]
   },
   "test-groups": {
     "go": [
-      "veyron-go-build",
-      "veyron-go-test",
-      "veyron-go-race",
-      "veyron-integration-test",
-      "veyron-prod-services-test",
-      "veyron-vdl"
+      "vanadium-go-build",
+      "vanadium-go-test",
+      "vanadium-go-race",
+      "vanadium-integration-test",
+      "vanadium-prod-services-test",
+      "vanadium-vdl"
     ],
     "javascript": [
-      "veyron-javascript-vdl",
-      "veyron-javascript-vom",
-      "veyron-javascript-browser-integration",
-      "veyron-javascript-node-integration",
-      "veyron-javascript-build-extension"
+      "vanadium-javascript-vdl",
+      "vanadium-javascript-vom",
+      "vanadium-javascript-browser-integration",
+      "vanadium-javascript-node-integration",
+      "vanadium-javascript-build-extension"
     ],
     "projects": [
-      "veyron-namespace-browser-test"
+      "vanadium-namespace-browser-test"
     ],
     "third_party-go": [
       "third_party-go-build",
