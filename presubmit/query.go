@@ -157,6 +157,12 @@ func runQuery(command *cmdline.Command, args []string) error {
 		return nil
 	}
 
+	// Don't send anything if prevCLsMap is empty.
+	if len(prevCLsMap) == 0 {
+		printf(ctx.Stdout(), "Not sending CLs to run presubmit tests due to empty log file.\n")
+		return nil
+	}
+
 	// Get new clLists.
 	newCLLists := newOpenCLs(ctx, prevCLsMap, curCLs)
 
@@ -227,12 +233,15 @@ func parseNetRcFile(reader io.Reader) (map[string]credential, error) {
 
 // readLog returns CLs indexed by thier refs stored in the log file.
 func readLog() (clRefMap, error) {
+	results := clRefMap{}
 	bytes, err := ioutil.ReadFile(logFilePathFlag)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return results, nil
+		}
 		return nil, fmt.Errorf("ReadFile(%q) failed: %v", logFilePathFlag, err)
 	}
 
-	results := clRefMap{}
 	if err := json.Unmarshal(bytes, &results); err != nil {
 		return nil, fmt.Errorf("Unmarshal failed: %v\n%v", err, string(bytes))
 	}
