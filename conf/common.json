@@ -1,52 +1,50 @@
 {
-  "go-repos" : [ "roadmap", "third_party", "veyron" ],
   "go-workspaces" : [ "roadmap", "third_party", "veyron" ],
-  "vdl-repos" : [ "roadmap", "veyron" ],
   "vdl-workspaces" : [ "roadmap", "veyron" ],
   "project-tests": {
-    "https://veyron.googlesource.com/roadmap.go.examples": [
-      "go"
-    ],
-    "https://veyron.googlesource.com/roadmap.go.store": [
-      "go"
-    ],
-    "https://veyron.googlesource.com/third_party": [
-      "third_party-go",
-      "go",
-      "javascript",
-      "projects"
-    ],
-    "https://veyron.googlesource.com/veyron-browser": [
+    "https://vanadium.googlesource.com/namespace_browser": [
       "veyron-namespace-browser-test"
     ],
-    "https://veyron.googlesource.com/veyron.go.core": [
+    "https://vanadium.googlesource.com/release.go.core": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://veyron.googlesource.com/veyron.go.lib": [
+    "https://vanadium.googlesource.com/release.go.lib": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://veyron.googlesource.com/veyron.go.playground": [
+    "https://vanadium.googlesource.com/release.go.playground": [
       "go"
     ],
-    "https://veyron.googlesource.com/veyron.go.tools": [
+    "https://vanadium.googlesource.com/release.go.tools": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://veyron.googlesource.com/veyron.go.wspr": [
+    "https://vanadium.googlesource.com/release.go.wspr": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://veyron.googlesource.com/veyron.js": [
+    "https://vanadium.googlesource.com/release.js.core": [
       "javascript",
       "projects"
     ],
-    "https://veyron.googlesource.com/vom.js": [
+    "https://vanadium.googlesource.com/release.js.vom": [
+      "javascript",
+      "projects"
+    ],
+    "https://vanadium.googlesource.com/roadmap.go.examples": [
+      "go"
+    ],
+    "https://vanadium.googlesource.com/roadmap.go.store": [
+      "go"
+    ],
+    "https://vanadium.googlesource.com/third_party": [
+      "third_party-go",
+      "go",
       "javascript",
       "projects"
     ],
