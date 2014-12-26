@@ -33,7 +33,7 @@ func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestRe
 
 	// Invoke "make clean" for the vanadium namespace browser and remove
 	// the test output file if it exists.
-	browserDir := filepath.Join(root, "release", "go", "projects", "namespace_browser")
+	browserDir := filepath.Join(root, "release", "projects", "namespace_browser")
 	if err := ctx.Run().Chdir(browserDir); err != nil {
 		return nil, err
 	}
