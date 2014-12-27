@@ -33,6 +33,7 @@ var (
 		"vanadium-javascript-browser-integration": struct{}{},
 		"vanadium-javascript-build-extension":     struct{}{},
 		"vanadium-javascript-node-integration":    struct{}{},
+		"vanadium-namespace-browser-test":         struct{}{},
 		"vanadium-www":                            struct{}{},
 	}
 )
