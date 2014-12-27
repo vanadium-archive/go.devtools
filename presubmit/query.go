@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -488,7 +489,9 @@ func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) (_ []queu
 		}
 	}
 	if err := json.NewDecoder(r).Decode(&items); err != nil {
-		return nil, []error{fmt.Errorf("Decode() failed: %v", err)}
+		var buf bytes.Buffer
+		buf.ReadFrom(reader)
+		return nil, []error{fmt.Errorf("Decode() failed: %v\n%s", err, buf.String())}
 	}
 
 	queuedItems := []queuedItem{}
@@ -553,7 +556,9 @@ func ongoingOutdatedBuild(reader io.Reader, cls clNumberToPatchsetMap) (ongoingB
 		Number   int
 	}
 	if err := json.NewDecoder(r).Decode(&build); err != nil {
-		return invalidOngoingBuild, fmt.Errorf("Decode() failed: %v", err)
+		var buf bytes.Buffer
+		buf.ReadFrom(reader)
+		return invalidOngoingBuild, fmt.Errorf("Decode() failed: %v\n%s", err, buf.String())
 	}
 
 	if !build.Building {
