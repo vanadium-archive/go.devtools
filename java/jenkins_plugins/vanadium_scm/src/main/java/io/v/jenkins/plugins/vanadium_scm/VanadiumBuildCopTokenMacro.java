@@ -29,6 +29,6 @@ public class VanadiumBuildCopTokenMacro extends DataBoundTokenMacro {
       return "";
     }
 
-    return data.getCurBuildCop();
+    return data.getCurBuildCop().trim();
   }
 }
