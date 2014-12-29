@@ -74,8 +74,8 @@
     ],
     "vanadium-namespace-browser-test": [
       "vanadium-go-build",
-      "vanadium-javascript-browser-integration",
-      "vanadium-javascript-node-integration"
+      "vanadium-js-browser-integration",
+      "vanadium-js-node-integration"
     ],
     "vanadium-go-race": [
       "vanadium-go-test"
@@ -83,13 +83,13 @@
     "vanadium-go-test": [
       "vanadium-go-build"
     ],
-    "vanadium-javascript-browser-integration": [
+    "vanadium-js-browser-integration": [
       "vanadium-go-build",
-      "vanadium-javascript-unit"
+      "vanadium-js-unit"
     ],
-    "vanadium-javascript-node-integration": [
+    "vanadium-js-node-integration": [
       "vanadium-go-build",
-      "vanadium-javascript-unit"
+      "vanadium-js-unit"
     ],
     "vanadium-integration-test": [
       "vanadium-go-build"
@@ -105,11 +105,11 @@
       "vanadium-vdl"
     ],
     "javascript": [
-      "vanadium-javascript-vdl",
-      "vanadium-javascript-vom",
-      "vanadium-javascript-browser-integration",
-      "vanadium-javascript-node-integration",
-      "vanadium-javascript-build-extension"
+      "vanadium-js-vdl",
+      "vanadium-js-vom",
+      "vanadium-js-browser-integration",
+      "vanadium-js-node-integration",
+      "vanadium-js-build-extension"
     ],
     "projects": [
       "vanadium-namespace-browser-test"
