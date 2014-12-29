@@ -28,13 +28,13 @@ var (
 
 	// A root test watches changes and triggers other Jenkins targets.
 	defaultRootTests = map[string]struct{}{
-		"third_party-go-build":                    struct{}{},
-		"vanadium-go-build":                       struct{}{},
-		"vanadium-javascript-browser-integration": struct{}{},
-		"vanadium-javascript-build-extension":     struct{}{},
-		"vanadium-javascript-node-integration":    struct{}{},
-		"vanadium-namespace-browser-test":         struct{}{},
-		"vanadium-www":                            struct{}{},
+		"third_party-go-build":            struct{}{},
+		"vanadium-go-build":               struct{}{},
+		"vanadium-js-browser-integration": struct{}{},
+		"vanadium-js-build-extension":     struct{}{},
+		"vanadium-js-node-integration":    struct{}{},
+		"vanadium-namespace-browser-test": struct{}{},
+		"vanadium-www":                    struct{}{},
 	}
 )
 
