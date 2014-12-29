@@ -116,10 +116,10 @@ var (
 	wantBuild = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v.io/tools/lib/testutil/testdata/foo",
+				Name: "v_io.tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v.io/tools/lib/testutil/testdata/foo",
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
 						Name:      "Build",
 					},
 				},
@@ -130,10 +130,10 @@ var (
 	wantTest = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v.io/tools/lib/testutil/testdata/foo",
+				Name: "v_io.tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v.io/tools/lib/testutil/testdata/foo",
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
 						Name:      "TestFoo",
 					},
 				},
@@ -144,10 +144,10 @@ var (
 	wantTestWithTestCaseSuffix = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v.io/tools/lib/testutil/testdata/foo",
+				Name: "v_io.tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v.io/tools/lib/testutil/testdata/foo",
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
 						Name:      "TestFoo [GoRace]",
 					},
 				},
@@ -254,7 +254,7 @@ func TestGoCoverage(t *testing.T) {
 	coberturaFile := coberturaReportPath(testName)
 	data, err = ioutil.ReadFile(coberturaFile)
 	if err != nil {
-		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
+		t.Fatalf("ReadFile(%v) failed: %v", coberturaFile, err)
 	}
 	var gotCoverage testCoverage
 	if err := xml.Unmarshal(data, &gotCoverage); err != nil {

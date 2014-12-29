@@ -84,6 +84,22 @@ func testSuiteFromGoTestOutput(ctx *util.Context, testOutput io.Reader) (*testSu
 // createXUnitReport generates an xUnit report using the given test
 // suites.
 func createXUnitReport(ctx *util.Context, testName string, suites []testSuite) error {
+	// Change all go package names from v.io/xyz to v_io.xyz so Jenkins won't
+	// split it at the wrong "." and show "v" as the "Package" in test reports.
+	for i, s := range suites {
+		if strings.HasPrefix(s.Name, "v.io/") {
+			s.Name = strings.Replace(s.Name, "v.io/", "v_io.", 1)
+			suites[i] = s
+		}
+		cases := s.Cases
+		for j, c := range cases {
+			if strings.HasPrefix(c.Classname, "v.io/") {
+				c.Classname = strings.Replace(c.Classname, "v.io/", "v_io.", 1)
+				cases[j] = c
+			}
+		}
+		suites[i].Cases = cases
+	}
 	result := testSuites{Suites: suites}
 	bytes, err := xml.MarshalIndent(result, "", "  ")
 	if err != nil {
