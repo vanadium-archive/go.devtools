@@ -33,6 +33,9 @@ var (
 		"vanadium-js-browser-integration": struct{}{},
 		"vanadium-js-build-extension":     struct{}{},
 		"vanadium-js-node-integration":    struct{}{},
+		"vanadium-js-unit":                struct{}{},
+		"vanadium-js-vdl":                 struct{}{},
+		"vanadium-js-vom":                 struct{}{},
 		"vanadium-namespace-browser-test": struct{}{},
 		"vanadium-www":                    struct{}{},
 	}
@@ -177,7 +180,24 @@ func jenkinsTestsToStart(projects []string) ([]string, error) {
 			rootTests = append(rootTests, test)
 		}
 	}
-	return rootTests, nil
+
+	// If vanadium-go-build is in the root tests, remove all
+	// js tests because they will be triggered by vanadium-go-build
+	// in Jenkins.
+	filteredRootTests := []string{}
+	hasGoBuild := false
+	for _, test := range rootTests {
+		if test == "vanadium-go-build" {
+			hasGoBuild = true
+			break
+		}
+	}
+	for _, test := range rootTests {
+		if !hasGoBuild || (hasGoBuild && !strings.HasPrefix(test, "vanadium-js")) {
+			filteredRootTests = append(filteredRootTests, test)
+		}
+	}
+	return filteredRootTests, nil
 }
 
 // startJenkinsTests uses Jenkins API to start a build to each of the

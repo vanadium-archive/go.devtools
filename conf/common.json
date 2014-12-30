@@ -105,11 +105,12 @@
       "vanadium-vdl"
     ],
     "javascript": [
-      "vanadium-js-vdl",
-      "vanadium-js-vom",
       "vanadium-js-browser-integration",
+      "vanadium-js-build-extension",
       "vanadium-js-node-integration",
-      "vanadium-js-build-extension"
+      "vanadium-js-unit",
+      "vanadium-js-vdl",
+      "vanadium-js-vom"
     ],
     "projects": [
       "vanadium-namespace-browser-test"
