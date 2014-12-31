@@ -2,9 +2,11 @@ package testutil
 
 import (
 	"bytes"
-	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"v.io/tools/lib/collect"
@@ -45,11 +47,11 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	}
 
 	// Run the test target.
-	var stderr bytes.Buffer
+	var out bytes.Buffer
 	opts = ctx.Run().Opts()
-	opts.Stderr = &stderr
+	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
+	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
 	if err := ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "Stderr:\n%s\n", stderr.String())
 		if err == runutil.CommandTimedOutErr {
 			return &TestResult{
 				Status:       TestTimedOut,
@@ -58,12 +60,16 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 		}
 		// Generate an xunit report if none exists.
 		// This can happen when errors are not in javascript tests themselves.
+		// In the error message, we inlcude the last 15 lines of stdout+stderr.
 		xunitFilePath := XUnitReportPath(testName)
 		if _, err := os.Stat(xunitFilePath); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
 			}
-			s := createTestSuiteWithFailure(testName, "Test", "failure", stderr.String(), 0)
+			lines := strings.Split(out.String(), "\n")
+			startLine := int(math.Max(0, float64(len(lines)-15)))
+			errMsg := "......\n" + strings.Join(lines[startLine:], "\n")
+			s := createTestSuiteWithFailure(testName, "Test", "failure", errMsg, 0)
 			if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
 				return nil, err
 			}
