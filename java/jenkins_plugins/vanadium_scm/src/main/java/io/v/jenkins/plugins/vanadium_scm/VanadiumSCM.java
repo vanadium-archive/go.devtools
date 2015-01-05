@@ -1,6 +1,7 @@
 package io.v.jenkins.plugins.vanadium_scm;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.FileFileFilter;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.lang.StringUtils;
@@ -286,7 +287,8 @@ public class VanadiumSCM extends SCM {
         continue;
       }
 
-      String curGitDir = joinPath(getVanadiumRoot(workspaceDir), snapshot.getRelativePath(), ".git");
+      String curGitDir =
+          joinPath(getVanadiumRoot(workspaceDir), snapshot.getRelativePath(), ".git");
       List<String> gitLogCommandAndArgs = new ArrayList<String>(Arrays.asList("git",
           String.format("--git-dir=%s", curGitDir),
           "log",
@@ -311,8 +313,7 @@ public class VanadiumSCM extends SCM {
     // Create a VanadiumBuildData to store Vanadium related data for this build, and add it to the
     // current build object.
     String buildCopLDAP = "";
-    List<String> buildCopCommandAndArgs =
-        new ArrayList<String>(Arrays.asList(v23Bin, "buildcop"));
+    List<String> buildCopCommandAndArgs = new ArrayList<String>(Arrays.asList(v23Bin, "buildcop"));
     cr = runCommand(workspaceDir, launcher, false, buildCopCommandAndArgs,
         build.getEnvironment(listener));
     if (cr.getExitCode() == 0) {
@@ -351,7 +352,8 @@ public class VanadiumSCM extends SCM {
   }
 
   private CommandResult runCommand(String workspaceDir, Launcher launcher, boolean verbose,
-      List<String> commandAndArgs, Map<String, String> env) {
+      List<String> commandAndArgs, Map<String, String> env) throws IOException,
+      InterruptedException {
     String stdout = "";
     String stderr = "";
     int exitCode = -1;
@@ -359,10 +361,10 @@ public class VanadiumSCM extends SCM {
     if (verbose) {
       printf(listener, "Running command: %s.\n", getCommand(commandAndArgs));
     }
+    ByteArrayOutputStream bosStdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream bosStderr = new ByteArrayOutputStream();
     try {
       env.put("VANADIUM_ROOT", getVanadiumRoot(workspaceDir));
-      ByteArrayOutputStream bosStdout = new ByteArrayOutputStream();
-      ByteArrayOutputStream bosStderr = new ByteArrayOutputStream();
       OutputStream osStdout = new ForkOutputStream(
           verbose ? listener.getLogger() : NullOutputStream.NULL_OUTPUT_STREAM, bosStdout);
       OutputStream osStderr = new ForkOutputStream(
@@ -378,10 +380,15 @@ public class VanadiumSCM extends SCM {
       exitCode = ps.start().joinWithTimeout(CMD_TIMEOUT_MINUTES, TimeUnit.MINUTES, listener);
       stdout = bosStdout.toString();
       stderr = bosStderr.toString();
-      bosStdout.close();
-      bosStderr.close();
+    } catch (IOException e) {
+      throw e;
+    } catch (InterruptedException e) {
+      throw e;
     } catch (Exception e) {
       e.printStackTrace(listener.getLogger());
+    } finally {
+      IOUtils.closeQuietly(bosStdout);
+      IOUtils.closeQuietly(bosStderr);
     }
     if (exitCode != 0) {
       printf(listener, "Command '%s' failed.\n", getCommand(commandAndArgs));

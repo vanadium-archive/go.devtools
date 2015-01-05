@@ -9,7 +9,7 @@
   <name>Vanadium SCM Plugin</name>
   <groupId>io.v.jenkins.plugins</groupId>
   <artifactId>vanadium_scm</artifactId>
-  <version>0.4.9</version>
+  <version>0.4.10</version>
   <packaging>hpi</packaging>
 
   <licenses>
