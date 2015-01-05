@@ -198,12 +198,12 @@ func (s goDependencyError) Error() string {
 	return result
 }
 
-type goFormatError []string
+type goFormatError string
 
 func (s goFormatError) Error() string {
 	result := "changelist does not adhere to the Go formatting conventions\n\n"
-	result += "To resolve this problem, run 'go fmt' for the following file(s):\n"
-	result += "  " + strings.Join(s, "\n  ")
+	result += "To resolve this problem, run 'gofmt -w' for the following file(s):\n"
+	result += string(s)
 	return result
 }
 
@@ -295,10 +295,7 @@ var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcde
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
 func (r *review) checkGoFormat() (e error) {
-	if err := r.ctx.Git().Fetch("origin", "master"); err != nil {
-		return err
-	}
-	files, err := r.ctx.Git().ModifiedFiles("FETCH_HEAD", r.branch)
+	files, err := r.ctx.Git().ModifiedFiles("master", r.branch)
 	if err != nil {
 		return err
 	}
@@ -314,30 +311,33 @@ func (r *review) checkGoFormat() (e error) {
 	if err := r.ctx.Run().Chdir(topLevel); err != nil {
 		return err
 	}
-	ill := make([]string, 0)
+	goFiles := []string{}
 	for _, file := range files {
 		path := filepath.Join(topLevel, file)
-		if strings.HasSuffix(file, ".go") {
-			// Skip files deleted by the change.
-			if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
-				continue
-			}
-			// Check if the formatting of <file> differs
-			// from gofmt.
-			var out bytes.Buffer
-			opts := r.ctx.Run().Opts()
-			opts.Stdout = &out
-			opts.Stderr = &out
-			if err := r.ctx.Run().CommandWithOpts(opts, "v23", "go", "fmt", path); err != nil {
-				return err
-			}
-			if out.Len() != 0 {
-				ill = append(ill, file)
-			}
+		// Skip non-Go files.
+		if !strings.HasSuffix(file, ".go") {
+			continue
 		}
+		// Skip Go files deleted by the change.
+		if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+			continue
+		}
+		goFiles = append(goFiles, file)
 	}
-	if len(ill) != 0 {
-		return goFormatError(ill)
+	// Check if the formatting differs from gofmt.
+	if len(goFiles) != 0 {
+		var out bytes.Buffer
+		opts := r.ctx.Run().Opts()
+		opts.Stdout = &out
+		opts.Stderr = &out
+		args := []string{"run", "gofmt", "-l"}
+		args = append(args, goFiles...)
+		if err := r.ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
+			return err
+		}
+		if out.Len() != 0 {
+			return goFormatError(out.String())
+		}
 	}
 	return nil
 }
