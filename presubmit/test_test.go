@@ -130,6 +130,120 @@ func TestParseLastCompletedBuildStatusJsonResponse(t *testing.T) {
 	}
 }
 
+func TestParseFailedTestCases(t *testing.T) {
+	testCases := []struct {
+		input             string
+		slave             string
+		expectedTestCases []testCase
+	}{
+		// Test results from regular project.
+		{
+			input: `
+{
+  "suites": [
+		{
+			"cases": [
+				{
+					"className": "c1",
+					"name": "n1",
+					"status": "PASSED"
+				},
+				{
+					"className": "c2",
+					"name": "n2",
+					"status": "FAILED"
+				}
+			]
+		},
+		{
+			"cases": [
+				{
+					"className": "c3",
+					"name": "n3",
+					"status": "REGRESSION"
+				}
+			]
+		}
+	]
+}`,
+			slave: "not-needed",
+			expectedTestCases: []testCase{
+				testCase{
+					ClassName: "c2",
+					Name:      "n2",
+					Status:    "FAILED",
+				},
+				testCase{
+					ClassName: "c3",
+					Name:      "n3",
+					Status:    "REGRESSION",
+				},
+			},
+		},
+		// Test results from multi-configuration project.
+		{
+			input: `{
+	"childReports": [
+	  {
+			"child": {
+				"url": "https://dev.v.io/jenkins/job/vanadium-go-build/L=slave/11/"
+			},
+			"result": {
+				"suites": [
+					{
+						"cases": [
+							{
+								"className": "c1",
+								"name": "n1",
+								"status": "FAILED"
+							}
+						]
+					}
+				]
+			}
+		},
+	  {
+			"child": {
+				"url": "https://dev.v.io/jenkins/job/vanadium-go-build/L=mac-slave/11/"
+			},
+			"result": {
+				"suites": [
+					{
+						"cases": [
+							{
+								"className": "c2",
+								"name": "n2",
+								"status": "REGRESSION"
+							}
+						]
+					}
+				]
+			}
+		}
+	]
+}`,
+			slave: "mac-slave",
+			expectedTestCases: []testCase{
+				testCase{
+					ClassName: "c2",
+					Name:      "n2",
+					Status:    "REGRESSION",
+				},
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		gotTestCases, err := parseFailedTestCases(strings.NewReader(test.input), test.slave)
+		if err != nil {
+			t.Fatalf("want no errors, got: %v", err)
+		}
+		if !reflect.DeepEqual(gotTestCases, test.expectedTestCases) {
+			t.Fatalf("want %v, got %v", test.expectedTestCases, gotTestCases)
+		}
+	}
+}
+
 func TestGenFailedTestLinks(t *testing.T) {
 	reportFileContent := `
 <?xml version="1.0" encoding="utf-8"?>

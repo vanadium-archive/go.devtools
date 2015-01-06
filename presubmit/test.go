@@ -501,21 +501,65 @@ func failedTestCases(testName string) (_ []testCase, e error) {
 		return []testCase{}, err
 	}
 	defer collect.Error(func() error { return getTestReportRes.Body.Close() }, &e)
-	return parseFailedTestCases(getTestReportRes.Body)
+	// For now, we only compare presubmit results with "slave" configuration in
+	// any post-submit multi-configuration projects.
+	// TODO(jingjin): fix this after adding Mac related tests to presubmit tests.
+	return parseFailedTestCases(getTestReportRes.Body, "slave")
 }
 
-func parseFailedTestCases(reader io.Reader) ([]testCase, error) {
+// parseFailedTestCases parses testCases from the given test report json string.
+//
+// If the test report is from a multi-configuration project, the testCases from
+// each configuration are stored in a "child" report identified by the url of
+// the configuration/sub-job. For example:
+//
+// https://dev.v.io/jenkins/job/vanadium-go-build/L=slave/11/
+// https://dev.v.io/jenkins/job/vanadium-go-build/L=mac-slave/11/
+//
+// In our Jenkins setup, a multi-configuration project will always have a
+// "slave" axis whose label will always be "L". So we use the slave value as
+// a function parameter ("slave") to identify which "child" report to get
+// testCases from.
+func parseFailedTestCases(reader io.Reader, slave string) ([]testCase, error) {
 	r := bufio.NewReader(reader)
 	var testCases struct {
+		ChildReports []struct {
+			Child struct {
+				Url string
+			}
+			Result struct {
+				Suites []struct {
+					Cases []testCase
+				}
+			}
+		} `json:",omitempty"`
 		Suites []struct {
 			Cases []testCase
-		}
+		} `json:",omitempty"`
 	}
 	failedTestCases := []testCase{}
 	if err := json.NewDecoder(r).Decode(&testCases); err != nil {
 		return failedTestCases, fmt.Errorf("Decode() failed: %v", err)
 	}
-	for _, suite := range testCases.Suites {
+	// Get test suites from either
+	// - the top level Suites object (free-style Jenkins projects), or
+	// - the Suites from the matching child report (multi-configuration Jenkins projects)
+	suites := testCases.Suites
+	if suites == nil {
+		if testCases.ChildReports != nil {
+			for _, childReport := range testCases.ChildReports {
+				if strings.Index(childReport.Child.Url, fmt.Sprintf("/L=%s/", slave)) >= 0 {
+					suites = childReport.Result.Suites
+					break
+				}
+			}
+		}
+	}
+	if suites == nil {
+		return nil, fmt.Errorf("invalid test report: %#v", testCases)
+	}
+
+	for _, suite := range suites {
 		for _, curCase := range suite.Cases {
 			if curCase.Status == "FAILED" || curCase.Status == "REGRESSION" {
 				failedTestCases = append(failedTestCases, curCase)
