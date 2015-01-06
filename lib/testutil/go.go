@@ -52,6 +52,7 @@ type argsOpt []string
 type profilesOpt []string
 type timeoutOpt string
 type suffixOpt string
+type excludedTestsOpt []test
 
 func (argsOpt) goBuildOpt()    {}
 func (argsOpt) goCoverageOpt() {}
@@ -65,6 +66,8 @@ func (timeoutOpt) goCoverageOpt() {}
 func (timeoutOpt) goTestOpt()     {}
 
 func (suffixOpt) goTestOpt() {}
+
+func (excludedTestsOpt) goTestOpt() {}
 
 // goBuild is a helper function for running Go builds.
 func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
@@ -381,11 +384,15 @@ type testResult struct {
 
 const defaultTestTimeout = "5m"
 
+type goTestTask struct {
+	pkg           string
+	excludedTests []string
+}
+
 // goTest is a helper function for running Go tests.
 func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
-	args, profiles := []string{}, []string{}
-	suffix := ""
+	args, profiles, suffix, excludedTests := []string{}, []string{}, "", []test{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case timeoutOpt:
@@ -396,6 +403,8 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			profiles = []string(typedOpt)
 		case suffixOpt:
 			suffix = string(typedOpt)
+		case excludedTestsOpt:
+			excludedTests = []test(typedOpt)
 		}
 	}
 
@@ -413,7 +422,10 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 
 	// Pre-build non-test packages.
 	if err := buildTestDeps(ctx, pkgs); err != nil {
-		s := createTestSuiteWithFailure("BuildTestDependencies", "Test"+suffix, "dependencies build failure", err.Error(), 0)
+		if len(suffix) != 0 {
+			testName += " " + suffix
+		}
+		s := createTestSuiteWithFailure("BuildTestDependencies", testName, "dependencies build failure", err.Error(), 0)
 		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
 			return nil, err
 		}
@@ -428,7 +440,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 
 	// Create a pool of workers.
 	numPkgs := len(pkgList)
-	tasks := make(chan string, numPkgs)
+	tasks := make(chan goTestTask, numPkgs)
 	taskResults := make(chan testResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go testWorker(ctx, timeout, args, tasks, taskResults)
@@ -436,7 +448,14 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 
 	// Distribute work to workers.
 	for _, pkg := range pkgList {
-		tasks <- pkg
+		// Identify the names of tests to exclude.
+		testNames := []string{}
+		for _, test := range excludedTests {
+			if test.pkg == pkg {
+				testNames = append(testNames, test.name)
+			}
+		}
+		tasks <- goTestTask{pkg, testNames}
 	}
 	close(tasks)
 
@@ -470,7 +489,9 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			}
 			newCases := []testCase{}
 			for _, c := range s.Cases {
-				c.Name += suffix
+				if len(suffix) != 0 {
+					c.Name += " " + suffix
+				}
 				newCases = append(newCases, c)
 			}
 			s.Cases = newCases
@@ -490,25 +511,34 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 }
 
 // testWorker tests packages.
-func testWorker(ctx *util.Context, timeout string, args []string, pkgs <-chan string, results chan<- testResult) {
+func testWorker(ctx *util.Context, timeout string, args []string, tasks <-chan goTestTask, results chan<- testResult) {
 	opts := ctx.Run().Opts()
 	opts.Verbose = false
-	for pkg := range pkgs {
+	for task := range tasks {
 		// Run the test.
 		var out bytes.Buffer
 		args := append([]string{"go", "test", "-timeout", timeout, "-v"}, args...)
-		args = append(args, pkg)
+		if len(task.excludedTests) != 0 {
+			// Create the regular expression describing
+			// the complement of the set of the tests to
+			// be excluded.
+			for i := 0; i < len(task.excludedTests); i++ {
+				task.excludedTests[i] = fmt.Sprintf("^(%s)", task.excludedTests[i])
+			}
+			args = append(args, "-run", fmt.Sprintf("[%s]", strings.Join(task.excludedTests, "|")))
+		}
+		args = append(args, task.pkg)
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
 		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
 		result := testResult{
-			pkg:    pkg,
+			pkg:    task.pkg,
 			time:   time.Now().Sub(start),
 			output: out.String(),
 		}
 		if err != nil {
-			if isBuildFailure(err, out.String(), pkg) {
+			if isBuildFailure(err, out.String(), task.pkg) {
 				result.status = buildFailed
 			} else {
 				result.status = testFailed
@@ -696,7 +726,28 @@ func getListenerPID(ctx *util.Context, port string) (int, error) {
 	return pid, nil
 }
 
-var thirdPartyPkgs = []string{"golang.org/...", "code.google.com/...", "github.com/..."}
+var thirdPartyPkgs = []string{
+	"code.google.com/...",
+	"github.com/...",
+	"golang.org/...",
+}
+
+type test struct {
+	pkg  string
+	name string
+}
+
+var excludedThirdPartyTests = []test{
+	// The following test requires an X server, which is not
+	// available on GCE.
+	test{"golang.org/x/mobile/gl/glutil", "TestImage"},
+	// The following test requires IPv6, which is not available on
+	// GCE.
+	test{"golang.org/x/mobile/net/icmp", "TestPingGoogle"},
+	// The following test expects to see "FAIL: TestBar" which
+	// causes go2xunit to fail.
+	test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage"},
+}
 
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
@@ -705,24 +756,17 @@ func thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) 
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	// Run the tests excluding TestTestmainPackage from
-	// code.google.com/p/go.tools/go/ssa/interp as the package has
-	// a test that expects to see FAIL: TestBar which causes
-	// go2xunit to fail.
 	pkgs := thirdPartyPkgs
-	args := argsOpt([]string{"-run", "[^(TestTestmainPackage)]"})
-	return goTest(ctx, testName, pkgs, args)
+	excludedTests := excludedTestsOpt(excludedThirdPartyTests)
+	return goTest(ctx, testName, pkgs, excludedTests)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
-	// Run the tests excluding TestTestmainPackage from
-	// code.google.com/p/go.tools/go/ssa/interp as the package has
-	// a test that expects to see FAIL: TestBar which causes
-	// go2xunit to fail.
 	pkgs := thirdPartyPkgs
-	args := argsOpt([]string{"-race", "-run", "[^(TestTestmainPackage)]"})
-	return goTest(ctx, testName, pkgs, args)
+	args := argsOpt([]string{"-race"})
+	excludedTests := excludedTestsOpt(excludedThirdPartyTests)
+	return goTest(ctx, testName, pkgs, args, excludedTests)
 }
 
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
@@ -809,7 +853,7 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 // vanadiumGoTest runs Go tests for vanadium projects.
 func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	suffix := suffixOpt(" [GoTest]")
+	suffix := suffixOpt("[GoTest]")
 	return goTest(ctx, testName, pkgs, suffix)
 }
 
@@ -818,6 +862,6 @@ func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-race"})
 	timeout := timeoutOpt("10m")
-	suffix := suffixOpt(" [GoRace]")
+	suffix := suffixOpt("[GoRace]")
 	return goTest(ctx, testName, pkgs, args, timeout, suffix)
 }

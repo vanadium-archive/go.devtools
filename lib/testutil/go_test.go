@@ -134,21 +134,51 @@ var (
 				Cases: []testCase{
 					testCase{
 						Classname: "v_io.tools/lib/testutil/testdata/foo",
-						Name:      "TestFoo",
+						Name:      "Test1",
+					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "Test2",
+					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "Test3",
 					},
 				},
-				Tests: 1,
+				Tests: 3,
 			},
 		},
 	}
-	wantTestWithTestCaseSuffix = testSuites{
+	wantTestWithSuffix = testSuites{
 		Suites: []testSuite{
 			testSuite{
 				Name: "v_io.tools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
 						Classname: "v_io.tools/lib/testutil/testdata/foo",
-						Name:      "TestFoo [GoRace]",
+						Name:      "Test1 [Suffix]",
+					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "Test2 [Suffix]",
+					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "Test3 [Suffix]",
+					},
+				},
+				Tests: 3,
+			},
+		},
+	}
+	wantTestWithExcludedTests = testSuites{
+		Suites: []testSuite{
+			testSuite{
+				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Cases: []testCase{
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "Test1",
 					},
 				},
 				Tests: 1,
@@ -267,19 +297,31 @@ func TestGoCoverage(t *testing.T) {
 
 // TestGoTest checks the Go test based test logic.
 func TestGoTest(t *testing.T) {
-	runGoTest(t, "", wantTest)
+	runGoTest(t, "", nil, wantTest)
 }
 
-func TestGoTestWithTestCaseSuffix(t *testing.T) {
-	runGoTest(t, " [GoRace]", wantTestWithTestCaseSuffix)
+// TestGoTestWithSuffix checks the suffix mode of Go test based test
+// logic.
+func TestGoTestWithSuffix(t *testing.T) {
+	runGoTest(t, "[Suffix]", nil, wantTestWithSuffix)
 }
 
-func runGoTest(t *testing.T, testCaseNameSuffix string, expectedTestSuite testSuites) {
+// TestGoTestWithExcludedTests checks the excluded test mode of Go
+// test based test logic.
+func TestGoTestWithExcludedTests(t *testing.T) {
+	excludedTests := []test{
+		test{"v.io/tools/lib/testutil/testdata/foo", "Test2"},
+		test{"v.io/tools/lib/testutil/testdata/foo", "Test3"},
+	}
+	runGoTest(t, "", excludedTests, wantTestWithExcludedTests)
+}
+
+func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite testSuites) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-test", "v.io/tools/lib/testutil/testdata/foo"
-	result, err := goTest(ctx, testName, []string{pkgName}, suffixOpt(testCaseNameSuffix))
+	result, err := goTest(ctx, testName, []string{pkgName}, suffixOpt(suffix), excludedTestsOpt(excludedTests))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
