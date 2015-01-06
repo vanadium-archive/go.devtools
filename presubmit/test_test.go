@@ -138,9 +138,8 @@ func TestParseFailedTestCases(t *testing.T) {
 	}{
 		// Test results from regular project.
 		{
-			input: `
-{
-  "suites": [
+			input: `{
+	"suites": [
 		{
 			"cases": [
 				{
@@ -184,7 +183,7 @@ func TestParseFailedTestCases(t *testing.T) {
 		{
 			input: `{
 	"childReports": [
-	  {
+		{
 			"child": {
 				"url": "https://dev.v.io/jenkins/job/vanadium-go-build/L=slave/11/"
 			},
@@ -202,7 +201,7 @@ func TestParseFailedTestCases(t *testing.T) {
 				]
 			}
 		},
-	  {
+		{
 			"child": {
 				"url": "https://dev.v.io/jenkins/job/vanadium-go-build/L=mac-slave/11/"
 			},
