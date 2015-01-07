@@ -48,7 +48,7 @@
       "javascript",
       "projects"
     ],
-    "https://github.com/core/veyron-www": [
+    "https://github.com/veyron/veyron-www": [
       "vanadium-www"
     ]
   },
