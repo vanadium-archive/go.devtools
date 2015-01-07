@@ -1,9 +1,0 @@
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <!-- Text field for specifying VANADIUM_ROOT -->
-  <f:entry title="VANADIUM_ROOT" field="vanadiumRootInput">
-    <f:textbox default="root"/>
-  </f:entry>
-  <f:entry title="Manifest" field="manifestInput">
-    <f:textbox default="default"/>
-  </f:entry>
-</j:jelly>
