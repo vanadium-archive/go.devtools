@@ -143,7 +143,11 @@ func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotCon
 				return nil, err
 			}
 			if len(commits) != 0 {
-				projects = append(projects, project.Name)
+				if project.Alias != "" {
+					projects = append(projects, util.VanadiumGitRepoHost()+project.Alias)
+				} else {
+					projects = append(projects, project.Name)
+				}
 			}
 		}
 	}
