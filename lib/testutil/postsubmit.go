@@ -20,7 +20,12 @@ func vanadiumPostsubmitPoll(ctx *util.Context, testName string) (_ *TestResult, 
 	if ctx.Verbose() {
 		args = append(args, "-v")
 	}
-	args = append(args, "-host", jenkinsHost, "-token", jenkinsToken, "poll", "-manifest", "all")
+	args = append(args,
+		"-host", jenkinsHost,
+		"-token", jenkinsToken,
+		"poll",
+		"-manifest", "all-mirror",
+	)
 	if err := ctx.Run().Command("postsubmit", args...); err != nil {
 		return nil, err
 	}

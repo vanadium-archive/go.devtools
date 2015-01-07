@@ -144,8 +144,16 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e
 	if ctx.Verbose() {
 		args = append(args, "-v")
 	}
-	args = append(args, "-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "test",
-		"-build_number", os.Getenv("BUILD_NUMBER"), "-repos", os.Getenv("REPOS"), "-refs", os.Getenv("REFS"))
+	args = append(args,
+		"-host", jenkinsHost,
+		"-token", jenkinsToken,
+		"-netrc", netrcFile,
+		"test",
+		"-build_number", os.Getenv("BUILD_NUMBER"),
+		"-manifest", "default-mirror",
+		"-repos", os.Getenv("REPOS"),
+		"-refs", os.Getenv("REFS"),
+	)
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
