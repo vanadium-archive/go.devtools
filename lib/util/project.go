@@ -55,6 +55,8 @@ type Projects map[string]Project
 
 // Project represents a vanadium project.
 type Project struct {
+	// Alias is an alternative name for the project.
+	Alias string `xml:"alias,attr"`
 	// Exclude is flag used to exclude previously included projects.
 	Exclude bool `xml:"exclude,attr"`
 	// Name is the URL at which the project is hosted.
