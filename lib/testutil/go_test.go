@@ -309,11 +309,12 @@ func TestGoTestWithSuffix(t *testing.T) {
 // TestGoTestWithExcludedTests checks the excluded test mode of Go
 // test based test logic.
 func TestGoTestWithExcludedTests(t *testing.T) {
-	excludedTests := []test{
-		test{"v.io/tools/lib/testutil/testdata/foo", "Test2"},
-		test{"v.io/tools/lib/testutil/testdata/foo", "Test3"},
+	isExcluded := func() bool { return true }
+	exclusions := []exclusion{
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test2"}, isExcluded},
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test3"}, isExcluded},
 	}
-	runGoTest(t, "", excludedTests, wantTestWithExcludedTests)
+	runGoTest(t, "", excludedTests(exclusions), wantTestWithExcludedTests)
 }
 
 func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite testSuites) {

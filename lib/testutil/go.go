@@ -730,6 +730,7 @@ var thirdPartyPkgs = []string{
 	"code.google.com/...",
 	"github.com/...",
 	"golang.org/...",
+	// TODO(cnicolaou): add google.golang.org once that is checked in.
 }
 
 type test struct {
@@ -737,16 +738,49 @@ type test struct {
 	name string
 }
 
-var excludedThirdPartyTests = []test{
+type exclusion struct {
+	desc    test
+	exclude func() bool
+}
+
+func isGCE() bool {
+	sysuser := os.Getenv("USER")
+	return sysuser == "veyron" && runtime.GOOS == "linux"
+}
+
+func isDarwin() bool {
+	return runtime.GOOS == "darwin"
+}
+
+var thirdPartyExclusions = []exclusion{
 	// The following test requires an X server, which is not
 	// available on GCE.
-	test{"golang.org/x/mobile/gl/glutil", "TestImage"},
+	exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage"}, isGCE},
 	// The following test requires IPv6, which is not available on
 	// GCE.
-	test{"golang.org/x/mobile/net/icmp", "TestPingGoogle"},
+	exclusion{test{"golang.org/x/mobile/net/icmp", "TestPingGoogle"}, isGCE},
 	// The following test expects to see "FAIL: TestBar" which
 	// causes go2xunit to fail.
-	test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage"},
+	exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage"}, isGCE},
+	// Don't run this test on darwin since it's too awkward to set up
+	// dbus at the system level.
+	exclusion{test{"github.com/guelfey/go.dbus", "TestSystemBus"}, isDarwin},
+}
+
+// ExcludedThirdPartyTests returns the set of tests to be excluded from
+// the third_party project.
+func ExcludedThirdPartyTests() []test {
+	return excludedTests(thirdPartyExclusions)
+}
+
+func excludedTests(exclusions []exclusion) []test {
+	excluded := make([]test, 0, len(exclusions))
+	for _, e := range exclusions {
+		if e.exclude() {
+			excluded = append(excluded, e.desc)
+		}
+	}
+	return excluded
 }
 
 // thirdPartyGoBuild runs Go build for third-party projects.
@@ -757,16 +791,14 @@ func thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) 
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := thirdPartyPkgs
-	excludedTests := excludedTestsOpt(excludedThirdPartyTests)
-	return goTest(ctx, testName, pkgs, excludedTests)
+	return goTest(ctx, testName, pkgs, excludedTestsOpt(ExcludedThirdPartyTests()))
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := thirdPartyPkgs
 	args := argsOpt([]string{"-race"})
-	excludedTests := excludedTestsOpt(excludedThirdPartyTests)
-	return goTest(ctx, testName, pkgs, args, excludedTests)
+	return goTest(ctx, testName, pkgs, args, excludedTestsOpt(ExcludedThirdPartyTests()))
 }
 
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
