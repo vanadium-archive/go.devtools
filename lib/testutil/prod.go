@@ -3,6 +3,7 @@ package testutil
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -93,8 +94,16 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
-	if err := ctx.Run().Command("v23", "go", "install", "v.io/core/veyron/tools/vrpc"); err != nil {
-		return nil, err
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
+	if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "install", "v.io/core/veyron/tools/vrpc"); err != nil {
+		// TODO(jingjin): create a utility function for this logic. See more in javascript.go.
+		s := createTestSuiteWithFailure(testName, "BuildTools", "build failure", out.String(), 0)
+		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+			return nil, err
+		}
+		return &TestResult{Status: TestFailed}, nil
 	}
 
 	// Describe the test cases.

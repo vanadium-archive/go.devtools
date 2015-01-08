@@ -61,6 +61,7 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 		// Generate an xunit report if none exists.
 		// This can happen when errors are not in javascript tests themselves.
 		// In the error message, we inlcude the last 15 lines of stdout+stderr.
+		// TODO(jingjin): create a utility function for this logic.
 		xunitFilePath := XUnitReportPath(testName)
 		if _, err := os.Stat(xunitFilePath); err != nil {
 			if !os.IsNotExist(err) {
