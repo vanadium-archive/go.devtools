@@ -11,7 +11,7 @@ import (
 
 // vanadiumVDL checks that all VDL-based Go source files are up-to-date.
 func vanadiumVDL(ctx *util.Context, testName string) (*TestResult, error) {
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'v23 run vdl generate all'.\n")
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'v23 run vdl generate --lang=go all'.\n")
 
 	root, err := util.VanadiumRoot()
 	if err != nil {
