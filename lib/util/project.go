@@ -749,13 +749,12 @@ type createOperation struct {
 // preCommitHook is a git hook installed to all new projects. It
 // prevents accidental commits to the local master branch.
 
-const preCommitHook = `
-#!/bin/bash
+const preCommitHook = `#!/bin/bash
 
 # Get the current branch name.
 readonly BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-if [ "${BRANCH}" == "master" ]
+if [[ "${BRANCH}" == "master" ]]
 then
   echo "========================================================================="
   echo "Vanadium code cannot be committed to master using the 'git commit' command."
@@ -769,15 +768,14 @@ exit 0
 
 // prePushHook is a git hook installed to all new projects. It
 // prevents accidental pushes to the remote master branch.
-const prePushHook = `
-#!/bin/bash
+const prePushHook = `#!/bin/bash
 
-readonly REMOTE=$1
+readonly REMOTE="$1"
 
 # Get the current branch name.
 readonly BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-if [ "${REMOTE}" == "origin" ] && [ "${BRANCH}" == "master" ]
+if [[ "${REMOTE}" == "origin" && "${BRANCH}" == "master" ]]
 then
   echo "======================================================================="
   echo "Vanadium code cannot be pushed to master using the 'git push' command."
