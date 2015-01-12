@@ -127,17 +127,17 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult
 		},
 		prodService{
 			name:       "macaroon service",
-			objectName: namespaceRoot + "/identity/veyron-test/macaroon",
+			objectName: namespaceRoot + "/identity/dev.v.io/macaroon",
 			signature:  []string{"Bless"},
 		},
 		prodService{
 			name:       "google identity service",
-			objectName: namespaceRoot + "/identity/veyron-test/google",
+			objectName: namespaceRoot + "/identity/dev.v.io/google",
 			signature:  []string{"BlessUsingAccessToken"},
 		},
 		prodService{
 			name:       "binary discharger",
-			objectName: namespaceRoot + "/identity/veyron-test/discharger",
+			objectName: namespaceRoot + "/identity/dev.v.io/discharger",
 			signature:  []string{"Discharge"},
 		},
 	}
