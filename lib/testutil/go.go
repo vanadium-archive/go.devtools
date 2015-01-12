@@ -730,7 +730,7 @@ var thirdPartyPkgs = []string{
 	"code.google.com/...",
 	"github.com/...",
 	"golang.org/...",
-	// TODO(cnicolaou): add google.golang.org once that is checked in.
+	"google.golang.org/...",
 }
 
 type test struct {
@@ -752,6 +752,17 @@ func isDarwin() bool {
 	return runtime.GOOS == "darwin"
 }
 
+func isNotYosemite() bool {
+	if runtime.GOOS != "darwin" {
+		return true
+	}
+	out, err := exec.Command("uname", "-a").Output()
+	if err != nil {
+		return false
+	}
+	return !strings.Contains(string(out), "Version 14.")
+}
+
 var thirdPartyExclusions = []exclusion{
 	// The following test requires an X server, which is not
 	// available on GCE.
@@ -765,6 +776,14 @@ var thirdPartyExclusions = []exclusion{
 	// Don't run this test on darwin since it's too awkward to set up
 	// dbus at the system level.
 	exclusion{test{"github.com/guelfey/go.dbus", "TestSystemBus"}, isDarwin},
+
+	// Don't run this test on mac systems prior to Yosemite since it can
+	// crash some machines.
+	exclusion{test{"golang.org/x/net", "Test"}, isNotYosemite},
+
+	// Fsnotify tests are flaky on darwin. This begs the question of whether
+	// we should be relying on this library at all.
+	exclusion{test{"github.com/howeyc/fsnotify", "Test"}, isDarwin},
 }
 
 // ExcludedThirdPartyTests returns the set of tests to be excluded from
