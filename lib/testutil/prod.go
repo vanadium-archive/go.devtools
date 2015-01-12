@@ -73,6 +73,7 @@ func testProdService(ctx *util.Context, service prodService) (*testSuite, error)
 		return generateTestSuite(ctx, false, service.name, time.Now().Sub(start), out.String()), nil
 	}
 	if got, want := methods(out.String()), service.signature; !reflect.DeepEqual(got, want) {
+		fmt.Fprintf(ctx.Stderr(), "mismatching methods: got %v, want %v\n", got, want)
 		return generateTestSuite(ctx, false, service.name, time.Now().Sub(start), "mismatching signature"), nil
 	}
 	return generateTestSuite(ctx, true, service.name, time.Now().Sub(start), ""), nil
@@ -113,7 +114,7 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult
 		prodService{
 			name:       "mounttable",
 			objectName: namespaceRoot,
-			signature:  []string{"Mount", "ResolveStep", "ResolveStepX", "Unmount"},
+			signature:  []string{"Delete", "GetACL", "Mount", "ResolveStep", "ResolveStepX", "SetACL", "Unmount"},
 		},
 		prodService{
 			name:       "application repository",
