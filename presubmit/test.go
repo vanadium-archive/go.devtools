@@ -142,7 +142,7 @@ Presubmit tests will be executed after a new patchset that resolves the conflict
 	}
 
 	// Rebuild the developer tool.
-	toolsProject, ok := projects[util.VanadiumGitRepoHost()+"release.go.tools"]
+	toolsProject, ok := projects["release.go.tools"]
 	env := map[string]string{}
 	if !ok {
 		printf(ctx.Stderr(), "tools project not found, not rebuilding tools.\n")
