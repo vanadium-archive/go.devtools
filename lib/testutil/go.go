@@ -891,7 +891,7 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 	godocCmd.Stderr = fd
 	env := envutil.NewSnapshotFromOS()
 	env.Set("BUILD_ID", "dontKillMe")
-	env.Set("GOPATH", fmt.Sprintf("%v:%v", filepath.Join(root, "v23", "go"), filepath.Join(root, "roadmap", "go")))
+	env.Set("GOPATH", fmt.Sprintf("%v:%v", filepath.Join(root, "release", "go"), filepath.Join(root, "roadmap", "go")))
 	godocCmd.Env = env.Slice()
 	fmt.Fprintf(ctx.Stdout(), "%v %v\n", godocCmd.Env, strings.Join(godocCmd.Args, " "))
 	if err := godocCmd.Start(); err != nil {

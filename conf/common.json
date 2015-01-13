@@ -2,53 +2,53 @@
   "go-workspaces" : [ "release", "roadmap", "third_party" ],
   "vdl-workspaces" : [ "release", "roadmap" ],
   "project-tests": {
-    "https://vanadium.googlesource.com/namespace_browser": [
+    "namespace_browser": [
       "vanadium-namespace-browser-test"
     ],
-    "https://vanadium.googlesource.com/release.go.core": [
+    "release.go.core": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://vanadium.googlesource.com/release.go.lib": [
+    "release.go.lib": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://vanadium.googlesource.com/release.go.playground": [
+    "release.go.playground": [
       "go"
     ],
-    "https://vanadium.googlesource.com/release.go.tools": [
+    "release.go.tools": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://vanadium.googlesource.com/release.go.wspr": [
+    "release.go.wspr": [
       "go",
       "javascript",
       "projects"
     ],
-    "https://vanadium.googlesource.com/release.js.core": [
+    "release.js.core": [
       "javascript",
       "projects"
     ],
-    "https://vanadium.googlesource.com/release.js.vom": [
+    "release.js.vom": [
       "javascript",
       "projects"
     ],
-    "https://vanadium.googlesource.com/roadmap.go.examples": [
+    "roadmap.go.examples": [
       "go"
     ],
-    "https://vanadium.googlesource.com/roadmap.go.store": [
+    "roadmap.go.store": [
       "go"
     ],
-    "https://vanadium.googlesource.com/third_party": [
+    "third_party": [
       "third_party-go",
       "go",
       "javascript",
       "projects"
     ],
-    "https://github.com/veyron/veyron-www": [
+    "veyron-www": [
       "vanadium-www"
     ]
   },

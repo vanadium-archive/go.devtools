@@ -38,9 +38,9 @@ func checkReadme(t *testing.T, ctx *Context, project, message string) {
 	}
 }
 
-func createLocalManifestCopy(t *testing.T, ctx *Context, rootDir, manifestDir string) {
+func createLocalManifestCopy(t *testing.T, ctx *Context, dir, manifestDir string) {
 	// Load the remote manifest.
-	manifestFile := filepath.Join(manifestDir, "v1", "default")
+	manifestFile := filepath.Join(manifestDir, "v2", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -55,13 +55,13 @@ func createLocalManifestCopy(t *testing.T, ctx *Context, rootDir, manifestDir st
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	manifestFile, perm := filepath.Join(rootDir, ".local_manifest"), os.FileMode(0644)
+	manifestFile, perm := filepath.Join(dir, ".local_manifest"), os.FileMode(0644)
 	if err := ioutil.WriteFile(manifestFile, data, perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", manifestFile, err, perm)
 	}
 }
 
-func createLocalManifestStub(t *testing.T, ctx *Context, rootDir string) {
+func createLocalManifestStub(t *testing.T, ctx *Context, dir string) {
 	// Create a manifest stub.
 	manifest := Manifest{}
 	manifest.Imports = append(manifest.Imports, Import{Name: "default"})
@@ -71,14 +71,14 @@ func createLocalManifestStub(t *testing.T, ctx *Context, rootDir string) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	manifestFile, perm := filepath.Join(rootDir, ".local_manifest"), os.FileMode(0644)
+	manifestFile, perm := filepath.Join(dir, ".local_manifest"), os.FileMode(0644)
 	if err := ioutil.WriteFile(manifestFile, data, perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", manifestFile, err, perm)
 	}
 }
 
-func createRemoteManifest(t *testing.T, ctx *Context, rootDir string, remotes []string) {
-	manifestDir, perm := filepath.Join(rootDir, "v1"), os.FileMode(0755)
+func createRemoteManifest(t *testing.T, ctx *Context, dir string, remotes []string) {
+	manifestDir, perm := filepath.Join(dir, "v2"), os.FileMode(0755)
 	if err := ctx.Run().MkdirAll(manifestDir, perm); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -88,10 +88,11 @@ func createRemoteManifest(t *testing.T, ctx *Context, rootDir string, remotes []
 			Name:     remote,
 			Path:     localProjectName(i),
 			Protocol: "git",
+			Remote:   remote,
 		}
 		manifest.Projects = append(manifest.Projects, project)
 	}
-	commitManifest(t, ctx, &manifest, rootDir)
+	commitManifest(t, ctx, &manifest, dir)
 }
 
 func commitManifest(t *testing.T, ctx *Context, manifest *Manifest, manifestDir string) {
@@ -99,7 +100,7 @@ func commitManifest(t *testing.T, ctx *Context, manifest *Manifest, manifestDir 
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	manifestFile, perm := filepath.Join(manifestDir, "v1", "default"), os.FileMode(0644)
+	manifestFile, perm := filepath.Join(manifestDir, "v2", "default"), os.FileMode(0644)
 	if err := ioutil.WriteFile(manifestFile, data, perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", manifestFile, err, perm)
 	}
@@ -117,7 +118,7 @@ func commitManifest(t *testing.T, ctx *Context, manifest *Manifest, manifestDir 
 }
 
 func deleteProject(t *testing.T, ctx *Context, manifestDir, project string) {
-	manifestFile := filepath.Join(manifestDir, "v1", "default")
+	manifestFile := filepath.Join(manifestDir, "v2", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -146,7 +147,7 @@ func holdProjectBack(t *testing.T, ctx *Context, manifestDir, project string) {
 	}
 
 	// Fix the revision in the manifest file.
-	manifestFile := filepath.Join(manifestDir, "v1", "default")
+	manifestFile := filepath.Join(manifestDir, "v2", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -170,23 +171,12 @@ func holdProjectBack(t *testing.T, ctx *Context, manifestDir, project string) {
 	commitManifest(t, ctx, &manifest, manifestDir)
 }
 
-func ignoreDirs(t *testing.T, rootDir string, projects []string) {
-	contents := ""
-	for _, project := range projects {
-		contents += project + "\n"
-	}
-	path, perm := filepath.Join(rootDir, ".v23ignore"), os.FileMode(0644)
-	if err := ioutil.WriteFile(path, []byte(contents), perm); err != nil {
-		t.Fatalf("WriteFile(%v, %v) failed: %v", path, perm, err)
-	}
-}
-
 func localProjectName(i int) string {
 	return "test-local-project-" + fmt.Sprintf("%d", i+1)
 }
 
 func moveProject(t *testing.T, ctx *Context, manifestDir, project, dst string) {
-	manifestFile := filepath.Join(manifestDir, "v1", "default")
+	manifestFile := filepath.Join(manifestDir, "v2", "default")
 	data, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", manifestFile, err)
@@ -236,6 +226,24 @@ func setupNewProject(t *testing.T, ctx *Context, dir, name string) string {
 	return projectDir
 }
 
+func writeEmptyMetadata(t *testing.T, ctx *Context, projectDir string) {
+	if err := ctx.Run().Chdir(projectDir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	metadataDir := filepath.Join(projectDir, ".v23")
+	if err := ctx.Run().MkdirAll(metadataDir, os.FileMode(0755)); err != nil {
+		t.Fatalf("%v", err)
+	}
+	bytes, err := xml.Marshal(Project{})
+	if err != nil {
+		t.Fatalf("Marshal() failed: %v", err)
+	}
+	metadataFile := filepath.Join(metadataDir, "metadata.v2")
+	if err := ctx.Run().WriteFile(metadataFile, bytes, os.FileMode(0644)); err != nil {
+		t.Fatalf("%v", err)
+	}
+}
+
 func writeReadme(t *testing.T, ctx *Context, projectDir, message string) {
 	path, perm := filepath.Join(projectDir, "README"), os.FileMode(0644)
 	if err := ioutil.WriteFile(path, []byte(message), perm); err != nil {
@@ -269,8 +277,10 @@ func TestUpdateUniverse(t *testing.T) {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(rootDir)
+	localDir := filepath.Join(rootDir, "local")
 	remoteDir := filepath.Join(rootDir, "remote")
-	localManifest := setupNewProject(t, ctx, rootDir, ".manifest")
+	localManifest := setupNewProject(t, ctx, localDir, ".manifest")
+	writeEmptyMetadata(t, ctx, localManifest)
 	remoteManifest := setupNewProject(t, ctx, remoteDir, "test-remote-manifest")
 	addRemote(t, ctx, localManifest, "origin", remoteManifest)
 	numProjects, remoteProjects := 4, []string{}
@@ -279,9 +289,8 @@ func TestUpdateUniverse(t *testing.T) {
 		remoteProjects = append(remoteProjects, remoteProject)
 	}
 	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
-	ignoreDirs(t, rootDir, []string{"remote"})
 	oldRoot := os.Getenv("VANADIUM_ROOT")
-	if err := os.Setenv("VANADIUM_ROOT", rootDir); err != nil {
+	if err := os.Setenv("VANADIUM_ROOT", localDir); err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer os.Setenv("VANADIUM_ROOT", oldRoot)
@@ -300,7 +309,7 @@ func TestUpdateUniverse(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	checkCreateFn := func(i int, revision string) {
-		localProject := filepath.Join(rootDir, localProjectName(i))
+		localProject := filepath.Join(localDir, localProjectName(i))
 		if i == 0 {
 			checkReadme(t, ctx, localProject, "revision 1")
 		} else {
@@ -323,7 +332,7 @@ func TestUpdateUniverse(t *testing.T) {
 	}
 	checkUpdateFn := func(i int, revision string) {
 		if i == 1 {
-			checkReadme(t, ctx, filepath.Join(rootDir, localProjectName(i)), "revision 2")
+			checkReadme(t, ctx, filepath.Join(localDir, localProjectName(i)), "revision 2")
 		} else {
 			checkCreateFn(i, revision)
 		}
@@ -361,7 +370,7 @@ func TestUpdateUniverse(t *testing.T) {
 	}
 	checkMoveFn := func(i int, revision string) {
 		if i == 2 {
-			checkReadme(t, ctx, filepath.Join(rootDir, destination), revision)
+			checkReadme(t, ctx, filepath.Join(localDir, destination), revision)
 		} else {
 			checkUpdateFn(i, revision)
 		}
@@ -378,7 +387,7 @@ func TestUpdateUniverse(t *testing.T) {
 	}
 	checkDeleteFn := func(i int, revision string) {
 		if i == 3 {
-			localProject := filepath.Join(rootDir, localProjectName(i))
+			localProject := filepath.Join(localDir, localProjectName(i))
 			if _, err := os.Stat(localProject); err == nil {
 				t.Fatalf("project %v has not been deleted", localProject)
 			} else {
@@ -396,7 +405,7 @@ func TestUpdateUniverse(t *testing.T) {
 
 	// Create a local manifest that imports the remote manifest
 	// and check that UpdateUniverse() has no effect.
-	createLocalManifestStub(t, ctx, rootDir)
+	createLocalManifestStub(t, ctx, localDir)
 	if err := UpdateUniverse(ctx, "unused", true); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -407,7 +416,7 @@ func TestUpdateUniverse(t *testing.T) {
 	// Create a local manifest that matches the remote manifest,
 	// then revert the remote manifest to its initial version and
 	// check that UpdateUniverse() has no effect.
-	createLocalManifestCopy(t, ctx, rootDir, remoteManifest)
+	createLocalManifestCopy(t, ctx, localDir, remoteManifest)
 	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
 	if err := UpdateUniverse(ctx, "unused", true); err != nil {
 		t.Fatalf("%v", err)

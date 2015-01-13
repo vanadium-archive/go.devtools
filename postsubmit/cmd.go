@@ -130,22 +130,11 @@ func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotCon
 		return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(snapshotContent))
 	}
 
-	// Parse the manifest file to retrieve aliases for the
-	// projects included in the snapshot.
-	projects, _, err := util.ReadManifest(ctx, manifestFlag)
-	if err != nil {
-		return nil, err
-	}
-
 	// Use "git log" to detect changes for each project.
 	//
 	// TODO(jingjin, jsimsa): Add support for non-git projects.
 	changedProjects := []string{}
 	for _, project := range snapshot.Projects {
-		projectAlias := ""
-		if p, ok := projects[project.Name]; ok {
-			projectAlias = p.Alias
-		}
 		switch project.Protocol {
 		case "git":
 			git := ctx.Git(util.RootDirOpt(filepath.Join(vroot, project.Path)))
@@ -154,11 +143,7 @@ func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotCon
 				return nil, err
 			}
 			if len(commits) != 0 {
-				if projectAlias != "" {
-					changedProjects = append(changedProjects, util.VanadiumGitRepoHost()+projectAlias)
-				} else {
-					changedProjects = append(changedProjects, project.Name)
-				}
+				changedProjects = append(changedProjects, project.Name)
 			}
 		}
 	}

@@ -11,7 +11,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 		expectedJenkinsTest []string
 	}{
 		{
-			projects: []string{"https://vanadium.googlesource.com/release.js.core"},
+			projects: []string{"release.js.core"},
 			expectedJenkinsTest: []string{
 				"vanadium-js-browser-integration",
 				"vanadium-js-build-extension",
@@ -23,7 +23,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			},
 		},
 		{
-			projects: []string{"https://vanadium.googlesource.com/release.go.core"},
+			projects: []string{"release.go.core"},
 			expectedJenkinsTest: []string{
 				"vanadium-go-build",
 				"vanadium-namespace-browser-test",

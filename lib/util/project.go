@@ -5,13 +5,11 @@
 package util
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -55,11 +53,9 @@ type Projects map[string]Project
 
 // Project represents a vanadium project.
 type Project struct {
-	// Alias is an alternative name for the project.
-	Alias string `xml:"alias,attr"`
 	// Exclude is flag used to exclude previously included projects.
 	Exclude bool `xml:"exclude,attr"`
-	// Name is the URL at which the project is hosted.
+	// Name is the project name.
 	Name string `xml:"name,attr"`
 	// Path is the path used to store the project locally. Project
 	// manifest uses paths that are relative to the VANADIUM_ROOT
@@ -71,6 +67,8 @@ type Project struct {
 	// Protocol is the version control protocol used by the
 	// project. If not set, "git" is used as the default.
 	Protocol string `xml:"protocol,attr"`
+	// Remote is the project remote.
+	Remote string `xml:"remote,attr"`
 	// Revision is the revision the project should be advanced to
 	// during "v23 update". If not set, "HEAD" is used as the
 	// default.
@@ -133,6 +131,12 @@ func CreateSnapshot(ctx *Context, path string) error {
 func LocalProjects(ctx *Context) (Projects, error) {
 	root, err := VanadiumRoot()
 	if err != nil {
+		return nil, err
+	}
+	// TODO(jsimsa): Remove this function once all projects
+	// created before go/vcl/1381 have been transitioned to the
+	// new format of v23 projects.
+	if err := createV23Dir(ctx, root); err != nil {
 		return nil, err
 	}
 	projects := Projects{}
@@ -393,6 +397,133 @@ func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 	return nil
 }
 
+// createV23Dir makes sure that the VANADIUM_ROOT instance contains
+// appropriate .v23 directories.
+func createV23Dir(ctx *Context, path string) (e error) {
+	// If <path> points a directory that already contains the .v23
+	// subdirectory exists, do nothing.
+	v23Dir := filepath.Join(path, ".v23")
+	if _, err := os.Stat(v23Dir); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("Stat(%v) failed: %v", v23Dir, err)
+	}
+
+	// Otherwise, create it for any git or hg project using a fix
+	// mapping from project remotes to project names.
+	names := map[string]string{
+		"git@git-mirror:/home/veyron/vanadium/deprecated":                         "deprecated",
+		"git@git-mirror:/home/veyron/vanadium/environment":                        "environment",
+		"git@git-mirror:/home/veyron/vanadium/experimental":                       "experimental",
+		"git@git-mirror:/home/veyron/vanadium/infrastructure":                     "infrastructure",
+		"git@git-mirror:/home/veyron/vanadium/release/projects/namespace_browser": "namespace_browser",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/apps":           "release.go.apps",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/core":           "release.go.core",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/jni":            "release.go.jni",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/lib":            "release.go.lib",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/playground":     "release.go.playground",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/tools":          "release.go.tools",
+		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/wspr":           "release.go.wspr",
+		"git@git-mirror:/home/veyron/vanadium/release/java":                       "release.java",
+		"git@git-mirror:/home/veyron/vanadium/release/javascript/core":            "release.js.core",
+		"git@git-mirror:/home/veyron/vanadium/release/javascript/pgbundle":        "release.js.pgbundle",
+		"git@git-mirror:/home/veyron/vanadium/release/javascript/vom":             "release.js.vom",
+		"git@git-mirror:/home/veyron/vanadium/roadmap/go/src/v.io/store":          "roadmap.go.store",
+		"git@git-mirror:/home/veyron/vanadium/roadmap/javascript/store":           "roadmap.js.store",
+		"git@git-mirror:/home/veyron/vanadium/scripts":                            "scripts",
+		"git@git-mirror:/home/veyron/vanadium/third_party":                        "third_party",
+		"https://github.com/veyron/veyron-www":                                    "veyron-www",
+		"https://github.com/monopole/mdrip":                                       "mdrip",
+		"https://vanadium.googlesource.com/deprecated":                            "deprecated",
+		"https://vanadium.googlesource.com/environment":                           "environment",
+		"https://vanadium.googlesource.com/experimental":                          "experimental",
+		"https://vanadium.googlesource.com/infrastructure":                        "infrastructure",
+		"https://vanadium.googlesource.com/namespace_browser":                     "namespace_browser",
+		"https://vanadium.googlesource.com/release.go.apps":                       "release.go.apps",
+		"https://vanadium.googlesource.com/release.go.core":                       "release.go.core",
+		"https://vanadium.googlesource.com/release.go.jni":                        "release.go.jni",
+		"https://vanadium.googlesource.com/release.go.lib":                        "release.go.lib",
+		"https://vanadium.googlesource.com/release.go.playground":                 "release.go.playground",
+		"https://vanadium.googlesource.com/release.go.tools":                      "release.go.tools",
+		"https://vanadium.googlesource.com/release.go.wspr":                       "release.go.wspr",
+		"https://vanadium.googlesource.com/release.java":                          "release.java",
+		"https://vanadium.googlesource.com/release.js.core":                       "release.js.core",
+		"https://vanadium.googlesource.com/release.js.pgbundle":                   "release.js.pgbundle",
+		"https://vanadium.googlesource.com/release.js.vom":                        "release.js.vom",
+		"https://vanadium.googlesource.com/roadmap.go.store":                      "roadmap.go.store",
+		"https://vanadium.googlesource.com/roadmap.js.store":                      "roadmap.js.store",
+		"https://vanadium.googlesource.com/scripts":                               "scripts",
+		"https://vanadium.googlesource.com/third_party":                           "third_party",
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
+	if err := ctx.Run().Chdir(path); err != nil {
+		return err
+	}
+	var project Project
+	gitDir := filepath.Join(path, ".git")
+	if _, err := os.Stat(gitDir); err == nil {
+		remote, err := ctx.Git().RepoName()
+		if err != nil {
+			return err
+		}
+		name, ok := names[remote]
+		if !ok {
+			return fmt.Errorf("unknown remote: %v", remote)
+		}
+		project = Project{
+			Name:     name,
+			Path:     path,
+			Protocol: "git",
+			Remote:   remote,
+			Revision: "HEAD",
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("Stat(%v) failed: %v", gitDir, err)
+	}
+	hgDir := filepath.Join(path, ".hg")
+	if _, err := os.Stat(hgDir); err == nil {
+		remote, err := ctx.Hg().RepoName()
+		if err != nil {
+			return err
+		}
+		name, ok := names[remote]
+		if !ok {
+			return fmt.Errorf("unknown remote: %v", remote)
+		}
+		project = Project{
+			Name:     name,
+			Path:     path,
+			Protocol: "hg",
+			Remote:   remote,
+			Revision: "tip",
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("Stat(%v) failed: %v", hgDir, err)
+	}
+	if project.Path != "" {
+		if err := writeMetadata(ctx, project); err != nil {
+			return err
+		}
+	} else {
+		fileInfos, err := ioutil.ReadDir(path)
+		if err != nil {
+			return fmt.Errorf("ReadDir(%v) failed: %v", path, err)
+		}
+		for _, fileInfo := range fileInfos {
+			if fileInfo.IsDir() && !strings.HasPrefix(fileInfo.Name(), ".") {
+				if err := createV23Dir(ctx, filepath.Join(path, fileInfo.Name())); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // findLocalProjects implements LocalProjects.
 func findLocalProjects(ctx *Context, path string, projects Projects) (e error) {
 	cwd, err := os.Getwd()
@@ -403,63 +534,32 @@ func findLocalProjects(ctx *Context, path string, projects Projects) (e error) {
 	if err := ctx.Run().Chdir(path); err != nil {
 		return err
 	}
-	gitDir := filepath.Join(path, ".git")
-	if _, err := os.Stat(gitDir); err == nil {
-		name, err := ctx.Git().RepoName()
+	v23Dir := filepath.Join(path, ".v23")
+	if _, err := os.Stat(v23Dir); err == nil {
+		metadataFile := filepath.Join(v23Dir, "metadata.v2")
+		bytes, err := ctx.Run().ReadFile(metadataFile)
 		if err != nil {
 			return err
 		}
-		if project, ok := projects[name]; ok {
-			return fmt.Errorf("name conflict: both %v and %v contain the project %v", project.Path, path, name)
+		var project Project
+		if err := xml.Unmarshal(bytes, &project); err != nil {
+			return fmt.Errorf("Unmarshal() failed: %v\n%s", err, string(bytes))
 		}
-		projects[name] = Project{
-			Name:     name,
-			Path:     path,
-			Protocol: "git",
+		if p, ok := projects[project.Name]; ok {
+			return fmt.Errorf("name conflict: both %v and %v contain the project %v", p.Path, project.Path, project.Name)
 		}
+		projects[project.Name] = project
 		return nil
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Stat(%v) failed: %v", gitDir, err)
+		return fmt.Errorf("Stat(%v) failed: %v", v23Dir, err)
 	}
-	hgDir := filepath.Join(path, ".hg")
-	if _, err := os.Stat(hgDir); err == nil {
-		name, err := ctx.Hg().RepoName()
-		if err != nil {
-			return err
-		}
-		if project, ok := projects[name]; ok {
-			return fmt.Errorf("name conflict: both %v and %v contain the project %v", project.Path, path, name)
-		}
-		projects[name] = Project{
-			Name:     name,
-			Path:     path,
-			Protocol: "hg",
-		}
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Stat(%v) failed: %v", hgDir, err)
-	}
-	ignoreSet, ignorePath := make(map[string]struct{}, 0), filepath.Join(path, ".v23ignore")
-	file, err := os.Open(ignorePath)
-	if err == nil {
-		defer collect.Error(func() error { return file.Close() }, &e)
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			ignoreSet[scanner.Text()] = struct{}{}
-		}
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("Scan() failed: %v", err)
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Open(%v) failed: %v", ignorePath, err)
-	}
-	fis, err := ioutil.ReadDir(path)
+	fileInfos, err := ioutil.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("ReadDir(%v) failed: %v", path, err)
 	}
-	for _, fi := range fis {
-		if _, ignore := ignoreSet[fi.Name()]; fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") && !ignore {
-			if err := findLocalProjects(ctx, filepath.Join(path, fi.Name()), projects); err != nil {
+	for _, fileInfo := range fileInfos {
+		if fileInfo.IsDir() && !strings.HasPrefix(fileInfo.Name(), ".") {
+			if err := findLocalProjects(ctx, filepath.Join(path, fileInfo.Name()), projects); err != nil {
 				return err
 			}
 		}
@@ -570,7 +670,8 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 		if project.Protocol == "" {
 			project.Protocol = "git"
 		}
-		// Use HEAD as the default revision.
+		// Use HEAD and tip as the default revision for git
+		// and mercurial respectively.
 		if project.Revision == "" {
 			switch project.Protocol {
 			case "git":
@@ -702,6 +803,35 @@ func updateProjects(ctx *Context, remoteProjects Projects, manifest string, gc b
 	return nil
 }
 
+// writeMetadata writes the given project metadata to the disk.
+func writeMetadata(ctx *Context, project Project) (e error) {
+	metadataDir := filepath.Join(project.Path, ".v23")
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
+	if err := ctx.Run().MkdirAll(metadataDir, os.FileMode(0755)); err != nil {
+		return err
+	}
+	if err := ctx.Run().Chdir(metadataDir); err != nil {
+		return err
+	}
+	bytes, err := xml.Marshal(project)
+	if err != nil {
+		return fmt.Errorf("Marhsal() failed: %v", err)
+	}
+	metadataFile := filepath.Join(metadataDir, "metadata.v2")
+	tmpMetadataFile := metadataFile + ".tmp"
+	if err := ctx.Run().WriteFile(tmpMetadataFile, bytes, os.FileMode(0644)); err != nil {
+		return err
+	}
+	if err := ctx.Run().Rename(tmpMetadataFile, metadataFile); err != nil {
+		return err
+	}
+	return nil
+}
+
 type operation interface {
 	// Project identifies the project this operation pertains to.
 	Project() Project
@@ -794,10 +924,10 @@ func (op createOperation) Run(ctx *Context) (e error) {
 	}
 	switch op.project.Protocol {
 	case "git":
-		if err := ctx.Git().Clone(op.project.Name, op.destination); err != nil {
+		if err := ctx.Git().Clone(op.project.Remote, op.destination); err != nil {
 			return err
 		}
-		if strings.HasPrefix(op.project.Name, VanadiumGitRepoHost()) {
+		if strings.HasPrefix(op.project.Remote, VanadiumGitRepoHost()) {
 			// Setup the repository for Gerrit code reviews.
 			//
 			// TODO(jsimsa): Decide what to do in case we would want to update the
@@ -838,7 +968,7 @@ func (op createOperation) Run(ctx *Context) (e error) {
 			return err
 		}
 	case "hg":
-		if err := ctx.Hg().Clone(op.project.Name, op.destination); err != nil {
+		if err := ctx.Hg().Clone(op.project.Remote, op.destination); err != nil {
 			return err
 		}
 		cwd, err := os.Getwd()
@@ -855,11 +985,14 @@ func (op createOperation) Run(ctx *Context) (e error) {
 	default:
 		return UnsupportedProtocolErr(op.project.Protocol)
 	}
+	if err := writeMetadata(ctx, op.project); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (op createOperation) String() string {
-	return fmt.Sprintf("create project %q in %q and advance it to %q", path.Base(op.project.Name), op.destination, op.project.Revision)
+	return fmt.Sprintf("create project %q in %q and advance it to %q", op.project.Name, op.destination, op.project.Revision)
 }
 
 func (op createOperation) Test() error {
@@ -900,7 +1033,7 @@ func (op deleteOperation) Run(ctx *Context) error {
 }
 
 func (op deleteOperation) String() string {
-	return fmt.Sprintf("delete project %q from %q", path.Base(op.project.Name), op.source)
+	return fmt.Sprintf("delete project %q from %q", op.project.Name, op.source)
 }
 
 func (op deleteOperation) Test() error {
@@ -932,11 +1065,14 @@ func (op moveOperation) Run(ctx *Context) error {
 	if err := pullProject(ctx, op.project); err != nil {
 		return err
 	}
+	if err := writeMetadata(ctx, op.project); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (op moveOperation) String() string {
-	return fmt.Sprintf("move project %q located in %q to %q and advance it to %q", path.Base(op.project.Name), op.source, op.destination, op.project.Revision)
+	return fmt.Sprintf("move project %q located in %q to %q and advance it to %q", op.project.Name, op.source, op.destination, op.project.Revision)
 }
 
 func (op moveOperation) Test() error {
@@ -968,11 +1104,14 @@ func (op updateOperation) Run(ctx *Context) error {
 	if err := pullProject(ctx, op.project); err != nil {
 		return err
 	}
+	if err := writeMetadata(ctx, op.project); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (op updateOperation) String() string {
-	return fmt.Sprintf("advance project %q located in %q to %q", path.Base(op.project.Name), op.source, op.project.Revision)
+	return fmt.Sprintf("advance project %q located in %q to %q", op.project.Name, op.source, op.project.Revision)
 }
 
 func (op updateOperation) Test() error {
@@ -1012,7 +1151,7 @@ func (ops operations) Less(i, j int) bool {
 	if vals[0] != vals[1] {
 		return vals[0] < vals[1]
 	}
-	return path.Base(ops[i].Project().Name) < path.Base(ops[j].Project().Name)
+	return ops[i].Project().Name < ops[j].Project().Name
 }
 
 // Swap swaps two elements of the collection.

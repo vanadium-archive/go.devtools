@@ -43,7 +43,7 @@ func RemoteManifestDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, ".manifest", "v1"), nil
+	return filepath.Join(root, ".manifest", "v2"), nil
 }
 
 // RemoteManifestFile returns the path to the manifest file with the
