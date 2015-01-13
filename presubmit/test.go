@@ -278,7 +278,6 @@ func postTestReport(ctx *util.Context, results map[string]*testutil.TestResult, 
 func parseRefsAndRepos() ([]cl, []string, []string, error) {
 	refs := strings.Split(reviewTargetRefsFlag, ":")
 	repos := strings.Split(reposFlag, ":")
-	fullRepos := []string{}
 	if got, want := len(refs), len(repos); got != want {
 		return nil, nil, nil, fmt.Errorf("Mismatching lengths of %v and %v: %v vs. %v", refs, repos, len(refs), len(repos))
 	}
@@ -290,7 +289,6 @@ func parseRefsAndRepos() ([]cl, []string, []string, error) {
 			return nil, nil, nil, err
 		}
 		fullRepo := util.VanadiumGitRepoHost() + repo
-		fullRepos = append(fullRepos, fullRepo)
 		cls = append(cls, cl{
 			clNumber: clNumber,
 			patchset: patchset,
@@ -298,7 +296,7 @@ func parseRefsAndRepos() ([]cl, []string, []string, error) {
 			repo:     fullRepo,
 		})
 	}
-	return cls, refs, fullRepos, nil
+	return cls, refs, repos, nil
 }
 
 // presubmitTestBranchName returns the name of the branch where the cl
