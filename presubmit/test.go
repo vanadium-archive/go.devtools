@@ -288,12 +288,11 @@ func parseRefsAndRepos() ([]cl, []string, []string, error) {
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		fullRepo := util.VanadiumGitRepoHost() + repo
 		cls = append(cls, cl{
 			clNumber: clNumber,
 			patchset: patchset,
 			ref:      ref,
-			repo:     fullRepo,
+			repo:     repo,
 		})
 	}
 	return cls, refs, repos, nil

@@ -28,11 +28,11 @@ func TestParseRefsAndRepos(t *testing.T) {
 					clNumber: 1000,
 					patchset: 1,
 					ref:      "refs/changes/10/1000/1",
-					repo:     "https://vanadium.googlesource.com/release.go.core",
+					repo:     "release.go.core",
 				},
 			},
 			expectedRefs:  []string{"refs/changes/10/1000/1"},
-			expectedRepos: []string{"https://vanadium.googlesource.com/release.go.core"},
+			expectedRepos: []string{"release.go.core"},
 		},
 
 		// Multiple refs and repos.
@@ -45,20 +45,17 @@ func TestParseRefsAndRepos(t *testing.T) {
 					clNumber: 1000,
 					patchset: 1,
 					ref:      "refs/changes/10/1000/1",
-					repo:     "https://vanadium.googlesource.com/release.go.core",
+					repo:     "release.go.core",
 				},
 				cl{
 					clNumber: 1020,
 					patchset: 1,
 					ref:      "refs/changes/20/1020/1",
-					repo:     "https://vanadium.googlesource.com/release.js.core",
+					repo:     "release.js.core",
 				},
 			},
-			expectedRefs: []string{"refs/changes/10/1000/1", "refs/changes/20/1020/1"},
-			expectedRepos: []string{
-				"https://vanadium.googlesource.com/release.go.core",
-				"https://vanadium.googlesource.com/release.js.core",
-			},
+			expectedRefs:  []string{"refs/changes/10/1000/1", "refs/changes/20/1020/1"},
+			expectedRepos: []string{"release.go.core", "release.js.core"},
 		},
 
 		// len(refs) != len(repos)
