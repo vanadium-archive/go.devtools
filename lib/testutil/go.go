@@ -912,7 +912,7 @@ func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-race"})
-	timeout := timeoutOpt("10m")
+	timeout := timeoutOpt("15m")
 	suffix := suffixOpt("[GoRace]")
 	return goTest(ctx, testName, pkgs, args, timeout, suffix)
 }
