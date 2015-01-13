@@ -29,11 +29,11 @@ func methods(signature string) ([]string, error) {
 	lines := strings.Split(signature, "\n")
 	for _, line := range lines {
 		if !signatureRE.MatchString(line) {
-			return nil, fmt.Errorf("unexpected format: %v", line)
+			return nil, fmt.Errorf("unexpected line in service signature: %v", line)
 		}
 		matches := signatureRE.FindStringSubmatch(line)
 		if len(matches) != 2 {
-			return nil, fmt.Errorf("unexpected format: %v", line)
+			return nil, fmt.Errorf("unexpected line in services signature: %v", line)
 		}
 		result = append(result, matches[1])
 	}
@@ -82,9 +82,10 @@ func testProdService(ctx *util.Context, service prodService) (*testSuite, error)
 	if err := ctx.Run().TimedCommandWithOpts(DefaultTestTimeout, opts, bin, "describe", service.objectName); err != nil {
 		return generateTestSuite(ctx, false, service.name, time.Now().Sub(start), out.String()), nil
 	}
-	got, err := methods(out.String())
+	output := out.String()
+	got, err := methods(output)
 	if err != nil {
-		return nil, err
+		return generateTestSuite(ctx, false, service.name, time.Now().Sub(start), err.Error()), nil
 	}
 	if want := service.signature; !reflect.DeepEqual(got, want) {
 		fmt.Fprintf(ctx.Stderr(), "mismatching methods: got %v, want %v\n", got, want)
