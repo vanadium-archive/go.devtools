@@ -769,7 +769,7 @@ var thirdPartyExclusions = []exclusion{
 	exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage"}, isGCE},
 	// The following test requires IPv6, which is not available on
 	// GCE.
-	exclusion{test{"golang.org/x/mobile/net/icmp", "TestPingGoogle"}, isGCE},
+	exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle"}, isGCE},
 	// The following test expects to see "FAIL: TestBar" which
 	// causes go2xunit to fail.
 	exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage"}, isGCE},
