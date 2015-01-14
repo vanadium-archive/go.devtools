@@ -131,6 +131,7 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult
 			objectName: namespaceRoot,
 			signature:  []string{"Delete", "GetACL", "Mount", "ResolveStep", "ResolveStepX", "SetACL", "Unmount"},
 		},
+		/* TODO(ashankar): Restore after use of ACLs and access to the Signature method has been resolved
 		prodService{
 			name:       "application repository",
 			objectName: namespaceRoot + "/applicationd",
@@ -141,6 +142,7 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult
 			objectName: namespaceRoot + "/binaryd",
 			signature:  []string{"Create", "Delete", "Download", "DownloadURL", "Stat", "Upload"},
 		},
+		*/
 		prodService{
 			name:       "macaroon service",
 			objectName: namespaceRoot + "/identity/dev.v.io/macaroon",
