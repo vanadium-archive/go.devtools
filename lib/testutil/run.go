@@ -89,6 +89,7 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-tutorial":               vanadiumTutorial,
 	"vanadium-vdl":                    vanadiumVDL,
 	"vanadium-www":                    vanadiumWWW,
+	"vanadium-www-playground":         vanadiumWWWPlayground,
 }
 
 func newTestContext(ctx *util.Context, env map[string]string) *util.Context {

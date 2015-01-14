@@ -10,10 +10,12 @@ import (
 )
 
 const (
-	defaultWWWTestTimeout = 5 * time.Minute
+	defaultWWWTestTimeout           = 5 * time.Minute
+	defaultWWWPlaygroundTestTimeout = 1 * time.Minute
 )
 
-func vanadiumWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
+// Runs specified make target in WWW Makefile as a test.
+func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout time.Duration) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -35,16 +37,24 @@ func vanadiumWWW(ctx *util.Context, testName string) (_ *TestResult, e error) {
 		return nil, err
 	}
 
-	// Invoke "make test"
-	if err := ctx.Run().TimedCommand(defaultWWWTestTimeout, "make", "test"); err != nil {
+	// Invoke the make target.
+	if err := ctx.Run().TimedCommand(timeout, "make", makeTarget); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &TestResult{
 				Status:       TestTimedOut,
-				TimeoutValue: defaultWWWTestTimeout,
+				TimeoutValue: timeout,
 			}, nil
 		}
 		return &TestResult{Status: TestFailed}, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil
+}
+
+func vanadiumWWW(ctx *util.Context, testName string) (*TestResult, error) {
+	return commonVanadiumWWW(ctx, testName, "test", defaultWWWTestTimeout)
+}
+
+func vanadiumWWWPlayground(ctx *util.Context, testName string) (*TestResult, error) {
+	return commonVanadiumWWW(ctx, testName, "playground-test", defaultWWWPlaygroundTestTimeout)
 }
