@@ -51,10 +51,14 @@ func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout t
 	return &TestResult{Status: TestPassed}, nil
 }
 
-func vanadiumWWW(ctx *util.Context, testName string) (*TestResult, error) {
-	return commonVanadiumWWW(ctx, testName, "test", defaultWWWTestTimeout)
+func vanadiumWWWPlayground(ctx *util.Context, testName string) (*TestResult, error) {
+	return commonVanadiumWWW(ctx, testName, "test-playground", defaultWWWPlaygroundTestTimeout)
 }
 
-func vanadiumWWWPlayground(ctx *util.Context, testName string) (*TestResult, error) {
-	return commonVanadiumWWW(ctx, testName, "playground-test", defaultWWWPlaygroundTestTimeout)
+func vanadiumWWWSite(ctx *util.Context, testName string) (*TestResult, error) {
+	return commonVanadiumWWW(ctx, testName, "test-site", defaultWWWTestTimeout)
+}
+
+func vanadiumWWWTutorials(ctx *util.Context, testName string) (*TestResult, error) {
+	return commonVanadiumWWW(ctx, testName, "test-tutorials", defaultWWWTestTimeout)
 }

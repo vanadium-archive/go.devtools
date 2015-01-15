@@ -92,10 +92,10 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-presubmit-test":         vanadiumPresubmitTest,
 	"vanadium-presubmit-test-new":     vanadiumPresubmitTestNew, // TODO(jingjin): clean up after transition is done.
 	"vanadium-prod-services-test":     vanadiumProdServicesTest,
-	"vanadium-tutorial":               vanadiumTutorial,
 	"vanadium-vdl":                    vanadiumVDL,
-	"vanadium-www":                    vanadiumWWW,
 	"vanadium-www-playground":         vanadiumWWWPlayground,
+	"vanadium-www-site":               vanadiumWWWSite,
+	"vanadium-www-tutorials":          vanadiumWWWTutorials,
 }
 
 func newTestContext(ctx *util.Context, env map[string]string) *util.Context {

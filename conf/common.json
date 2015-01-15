@@ -49,8 +49,9 @@
       "projects"
     ],
     "veyron-www": [
-      "vanadium-www",
-      "vanadium-www-playground"
+      "vanadium-www-playground",
+      "vanadium-www-site",
+      "vanadium-www-tutorials"
     ]
   },
   "snapshot-label-tests": {
