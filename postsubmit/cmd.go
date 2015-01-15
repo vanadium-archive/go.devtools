@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"v.io/lib/cmdline"
@@ -160,18 +159,7 @@ func jenkinsTestsToStart(projects []string) ([]string, error) {
 	}
 
 	// Get all Jenkins tests for the given projects.
-	jenkinsTestsSet := map[string]struct{}{}
-	for _, project := range projects {
-		tests := config.ProjectTests(project)
-		for _, test := range tests {
-			jenkinsTestsSet[test] = struct{}{}
-		}
-	}
-	jenkinsTests := []string{}
-	for test := range jenkinsTestsSet {
-		jenkinsTests = append(jenkinsTests, test)
-	}
-	sort.Strings(jenkinsTests)
+	jenkinsTests := config.ProjectTests(projects)
 
 	// Only return the "root" tests.
 	rootTests := []string{}

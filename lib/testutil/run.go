@@ -12,8 +12,9 @@ import (
 type TestStatus int
 
 type TestResult struct {
-	Status       TestStatus
-	TimeoutValue time.Duration
+	Status          TestStatus
+	TimeoutValue    time.Duration // Used when Status == TestTimedOut
+	MergeConflictCL string        // Used when Status == TestFailedMergeConflict
 }
 
 const (
@@ -21,6 +22,7 @@ const (
 	TestSkipped
 	TestPassed
 	TestFailed
+	TestFailedMergeConflict
 	TestTimedOut
 )
 
@@ -32,6 +34,8 @@ func (s TestStatus) String() string {
 		return "PASSED"
 	case TestFailed:
 		return "FAILED"
+	case TestFailedMergeConflict:
+		return "MERGE CONFLICT"
 	case TestTimedOut:
 		return "TIMED OUT"
 	default:
@@ -84,7 +88,9 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-js-vom":                 vanadiumJSVom,
 	"vanadium-postsubmit-poll":        vanadiumPostsubmitPoll,
 	"vanadium-presubmit-poll":         vanadiumPresubmitPoll,
+	"vanadium-presubmit-result":       vanadiumPresubmitResult,
 	"vanadium-presubmit-test":         vanadiumPresubmitTest,
+	"vanadium-presubmit-test-new":     vanadiumPresubmitTestNew, // TODO(jingjin): clean up after transition is done.
 	"vanadium-prod-services-test":     vanadiumProdServicesTest,
 	"vanadium-tutorial":               vanadiumTutorial,
 	"vanadium-vdl":                    vanadiumVDL,
@@ -112,10 +118,7 @@ func RunProjectTests(ctx *util.Context, env map[string]string, projects []string
 	if err := util.LoadConfig("common", &config); err != nil {
 		return nil, err
 	}
-	tests, err := projectTests(testCtx, &config, projects)
-	if err != nil {
-		return nil, err
-	}
+	tests := config.ProjectTests(projects)
 	if len(tests) == 0 {
 		return nil, nil
 	}
@@ -208,27 +211,6 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult)
 		fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", results[test].Status)
 	}
 	return nil
-}
-
-// projectTest returns all the tests for the given projects.
-func projectTests(ctx *util.Context, config *util.Config, projects []string) ([]string, error) {
-	testsSet := map[string]struct{}{}
-	for _, project := range projects {
-		tests := config.ProjectTests(project)
-		for _, test := range tests {
-			testsSet[test] = struct{}{}
-		}
-	}
-	if len(testsSet) == 0 {
-		fmt.Fprintf(ctx.Stdout(), "no tests found for projects %v.\n", projects)
-		return nil, nil
-	}
-	sortedTests := []string{}
-	for test := range testsSet {
-		sortedTests = append(sortedTests, test)
-	}
-	sort.Strings(sortedTests)
-	return sortedTests, nil
 }
 
 // createTestDepGraph creates a test dependency graph given a map of

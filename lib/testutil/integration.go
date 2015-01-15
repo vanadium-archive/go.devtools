@@ -47,8 +47,22 @@ var binPackages = []string{
 	"v.io/wspr/veyron/services/wsprd",
 }
 
+type goIntegrationOpt interface {
+	goIntegrationOpt()
+}
+
+func (suffixOpt) goIntegrationOpt() {}
+
 // buildBinaries builds Go binaries enumerated by the binPackages list.
-func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
+func buildBinaries(ctx *util.Context, testName string, opts ...goIntegrationOpt) (*TestResult, error) {
+	suffix := ""
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case suffixOpt:
+			suffix = string(typedOpt)
+		}
+	}
+
 	// Create a pool of workers.
 	fmt.Fprintf(ctx.Stdout(), "building binaries...\n")
 	numPkgs := len(binPackages)
@@ -69,9 +83,13 @@ func buildBinaries(ctx *util.Context, testName string) (*TestResult, error) {
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
 		s := testSuite{Name: result.pkg}
+		testCaseName := "Build"
+		if suffix != "" {
+			testCaseName += (" " + suffix)
+		}
 		c := testCase{
 			Classname: result.pkg,
-			Name:      "Build",
+			Name:      testCaseName,
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		if result.status != buildPassed {
@@ -125,7 +143,15 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 
 // runIntegrationTests runs all integration tests found under
 // $VANADIUM_ROOT/roadmap/go/src and $VANADIUM_ROOT/release/go/src.
-func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error) {
+func runIntegrationTests(ctx *util.Context, testName string, opts ...goIntegrationOpt) (*TestResult, error) {
+	suffix := ""
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case suffixOpt:
+			suffix = string(typedOpt)
+		}
+	}
+
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -165,9 +191,13 @@ func runIntegrationTests(ctx *util.Context, testName string) (*TestResult, error
 	for i := 0; i < numTests; i++ {
 		result := <-taskResults
 		s := testSuite{Name: result.pkg}
+		testCaseName := "IntegrationTest"
+		if suffix != "" {
+			testCaseName += (" " + suffix)
+		}
 		c := testCase{
 			Classname: result.pkg,
-			Name:      "IntegrationTest",
+			Name:      testCaseName,
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		switch result.status {
@@ -253,14 +283,15 @@ func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult,
 	if ctx.DryRun() {
 		binPackages = nil
 	}
-	result, err := buildBinaries(ctx, testName)
+	suffix := suffixOpt(genTestNameSuffix(""))
+	result, err := buildBinaries(ctx, testName, suffix)
 	if err != nil {
 		return nil, err
 	}
 	if result.Status == TestFailed {
 		return result, nil
 	}
-	result, err = runIntegrationTests(ctx, testName)
+	result, err = runIntegrationTests(ctx, testName, suffix)
 	if err != nil {
 		return nil, err
 	}

@@ -282,7 +282,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 		// Mock out the addPresubmitTestBuild function.
 		// It will return error for the first clList.
-		func(cls clList) error {
+		func(ctx *util.Context, cls clList) error {
 			if reflect.DeepEqual(cls, clLists[0]) {
 				return fmt.Errorf("err\n")
 			} else {

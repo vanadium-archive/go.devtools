@@ -45,6 +45,7 @@ var (
 	reposFlag              string
 	reviewMessageFlag      string
 	reviewTargetRefsFlag   string
+	testFlag               string
 	verboseFlag            bool
 
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
@@ -58,15 +59,19 @@ func init() {
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
+	cmdRoot.Flags.StringVar(&presubmitTestFlag, "project", defaultPresubmitTest, "The name of the Jenkins project to add presubmit-test builds to.")
 	cmdRoot.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
-	cmdQuery.Flags.StringVar(&presubmitTestFlag, "project", defaultPresubmitTest, "The name of the Jenkins project to add presubmit-test builds to.")
+	cmdResult.Flags.StringVar(&reposFlag, "repos", "", "The base names of remote repositories containing the CLs pointed by the refs, separated by ':'.")
+	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
+	cmdResult.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 	cmdTest.Flags.StringVar(&reposFlag, "repos", "", "The base names of remote repositories containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
+	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
 }
 
 // printf outputs the given message prefixed by outputPrefix, adding a
@@ -106,7 +111,7 @@ var cmdRoot = &cmdline.Command{
 	Name:     "presubmit",
 	Short:    "Tool for performing various presubmit related functions",
 	Long:     "The presubmit tool performs various presubmit related functions.",
-	Children: []*cmdline.Command{cmdQuery, cmdTest, cmdVersion},
+	Children: []*cmdline.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
 }
 
 // cmdVersion represent the 'version' command of the presubmit tool.

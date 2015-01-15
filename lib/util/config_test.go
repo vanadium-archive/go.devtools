@@ -9,7 +9,8 @@ import (
 var (
 	goWorkspaces = []string{"test-go-workspace"}
 	projectTests = map[string][]string{
-		"test-project": []string{"test-test-A", "test-test-group"},
+		"test-project":  []string{"test-test-A", "test-test-group"},
+		"test-project2": []string{"test-test-D"},
 	}
 	snapshotLabelTests = map[string][]string{
 		"test-snapshot-label": []string{"test-test-A", "test-test-group"},
@@ -28,10 +29,13 @@ func testConfigAPI(t *testing.T, c *Config) {
 	if got, want := c.GoWorkspaces(), goWorkspaces; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected result: got %v, want %v", got, want)
 	}
-	if got, want := c.Projects(), []string{"test-project"}; !reflect.DeepEqual(got, want) {
+	if got, want := c.Projects(), []string{"test-project", "test-project2"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected result: got %v, want %v", got, want)
 	}
-	if got, want := c.ProjectTests("test-project"), []string{"test-test-A", "test-test-B", "test-test-C"}; !reflect.DeepEqual(got, want) {
+	if got, want := c.ProjectTests([]string{"test-project"}), []string{"test-test-A", "test-test-B", "test-test-C"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected result: got %v, want %v", got, want)
+	}
+	if got, want := c.ProjectTests([]string{"test-project", "test-project2"}), []string{"test-test-A", "test-test-B", "test-test-C", "test-test-D"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected result: got %v, want %v", got, want)
 	}
 	if got, want := c.SnapshotLabels(), []string{"test-snapshot-label"}; !reflect.DeepEqual(got, want) {

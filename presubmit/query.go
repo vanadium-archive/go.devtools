@@ -117,7 +117,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 	}
 
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastStatus, err := lastCompletedBuildStatus(presubmitTestFlag)
+	lastStatus, err := lastCompletedBuildStatus(presubmitTestFlag, "")
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
@@ -353,7 +353,7 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 // been sent successfully.
 func sendCLListsToPresubmitTest(ctx *util.Context, clLists []clList, defaultProjects map[string]util.Project,
 	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error,
-	addPresubmitFn func(clList) error) int {
+	addPresubmitFn func(*util.Context, clList) error) int {
 	clsSent := 0
 outer:
 	for _, curCLList := range clLists {
@@ -381,7 +381,7 @@ outer:
 
 		// Send curCLList to presubmit-test.
 		strCLs := fmt.Sprintf("Add %s", strings.Join(clStrings, ", "))
-		if err := addPresubmitFn(curCLList); err != nil {
+		if err := addPresubmitFn(ctx, curCLList); err != nil {
 			printf(ctx.Stdout(), "FAIL: %s\n", strCLs)
 			printf(ctx.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curCLList, err)
 		} else {
@@ -688,21 +688,33 @@ func jenkinsAPI(uri, method string, params map[string][]string) (*http.Response,
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
 // a set of open CLs to run presubmit tests.
-func addPresubmitTestBuild(cls clList) error {
+func addPresubmitTestBuild(ctx *util.Context, cls clList) error {
 	addBuildUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
 		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	refs, repos := []string{}, []string{}
+	refs, repos, fullRepos := []string{}, []string{}, []string{}
 	for _, cl := range cls {
 		refs = append(refs, cl.Ref)
 		repos = append(repos, cl.Repo)
+		fullRepos = append(fullRepos, util.VanadiumGitRepoHost()+cl.Repo)
 	}
+
+	// Get tests to run.
+	var config util.Config
+	if err := util.LoadConfig("common", &config); err != nil {
+		return err
+	}
+	tests := config.ProjectTests(fullRepos)
+
 	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestFlag)
 	addBuildUrl.RawQuery = url.Values{
 		"token": {jenkinsTokenFlag},
 		"REFS":  {strings.Join(refs, ":")},
 		"REPOS": {strings.Join(repos, ":")},
+		// Separating by spaces is required by the Dynamic Axis plugin used in the
+		// new presubmit test target.
+		"TESTS": {strings.Join(tests, " ")},
 	}.Encode()
 	resp, err := http.Get(addBuildUrl.String())
 	if err == nil {

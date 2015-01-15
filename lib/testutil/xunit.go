@@ -51,7 +51,6 @@ type testFailure struct {
 func XUnitReportPath(testName string) string {
 	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
 	if workspace == "" {
-
 		return filepath.Join(os.Getenv("HOME"), "tmp", testName, fileName)
 	} else {
 		return filepath.Join(workspace, fileName)

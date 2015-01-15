@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"sort"
 )
 
 // Config holds configuration common to vanadium tools.
@@ -99,23 +100,33 @@ func (c Config) Projects() (projects []string) {
 	for project, _ := range c.projectTests {
 		projects = append(projects, project)
 	}
+	sort.Strings(projects)
 	return
 }
 
 // ProjectTests returns a list of Jenkins tests associated with the
-// given project by the config.
-func (c Config) ProjectTests(project string) (tests []string) {
+// given projects by the config.
+func (c Config) ProjectTests(projects []string) []string {
+	testSet := map[string]struct{}{}
 	testGroups := c.testGroups
-	for _, test := range c.projectTests[project] {
-		if testGroup, ok := testGroups[test]; ok {
-			for _, test := range testGroup {
-				tests = append(tests, test)
+
+	for _, project := range projects {
+		for _, test := range c.projectTests[project] {
+			if testGroup, ok := testGroups[test]; ok {
+				for _, test := range testGroup {
+					testSet[test] = struct{}{}
+				}
+			} else {
+				testSet[test] = struct{}{}
 			}
-		} else {
-			tests = append(tests, test)
 		}
 	}
-	return
+	sortedTests := []string{}
+	for test := range testSet {
+		sortedTests = append(sortedTests, test)
+	}
+	sort.Strings(sortedTests)
+	return sortedTests
 }
 
 // SnapshotLabels returns a list of snapshot labels included in the

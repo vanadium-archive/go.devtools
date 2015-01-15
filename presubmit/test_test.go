@@ -162,7 +162,6 @@ func TestParseFailedTestCases(t *testing.T) {
 		}
 	]
 }`,
-			slave: "not-needed",
 			expectedTestCases: []testCase{
 				testCase{
 					ClassName: "c2",
@@ -176,61 +175,10 @@ func TestParseFailedTestCases(t *testing.T) {
 				},
 			},
 		},
-		// Test results from multi-configuration project.
-		{
-			input: `{
-	"childReports": [
-		{
-			"child": {
-				"url": "https://dev.v.io/jenkins/job/vanadium-go-build/L=slave/11/"
-			},
-			"result": {
-				"suites": [
-					{
-						"cases": [
-							{
-								"className": "c1",
-								"name": "n1",
-								"status": "FAILED"
-							}
-						]
-					}
-				]
-			}
-		},
-		{
-			"child": {
-				"url": "https://dev.v.io/jenkins/job/vanadium-go-build/L=mac-slave/11/"
-			},
-			"result": {
-				"suites": [
-					{
-						"cases": [
-							{
-								"className": "c2",
-								"name": "n2",
-								"status": "REGRESSION"
-							}
-						]
-					}
-				]
-			}
-		}
-	]
-}`,
-			slave: "mac-slave",
-			expectedTestCases: []testCase{
-				testCase{
-					ClassName: "c2",
-					Name:      "n2",
-					Status:    "REGRESSION",
-				},
-			},
-		},
 	}
 
 	for _, test := range testCases {
-		gotTestCases, err := parseFailedTestCases(strings.NewReader(test.input), test.slave)
+		gotTestCases, err := parseFailedTestCases(strings.NewReader(test.input))
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}
@@ -276,6 +224,9 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 	ctx := util.DefaultContext()
 	type test struct {
 		failedTestGetterResult []testCase
+		testName               string
+		slaveLabel             string
+		newMode                bool
 		expectedLinksMap       failedTestLinksMap
 		expectedSeenTests      map[string]int
 	}
@@ -329,14 +280,70 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 				"go::vanadium::abc::n5": 1,
 			},
 		},
+		// Tests for new mode.
+		// TODO(jingjin): clean up the tests for old mode when the transition is done.
+		test{
+			failedTestGetterResult: []testCase{},
+			testName:               "vanadium-go-test",
+			slaveLabel:             "linux-slave",
+			newMode:                true,
+			expectedLinksMap: failedTestLinksMap{
+				newFailure: []string{
+					"- c1::n::n1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c1/n/n1",
+					"- c2::n::n2\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c2/n/n2",
+					"- go::vanadium::abc::n5\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/go.vanadium/abc/n5",
+				},
+			},
+			expectedSeenTests: map[string]int{
+				"c1::n::n1-linux-slave":             1,
+				"c2::n::n2-linux-slave":             1,
+				"c3::n::n3-linux-slave":             2,
+				`ts1::"n9"-linux-slave`:             1,
+				"go::vanadium::abc::n5-linux-slave": 1,
+			},
+		},
+		test{
+			failedTestGetterResult: []testCase{
+				testCase{
+					ClassName: "c1.n",
+					Name:      "n1",
+				},
+				testCase{
+					ClassName: "c4.n",
+					Name:      "n4",
+				},
+			},
+			testName:   "vanadium-go-test",
+			slaveLabel: "linux-slave",
+			newMode:    true,
+			expectedLinksMap: failedTestLinksMap{
+				newFailure: []string{
+					"- c2::n::n2\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c2/n/n2",
+					"- go::vanadium::abc::n5\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/go.vanadium/abc/n5",
+				},
+				knownFailure: []string{
+					"- c1::n::n1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c1/n/n1",
+				},
+				fixedFailure: []string{
+					"- c4::n::n4",
+				},
+			},
+			expectedSeenTests: map[string]int{
+				"c1::n::n1-linux-slave":             1,
+				"c2::n::n2-linux-slave":             1,
+				"c3::n::n3-linux-slave":             2,
+				`ts1::"n9"-linux-slave`:             1,
+				"go::vanadium::abc::n5-linux-slave": 1,
+			},
+		},
 	}
 
 	for _, curTest := range tests {
 		seenTests := map[string]int{}
-		failedTestGetterFn := func(string) ([]testCase, error) {
+		failedTestGetterFn := func(string, string) ([]testCase, error) {
 			return curTest.failedTestGetterResult, nil
 		}
-		linksMap, err := genFailedTestLinks(ctx, strings.NewReader(reportFileContent), seenTests, "vanadium-go-test", failedTestGetterFn)
+		linksMap, err := genFailedTestLinks(ctx, strings.NewReader(reportFileContent), seenTests, curTest.testName, curTest.slaveLabel, curTest.newMode, failedTestGetterFn)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}
@@ -352,9 +359,12 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 func TestGenTestResultLink(t *testing.T) {
 	type testCase struct {
 		className    string
-		testName     string
+		testCaseName string
 		testFullName string
 		suffix       int
+		testName     string
+		newMode      bool
+		slaveLabel   string
 		expectedLink string
 	}
 
@@ -362,50 +372,112 @@ func TestGenTestResultLink(t *testing.T) {
 	testCases := []testCase{
 		testCase{
 			className:    "c",
-			testName:     "t",
+			testCaseName: "t",
 			testFullName: "T1",
 			suffix:       0,
 			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/testReport/%28root%29/c/t",
 		},
 		testCase{
 			className:    "c n",
-			testName:     "t",
+			testCaseName: "t",
 			testFullName: "T1",
 			suffix:       0,
 			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/testReport/%28root%29/c%20n/t",
 		},
 		testCase{
 			className:    "c.n",
-			testName:     "t",
+			testCaseName: "t",
 			testFullName: "T1",
 			suffix:       0,
 			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/testReport/c/n/t",
 		},
 		testCase{
 			className:    "c.n",
-			testName:     "t.n",
+			testCaseName: "t.n",
 			testFullName: "T1",
 			suffix:       0,
 			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/testReport/c/n/t_n",
 		},
 		testCase{
 			className:    "c.n",
-			testName:     "t.n",
+			testCaseName: "t.n",
 			testFullName: "T1",
 			suffix:       1,
 			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/testReport/c/n/t_n",
 		},
 		testCase{
 			className:    "c.n",
-			testName:     "t.n",
+			testCaseName: "t.n",
 			testFullName: "T1",
 			suffix:       2,
 			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/testReport/c/n/t_n_2",
 		},
+		// Tests for new mode.
+		// TODO(jingjin): clean up the tests for old mode when the transition is done.
+		testCase{
+			className:    "c",
+			testCaseName: "t",
+			testFullName: "T1",
+			suffix:       0,
+			testName:     "vanadium-go-test",
+			slaveLabel:   "linux-slave",
+			newMode:      true,
+			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/%28root%29/c/t",
+		},
+		testCase{
+			className:    "c n",
+			testCaseName: "t",
+			testFullName: "T1",
+			suffix:       0,
+			testName:     "vanadium-go-test",
+			slaveLabel:   "linux-slave",
+			newMode:      true,
+			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/%28root%29/c%20n/t",
+		},
+		testCase{
+			className:    "c.n",
+			testCaseName: "t",
+			testFullName: "T1",
+			suffix:       0,
+			testName:     "vanadium-go-test",
+			slaveLabel:   "linux-slave",
+			newMode:      true,
+			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t",
+		},
+		testCase{
+			className:    "c.n",
+			testCaseName: "t.n",
+			testFullName: "T1",
+			suffix:       0,
+			testName:     "vanadium-go-test",
+			slaveLabel:   "linux-slave",
+			newMode:      true,
+			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t_n",
+		},
+		testCase{
+			className:    "c.n",
+			testCaseName: "t.n",
+			testFullName: "T1",
+			suffix:       1,
+			testName:     "vanadium-go-test",
+			slaveLabel:   "linux-slave",
+			newMode:      true,
+			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t_n",
+		},
+		testCase{
+			className:    "c.n",
+			testCaseName: "t.n",
+			testFullName: "T1",
+			suffix:       2,
+			testName:     "vanadium-go-test",
+			slaveLabel:   "linux-slave",
+			newMode:      true,
+			expectedLink: "- T1\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t_n_2",
+		},
 	}
 
 	for _, test := range testCases {
-		if got, expected := genTestResultLink(test.className, test.testName, test.testFullName, test.suffix), test.expectedLink; got != expected {
+		if got, expected := genTestResultLink(test.className, test.testCaseName, test.testFullName, test.suffix, test.testName, test.slaveLabel, test.newMode), test.expectedLink; got != expected {
 			t.Fatalf("want %v, got %v", expected, got)
 		}
 	}

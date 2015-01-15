@@ -904,7 +904,7 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 // vanadiumGoTest runs Go tests for vanadium projects.
 func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	suffix := suffixOpt("[GoTest]")
+	suffix := suffixOpt(genTestNameSuffix("GoTest"))
 	return goTest(ctx, testName, pkgs, suffix)
 }
 
@@ -913,6 +913,20 @@ func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
 	args := argsOpt([]string{"-race"})
 	timeout := timeoutOpt("15m")
-	suffix := suffixOpt("[GoRace]")
+	suffix := suffixOpt(genTestNameSuffix("GoRace"))
 	return goTest(ctx, testName, pkgs, args, timeout, suffix)
+}
+
+func genTestNameSuffix(baseSuffix string) string {
+	extraSuffix := runtime.GOOS
+	switch extraSuffix {
+	case "darwin":
+		extraSuffix = "mac"
+	case "windows":
+		extraSuffix = "win"
+	}
+	if baseSuffix == "" {
+		return fmt.Sprintf("[%s]", extraSuffix)
+	}
+	return fmt.Sprintf("[%s - %s]", baseSuffix, extraSuffix)
 }
