@@ -472,7 +472,9 @@ func createV23Dir(ctx *Context, path string) (e error) {
 		}
 		name, ok := names[remote]
 		if !ok {
-			return fmt.Errorf("unknown remote: %v", remote)
+			// Skip over repositories not specified in
+			// <names>.
+			return nil
 		}
 		project = Project{
 			Name:     name,
@@ -492,7 +494,9 @@ func createV23Dir(ctx *Context, path string) (e error) {
 		}
 		name, ok := names[remote]
 		if !ok {
-			return fmt.Errorf("unknown remote: %v", remote)
+			// Skip over repositories not specified in
+			// <names>.
+			return nil
 		}
 		project = Project{
 			Name:     name,
