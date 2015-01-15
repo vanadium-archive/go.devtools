@@ -693,11 +693,10 @@ func addPresubmitTestBuild(ctx *util.Context, cls clList) error {
 	if err != nil {
 		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	refs, repos, fullRepos := []string{}, []string{}, []string{}
+	refs, repos := []string{}, []string{}
 	for _, cl := range cls {
 		refs = append(refs, cl.Ref)
 		repos = append(repos, cl.Repo)
-		fullRepos = append(fullRepos, util.VanadiumGitRepoHost()+cl.Repo)
 	}
 
 	// Get tests to run.
@@ -705,7 +704,7 @@ func addPresubmitTestBuild(ctx *util.Context, cls clList) error {
 	if err := util.LoadConfig("common", &config); err != nil {
 		return err
 	}
-	tests := config.ProjectTests(fullRepos)
+	tests := config.ProjectTests(repos)
 
 	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestFlag)
 	addBuildUrl.RawQuery = url.Values{
