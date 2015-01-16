@@ -11,8 +11,9 @@ Usage:
 The vcloud commands are:
    list        List GCE node information
    cp          Copy files to/from GCE node(s)
-   sh          Start a shell or run a command on GCE node(s)
+   node        Manage GCE jenkins slave nodes
    run         Copy file(s) to GCE node(s) and run
+   sh          Start a shell or run a command on GCE node(s)
    help        Display help for commands or topics
 Run "vcloud help [command]" for command usage.
 
@@ -89,40 +90,44 @@ The vcloud cp flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud Sh
+Vcloud Node
 
-Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
+Manage GCE jenkins slave nodes.
 
 Usage:
-   vcloud sh [flags] <nodes> [command...]
+   vcloud node <command>
 
-<nodes> is a comma-separated list of node name(s).  Each node name is a regular
-expression, with matches performed on the full node name.  We select nodes that
-match any of the regexps.  The comma-separated list allows you to easily specify
-a list of specific node names, without using regexp alternation.  We assume node
-names do not have embedded commas.
+The vcloud node commands are:
+   create      Create GCE jenkins slave nodes
+   delete      Delete GCE jenkins slave nodes
 
-[command...] is the shell command line to run on each node.  Specify the entire
-command line without extra quoting, e.g. like this:
-  vcloud sh jenkins-node uname -a
-But NOT like this:
-  vcloud sh jenkins-node 'uname -a'
-If quoting and escaping becomes too complicated, use 'vcloud run' instead.
+Vcloud Node Create
 
-If <nodes> matches exactly one node and no [command] is given, sh starts a shell
-on the specified node.
+Create GCE jenkins slave nodes.  Runs 'gcloud compute instances create'.
 
-Otherwise [command...] is required; sh runs the command on all matching nodes.
-The default is to run on all nodes in parallel.
+Usage:
+   vcloud node create [flags] <names>
 
-The vcloud sh flags are:
- -failfast=false
-   Skip unstarted nodes after the first failing node.
- -p=-1
-   Run command on this many nodes in parallel.
-     <0   means all nodes in parallel
-      0,1 means sequentially
-      2+  means at most this many nodes in parallel
+<names> is a list of names identifying nodes to be created.
+
+The vcloud node create flags are:
+ -boot_disk_size=500GB
+   Size of the machine boot disk.
+ -image=ubuntu-14-04
+   Image to create the machine from.
+ -machine_type=n1-standard-8
+   Machine type to create.
+ -zone=us-central1-f
+   Zone to create the machine in.
+
+Vcloud Node Delete
+
+Delete GCE jenkins slave nodes.  Runs 'gcloud compute instances delete'.
+
+Usage:
+   vcloud node delete <names>
+
+<names> is a list of names identifying nodes to be deleted.
 
 Vcloud Run
 
@@ -160,6 +165,41 @@ The vcloud run flags are:
    Output directory to store results from each node.
  -p=-1
    Copy/run on this many nodes in parallel.
+     <0   means all nodes in parallel
+      0,1 means sequentially
+      2+  means at most this many nodes in parallel
+
+Vcloud Sh
+
+Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
+
+Usage:
+   vcloud sh [flags] <nodes> [command...]
+
+<nodes> is a comma-separated list of node name(s).  Each node name is a regular
+expression, with matches performed on the full node name.  We select nodes that
+match any of the regexps.  The comma-separated list allows you to easily specify
+a list of specific node names, without using regexp alternation.  We assume node
+names do not have embedded commas.
+
+[command...] is the shell command line to run on each node.  Specify the entire
+command line without extra quoting, e.g. like this:
+  vcloud sh jenkins-node uname -a
+But NOT like this:
+  vcloud sh jenkins-node 'uname -a'
+If quoting and escaping becomes too complicated, use 'vcloud run' instead.
+
+If <nodes> matches exactly one node and no [command] is given, sh starts a shell
+on the specified node.
+
+Otherwise [command...] is required; sh runs the command on all matching nodes.
+The default is to run on all nodes in parallel.
+
+The vcloud sh flags are:
+ -failfast=false
+   Skip unstarted nodes after the first failing node.
+ -p=-1
+   Run command on this many nodes in parallel.
      <0   means all nodes in parallel
       0,1 means sequentially
       2+  means at most this many nodes in parallel

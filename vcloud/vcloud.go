@@ -35,7 +35,7 @@ var cmdVCloud = &cmdline.Command{
 The vcloud tool is a wrapper over the gcloud GCE resource management tool, to
 simplify common usage scenarios.
 `,
-	Children: []*cmdline.Command{cmdList, cmdCP, cmdSH, cmdCopyAndRun},
+	Children: []*cmdline.Command{cmdList, cmdCP, cmdNode, cmdCopyAndRun, cmdSH},
 }
 
 var cmdList = &cmdline.Command{
@@ -160,6 +160,10 @@ var (
 	flagP            int
 	flagFailFast     bool
 	flagOutDir       string
+	flagZone         string
+	flagImage        string
+	flagBootDiskSize string
+	flagMachineType  string
 )
 
 func init() {
@@ -171,6 +175,10 @@ func init() {
 	cmdSH.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
 	cmdCopyAndRun.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
 	cmdCopyAndRun.Flags.StringVar(&flagOutDir, "outdir", "", "Output directory to store results from each node.")
+	cmdNodeCreate.Flags.StringVar(&flagBootDiskSize, "boot_disk_size", "500GB", "Size of the machine boot disk.")
+	cmdNodeCreate.Flags.StringVar(&flagImage, "image", "ubuntu-14-04", "Image to create the machine from.")
+	cmdNodeCreate.Flags.StringVar(&flagMachineType, "machine_type", "n1-standard-8", "Machine type to create.")
+	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to create the machine in.")
 }
 
 // nodeInfo represents the node info returned by 'gcloud compute instances list'
@@ -203,27 +211,27 @@ var infoHeader = nodeInfo{
 	Status:      "STATUS",
 }
 
-func addUser(s string) string {
-	if *flagUser != "" {
-		return *flagUser + "@" + s
+func addUser(user, suffix string) string {
+	if user != "" {
+		return user + "@" + suffix
 	}
-	return s
+	return suffix
 }
 
 // StartShell starts a shell on node n.
 func (n nodeInfo) StartShell(run *runutil.Run) error {
-	return run.Command("gcloud", "compute", "ssh", addUser(n.Name), "--project", *flagProject, "--zone", n.Zone)
+	return run.Command("gcloud", "compute", "ssh", addUser(*flagUser, n.Name), "--project", *flagProject, "--zone", n.Zone)
 }
 
 // RunCopy runs the copy from srcs to dst on node x.  Assumes we've already
 // validated that either dst is remote and all srcs are local, or vice versa.
 func (n nodeInfo) RunCopy(run *runutil.Run, srcs []string, dst string, makeSubdir bool) runResult {
 	if strings.HasPrefix(dst, ":") {
-		dst = addUser(n.Name + dst)
+		dst = addUser(*flagUser, n.Name+dst)
 	} else {
 		copysrcs := make([]string, len(srcs))
 		for i, src := range srcs {
-			copysrcs[i] = addUser(n.Name + src)
+			copysrcs[i] = addUser(*flagUser, n.Name+src)
 		}
 		srcs = copysrcs
 		if makeSubdir {
@@ -249,13 +257,19 @@ func (n nodeInfo) RunCopy(run *runutil.Run, srcs []string, dst string, makeSubdi
 }
 
 // RunCommand runs cmdline on node n.
-func (n nodeInfo) RunCommand(run *runutil.Run, cmdline []string) runResult {
+func (n nodeInfo) RunCommand(run *runutil.Run, user string, cmdline []string) runResult {
 	var stdouterr bytes.Buffer
 	opts := run.Opts()
 	opts.Stdin = nil
 	opts.Stdout = &stdouterr
 	opts.Stderr = &stdouterr
-	err := run.CommandWithOpts(opts, "gcloud", "compute", "ssh", addUser(n.Name), "--project", *flagProject, "--zone", n.Zone, "--command", quoteForCommand(cmdline))
+	err := run.CommandWithOpts(opts,
+		"gcloud", "compute", "ssh",
+		addUser(user, n.Name),
+		"--project", *flagProject,
+		"--zone", n.Zone,
+		"--command", quoteForCommand(cmdline),
+	)
 	return runResult{node: n, out: stdouterr.String(), err: err}
 }
 
@@ -404,8 +418,8 @@ func (x nodeInfos) RunCopy(run *runutil.Run, srcs []string, dst string) error {
 }
 
 // RunCommand runs the cmdline on all nodes in x.
-func (x nodeInfos) RunCommand(run *runutil.Run, cmdline []string) error {
-	fn := func(node nodeInfo) runResult { return node.RunCommand(run, cmdline) }
+func (x nodeInfos) RunCommand(run *runutil.Run, user string, cmdline []string) error {
+	fn := func(node nodeInfo) runResult { return node.RunCommand(run, user, cmdline) }
 	return x.run(run.Opts().Stdout, fn)
 }
 
@@ -417,7 +431,7 @@ func (x nodeInfos) RunCopyAndRun(run *runutil.Run, files, cmds []string, outdir 
 	fn := func(node nodeInfo) runResult {
 		result := runResult{node: node}
 		// 1) Create temporary directory.
-		result.Merge(node.RunCommand(run, []string{"mkdir", tmpdir}), "[run] create tmpdir %q", tmpdir)
+		result.Merge(node.RunCommand(run, *flagUser, []string{"mkdir", tmpdir}), "[run] create tmpdir %q", tmpdir)
 		if result.err != nil {
 			return result
 		}
@@ -432,7 +446,7 @@ func (x nodeInfos) RunCopyAndRun(run *runutil.Run, files, cmds []string, outdir 
 			} else {
 				cmdline = append(cmdline, cmds...)
 			}
-			result.Merge(node.RunCommand(run, cmdline), "[run] run cmdline %v", cmdline)
+			result.Merge(node.RunCommand(run, *flagUser, cmdline), "[run] run cmdline %v", cmdline)
 			// 5) If outdir is specified, remove the run files from TMPDIR, and copy
 			// TMPDIR from the node to the local outdir.
 			if outdir != "" {
@@ -440,7 +454,7 @@ func (x nodeInfos) RunCopyAndRun(run *runutil.Run, files, cmds []string, outdir 
 				for _, file := range files {
 					rmcmds = append(rmcmds, filepath.Base(file))
 				}
-				result.Merge(node.RunCommand(run, rmcmds), "[run] remove run files %v", rmcmds)
+				result.Merge(node.RunCommand(run, *flagUser, rmcmds), "[run] remove run files %v", rmcmds)
 				// If we have more than one node, it'd be pointless to copy into the
 				// same dst dir; the remote copies would overwrite each other.
 				makeSubdir := len(x) > 1
@@ -448,7 +462,7 @@ func (x nodeInfos) RunCopyAndRun(run *runutil.Run, files, cmds []string, outdir 
 			}
 		}
 		// 6) Delete the temporary directory (always, if created successfully).
-		result.Merge(node.RunCommand(run, []string{"rm", "-rf", tmpdir}), "[run] delete tmpdir %q", tmpdir)
+		result.Merge(node.RunCommand(run, *flagUser, []string{"rm", "-rf", tmpdir}), "[run] delete tmpdir %q", tmpdir)
 		return result
 	}
 	return x.run(run.Opts().Stdout, fn)
@@ -658,7 +672,7 @@ func runSH(cmd *cmdline.Command, args []string) error {
 	if len(args) == 1 {
 		return cmd.UsageErrorf("must specify command; more than one matching node: %v", nodes.Names())
 	}
-	return nodes.RunCommand(run, args[1:])
+	return nodes.RunCommand(run, *flagUser, args[1:])
 }
 
 func runCopyAndRun(cmd *cmdline.Command, args []string) error {
