@@ -88,7 +88,7 @@ func vanadiumJSBuildExtension(ctx *util.Context, testName string) (*TestResult, 
 		return nil, err
 	}
 	testDir := filepath.Join(root, "release", "javascript", "core")
-	target := "extension/veyron.crx"
+	target := "extension/veyron.zip"
 	return runJSTest(ctx, testName, testDir, target, nil, nil)
 }
 
