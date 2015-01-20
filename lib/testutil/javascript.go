@@ -167,5 +167,4 @@ func vanadiumJSVom(ctx *util.Context, testName string) (*TestResult, error) {
 
 func setCommonJSEnv(env map[string]string) {
 	env["XUNIT"] = "true"
-	env["NOVDLGEN"] = "true"
 }
