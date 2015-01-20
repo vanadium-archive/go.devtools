@@ -1,10 +1,17 @@
 package testutil
 
 import (
+	"bytes"
+	"encoding/xml"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -14,6 +21,11 @@ var (
 	// test of this package from interfering with other concurrently
 	// running tests that might be sharing the same object files.
 	cleanGo = true
+)
+
+const (
+	// Number of lines to be included in the error messsage of an xUnit report.
+	numLinesToOutput = 15
 )
 
 // binDirPath returns the path to the directory for storing temporary
@@ -77,7 +89,7 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 		}
 	}
 
-	// Remove xunit test report file.
+	// Remove xUnit test report file.
 	if err := ctx.Run().RemoveAll(XUnitReportPath(testName)); err != nil {
 		return nil, err
 	}
@@ -85,6 +97,51 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 	return func() error {
 		return ctx.Run().Chdir(cwd)
 	}, nil
+}
+
+// genXUnitReportOnCmdError generates an xUnit test report if the given command
+// function returns an error.
+func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failureSummary string, commandFunc func(runutil.Opts) error) (*TestResult, error) {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
+	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
+	if err := commandFunc(opts); err != nil {
+		xUnitFilePath := XUnitReportPath(testName)
+
+		// Create a test suite to wrap up the error.
+		// Include last <numLinesToOutput> lines of the output in the error message.
+		lines := strings.Split(out.String(), "\n")
+		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
+		errMsg := "......\n" + strings.Join(lines[startLine:], "\n")
+		s := createTestSuiteWithFailure(testName, testCaseName, failureSummary, errMsg, 0)
+		suites := []testSuite{*s}
+
+		// xUnit file exists, append existing suites.
+		if _, err := os.Stat(xUnitFilePath); err == nil {
+			bytes, err := ioutil.ReadFile(xUnitFilePath)
+			if err != nil {
+				return nil, fmt.Errorf("ReadFile(%s) failed: %v", xUnitFilePath, err)
+			}
+			var existingSuites testSuites
+			if err := xml.Unmarshal(bytes, &existingSuites); err != nil {
+				return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(bytes))
+			}
+			suites = append(suites, existingSuites.Suites...)
+		}
+
+		// Create xUnit report with suites.
+		if err := createXUnitReport(ctx, testName, suites); err != nil {
+			return nil, err
+		}
+
+		// Return test result.
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{Status: TestTimedOut}, nil
+		}
+		return &TestResult{Status: TestFailed}, nil
+	}
+	return nil, nil
 }
 
 func Pass(ctx *util.Context, format string, a ...interface{}) {
