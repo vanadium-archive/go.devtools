@@ -287,7 +287,6 @@ func checkPresubmitFlag() bool {
 	for _, t := range validPresubmitTestTypes {
 		if presubmitFlag == t {
 			return true
-			break
 		}
 	}
 	return false
