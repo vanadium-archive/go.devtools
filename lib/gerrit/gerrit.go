@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	remoteRE    = regexp.MustCompile("remote:[^\n]*")
-	multiPartRE = regexp.MustCompile(`MultiPart:\s*(\d+)\s*/\s*(\d+)`)
+	remoteRE        = regexp.MustCompile("remote:[^\n]*")
+	multiPartRE     = regexp.MustCompile(`MultiPart:\s*(\d+)\s*/\s*(\d+)`)
+	presubmitTestRE = regexp.MustCompile(`PresubmitTest:\s*(.*)`)
 )
 
 // Comment represents a single inline file comment.
@@ -80,10 +81,22 @@ func PostReview(ctx *util.Context, gerritBaseUrl, username, password string, ref
 // QueryResult contains the essential data we care about from query
 // results.
 type QueryResult struct {
-	Ref       string
-	Repo      string
-	ChangeID  string
-	MultiPart *MultiPartCLInfo
+	Ref           string
+	Repo          string
+	ChangeID      string
+	PresubmitTest PresubmitTestType
+	MultiPart     *MultiPartCLInfo
+}
+
+type PresubmitTestType string
+
+const (
+	PresubmitTestTypeNone PresubmitTestType = "none"
+	PresubmitTestTypeAll  PresubmitTestType = "all"
+)
+
+func PresubmitTestTypes() []string {
+	return []string{string(PresubmitTestTypeNone), string(PresubmitTestTypeAll)}
 }
 
 // MultiPartCLInfo contains data used to process multiple cls across different repos.
@@ -133,7 +146,8 @@ func parseQueryResults(ctx *util.Context, reader io.Reader) ([]QueryResult, erro
 			Repo:     change.Project,
 			ChangeID: change.Change_id,
 		}
-		multiPartCLInfo, err := parseMultiPartMatch(change.Revisions[change.Current_revision].Commit.Message)
+		clMessage := change.Revisions[change.Current_revision].Commit.Message
+		multiPartCLInfo, err := parseMultiPartMatch(clMessage)
 		if err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			continue
@@ -142,6 +156,8 @@ func parseQueryResults(ctx *util.Context, reader io.Reader) ([]QueryResult, erro
 			multiPartCLInfo.Topic = change.Topic
 		}
 		queryResult.MultiPart = multiPartCLInfo
+		presubmitType := parsePresubmitTestType(clMessage)
+		queryResult.PresubmitTest = presubmitType
 		refs = append(refs, queryResult)
 	}
 	return refs, nil
@@ -165,6 +181,22 @@ func parseMultiPartMatch(match string) (*MultiPartCLInfo, error) {
 		}, nil
 	}
 	return nil, nil
+}
+
+// parsePresubmitTestType uses presubmitTestRE to match the given string and
+// returns the presubmit test type.
+func parsePresubmitTestType(match string) PresubmitTestType {
+	ret := PresubmitTestTypeAll
+	matches := presubmitTestRE.FindStringSubmatch(match)
+	if matches != nil {
+		switch matches[1] {
+		case string(PresubmitTestTypeNone):
+			ret = PresubmitTestTypeNone
+		case string(PresubmitTestTypeAll):
+			ret = PresubmitTestTypeAll
+		}
+	}
+	return ret
 }
 
 // Query returns a list of QueryResult entries matched by the given

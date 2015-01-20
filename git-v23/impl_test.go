@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"v.io/tools/lib/gerrit"
@@ -347,8 +348,8 @@ func TestCreateReviewBranch(t *testing.T) {
 	}
 	files := []string{"file1", "file2", "file3"}
 	commitFiles(t, ctx, files)
-	draft, edit, repo, reviewers, ccs := false, false, "", "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, "", "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -381,8 +382,8 @@ func TestCreateReviewBranchWithEmptyChange(t *testing.T) {
 	if err := ctx.Git().CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
-	draft, edit, repo, reviewers, ccs := false, false, branch, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, branch, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -417,8 +418,8 @@ func TestGoDependencyError(t *testing.T) {
 	createConfig(t, ctx, workingDir)
 	createTestGoDependencyPackages(t, ctx, repoPath)
 	createTestGoDependencyConstraint(t, ctx, repoPath, "deny")
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -450,8 +451,8 @@ func TestGoDependencyOK(t *testing.T) {
 	createConfig(t, ctx, workingDir)
 	createTestGoDependencyPackages(t, ctx, repoPath)
 	createTestGoDependencyConstraint(t, ctx, repoPath, "allow")
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -479,8 +480,8 @@ func main() {}
 	if err := ctx.Git().CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -510,8 +511,8 @@ func main() {}
 	if err := ctx.Git().CommitFile(file, commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -533,8 +534,8 @@ func TestSendReview(t *testing.T) {
 	commitFiles(t, ctx, files)
 	{
 		// Test with draft = false, no reviewiers, and no ccs.
-		draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -546,8 +547,8 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = true, no reviewers, and no ccs.
-		draft, edit, repo, reviewers, ccs := true, false, gerritPath, "", ""
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, repo, reviewers, ccs, presubmit := true, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -559,8 +560,8 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = false, reviewers, and no ccs.
-		draft, edit, repo, reviewers, ccs := false, false, gerritPath, "reviewer1,reviewer2@example.org", ""
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "reviewer1,reviewer2@example.org", "", gerrit.PresubmitTestTypeAll
+		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -572,8 +573,8 @@ func TestSendReview(t *testing.T) {
 	}
 	{
 		// Test with draft = true, reviewers, and ccs.
-		draft, edit, repo, reviewers, ccs := true, false, gerritPath, "reviewer3@example.org,reviewer4", "cc1@example.org,cc2"
-		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+		draft, edit, repo, reviewers, ccs, presubmit := true, false, gerritPath, "reviewer3@example.org,reviewer4", "cc1@example.org,cc2", gerrit.PresubmitTestTypeAll
+		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -597,8 +598,8 @@ func TestSendReviewNoChangeID(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	commitFiles(t, ctx, []string{"file1"})
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -622,8 +623,8 @@ func TestEndToEnd(t *testing.T) {
 	}
 	files := []string{"file1", "file2", "file3"}
 	commitFiles(t, ctx, files)
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -631,6 +632,69 @@ func TestEndToEnd(t *testing.T) {
 	review.run()
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, ctx, repoPath, gerritPath, expectedRef, files)
+}
+
+// TestPresubmitLabelInCommitMessage checks the PresubmitType label is correctly
+// processed for the commit message.
+func TestPresubmitLabelInCommitMessage(t *testing.T) {
+	ctx := util.DefaultContext()
+	workingDir, repoPath, _, gerritPath := setup(t, ctx, true)
+	defer teardown(t, ctx, workingDir)
+	branch := "my-branch"
+	if err := ctx.Git().CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	// Test setting -presubmit=none.
+	files := []string{"file1", "file2", "file3"}
+	commitFiles(t, ctx, files)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeNone
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	depcopFlag = false
+	review.run()
+	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
+	assertFilesPushedToRef(t, ctx, repoPath, gerritPath, expectedRef, files)
+	// The last two lines of the gerrit commit message file should be:
+	// PresubmitTest: none
+	// Change-Id: ...
+	gerritCommitMessageFile, err := review.getCommitMessageFilename()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	bytes, err := ioutil.ReadFile(gerritCommitMessageFile)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", gerritCommitMessageFile, err)
+	}
+	content := string(bytes)
+	lines := strings.Split(content, "\n")
+	// Make sure the Change-Id line is the last line.
+	if got := lines[len(lines)-1]; !strings.HasPrefix(got, "Change-Id") {
+		t.Fatalf("no Change-Id line found: %s", got)
+	}
+	// Make sure the "PresubmitTest" label exists.
+	if presubmitTestLabelRE.FindString(content) == "" {
+		t.Fatalf("PresubmitTest label doesn't exist in the commit message: %s", content)
+	}
+
+	// Test setting -presubmit=all.
+	draft, edit, repo, reviewers, ccs, presubmit = false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err = NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	review.run()
+	bytes, err = ioutil.ReadFile(gerritCommitMessageFile)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", gerritCommitMessageFile, err)
+	}
+	// Make sure there is no PresubmitTest=none any more.
+	match := presubmitTestLabelRE.FindString(string(bytes))
+	if match != "" {
+		t.Fatalf("want no presubmit label line, got: %s", match)
+	}
 }
 
 // TestDirtyBranch checks that the tool correctly handles unstaged and
@@ -672,8 +736,8 @@ func TestDirtyBranch(t *testing.T) {
 	if err := ctx.Run().WriteFile(untrackedFile, []byte(untrackedFileContent), 0644); err != nil {
 		t.Fatalf("WriteFile(%v, %t) failed: %v", untrackedFile, untrackedFileContent, err)
 	}
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -716,8 +780,8 @@ func TestRunInSubdirectory(t *testing.T) {
 	if err := ctx.Run().Chdir(subdir); err != nil {
 		t.Fatalf("Chdir(%v) failed: %v", subdir, err)
 	}
-	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
-	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs)
+	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
+	review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, presubmit)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -741,4 +805,73 @@ func TestRunInSubdirectory(t *testing.T) {
 	}
 	expectedRef := gerrit.Reference(draft, reviewers, ccs, branch)
 	assertFilesPushedToRef(t, ctx, repoPath, gerritPath, expectedRef, files)
+}
+
+// TestProcessPresubmitLabel checks that the processPresubmitLabel function
+// works as expected.
+func TestProcessPresubmitLabel(t *testing.T) {
+	testCases := []struct {
+		presubmitType   gerrit.PresubmitTestType
+		originalMessage string
+		expectedMessage string
+	}{
+		{
+			presubmitType:   gerrit.PresubmitTestTypeNone,
+			originalMessage: "",
+			expectedMessage: "PresubmitTest: none\n",
+		},
+		{
+			presubmitType:   gerrit.PresubmitTestTypeNone,
+			originalMessage: "review message\n",
+			expectedMessage: "review message\nPresubmitTest: none\n",
+		},
+		{
+			presubmitType: gerrit.PresubmitTestTypeNone,
+			originalMessage: `review message
+
+Change-Id: I0000000000000000000000000000000000000000`,
+			expectedMessage: `review message
+
+PresubmitTest: none
+Change-Id: I0000000000000000000000000000000000000000`,
+		},
+		{
+			presubmitType:   gerrit.PresubmitTestTypeAll,
+			originalMessage: "",
+			expectedMessage: "",
+		},
+		{
+			presubmitType:   gerrit.PresubmitTestTypeAll,
+			originalMessage: "review message\n",
+			expectedMessage: "review message\n",
+		},
+		{
+			presubmitType: gerrit.PresubmitTestTypeAll,
+			originalMessage: `review message
+
+Change-Id: I0000000000000000000000000000000000000000`,
+			expectedMessage: `review message
+
+Change-Id: I0000000000000000000000000000000000000000`,
+		},
+	}
+
+	ctx := util.DefaultContext()
+	workingDir, _, _, gerritPath := setup(t, ctx, true)
+	defer teardown(t, ctx, workingDir)
+	branch := "my-branch"
+	if err := ctx.Git().CreateAndCheckoutBranch(branch); err != nil {
+		t.Fatalf("%v", err)
+	}
+	draft, edit, repo, reviewers, ccs := false, false, gerritPath, "", ""
+
+	for _, test := range testCases {
+		review, err := NewReview(ctx, draft, edit, repo, reviewers, ccs, test.presubmitType)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if got := review.processPresubmitLabel(test.originalMessage); got != test.expectedMessage {
+			t.Fatalf("want %s, got %s", test.expectedMessage, got)
+		}
+	}
 }

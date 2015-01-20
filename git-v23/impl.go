@@ -29,6 +29,7 @@ var (
 	gofmtFlag       bool
 	masterFlag      bool
 	noColorFlag     bool
+	presubmitFlag   string
 	reviewersFlag   string
 	verboseFlag     bool
 	uncommittedFlag bool
@@ -47,6 +48,8 @@ func init() {
 	cmdReview.Flags.BoolVar(&uncommittedFlag, "check_uncommitted", true, "Check that no uncommitted changes exist.")
 	cmdReview.Flags.BoolVar(&depcopFlag, "check_depcop", true, "Check that no go-depcop violations exist.")
 	cmdReview.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
+	cmdReview.Flags.StringVar(&presubmitFlag, "presubmit", string(gerrit.PresubmitTestTypeAll),
+		fmt.Sprintf("The type of presubmit tests to run. Valid values: %s.", strings.Join(gerrit.PresubmitTestTypes(), ",")))
 }
 
 var cmdRoot = &cmdline.Command{
@@ -241,13 +244,53 @@ var defaultMessageHeader = `
 
 // runReview is a wrapper that sets up and runs a review instance.
 func runReview(command *cmdline.Command, _ []string) error {
+	// Sanity checks for the presubmitFlag.
+	if !checkPresubmitFlag() {
+		return command.UsageErrorf("Invalid value for -presubmit flag. Valid values: %s.",
+			strings.Join(gerrit.PresubmitTestTypes(), ","))
+	}
+
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	edit, repo := true, ""
-	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag)
+	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag, gerrit.PresubmitTestType(presubmitFlag))
 	if err != nil {
 		return err
 	}
+
+	// Ask users to confirm when they changed the presubmit flag.
+	commitMessageFileName, err := review.getCommitMessageFilename()
+	if err != nil {
+		return err
+	}
+	bytes, err := ioutil.ReadFile(commitMessageFileName)
+	if err == nil {
+		prevPresubmitType := string(gerrit.PresubmitTestTypeAll)
+		content := string(bytes)
+		matches := presubmitTestLabelRE.FindStringSubmatch(content)
+		if matches != nil {
+			prevPresubmitType = matches[1]
+		}
+		if presubmitFlag != prevPresubmitType {
+			fmt.Printf("Are you sure you want to change presubmit=%s to presubmit=%s? (y/n): ", prevPresubmitType, presubmitFlag)
+			var response string
+			if _, err := fmt.Scanf("%s\n", &response); err != nil || response != "y" {
+				return nil
+			}
+		}
+	}
+
 	return review.run()
+}
+
+func checkPresubmitFlag() bool {
+	validPresubmitTestTypes := gerrit.PresubmitTestTypes()
+	for _, t := range validPresubmitTestTypes {
+		if presubmitFlag == t {
+			return true
+			break
+		}
+	}
+	return false
 }
 
 // review holds the state of a review.
@@ -262,6 +305,8 @@ type review struct {
 	draft bool
 	// edit indicates whether to edit the review message.
 	edit bool
+	// the type of presubmit tests to run.
+	presubmit gerrit.PresubmitTestType
 	// repo is the name of the gerrit repository.
 	repo string
 	// reviewBranch is the name of the temporary git branch used to send the review.
@@ -271,7 +316,8 @@ type review struct {
 }
 
 // NewReview is the review factory.
-func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string) (*review, error) {
+// TODO(jingjin): use optional arguments.
+func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string, presubmit gerrit.PresubmitTestType) (*review, error) {
 	branch, err := ctx.Git().CurrentBranchName()
 	if err != nil {
 		return nil, err
@@ -283,6 +329,7 @@ func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string)
 		ctx:          ctx,
 		draft:        draft,
 		edit:         edit,
+		presubmit:    presubmit,
 		repo:         repo,
 		reviewBranch: reviewBranch,
 		reviewers:    reviewers,
@@ -290,7 +337,11 @@ func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string)
 }
 
 // Change-Ids start with 'I' and are followed by 40 characters of hex.
-var reChangeID *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
+var changeIDRE *regexp.Regexp = regexp.MustCompile("Change-Id: I[0123456789abcdefABCDEF]{40}")
+
+// Presubmit test label.
+// PresubmitTest: <type>
+var presubmitTestLabelRE *regexp.Regexp = regexp.MustCompile(`PresubmitTest:\s*(.*)`)
 
 // checkGoFormat checks if the code to be submitted needs to be
 // formatted with "go fmt".
@@ -434,7 +485,7 @@ func (r *review) defaultCommitMessage() (string, error) {
 		return "", err
 	}
 	// Strip "Change-Id: ..." from the commit messages.
-	strippedMessages := reChangeID.ReplaceAllLiteralString(commitMessages, "")
+	strippedMessages := changeIDRE.ReplaceAllLiteralString(commitMessages, "")
 	// Add comment markers (#) to every line.
 	commentedMessages := "# " + strings.Replace(strippedMessages, "\n", "\n# ", -1)
 	message := defaultMessageHeader + commentedMessages
@@ -448,11 +499,30 @@ func (r *review) ensureChangeID() error {
 	if err != nil {
 		return err
 	}
-	changeID := reChangeID.FindString(latestCommitMessage)
+	changeID := changeIDRE.FindString(latestCommitMessage)
 	if changeID == "" {
 		return noChangeIDError(struct{}{})
 	}
 	return nil
+}
+
+// processPresubmitLabel adds/removes the "PresubmitTest" label for the given
+// commit message.
+func (r *review) processPresubmitLabel(message string) string {
+	// Find the Change-ID line.
+	changeIDLine := changeIDRE.FindString(message)
+
+	// Strip existing presubmit label and change-ID.
+	message = presubmitTestLabelRE.ReplaceAllLiteralString(message, "")
+	message = changeIDRE.ReplaceAllLiteralString(message, "")
+
+	// Insert presubmit label and change-ID back.
+	if r.presubmit != gerrit.PresubmitTestTypeAll {
+		message += fmt.Sprintf("PresubmitTest: %s\n", r.presubmit)
+	}
+	message += changeIDLine
+
+	return message
 }
 
 // run implements the end-to-end functionality of the review command.
@@ -507,6 +577,17 @@ func (r *review) run() (e error) {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
+	// Add/remove presubmit label to/from the commit message before asking users
+	// to edit it.
+	// We do this only when this is not the initial commit where the message is
+	// empty.
+	//
+	// For the initial commit, the presubmit label will be processed after the
+	// message is edited by users, which happens in the updateReviewMessage
+	// method.
+	if message != "" {
+		message = r.processPresubmitLabel(message)
+	}
 	if err := r.createReviewBranch(message); err != nil {
 		return err
 	}
@@ -542,6 +623,21 @@ func (r *review) updateReviewMessage(filename string) error {
 	newMessage, err := r.ctx.Git().LatestCommitMessage()
 	if err != nil {
 		return err
+	}
+	// For the initial commit where the commit message file doesn't exist,
+	// add/remove presubmit label after users finish editing the commit message.
+	//
+	// This behavior is consistent with how Change-ID is added for the initial
+	// commit so we don't confuse users.
+	if _, err := os.Stat(filename); err != nil {
+		if os.IsNotExist(err) {
+			newMessage = r.processPresubmitLabel(newMessage)
+			if err := r.ctx.Git().CommitAmend(newMessage); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	if err := r.ctx.Git().CheckoutBranch(r.branch, !gitutil.Force); err != nil {
 		return err

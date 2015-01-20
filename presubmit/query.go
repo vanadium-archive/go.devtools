@@ -360,6 +360,7 @@ outer:
 		// Check and cancel matched outdated builds.
 		curCLMap := clNumberToPatchsetMap{}
 		clStrings := []string{}
+		skipPresubmitTest := false
 		for _, curCL := range curCLList {
 			// Ignore all CLs that are not in the default manifest.
 			// TODO(jingjin): find a better way so we can remove this check.
@@ -374,16 +375,30 @@ outer:
 			}
 			curCLMap[cl] = patchset
 			clStrings = append(clStrings, fmt.Sprintf("http://go/vcl/%d/%d", cl, patchset))
+
+			if curCL.PresubmitTest == gerrit.PresubmitTestTypeNone {
+				skipPresubmitTest = true
+			}
 		}
-		for err := range removeOutdatedFn(ctx, curCLMap) {
-			printf(ctx.Stderr(), "%v\n", err)
+
+		for _, err := range removeOutdatedFn(ctx, curCLMap) {
+			if err != nil {
+				printf(ctx.Stderr(), "%v\n", err)
+			}
+		}
+
+		// Don't send curCLList to presubmit-test if at least one of them
+		// have PresubmitTest set to none.
+		if skipPresubmitTest {
+			printf(ctx.Stdout(), "SKIP: Add %s\n", strings.Join(clStrings, ", "))
+			continue
 		}
 
 		// Send curCLList to presubmit-test.
 		strCLs := fmt.Sprintf("Add %s", strings.Join(clStrings, ", "))
 		if err := addPresubmitFn(ctx, curCLList); err != nil {
 			printf(ctx.Stdout(), "FAIL: %s\n", strCLs)
-			printf(ctx.Stderr(), "addPresubmitTestBuild(%+v) failed: %v", curCLList, err)
+			printf(ctx.Stderr(), "addPresubmitTestBuild(%+v) failed: %v\n", curCLList, err)
 		} else {
 			printf(ctx.Stdout(), "PASS: %s\n", strCLs)
 			clsSent += len(curCLList)

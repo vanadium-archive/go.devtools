@@ -270,6 +270,9 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 			genCL(1000, 1, "release.js.core"),
 		},
 		clList{
+			genCLWithPresubmitTestType(2000, 1, "release.js.core", gerrit.PresubmitTestTypeNone),
+		},
+		clList{
 			genMultiPartCL(1001, 1, "release.js.core", "t", 1, 2),
 			genMultiPartCL(1002, 1, "release.go.core", "t", 2, 2),
 		},
@@ -284,7 +287,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		// It will return error for the first clList.
 		func(ctx *util.Context, cls clList) error {
 			if reflect.DeepEqual(cls, clLists[0]) {
-				return fmt.Errorf("err\n")
+				return fmt.Errorf("err")
 			} else {
 				return nil
 			}
@@ -293,7 +296,8 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 	// Check output and return value.
 	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
-[VANADIUM PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:release.js.core ChangeID: MultiPart:<nil>}]) failed: err
+[VANADIUM PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:release.js.core ChangeID: PresubmitTest:all MultiPart:<nil>}]) failed: err
+[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
 `
 	if got := buf.String(); expectedOutput != got {
@@ -623,10 +627,15 @@ func TestParseRefString(t *testing.T) {
 }
 
 func genCL(clNumber, patchset int, repo string) gerrit.QueryResult {
+	return genCLWithPresubmitTestType(clNumber, patchset, repo, gerrit.PresubmitTestTypeAll)
+}
+
+func genCLWithPresubmitTestType(clNumber, patchset int, repo string, presubmit gerrit.PresubmitTestType) gerrit.QueryResult {
 	return gerrit.QueryResult{
-		Ref:      fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
-		Repo:     repo,
-		ChangeID: "",
+		Ref:           fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
+		Repo:          repo,
+		ChangeID:      "",
+		PresubmitTest: presubmit,
 	}
 }
 

@@ -36,6 +36,9 @@ func TestParseQueryResults(t *testing.T) {
 						"http": {
 							"ref": "refs/changes/43/4443/1"
 						}
+					},
+					"commit": {
+						"message": "this change is great.\nPresubmitTest: none"
 					}
 				}
 			}
@@ -45,14 +48,16 @@ func TestParseQueryResults(t *testing.T) {
 
 	expected := []QueryResult{
 		{
-			Ref:      "refs/changes/40/4440/1",
-			Repo:     "vanadium",
-			ChangeID: "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
+			Ref:           "refs/changes/40/4440/1",
+			Repo:          "vanadium",
+			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
+			PresubmitTest: PresubmitTestTypeAll,
 		},
 		{
-			Ref:      "refs/changes/43/4443/1",
-			Repo:     "tools",
-			ChangeID: "I35d83f8adae5b7db1974062fdc744f700e456677",
+			Ref:           "refs/changes/43/4443/1",
+			Repo:          "tools",
+			ChangeID:      "I35d83f8adae5b7db1974062fdc744f700e456677",
+			PresubmitTest: PresubmitTestTypeNone,
 		},
 	}
 
