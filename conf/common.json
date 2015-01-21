@@ -48,7 +48,7 @@
       "javascript",
       "projects"
     ],
-    "veyron-www": [
+    "www": [
       "vanadium-www-playground",
       "vanadium-www-site",
       "vanadium-www-tutorials"
