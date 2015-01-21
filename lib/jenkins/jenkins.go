@@ -24,7 +24,7 @@ func (j *Jenkins) Invoke(method, suffix string, values url.Values) (*http.Respon
 	if err != nil {
 		return nil, fmt.Errorf("Parse(%q) failed: %v", j.host, err)
 	}
-	apiURL.Path = fmt.Sprintf("%s/%s", suffix)
+	apiURL.Path = fmt.Sprintf("%s/%s", apiURL, suffix)
 	apiURL.RawQuery = values.Encode()
 	var body io.Reader
 	url, body := apiURL.String(), nil
