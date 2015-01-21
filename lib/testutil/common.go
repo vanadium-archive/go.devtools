@@ -145,9 +145,8 @@ func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failure
 			if err == runutil.CommandTimedOutErr {
 				return &TestResult{Status: TestTimedOut}, nil
 			}
-			return &TestResult{Status: TestFailed}, nil
 		}
-		return nil, err
+		return &TestResult{Status: TestFailed}, nil
 	}
 	return nil, nil
 }
