@@ -125,9 +125,10 @@ func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failure
 			}
 			var existingSuites testSuites
 			if err := xml.Unmarshal(bytes, &existingSuites); err != nil {
-				return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(bytes))
+				fmt.Fprintf(ctx.Stderr(), "Unmarshal() failed: %v\n%v", err, string(bytes))
+			} else {
+				suites = append(suites, existingSuites.Suites...)
 			}
-			suites = append(suites, existingSuites.Suites...)
 		}
 
 		// Create xUnit report with suites.
