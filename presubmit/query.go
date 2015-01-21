@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -433,7 +432,12 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 	} else {
 		// Get queued presubmit-test builds.
 		defer collect.Errors(func() error { return getQueuedBuildsRes.Body.Close() }, &errs)
-		queuedItems, queuedErrs := queuedOutdatedBuilds(getQueuedBuildsRes.Body, cls)
+		bytes, err := ioutil.ReadAll(getQueuedBuildsRes.Body)
+		if err != nil {
+			errs = append(errs, err)
+			return
+		}
+		queuedItems, queuedErrs := queuedOutdatedBuilds(bytes, cls)
 		errs = append(errs, queuedErrs...)
 
 		// Cancel them.
@@ -465,7 +469,12 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 	} else {
 		// Get ongoing presubmit-test build.
 		defer collect.Errors(func() error { return getLastBuildRes.Body.Close() }, &errs)
-		build, err := ongoingOutdatedBuild(getLastBuildRes.Body, cls)
+		bytes, err := ioutil.ReadAll(getLastBuildRes.Body)
+		if err != nil {
+			errs = append(errs, err)
+			return
+		}
+		build, err := ongoingOutdatedBuild(bytes, cls)
 		if err != nil {
 			errs = append(errs, err)
 			return
@@ -499,8 +508,7 @@ type queuedItem struct {
 // queuedOutdatedBuilds returns the ids and refs of queued
 // presubmit-test builds that have the given cl number and equal or
 // smaller patchset number.
-func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) (_ []queuedItem, errs []error) {
-	r := bufio.NewReader(reader)
+func queuedOutdatedBuilds(resBytes []byte, cls clNumberToPatchsetMap) (_ []queuedItem, errs []error) {
 	var items struct {
 		Items []struct {
 			Id     int
@@ -510,10 +518,8 @@ func queuedOutdatedBuilds(reader io.Reader, cls clNumberToPatchsetMap) (_ []queu
 			}
 		}
 	}
-	if err := json.NewDecoder(r).Decode(&items); err != nil {
-		var buf bytes.Buffer
-		buf.ReadFrom(reader)
-		return nil, []error{fmt.Errorf("Decode() failed: %v\n%s", err, buf.String())}
+	if err := json.Unmarshal(resBytes, &items); err != nil {
+		return nil, []error{fmt.Errorf("Decode() in queuedOutdatedBuilds failed: %v\n%s", err, string(resBytes))}
 	}
 
 	queuedItems := []queuedItem{}
@@ -563,10 +569,9 @@ type ongoingBuild struct {
 // ongoingOutdatedBuild returns the build number/ref of the last
 // presubmit build if the build is still ongoing and the build has the
 // given cl number and a smaller patchset index.
-func ongoingOutdatedBuild(reader io.Reader, cls clNumberToPatchsetMap) (ongoingBuild, error) {
+func ongoingOutdatedBuild(resBytes []byte, cls clNumberToPatchsetMap) (ongoingBuild, error) {
 	invalidOngoingBuild := ongoingBuild{buildNumber: -1}
 
-	r := bufio.NewReader(reader)
 	var build struct {
 		Actions []struct {
 			Parameters []struct {
@@ -577,10 +582,8 @@ func ongoingOutdatedBuild(reader io.Reader, cls clNumberToPatchsetMap) (ongoingB
 		Building bool
 		Number   int
 	}
-	if err := json.NewDecoder(r).Decode(&build); err != nil {
-		var buf bytes.Buffer
-		buf.ReadFrom(reader)
-		return invalidOngoingBuild, fmt.Errorf("Decode() failed: %v\n%s", err, buf.String())
+	if err := json.Unmarshal(resBytes, &build); err != nil {
+		return invalidOngoingBuild, fmt.Errorf("Decode() in ongoingOutdatedBuild failed: %v\n%s", err, string(resBytes))
 	}
 
 	if !build.Building {

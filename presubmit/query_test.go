@@ -394,7 +394,7 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		got, errs := queuedOutdatedBuilds(strings.NewReader(response), test.cls)
+		got, errs := queuedOutdatedBuilds([]byte(response), test.cls)
 		if len(errs) != 0 {
 			t.Fatalf("want no errors, got: %v", errs)
 		}
@@ -510,7 +510,7 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		got, err := ongoingOutdatedBuild(strings.NewReader(test.input), test.cls)
+		got, err := ongoingOutdatedBuild([]byte(test.input), test.cls)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}
