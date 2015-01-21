@@ -423,8 +423,11 @@ func isInDefaultManifest(ctx *util.Context, cl gerrit.QueryResult, defaultProjec
 // Since this is not a critical operation, we simply print out the
 // errors if we see any.
 func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []error) {
+	jenkins := ctx.Jenkins(jenkinsHostFlag)
 	// Queued presubmit-test builds.
-	getQueuedBuildsRes, err := jenkinsAPI("queue/api/json", "GET", nil)
+	getQueuedBuildsRes, err := jenkins.Invoke("GET", "queue/api/json", url.Values{
+		"token": {jenkinsTokenFlag},
+	})
 	if err != nil {
 		errs = append(errs, nil)
 	} else {
@@ -436,8 +439,9 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 		// Cancel them.
 		for _, queuedItem := range queuedItems {
 			cancelQueuedItemUri := "queue/cancelItem"
-			cancelQueuedItemRes, err := jenkinsAPI(cancelQueuedItemUri, "POST", map[string][]string{
-				"id": {fmt.Sprintf("%d", queuedItem.id)},
+			cancelQueuedItemRes, err := jenkins.Invoke("POST", cancelQueuedItemUri, url.Values{
+				"id":    {fmt.Sprintf("%d", queuedItem.id)},
+				"token": {jenkinsTokenFlag},
 			})
 			if err != nil {
 				errs = append(errs, err)
@@ -453,7 +457,9 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 
 	// Ongoing presubmit-test builds.
 	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestFlag)
-	getLastBuildRes, err := jenkinsAPI(getLastBuildUri, "GET", nil)
+	getLastBuildRes, err := jenkins.Invoke("GET", getLastBuildUri, url.Values{
+		"token": {jenkinsTokenFlag},
+	})
 	if err != nil {
 		errs = append(errs, err)
 	} else {
@@ -470,7 +476,9 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 
 		// Cancel it.
 		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestFlag, build.buildNumber)
-		cancelOngoingBuildRes, err := jenkinsAPI(cancelOngoingBuildUri, "POST", nil)
+		cancelOngoingBuildRes, err := jenkins.Invoke("POST", cancelOngoingBuildUri, url.Values{
+			"token": {jenkinsTokenFlag},
+		})
 		if err != nil {
 			errs = append(errs, err)
 		} else {
@@ -666,39 +674,6 @@ func parseRefString(ref string) (int, int, error) {
 		return -1, -1, fmt.Errorf("Atoi(%q) failed: %v", parts[4], err)
 	}
 	return cl, patchset, nil
-}
-
-// jenkinsAPI calls the given REST API uri and gets the json response if available.
-func jenkinsAPI(uri, method string, params map[string][]string) (*http.Response, error) {
-	// Construct url.
-	apiURL, err := url.Parse(jenkinsHostFlag)
-	if err != nil {
-		return nil, fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
-	}
-	apiURL.Path = fmt.Sprintf("%s/%s", apiURL.Path, uri)
-	values := url.Values{
-		"token": {jenkinsTokenFlag},
-	}
-	if params != nil {
-		for name := range params {
-			values[name] = params[name]
-		}
-	}
-	apiURL.RawQuery = values.Encode()
-
-	// Get response.
-	var body io.Reader
-	url, body := apiURL.String(), nil
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
-	}
-	req.Header.Add("Accept", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Do(%v) failed: %v", req, err)
-	}
-	return res, nil
 }
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for

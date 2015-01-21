@@ -340,7 +340,7 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 
 	for _, curTest := range tests {
 		seenTests := map[string]int{}
-		failedTestGetterFn := func(string, string) ([]testCase, error) {
+		failedTestGetterFn := func(*util.Context, string, string) ([]testCase, error) {
 			return curTest.failedTestGetterResult, nil
 		}
 		linksMap, err := genFailedTestLinks(ctx, strings.NewReader(reportFileContent), seenTests, curTest.testName, curTest.slaveLabel, curTest.newMode, failedTestGetterFn)

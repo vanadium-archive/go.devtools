@@ -334,7 +334,7 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 	// In the new mode, check whether the master job is failed or not.
 	// If the master job fails, then some sub-jobs fail to finish.
 	if newMode {
-		masterJobStatus, err := checkMasterJobStatus()
+		masterJobStatus, err := checkMasterJobStatus(ctx)
 		if err != nil {
 			fmt.Fprint(ctx.Stderr(), "%v\n", err)
 		} else {
@@ -595,12 +595,15 @@ type failedTestLinksMap map[failureType][]string
 
 // failedTestCases gets a list of failed test cases from the most
 // recent build of the given Jenkins test.
-func failedTestCases(testName string, slaveLabel string) (_ []testCase, e error) {
+func failedTestCases(ctx *util.Context, testName string, slaveLabel string) (_ []testCase, e error) {
+	jenkins := ctx.Jenkins(jenkinsHostFlag)
 	getTestRerpotUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", testName)
 	if isMultiConfigurationProject(testName) {
 		getTestRerpotUri = fmt.Sprintf("job/%s/L=%s/lastCompletedBuild/testReport/api/json", testName, slaveLabel)
 	}
-	getTestReportRes, err := jenkinsAPI(getTestRerpotUri, "GET", nil)
+	getTestReportRes, err := jenkins.Invoke("GET", getTestRerpotUri, url.Values{
+		"token": {jenkinsTokenFlag},
+	})
 	if err != nil {
 		return []testCase{}, err
 	}
@@ -694,10 +697,10 @@ func createFailedTestsReport(ctx *util.Context, testResults []testResultInfo, ne
 }
 
 func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[string]int, testName string, slaveLabel string, newMode bool,
-	getFailedTestCases func(string, string) ([]testCase, error)) (failedTestLinksMap, error) {
+	getFailedTestCases func(*util.Context, string, string) ([]testCase, error)) (failedTestLinksMap, error) {
 	// Get failed test cases from the corresponding Jenkins test to
 	// compare with the failed tests from presubmit.
-	failedTestCases, err := getFailedTestCases(testName, slaveLabel)
+	failedTestCases, err := getFailedTestCases(ctx, testName, slaveLabel)
 	if err != nil {
 		printf(ctx.Stderr(), "%v\n", err)
 	}
@@ -922,9 +925,12 @@ func writeTestStatusFile(ctx *util.Context, results map[string]*testutil.TestRes
 }
 
 // checkMasterJobStatus returns the status of the presubmit-test master job.
-func checkMasterJobStatus() (_ string, e error) {
+func checkMasterJobStatus(ctx *util.Context) (_ string, e error) {
+	jenkins := ctx.Jenkins(jenkinsHostFlag)
 	getMasterJobStatusUri := fmt.Sprintf("job/%s/%d/api/json", presubmitTestFlag, jenkinsBuildNumberFlag)
-	getMasterJobStatusRes, err := jenkinsAPI(getMasterJobStatusUri, "GET", nil)
+	getMasterJobStatusRes, err := jenkins.Invoke("GET", getMasterJobStatusUri, url.Values{
+		"token": {jenkinsTokenFlag},
+	})
 	if err != nil {
 		return "", err
 	}

@@ -7,6 +7,7 @@ import (
 	"v.io/lib/cmdline"
 	"v.io/tools/lib/gitutil"
 	"v.io/tools/lib/hgutil"
+	"v.io/tools/lib/jenkins"
 	"v.io/tools/lib/runutil"
 )
 
@@ -64,9 +65,10 @@ func (RootDirOpt) gitOpt() {}
 func (RootDirOpt) hgOpt()  {}
 
 // Git returns a new git instance.
-// This method accepts one optional argument: the repo root to use for commands
-// issued by the returned instance. If not specified, commands will use the
-// current directory as the repo root.
+//
+// This method accepts one optional argument: the repository root to
+// use for commands issued by the returned instance. If not specified,
+// commands will use the current directory as the repository root.
 func (ctx Context) Git(opts ...gitOpt) *gitutil.Git {
 	rootDir := ""
 	for _, opt := range opts {
@@ -79,9 +81,10 @@ func (ctx Context) Git(opts ...gitOpt) *gitutil.Git {
 }
 
 // Hg returns a new hg instance.
-// This method accepts one optional argument: the repo root to use for commands
-// issued by the returned instance. If not specified, commands will use the
-// current directory as the repo root.
+//
+// This method accepts one optional argument: the repository root to
+// use for commands issued by the returned instance. If not specified,
+// commands will use the current directory as the repository root.
 func (ctx Context) Hg(opts ...hgOpt) *hgutil.Hg {
 	rootDir := ""
 	for _, opt := range opts {
@@ -91,6 +94,12 @@ func (ctx Context) Hg(opts ...hgOpt) *hgutil.Hg {
 		}
 	}
 	return hgutil.New(ctx.run, rootDir)
+}
+
+// Jenkins returns a new Jenkins instance that can be used to
+// communicate with a Jenkins server running at the given host.
+func (ctx Context) Jenkins(host string) *jenkins.Jenkins {
+	return jenkins.New(host)
 }
 
 // Run returns the run instance of the context.
