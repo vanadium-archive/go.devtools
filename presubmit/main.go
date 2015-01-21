@@ -4,7 +4,9 @@
 
 package main
 
+import "os"
+
 func main() {
 	substituteVarsInFlags()
-	root().Main()
+	os.Exit(root().Main())
 }
