@@ -109,38 +109,45 @@ func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failure
 	if err := commandFunc(opts); err != nil {
 		xUnitFilePath := XUnitReportPath(testName)
 
-		// Create a test suite to wrap up the error.
-		// Include last <numLinesToOutput> lines of the output in the error message.
-		lines := strings.Split(out.String(), "\n")
-		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
-		errMsg := "......\n" + strings.Join(lines[startLine:], "\n")
-		s := createTestSuiteWithFailure(testName, testCaseName, failureSummary, errMsg, 0)
-		suites := []testSuite{*s}
-
-		// xUnit file exists, append existing suites.
-		if _, err := os.Stat(xUnitFilePath); err == nil {
+		// Only create the report when the xUnit file doesn't exist or is invalid.
+		createXUnitFile := false
+		if _, err := os.Stat(xUnitFilePath); err != nil {
+			if os.IsNotExist(err) {
+				createXUnitFile = true
+			} else {
+				return nil, fmt.Errorf("Stat(%s) failed: %v", xUnitFilePath, err)
+			}
+		} else {
 			bytes, err := ioutil.ReadFile(xUnitFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("ReadFile(%s) failed: %v", xUnitFilePath, err)
 			}
 			var existingSuites testSuites
 			if err := xml.Unmarshal(bytes, &existingSuites); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "Unmarshal() failed: %v\n%v", err, string(bytes))
-			} else {
-				suites = append(suites, existingSuites.Suites...)
+				createXUnitFile = true
 			}
 		}
 
-		// Create xUnit report with suites.
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
-			return nil, err
-		}
+		if createXUnitFile {
+			// Create a test suite to wrap up the error.
+			// Include last <numLinesToOutput> lines of the output in the error message.
+			lines := strings.Split(out.String(), "\n")
+			startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
+			errMsg := "......\n" + strings.Join(lines[startLine:], "\n")
+			s := createTestSuiteWithFailure(testName, testCaseName, failureSummary, errMsg, 0)
+			suites := []testSuite{*s}
 
-		// Return test result.
-		if err == runutil.CommandTimedOutErr {
-			return &TestResult{Status: TestTimedOut}, nil
+			if err := createXUnitReport(ctx, testName, suites); err != nil {
+				return nil, err
+			}
+
+			// Return test result.
+			if err == runutil.CommandTimedOutErr {
+				return &TestResult{Status: TestTimedOut}, nil
+			}
+			return &TestResult{Status: TestFailed}, nil
 		}
-		return &TestResult{Status: TestFailed}, nil
+		return nil, err
 	}
 	return nil, nil
 }

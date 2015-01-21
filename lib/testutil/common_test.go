@@ -83,30 +83,11 @@ exit 1`
 		t.Fatalf("want %v, got %v", expected, got)
 	}
 
-	// There is already an xUnit file there.
+	// There is already an xUnit file there, but empty (invalid).
 	if err := os.RemoveAll(xUnitFileName); err != nil {
 		t.Fatalf("RemoveAll(%s) failed: %v", xUnitFileName, err)
 	}
-	existingSuites := testSuites{
-		Suites: []testSuite{
-			testSuite{
-				Name: "vanadium-go-test",
-				Cases: []testCase{
-					testCase{
-						Name:      "test1",
-						Classname: "vanadium-go-test",
-						Time:      "1.00",
-					},
-				},
-				Tests: 1,
-			},
-		},
-	}
-	bytes, err := xml.MarshalIndent(existingSuites, "", "  ")
-	if err != nil {
-		t.Fatalf("MarshalIndent() failed: %v", err)
-	}
-	if err := ioutil.WriteFile(xUnitFileName, bytes, 0644); err != nil {
+	if err := ioutil.WriteFile(xUnitFileName, []byte{}, 0644); err != nil {
 		t.Fatalf("WriteFile(%s) failed: %v", xUnitFileName, err)
 	}
 	testResult, err = genXUnitReportOnCmdError(ctx, "vanadium-go-test", "build", "failure",
@@ -123,7 +104,6 @@ exit 1`
 	expectedSuites = &testSuites{
 		Suites: []testSuite{
 			expectedSuites.Suites[0],
-			existingSuites.Suites[0],
 		},
 		XMLName: xml.Name{
 			Local: "testsuites",
