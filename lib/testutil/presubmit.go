@@ -231,7 +231,7 @@ func vanadiumPresubmitTestNew(ctx *util.Context, testName string) (_ *TestResult
 		"-host", jenkinsHost,
 		"-token", jenkinsToken,
 		"-netrc", netrcFile,
-		"-project", "ignore-presubmit-test-new",
+		"-project", "vanadium-presubmit-test-new",
 		"test",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
 		"-manifest", "default",
