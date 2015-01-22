@@ -124,7 +124,7 @@ func addNodeToJenkins(ctx *util.Context, node string) (*http.Response, error) {
 
 // machines stores information about Jenkins machines.
 type machines struct {
-	Machines []machine `json:"machine"`
+	Machines []machine `json:"computer"`
 }
 
 // machine stores information about a Jenkins machine.
