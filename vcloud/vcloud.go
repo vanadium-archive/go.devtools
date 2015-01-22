@@ -24,7 +24,7 @@ import (
 // TODO(toddw): Add tests by mocking out gcloud.
 
 func main() {
-	cmdVCloud.Main()
+	os.Exit(cmdVCloud.Main())
 }
 
 var cmdVCloud = &cmdline.Command{

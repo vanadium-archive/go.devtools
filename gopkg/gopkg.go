@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -13,7 +14,7 @@ import (
 )
 
 func main() {
-	cmdGoPkg.Main()
+	os.Exit(cmdGoPkg.Main())
 }
 
 var cmdGoPkg = &cmdline.Command{
