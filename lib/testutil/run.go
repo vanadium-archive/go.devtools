@@ -79,6 +79,7 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-go-test":                vanadiumGoTest,
 	"vanadium-go-race":                vanadiumGoRace,
 	"vanadium-integration-test":       vanadiumIntegrationTest,
+	"vanadium-integration-test-new":   vanadiumNewIntegrationTest,
 	"vanadium-js-build-extension":     vanadiumJSBuildExtension,
 	"vanadium-js-doc":                 vanadiumJSDoc,
 	"vanadium-js-browser-integration": vanadiumJSBrowserIntegration,

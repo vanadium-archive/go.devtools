@@ -120,11 +120,7 @@ func buildBinaries(ctx *util.Context, testName string, opts ...goIntegrationOpt)
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// findIntegrationTests finds all test.sh or testdata/integration_test.go files
-// from the given root dirs.
-//
-// TODO(sjr,jsimsa): Replace with go-based integration tests when available.
-func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
+func findIntegrationTests(ctx *util.Context, rootDirs []string, testNamePredicate func(string) bool) []string {
 	if ctx.DryRun() {
 		// In "dry run" mode, no test scripts are executed.
 		return nil
@@ -132,7 +128,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 	matchedFiles := []string{}
 	for _, rootDir := range rootDirs {
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-			if strings.HasSuffix(path, string(os.PathSeparator)+"test.sh") {
+			if testNamePredicate(path) {
 				matchedFiles = append(matchedFiles, path)
 			}
 			return nil
@@ -143,7 +139,7 @@ func findIntegrationTests(ctx *util.Context, rootDirs []string) []string {
 
 // runIntegrationTests runs all integration tests found under
 // $VANADIUM_ROOT/roadmap/go/src and $VANADIUM_ROOT/release/go/src.
-func runIntegrationTests(ctx *util.Context, testName string, opts ...goIntegrationOpt) (*TestResult, error) {
+func runIntegrationTests(ctx *util.Context, testName string, testNamePredicate func(string) bool, opts ...goIntegrationOpt) (*TestResult, error) {
 	suffix := ""
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -162,7 +158,7 @@ func runIntegrationTests(ctx *util.Context, testName string, opts ...goIntegrati
 		filepath.Join(root, "release", "go", "src"),
 		filepath.Join(root, "roadmap", "go", "src"),
 		filepath.Join(root, "scripts"),
-	})
+	}, testNamePredicate)
 
 	// Create a worker pool to run tests in parallel, passing the
 	// location of binaries through shell_test_BIN_DIR.
@@ -291,7 +287,28 @@ func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult,
 	if result.Status == TestFailed {
 		return result, nil
 	}
-	result, err = runIntegrationTests(ctx, testName, suffix)
+	result, err = runIntegrationTests(ctx, testName, func(path string) bool {
+		return strings.HasSuffix(path, string(os.PathSeparator)+"test.sh")
+	}, suffix)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// vanadiumNewIntegrationTest runs the new Go-based integration tests.
+func vanadiumNewIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+	// Initialize the test.
+	cleanup, err := initTest(ctx, testName, []string{"web"})
+	if err != nil {
+		return nil, err
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
+	suffix := suffixOpt(genTestNameSuffix(""))
+	result, err := runIntegrationTests(ctx, testName, func(path string) bool {
+		return strings.HasSuffix(path, filepath.Join("testdata", "integration_test.go"))
+	}, suffix)
 	if err != nil {
 		return nil, err
 	}
