@@ -519,6 +519,9 @@ func (r *review) processPresubmitLabel(message string) string {
 	if r.presubmit != gerrit.PresubmitTestTypeAll {
 		message += fmt.Sprintf("PresubmitTest: %s\n", r.presubmit)
 	}
+	if changeIDLine != "" && !strings.HasSuffix(message, "\n") {
+		message += "\n"
+	}
 	message += changeIDLine
 
 	return message
