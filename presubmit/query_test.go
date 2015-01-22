@@ -296,7 +296,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 	// Check output and return value.
 	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
-[VANADIUM PRESUBMIT] addPresubmitTestBuild([{Ref:refs/changes/xx/1000/1 Repo:release.js.core ChangeID: PresubmitTest:all MultiPart:<nil>}]) failed: err
+[VANADIUM PRESUBMIT] addPresubmitTestBuild([{ChangeID: Labels:map[] MultiPart:<nil> PresubmitTest:all Ref:refs/changes/xx/1000/1 Repo:release.js.core}]) failed: err
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
 `

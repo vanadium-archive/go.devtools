@@ -17,7 +17,7 @@ import (
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/gitutil"
-	"v.io/tools/lib/util"
+	"v.io/tools/lib/runutil"
 )
 
 var (
@@ -32,60 +32,76 @@ type Comment struct {
 	Message string `json:"message,omitempty"`
 }
 
-// GerritReview represents a Gerrit review.
-// For more details, see:
+// Review represents a Gerrit review. For more details, see:
 // http://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#review-input
-type GerritReview struct {
+type Review struct {
 	Message  string               `json:"message,omitempty"`
-	Labels   struct{}             `json:"labels,omitempty"`
+	Labels   map[string]string    `json:"labels,omitempty"`
 	Comments map[string][]Comment `json:"comments,omitempty"`
 }
 
-// PostReview posts a review to the given Gerrit refs.
-func PostReview(ctx *util.Context, gerritBaseUrl, username, password string, refs []string, review GerritReview) error {
-	fmt.Fprintf(ctx.Stdout(), "Posting review for %v:\n%#v\n", refs, review)
+type Gerrit struct {
+	host     string
+	password string
+	username string
+}
 
-	// Encode "review" in json.
+// New is the Gerrit factory.
+func New(host, username, password string) *Gerrit {
+	return &Gerrit{
+		host:     host,
+		password: password,
+		username: username,
+	}
+}
+
+// PostReview posts a review to the given Gerrit reference.
+func (g *Gerrit) PostReview(ref string, message string, labels map[string]string) (e error) {
+	review := Review{
+		Message: message,
+		Labels:  labels,
+	}
+
+	// Encode "review" as JSON.
 	encodedBytes, err := json.Marshal(review)
 	if err != nil {
 		return fmt.Errorf("Marshal(%#v) failed: %v", review, err)
 	}
-	for _, ref := range refs {
-		// Construct api url.
-		// ref is in the form of "refs/changes/<last two digits of change number>/<change number>/<patch set number>".
-		parts := strings.Split(ref, "/")
-		if expected, got := 5, len(parts); expected != got {
-			return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
-		}
-		cl, revision := parts[3], parts[4]
-		url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", gerritBaseUrl, cl, revision)
 
-		// Post review.
-		method, body := "POST", bytes.NewReader(encodedBytes)
-		req, err := http.NewRequest(method, url, body)
-		if err != nil {
-			return fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
-		}
-		req.Header.Add("Content-Type", "application/json;charset=UTF-8")
-		req.SetBasicAuth(username, password)
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("Do(%v) failed: %v", req, err)
-		}
-		res.Body.Close()
+	// Construct API URL.
+	// ref is in the form of "refs/changes/<last two digits of change number>/<change number>/<patch set number>".
+	parts := strings.Split(ref, "/")
+	if expected, got := 5, len(parts); expected != got {
+		return fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
 	}
+	cl, revision := parts[3], parts[4]
+	url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", g.host, cl, revision)
+
+	// Post the review.
+	method, body := "POST", bytes.NewReader(encodedBytes)
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+	}
+	req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+	req.SetBasicAuth(g.username, g.password)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("Do(%v) failed: %v", req, err)
+	}
+	defer collect.Error(func() error { return res.Body.Close() }, &e)
 
 	return nil
 }
 
-// QueryResult contains the essential data we care about from query
-// results.
+// QueryResult represents query result data we care about.
 type QueryResult struct {
+	ChangeID      string
+	Labels        map[string]struct{}
+	MultiPart     *MultiPartCLInfo
+	PresubmitTest PresubmitTestType
 	Ref           string
 	Repo          string
-	ChangeID      string
-	PresubmitTest PresubmitTestType
-	MultiPart     *MultiPartCLInfo
 }
 
 type PresubmitTestType string
@@ -99,7 +115,8 @@ func PresubmitTestTypes() []string {
 	return []string{string(PresubmitTestTypeNone), string(PresubmitTestTypeAll)}
 }
 
-// MultiPartCLInfo contains data used to process multiple cls across different repos.
+// MultiPartCLInfo contains data used to process multiple cls across
+// different repos.
 type MultiPartCLInfo struct {
 	Topic string
 	Index int // This should be 1-based.
@@ -108,7 +125,7 @@ type MultiPartCLInfo struct {
 
 // parseQueryResults parses a list of Gerrit ChangeInfo entries (json
 // result of a query) and returns a list of QueryResult entries.
-func parseQueryResults(ctx *util.Context, reader io.Reader) ([]QueryResult, error) {
+func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
 	r := bufio.NewReader(reader)
 
 	// The first line of the input is the XSSI guard
@@ -134,6 +151,7 @@ func parseQueryResults(ctx *util.Context, reader io.Reader) ([]QueryResult, erro
 				Message string // This contains both "subject" and the rest of the commit message.
 			}
 		}
+		Labels map[string]struct{}
 	}
 	if err := json.NewDecoder(r).Decode(&changes); err != nil {
 		return nil, fmt.Errorf("Decode() failed: %v", err)
@@ -145,12 +163,12 @@ func parseQueryResults(ctx *util.Context, reader io.Reader) ([]QueryResult, erro
 			Ref:      change.Revisions[change.Current_revision].Fetch.Http.Ref,
 			Repo:     change.Project,
 			ChangeID: change.Change_id,
+			Labels:   change.Labels,
 		}
 		clMessage := change.Revisions[change.Current_revision].Commit.Message
 		multiPartCLInfo, err := parseMultiPartMatch(clMessage)
 		if err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-			continue
+			return nil, err
 		}
 		if multiPartCLInfo != nil {
 			multiPartCLInfo.Topic = change.Topic
@@ -207,9 +225,8 @@ func parsePresubmitTestType(match string) PresubmitTestType {
 // See the following links for more details about Gerrit search syntax:
 // - https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#list-changes
 // - https://gerrit-review.googlesource.com/Documentation/user-search.html
-func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString string) (_ []QueryResult, e error) {
-	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&o=CURRENT_COMMIT&q=%s", gerritBaseUrl, url.QueryEscape(queryString))
-	fmt.Fprintf(ctx.Stdout(), "Issuing query: %v\n", url)
+func (g *Gerrit) Query(query string) (_ []QueryResult, e error) {
+	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&o=CURRENT_COMMIT&o=LABELS&q=%s", g.host, url.QueryEscape(query))
 	var body io.Reader
 	method, body := "GET", nil
 	req, err := http.NewRequest(method, url, body)
@@ -217,14 +234,14 @@ func Query(ctx *util.Context, gerritBaseUrl, username, password, queryString str
 		return nil, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
 	}
 	req.Header.Add("Accept", "application/json")
-	req.SetBasicAuth(username, password)
+	req.SetBasicAuth(g.username, g.password)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Do(%v) failed: %v", req, err)
 	}
 	defer collect.Error(func() error { return res.Body.Close() }, &e)
-	return parseQueryResults(ctx, res.Body)
+	return parseQueryResults(res.Body)
 }
 
 // formatParams formats parameters of a change list.
@@ -271,24 +288,24 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 // repoName returns the URL of the vanadium Gerrit repository with
 // respect to the repository identified by the current working
 // directory.
-func repoName(ctx *util.Context) (string, error) {
+func repoName(run *runutil.Run) (string, error) {
 	args := []string{"config", "--get", "remote.origin.url"}
 	var stdout, stderr bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := run.Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	if err := ctx.Run().CommandWithOpts(opts, "git", args...); err != nil {
+	if err := run.CommandWithOpts(opts, "git", args...); err != nil {
 		return "", gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
 	return "https://vanadium-review.googlesource.com/" + filepath.Base(strings.TrimSpace(stdout.String())), nil
 }
 
-// Review pushes the branch to Gerrit.
-func Review(ctx *util.Context, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
+// Push pushes the current branch to Gerrit.
+func Push(run *runutil.Run, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
 	repoPath := repoPathArg
 	if repoPathArg == "" {
 		var err error
-		repoPath, err = repoName(ctx)
+		repoPath, err = repoName(run)
 		if err != nil {
 			return err
 		}
@@ -296,10 +313,10 @@ func Review(ctx *util.Context, repoPathArg string, draft bool, reviewers, ccs, b
 	refspec := "HEAD:" + Reference(draft, reviewers, ccs, branch)
 	args := []string{"push", repoPath, refspec}
 	var stdout, stderr bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := run.Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	if err := ctx.Run().CommandWithOpts(opts, "git", args...); err != nil {
+	if err := run.CommandWithOpts(opts, "git", args...); err != nil {
 		return gitutil.Error(stdout.String(), stderr.String(), args...)
 	}
 	for _, line := range strings.Split(stderr.String(), "\n") {

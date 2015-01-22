@@ -139,10 +139,10 @@ func runQuery(command *cmdline.Command, args []string) error {
 	}
 
 	// Query Gerrit.
-	username, password := gerritCred.username, gerritCred.password
-	curCLs, err := gerrit.Query(ctx, gerritBaseUrlFlag, username, password, queryStringFlag)
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	curCLs, err := gerrit.Query(queryStringFlag)
 	if err != nil {
-		return fmt.Errorf("Query(%q, %q, %q, %q) failed: %v", gerritBaseUrlFlag, username, password, queryStringFlag, err)
+		return fmt.Errorf("Query(%q) failed: %v", queryStringFlag, err)
 	}
 
 	// Write current CLs to the log file.
@@ -350,7 +350,10 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 // sendCLListsToPresubmitTest sends the given clLists to presubmit-test Jenkins
 // target one by one to run presubmit-test builds. It returns how many CLs have
 // been sent successfully.
-func sendCLListsToPresubmitTest(ctx *util.Context, clLists []clList, defaultProjects map[string]util.Project,
+func sendCLListsToPresubmitTest(
+	ctx *util.Context,
+	clLists []clList,
+	defaultProjects map[string]util.Project,
 	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error,
 	addPresubmitFn func(*util.Context, clList) error) int {
 	clsSent := 0

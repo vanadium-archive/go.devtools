@@ -80,7 +80,7 @@ func runResult(command *cmdline.Command, args []string) (e error) {
 	})
 
 	// Read status files and add them to the "results" map below.
-	results := make(map[string]testutil.TestResult)
+	results := map[string]testutil.TestResult{}
 	names := []string{}
 	for slaveLabel, curStatusFiles := range statusFiles {
 		for _, statusFile := range curStatusFiles {

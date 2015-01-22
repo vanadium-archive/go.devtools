@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"v.io/tools/lib/util"
 )
 
 func TestParseQueryResults(t *testing.T) {
@@ -15,6 +13,24 @@ func TestParseQueryResults(t *testing.T) {
 		{
 			"change_id": "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
 			"current_revision": "3654e38b2f80a5410ea94f1d7321477d89cac391",
+			"project": "vanadium",
+			"revisions": {
+				"3654e38b2f80a5410ea94f1d7321477d89cac391": {
+					"fetch": {
+						"http": {
+							"ref": "refs/changes/40/4440/1"
+						}
+					}
+				}
+			}
+		},
+		{
+			"change_id": "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
+			"current_revision": "3654e38b2f80a5410ea94f1d7321477d89cac391",
+			"labels": {
+				"Code-Review": {},
+				"Verified": {}
+			},
 			"project": "vanadium",
 			"revisions": {
 				"3654e38b2f80a5410ea94f1d7321477d89cac391": {
@@ -48,21 +64,30 @@ func TestParseQueryResults(t *testing.T) {
 
 	expected := []QueryResult{
 		{
-			Ref:           "refs/changes/40/4440/1",
-			Repo:          "vanadium",
 			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
 			PresubmitTest: PresubmitTestTypeAll,
+			Ref:           "refs/changes/40/4440/1",
+			Repo:          "vanadium",
 		},
 		{
-			Ref:           "refs/changes/43/4443/1",
-			Repo:          "tools",
+			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
+			PresubmitTest: PresubmitTestTypeAll,
+			Labels: map[string]struct{}{
+				"Code-Review": struct{}{},
+				"Verified":    struct{}{},
+			},
+			Ref:  "refs/changes/40/4440/1",
+			Repo: "vanadium",
+		},
+		{
 			ChangeID:      "I35d83f8adae5b7db1974062fdc744f700e456677",
 			PresubmitTest: PresubmitTestTypeNone,
+			Ref:           "refs/changes/43/4443/1",
+			Repo:          "tools",
 		},
 	}
 
-	ctx := util.DefaultContext()
-	got, err := parseQueryResults(ctx, strings.NewReader(input))
+	got, err := parseQueryResults(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

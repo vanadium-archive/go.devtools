@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"v.io/lib/cmdline"
+	"v.io/tools/lib/gerrit"
 	"v.io/tools/lib/gitutil"
 	"v.io/tools/lib/hgutil"
 	"v.io/tools/lib/jenkins"
@@ -51,6 +52,11 @@ func (ctx Context) DryRun() bool {
 // Env returns the environment of the context.
 func (ctx Context) Env() map[string]string {
 	return ctx.run.Opts().Env
+}
+
+// Gerrit returns the Gerrit instance of the context.
+func (ctx Context) Gerrit(host, username, password string) *gerrit.Gerrit {
+	return gerrit.New(host, username, password)
 }
 
 type gitOpt interface {

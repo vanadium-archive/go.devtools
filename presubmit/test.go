@@ -21,7 +21,6 @@ import (
 
 	"v.io/lib/cmdline"
 	"v.io/tools/lib/collect"
-	"v.io/tools/lib/gerrit"
 	"v.io/tools/lib/gitutil"
 	"v.io/tools/lib/testutil"
 	"v.io/tools/lib/util"
@@ -515,7 +514,7 @@ func resetRepo(ctx *util.Context) error {
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given jenkins test.
 func lastCompletedBuildStatus(testName string, slaveLabel string) (_ string, e error) {
-	// Construct rest API url to get build status.
+	// Construct REST API URL to get build status.
 	statusUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
 		return "", fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
@@ -529,7 +528,7 @@ func lastCompletedBuildStatus(testName string, slaveLabel string) (_ string, e e
 		"token": {jenkinsTokenFlag},
 	}.Encode()
 
-	// Get and parse json response.
+	// Get and parse JSON response.
 	var body io.Reader
 	method, url, body := "GET", statusUrl.String(), nil
 	req, err := http.NewRequest(method, url, body)
@@ -611,7 +610,8 @@ func failedTestCases(ctx *util.Context, testName string, slaveLabel string) (_ [
 	return parseFailedTestCases(getTestReportRes.Body)
 }
 
-// parseFailedTestCases parses testCases from the given test report json string.
+// parseFailedTestCases parses testCases from the given test report
+// JSON string.
 func parseFailedTestCases(reader io.Reader) ([]testCase, error) {
 	r := bufio.NewReader(reader)
 	var testCases struct {
@@ -633,7 +633,8 @@ func parseFailedTestCases(reader io.Reader) ([]testCase, error) {
 	return failedTestCases, nil
 }
 
-// createFailedTestsReport returns links for failed tests grouped by failure types.
+// createFailedTestsReport returns links for failed tests grouped by
+// failure types.
 func createFailedTestsReport(ctx *util.Context, testResults []testResultInfo, newMode bool) (_ string, e error) {
 	linksMap := failedTestLinksMap{}
 	// seenTests maps the test full names to number of times they
@@ -696,8 +697,7 @@ func createFailedTestsReport(ctx *util.Context, testResults []testResultInfo, ne
 	return buf.String(), nil
 }
 
-func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[string]int, testName string, slaveLabel string, newMode bool,
-	getFailedTestCases func(*util.Context, string, string) ([]testCase, error)) (failedTestLinksMap, error) {
+func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[string]int, testName string, slaveLabel string, newMode bool, getFailedTestCases func(*util.Context, string, string) ([]testCase, error)) (failedTestLinksMap, error) {
 	// Get failed test cases from the corresponding Jenkins test to
 	// compare with the failed tests from presubmit.
 	failedTestCases, err := getFailedTestCases(ctx, testName, slaveLabel)
@@ -830,7 +830,7 @@ func genTestResultLink(className, testCaseName, testFullName string, suffix int,
 }
 
 // safePackageOrClassName gets the safe name of the package or class
-// name which will be used to construct the url to a test case.
+// name which will be used to construct the URL to a test case.
 //
 // The original implementation in junit jenkins plugin can be found
 // here: http://git.io/iVD0yw
@@ -839,7 +839,7 @@ func safePackageOrClassName(name string) string {
 }
 
 // safeTestName gets the safe name of the test name which will be used
-// to construct the url to a test case. Note that this is different
+// to construct the URL to a test case. Note that this is different
 // from getting the safe name for package or class.
 //
 // The original implementation in junit jenkins plugin can be found
@@ -876,7 +876,7 @@ func generateFailureReport(testName string, className, errorMessage string) (e e
 
 // postMessage posts the given message to Gerrit.
 func postMessage(ctx *util.Context, message string, refs []string) error {
-	// Basic sanity check for the Gerrit base url.
+	// Basic sanity check for the Gerrit base URL.
 	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {
 		return err
@@ -888,13 +888,13 @@ func postMessage(ctx *util.Context, message string, refs []string) error {
 		return err
 	}
 
-	// Construct and post review.
-	review := gerrit.GerritReview{Message: message}
-	err = gerrit.PostReview(ctx, gerritBaseUrlFlag, gerritCred.username, gerritCred.password, refs, review)
-	if err != nil {
-		return err
+	// Post the reviews.
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	for _, ref := range refs {
+		if err := gerrit.PostReview(ref, message, nil); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 

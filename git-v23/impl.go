@@ -606,7 +606,7 @@ func (r *review) send() error {
 			return err
 		}
 	}
-	if err := gerrit.Review(r.ctx, r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
+	if err := gerrit.Push(r.ctx.Run(), r.repo, r.draft, r.reviewers, r.ccs, r.branch); err != nil {
 		return gerritError(err.Error())
 	}
 	return nil
