@@ -69,9 +69,11 @@ type prodService struct {
 // vanadiumProdServicesTest runs a test of vanadium production services.
 func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, result, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
+	} else if result != nil {
+		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

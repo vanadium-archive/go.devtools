@@ -82,9 +82,11 @@ func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildO
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, profiles)
+	cleanup, result, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
+	} else if result != nil {
+		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -199,9 +201,11 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, profiles)
+	cleanup, result, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
+	} else if result != nil {
+		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -409,9 +413,11 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, profiles)
+	cleanup, result, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
+	} else if result != nil {
+		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -847,9 +853,11 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, result, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, err
+	} else if result != nil {
+		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

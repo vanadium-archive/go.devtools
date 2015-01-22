@@ -25,9 +25,11 @@ func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestRe
 	xUnitFile := XUnitReportPath(testName)
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"web"})
+	cleanup, result, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
+	} else if result != nil {
+		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

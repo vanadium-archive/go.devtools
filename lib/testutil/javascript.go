@@ -16,13 +16,8 @@ const (
 // runJSTest is a harness for executing javascript tests.
 func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *TestResult, e error) {
 	// Initialize the test.
-	var cleanup func() error
-	initTestFunc := func(opts runutil.Opts) error {
-		var initError error
-		cleanup, initError = initTest(ctx, testName, []string{"web"})
-		return initError
-	}
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Init", "failure", initTestFunc); err != nil {
+	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
+	if err != nil {
 		return nil, err
 	} else if testResult != nil {
 		return testResult, nil

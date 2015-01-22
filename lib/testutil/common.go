@@ -34,8 +34,8 @@ func binDirPath() string {
 	return filepath.Join(os.Getenv("TMPDIR"), "bin")
 }
 
-// initTest carries out the initial actions for the given test.
-func initTest(ctx *util.Context, testName string, profiles []string) (func() error, error) {
+// initTestHelper carries out the initial actions for the given test.
+func initTestHelper(ctx *util.Context, testName string, profiles []string) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -97,6 +97,29 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 	return func() error {
 		return ctx.Run().Chdir(cwd)
 	}, nil
+}
+
+// initTest initializes the given test and set of profiles, and wraps
+// initTestHelper with genXUnitReportOnCmdError so errors can be captured
+// in xUnit report.
+//
+// Possible return values:
+// - _, _, err: initialization failed and so did the error handling logic.
+// - _, result, nil: initialization failed and <result> captures the failure.
+// - cleanup, nil, nil: initialization succeeded.
+func initTest(ctx *util.Context, testName string, profiles []string) (func() error, *TestResult, error) {
+	var cleanup func() error
+	initTestFunc := func(opts runutil.Opts) error {
+		var initError error
+		cleanup, initError = initTestHelper(ctx, testName, profiles)
+		return initError
+	}
+	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Init", "failure", initTestFunc); err != nil {
+		return nil, nil, err
+	} else if testResult != nil {
+		return nil, testResult, nil
+	}
+	return cleanup, nil, nil
 }
 
 // genXUnitReportOnCmdError generates an xUnit test report if the given command

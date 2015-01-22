@@ -22,9 +22,11 @@ func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout t
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"web"})
+	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
 		return nil, err
+	} else if testResult != nil {
+		return testResult, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
