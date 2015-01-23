@@ -272,7 +272,14 @@ func vanadiumPresubmitTestNew(ctx *util.Context, testName string) (_ *TestResult
 	if err != nil {
 		return nil, err
 	}
-	if len(testResultFiles) == 0 {
+	hasXUnitReport := false
+	for _, file := range testResultFiles {
+		if strings.HasSuffix(file, ".xml") {
+			hasXUnitReport = true
+			break
+		}
+	}
+	if !hasXUnitReport {
 		workspaceDir := os.Getenv("WORKSPACE")
 		dummyFile, perm := filepath.Join(workspaceDir, "tests_dummy.xml"), os.FileMode(0644)
 		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
