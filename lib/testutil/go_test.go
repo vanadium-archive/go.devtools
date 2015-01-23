@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -72,7 +73,14 @@ func suiteMatch(s1, s2 testSuite) bool {
 		return false
 	}
 	for i := 0; i < len(s1.Cases); i++ {
-		if !caseMatch(s1.Cases[i], s2.Cases[i]) {
+		found := false
+		for j := 0; j < len(s2.Cases); j++ {
+			if caseMatch(s1.Cases[i], s2.Cases[j]) {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}
@@ -184,6 +192,9 @@ var (
 				Tests: 1,
 			},
 		},
+	}
+	wantExcludedPackage = testSuites{
+		Suites: []testSuite{},
 	}
 	wantCoverage = testCoverage{
 		LineRate:   0,
@@ -309,12 +320,37 @@ func TestGoTestWithSuffix(t *testing.T) {
 // TestGoTestWithExcludedTests checks the excluded test mode of Go
 // test based test logic.
 func TestGoTestWithExcludedTests(t *testing.T) {
-	isExcluded := func() bool { return true }
-	exclusions := []exclusion{
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test2"}, isExcluded},
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test3"}, isExcluded},
+	tests := []exclusion{
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test2", nil}, true},
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test3", nil}, true},
 	}
-	runGoTest(t, "", excludedTests(exclusions), wantTestWithExcludedTests)
+	exclusions, err := excludedTests(tests)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	runGoTest(t, "", exclusions, wantTestWithExcludedTests)
+}
+
+func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
+	tests := []exclusion{
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", ".*[23]", nil}, true},
+	}
+	exclusions, err := excludedTests(tests)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	runGoTest(t, "", exclusions, wantTestWithExcludedTests)
+}
+
+func TestGoTestExcludedPackage(t *testing.T) {
+	tests := []exclusion{
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", ".*", nil}, true},
+	}
+	exclusions, err := excludedTests(tests)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	runGoTest(t, "", exclusions, wantExcludedPackage)
 }
 
 func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite testSuites) {
@@ -338,6 +374,7 @@ func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSu
 	}
 	defer os.RemoveAll(xUnitFile)
 	var gotTest testSuites
+	fmt.Fprintf(os.Stderr, "XML: %s\n", data)
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
 	}

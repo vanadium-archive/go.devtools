@@ -183,6 +183,24 @@ func Pass(ctx *util.Context, format string, a ...interface{}) {
 	fmt.Fprintf(ctx.Stdout(), format, a...)
 }
 
+func Skipped(ctx *util.Context, format string, a ...interface{}) {
+	strSkipped := "skipped"
+	if ctx.Color() {
+		strSkipped = util.ColorString("skipped", util.Yellow)
+	}
+	fmt.Fprintf(ctx.Stdout(), "%s   ", strSkipped)
+	fmt.Fprintf(ctx.Stdout(), format, a...)
+}
+
+func Excluded(ctx *util.Context, format string, a ...interface{}) {
+	strExcluded := "excluded"
+	if ctx.Color() {
+		strExcluded = util.ColorString("excluded", util.Yellow)
+	}
+	fmt.Fprintf(ctx.Stdout(), "%s   ", strExcluded)
+	fmt.Fprintf(ctx.Stdout(), format, a...)
+}
+
 func Fail(ctx *util.Context, format string, a ...interface{}) {
 	strFail := "fail"
 	if ctx.Color() {

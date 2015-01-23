@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ type taskStatus int
 const (
 	buildPassed taskStatus = iota
 	buildFailed
+	testSkipped
 	testPassed
 	testFailed
 )
@@ -379,24 +381,134 @@ func goList(ctx *util.Context, pkgs []string) ([]string, error) {
 	return strings.Split(cleanOut, "\n"), nil
 }
 
+// goListPackagesAndTests is a helper function for listing Go
+// packages, their tests and benchmarks.
+// TODO(cnicolaou): implement returning benchmarks also.
+func goListPackagesAndTests(ctx *util.Context, pkgs []string) ([]string, map[string][]string, map[string][]string, error) {
+
+	// Get a list of all packages and the test files in those
+	// packages.
+	var out bytes.Buffer
+	args := []string{"go", "list", "-f", "PACKAGE::{{.ImportPath}}\n{{range .TestGoFiles}}{{$.Dir}}/{{.}}\n{{end}}{{range .XTestGoFiles}}{{$.Dir}}/{{.}}\n{{end}}"}
+	args = append(args, pkgs...)
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
+		fmt.Fprintln(ctx.Stdout(), out.String())
+		return nil, nil, nil, err
+	}
+
+	// Parse the output from the list command to obtain a slice
+	// of package names and a map of package names to the test
+	// files in that package.
+	pkgRe := regexp.MustCompile(`^PACKAGE::(.*)`)
+	pkgFiles := map[string][]string{}
+	currentPackage := ""
+	scanner := bufio.NewScanner(&out)
+	for scanner.Scan() {
+		parts := pkgRe.FindStringSubmatch(scanner.Text())
+		if len(parts) == 2 {
+			currentPackage = parts[1]
+			continue
+		}
+		pkgFiles[currentPackage] = append(pkgFiles[currentPackage], scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Run grep on all of the test files in each package and parse the
+	// output to obtain a list of the Test functions in each file.
+	testRe := regexp.MustCompile(`.*_test.go:func[[:space:]]+(Test.*)[[:space:]]*\(.*testing.T[[:space:]]*\).*`)
+	pkgList := []string{}
+	pkgsAndTests := map[string][]string{}
+	for pkg, files := range pkgFiles {
+		if len(files) == 0 {
+			continue
+		}
+		pkgList = append(pkgList, pkg)
+		// egrep must return 0 in order for this command to succeed so
+		// we match against 'package' which must always be present.
+		args = append([]string{"-H", "package|Test|Benchmark"}, files...)
+		if err := ctx.Run().CommandWithOpts(opts, "egrep", args...); err != nil {
+			fmt.Fprintln(ctx.Stdout(), out.String())
+			return nil, nil, nil, err
+		}
+		scanner := bufio.NewScanner(&out)
+		for scanner.Scan() {
+			parts := testRe.FindStringSubmatch(scanner.Text())
+			if len(parts) == 2 {
+				pkgsAndTests[pkg] = append(pkgsAndTests[pkg], parts[1])
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	return pkgList, pkgsAndTests, nil, nil
+}
+
+// filterExcludedTests filters out excluded tests returning an
+// indication of whether this package should be included in test runs
+// and a list of the specific tests that should be run (which if nil
+// means running all of the tests), and a list of the skipped tests.
+func filterExcludedTests(pkg string, tests []string, excludedTests []test) (bool, []string, []string) {
+	excluded := []string{}
+	for _, test := range tests {
+		for _, exclude := range excludedTests {
+			if exclude.pkg == pkg && exclude.re.MatchString(test) {
+				excluded = append(excluded, test)
+				break
+			}
+		}
+	}
+	if len(excluded) == 0 {
+		// Run all of the tests, none are to be skipped/excluded.
+		return true, nil, nil
+	}
+
+	remaining := []string{}
+	for _, test := range tests {
+		found := false
+		for _, exclude := range excluded {
+			if test == exclude {
+				found = true
+				break
+			}
+		}
+		if !found {
+			remaining = append(remaining, test)
+		}
+	}
+	return len(remaining) > 0, remaining, excluded
+}
+
 type testResult struct {
-	pkg    string
-	output string
-	status taskStatus
-	time   time.Duration
+	pkg      string
+	output   string
+	excluded []string
+	status   taskStatus
+	time     time.Duration
 }
 
 const defaultTestTimeout = "5m"
 
 type goTestTask struct {
-	pkg           string
+	pkg string
+	// specificTests enumerates the tests to run:
+	// if non-nil, pass to -run as a regex or'ing each item in the slice.
+	// if nil, invoke the test without -run.
+	specificTests []string
+	// excludedTests enumerates the tests that are to be excluded as a result
+	// of exclusion rules.
 	excludedTests []string
 }
 
 // goTest is a helper function for running Go tests.
 func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
-	args, profiles, suffix, excludedTests := []string{}, []string{}, "", []test{}
+	args, profiles, suffix, excludedTestRules := []string{}, []string{}, "", []test{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case timeoutOpt:
@@ -408,7 +520,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 		case suffixOpt:
 			suffix = string(typedOpt)
 		case excludedTestsOpt:
-			excludedTests = []test(typedOpt)
+			excludedTestRules = []test(typedOpt)
 		}
 	}
 
@@ -438,8 +550,8 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 		return &TestResult{Status: TestFailed}, nil
 	}
 
-	// Enumerate the packages to be built.
-	pkgList, err := goList(ctx, pkgs)
+	// Enumerate the packages and tests to be built.
+	pkgList, pkgAndTestList, _, err := goListPackagesAndTests(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -454,18 +566,24 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 
 	// Distribute work to workers.
 	for _, pkg := range pkgList {
-		// Identify the names of tests to exclude.
-		testNames := []string{}
-		for _, test := range excludedTests {
-			if test.pkg == pkg {
-				testNames = append(testNames, test.name)
-			}
+		testThisPkg, specificTests, excludedTests := filterExcludedTests(pkg, pkgAndTestList[pkg], excludedTestRules)
+		if testThisPkg {
+			tasks <- goTestTask{pkg, specificTests, excludedTests}
+		} else {
+			taskResults <- testResult{pkg, "package excluded", pkgAndTestList[pkg], testSkipped, 0}
 		}
-		tasks <- goTestTask{pkg, testNames}
 	}
 	close(tasks)
 
 	// Collect the results.
+
+	// excludedPkgs and Tests are a result of exclusion rules in this
+	// tool.
+	excludedPkgs := []string{}
+	excludedTests := map[string][]string{}
+	// skippedTests are a result of testing.Skip calls in the actual
+	// tests.
+	skippedTests := map[string][]string{}
 	allPassed, suites := true, []testSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
@@ -483,7 +601,17 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 					}
 					ss = createTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 				}
+				if ss.Skip > 0 {
+					for _, c := range ss.Cases {
+						if c.Skipped != nil {
+							skippedTests[result.pkg] = append(skippedTests[result.pkg], c.Name)
+						}
+					}
+				}
 				s = ss
+			}
+			if len(result.excluded) > 0 {
+				excludedTests[result.pkg] = result.excluded
 			}
 		}
 		if s != nil {
@@ -493,6 +621,10 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			} else {
 				Pass(ctx, "%s\n", result.pkg)
 			}
+			if s.Skip > 0 {
+				Skipped(ctx, "%s %v\n", result.pkg, skippedTests[result.pkg])
+			}
+
 			newCases := []testCase{}
 			for _, c := range s.Cases {
 				if len(suffix) != 0 {
@@ -503,6 +635,13 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			s.Cases = newCases
 			suites = append(suites, *s)
 		}
+		if result.status == testSkipped {
+			excludedPkgs = append(excludedPkgs, result.pkg)
+			Excluded(ctx, "%s package excluded\n", result.pkg)
+		}
+		if excluded := excludedTests[result.pkg]; excluded != nil {
+			Excluded(ctx, "%s has excluded tests: %v\n", result.pkg, excluded)
+		}
 	}
 	close(taskResults)
 
@@ -510,10 +649,16 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	if err := createXUnitReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
-	if !allPassed {
-		return &TestResult{Status: TestFailed}, nil
+	testResult := &TestResult{
+		Status:        TestPassed,
+		ExcludedPkgs:  excludedPkgs,
+		ExcludedTests: excludedTests,
+		SkippedTests:  skippedTests,
 	}
-	return &TestResult{Status: TestPassed}, nil
+	if !allPassed {
+		testResult.Status = TestFailed
+	}
+	return testResult, nil
 }
 
 // testWorker tests packages.
@@ -522,26 +667,21 @@ func testWorker(ctx *util.Context, timeout string, args []string, tasks <-chan g
 	opts.Verbose = false
 	for task := range tasks {
 		// Run the test.
-		var out bytes.Buffer
-		args := append([]string{"go", "test", "-timeout", timeout, "-v"}, args...)
-		if len(task.excludedTests) != 0 {
-			// Create the regular expression describing
-			// the complement of the set of the tests to
-			// be excluded.
-			for i := 0; i < len(task.excludedTests); i++ {
-				task.excludedTests[i] = fmt.Sprintf("^(%s)", task.excludedTests[i])
-			}
-			args = append(args, "-run", fmt.Sprintf("[%s]", strings.Join(task.excludedTests, "|")))
+		taskArgs := append([]string{"go", "test", "-timeout", timeout, "-v"}, args...)
+		if len(task.specificTests) != 0 {
+			taskArgs = append(taskArgs, "-run", fmt.Sprintf("%s", strings.Join(task.specificTests, "|")))
 		}
-		args = append(args, task.pkg)
+		taskArgs = append(taskArgs, task.pkg)
+		var out bytes.Buffer
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
-		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
+		err := ctx.Run().CommandWithOpts(opts, "v23", taskArgs...)
 		result := testResult{
-			pkg:    task.pkg,
-			time:   time.Now().Sub(start),
-			output: out.String(),
+			pkg:      task.pkg,
+			time:     time.Now().Sub(start),
+			output:   out.String(),
+			excluded: task.excludedTests,
 		}
 		if err != nil {
 			if isBuildFailure(err, out.String(), task.pkg) {
@@ -742,70 +882,60 @@ var thirdPartyPkgs = []string{
 type test struct {
 	pkg  string
 	name string
+	re   *regexp.Regexp
 }
 
 type exclusion struct {
 	desc    test
-	exclude func() bool
+	exclude bool
 }
 
-func isGCE() bool {
-	sysuser := os.Getenv("USER")
-	return sysuser == "veyron" && runtime.GOOS == "linux"
-}
+var thirdPartyExclusions []exclusion
 
-func isDarwin() bool {
-	return runtime.GOOS == "darwin"
-}
+func init() {
+	thirdPartyExclusions = []exclusion{
+		// The following test requires an X server, which is not
+		// available on GCE.
+		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isGCE()},
+		// The following test requires IPv6, which is not available on
+		// GCE.
+		exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle", nil}, isGCE()},
+		// The following test expects to see "FAIL: TestBar" which
+		// causes go2xunit to fail.
+		exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage", nil}, isGCE() || isDarwin()},
+		// Don't run this test on darwin since it's too awkward to set up
+		// dbus at the system level.
+		exclusion{test{"github.com/guelfey/go.dbus", "TestSystemBus", nil}, isDarwin()},
 
-func isNotYosemite() bool {
-	if runtime.GOOS != "darwin" {
-		return true
+		// Don't run this test on mac systems prior to Yosemite since it can
+		// crash some machines.
+		exclusion{test{"golang.org/x/net/ipv6", ".*", nil}, !isYosemite()},
+
+		// Fsnotify tests are flaky on darwin. This begs the question of whether
+		// we should be relying on this library at all.
+		exclusion{test{"github.com/howeyc/fsnotify", ".*", nil}, isDarwin()},
 	}
-	out, err := exec.Command("uname", "-a").Output()
-	if err != nil {
-		return false
-	}
-	return !strings.Contains(string(out), "Version 14.")
-}
-
-var thirdPartyExclusions = []exclusion{
-	// The following test requires an X server, which is not
-	// available on GCE.
-	exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage"}, isGCE},
-	// The following test requires IPv6, which is not available on
-	// GCE.
-	exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle"}, isGCE},
-	// The following test expects to see "FAIL: TestBar" which
-	// causes go2xunit to fail.
-	exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage"}, isGCE},
-	// Don't run this test on darwin since it's too awkward to set up
-	// dbus at the system level.
-	exclusion{test{"github.com/guelfey/go.dbus", "TestSystemBus"}, isDarwin},
-
-	// Don't run this test on mac systems prior to Yosemite since it can
-	// crash some machines.
-	exclusion{test{"golang.org/x/net", "Test"}, isNotYosemite},
-
-	// Fsnotify tests are flaky on darwin. This begs the question of whether
-	// we should be relying on this library at all.
-	exclusion{test{"github.com/howeyc/fsnotify", "Test"}, isDarwin},
 }
 
 // ExcludedThirdPartyTests returns the set of tests to be excluded from
 // the third_party project.
-func ExcludedThirdPartyTests() []test {
+func ExcludedThirdPartyTests() ([]test, error) {
 	return excludedTests(thirdPartyExclusions)
 }
 
-func excludedTests(exclusions []exclusion) []test {
+func excludedTests(exclusions []exclusion) ([]test, error) {
 	excluded := make([]test, 0, len(exclusions))
 	for _, e := range exclusions {
-		if e.exclude() {
+		if e.exclude {
+			re, err := regexp.Compile(e.desc.name)
+			if err != nil {
+				return nil, err
+			}
+			e.desc.re = re
 			excluded = append(excluded, e.desc)
 		}
 	}
-	return excluded
+	return excluded, nil
 }
 
 // thirdPartyGoBuild runs Go build for third-party projects.
@@ -816,14 +946,22 @@ func thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) 
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := thirdPartyPkgs
-	return goTest(ctx, testName, pkgs, excludedTestsOpt(ExcludedThirdPartyTests()))
+	exclusions, err := ExcludedThirdPartyTests()
+	if err != nil {
+		return nil, err
+	}
+	return goTest(ctx, testName, pkgs, excludedTestsOpt(exclusions))
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := thirdPartyPkgs
 	args := argsOpt([]string{"-race"})
-	return goTest(ctx, testName, pkgs, args, excludedTestsOpt(ExcludedThirdPartyTests()))
+	exclusions, err := ExcludedThirdPartyTests()
+	if err != nil {
+		return nil, err
+	}
+	return goTest(ctx, testName, pkgs, args, excludedTestsOpt(exclusions))
 }
 
 // vanadiumGoBench runs Go benchmarks for vanadium projects.

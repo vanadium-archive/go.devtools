@@ -110,8 +110,8 @@ func (r *Run) command(timeout time.Duration, opts Opts, path string, args ...str
 	if opts.Verbose || opts.DryRun {
 		args := []string{}
 		for _, arg := range command.Args {
-			// Quote any arguments that contain '"', ''', or ' '.
-			if strings.IndexAny(arg, "\"' ") != -1 {
+			// Quote any arguments that contain '"', ''', '|', or ' '.
+			if strings.IndexAny(arg, "\"' |") != -1 {
 				args = append(args, strconv.Quote(arg))
 			} else {
 				args = append(args, arg)

@@ -32,6 +32,7 @@ type testCase struct {
 	Errors    []testError   `xml:"error"`
 	Failures  []testFailure `xml:"failure"`
 	Time      string        `xml:"time,attr"`
+	Skipped   []string      `xml:"skipped"`
 }
 
 type testError struct {
