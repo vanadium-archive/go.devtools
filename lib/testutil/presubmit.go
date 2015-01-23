@@ -110,12 +110,7 @@ func vanadiumPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e
 	if ctx.Verbose() {
 		args = append(args, "-v")
 	}
-	args = append(args,
-		"-host", jenkinsHost,
-		"-token", jenkinsToken,
-		"-netrc", netrcFile,
-		"query",
-		"-log_file", logfile)
+	args = append(args, "-host", jenkinsHost, "-token", jenkinsToken, "-netrc", netrcFile, "query", "-log_file", logfile)
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
@@ -123,9 +118,91 @@ func vanadiumPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// vanadiumPresubmitTest runs presubmit tests for a given project specified
-// in TEST environment variable.
+// vanadiumPresubmitTest runs presubmit tests for vanadium projects.
 func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "WORKSPACE"}); err != nil {
+		return nil, err
+	}
+
+	// Initialize the test.
+	cleanup, result, err := initTest(ctx, testName, nil)
+	if err != nil {
+		return nil, err
+	} else if result != nil {
+		return result, nil
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
+	// Cleanup the test results possibly left behind by the
+	// previous presubmit test.
+	testResultFiles, err := findTestResultFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range testResultFiles {
+		if err := ctx.Run().RemoveAll(file); err != nil {
+			return nil, err
+		}
+	}
+
+	// Use the "presubmit test" command to run the presubmit test.
+	args := []string{}
+	if ctx.Verbose() {
+		args = append(args, "-v")
+	}
+	args = append(args,
+		"-host", jenkinsHost,
+		"-token", jenkinsToken,
+		"-netrc", netrcFile,
+		"test",
+		"-build_number", os.Getenv("BUILD_NUMBER"),
+		"-manifest", "default",
+		"-repos", os.Getenv("REPOS"),
+		"-refs", os.Getenv("REFS"),
+	)
+	if err := ctx.Run().Command("presubmit", args...); err != nil {
+		return nil, err
+	}
+
+	// Remove any test result files that are empty.
+	testResultFiles, err = findTestResultFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range testResultFiles {
+		if fileInfo, err := os.Stat(file); err != nil {
+			return nil, err
+		} else {
+			if fileInfo.Size() == 0 {
+				if err := ctx.Run().RemoveAll(file); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	// Generate a dummy test results file if the tests we run
+	// didn't produce any non-empty files.
+	testResultFiles, err = findTestResultFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(testResultFiles) == 0 {
+		workspaceDir := os.Getenv("WORKSPACE")
+		dummyFile, perm := filepath.Join(workspaceDir, "tests_dummy.xml"), os.FileMode(0644)
+		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
+			return nil, fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
+		}
+	}
+
+	return &TestResult{Status: TestPassed}, nil
+}
+
+// vanadiumPresubmitTestNew runs presubmit tests for a given project specified
+// in TEST environment variable.
+// TODO(jingjin): replace "vanadiumPresubmitTest" function with this one after
+// the transition is done.
+func vanadiumPresubmitTestNew(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "TEST", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
@@ -160,6 +237,7 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e
 		"-host", jenkinsHost,
 		"-token", jenkinsToken,
 		"-netrc", netrcFile,
+		"-project", "vanadium-presubmit-test-new",
 		"test",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
 		"-manifest", "default",
@@ -236,6 +314,7 @@ func vanadiumPresubmitResult(ctx *util.Context, testName string) (_ *TestResult,
 		"-host", jenkinsHost,
 		"-token", jenkinsToken,
 		"-netrc", netrcFile,
+		"-project", "vanadium-presubmit-test-new",
 		"result",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
 		"-refs", os.Getenv("REFS"),
