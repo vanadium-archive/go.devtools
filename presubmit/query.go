@@ -172,7 +172,12 @@ func runQuery(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	numSentCLs += sendCLListsToPresubmitTest(ctx, newCLLists, defaultProjects, removeOutdatedBuilds, addPresubmitTestBuild)
+	if numCLs, err := sendCLListsToPresubmitTest(
+		ctx, newCLLists, defaultProjects, removeOutdatedBuilds, addPresubmitTestBuild); err != nil {
+		return err
+	} else {
+		numSentCLs += numCLs
+	}
 
 	return nil
 }
@@ -355,7 +360,7 @@ func sendCLListsToPresubmitTest(
 	clLists []clList,
 	defaultProjects map[string]util.Project,
 	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error,
-	addPresubmitFn func(*util.Context, clList) error) int {
+	addPresubmitFn func(*util.Context, clList, []string) error) (int, error) {
 	clsSent := 0
 outer:
 	for _, curCLList := range clLists {
@@ -363,6 +368,7 @@ outer:
 		curCLMap := clNumberToPatchsetMap{}
 		clStrings := []string{}
 		skipPresubmitTest := false
+		repos := []string{}
 		for _, curCL := range curCLList {
 			// Ignore all CLs that are not in the default manifest.
 			// TODO(jingjin): find a better way so we can remove this check.
@@ -381,6 +387,8 @@ outer:
 			if curCL.PresubmitTest == gerrit.PresubmitTestTypeNone {
 				skipPresubmitTest = true
 			}
+
+			repos = append(repos, curCL.Repo)
 		}
 
 		for _, err := range removeOutdatedFn(ctx, curCLMap) {
@@ -392,13 +400,24 @@ outer:
 		// Don't send curCLList to presubmit-test if at least one of them
 		// have PresubmitTest set to none.
 		if skipPresubmitTest {
-			printf(ctx.Stdout(), "SKIP: Add %s\n", strings.Join(clStrings, ", "))
+			printf(ctx.Stdout(), "SKIP: Add %s (presubmit=none)\n", strings.Join(clStrings, ", "))
+			continue
+		}
+
+		// Get tests to run.
+		var config util.Config
+		if err := util.LoadConfig("common", &config); err != nil {
+			return clsSent, err
+		}
+		tests := config.ProjectTests(repos)
+		if len(tests) == 0 {
+			printf(ctx.Stdout(), "SKIP: Add %s (no tests found)\n", strings.Join(clStrings, ", "))
 			continue
 		}
 
 		// Send curCLList to presubmit-test.
 		strCLs := fmt.Sprintf("Add %s", strings.Join(clStrings, ", "))
-		if err := addPresubmitFn(ctx, curCLList); err != nil {
+		if err := addPresubmitFn(ctx, curCLList, tests); err != nil {
 			printf(ctx.Stdout(), "FAIL: %s\n", strCLs)
 			printf(ctx.Stderr(), "addPresubmitTestBuild(%+v) failed: %v\n", curCLList, err)
 		} else {
@@ -406,7 +425,7 @@ outer:
 			clsSent += len(curCLList)
 		}
 	}
-	return clsSent
+	return clsSent, nil
 }
 
 // isInDefaultManifest checks whether the given cl's repo is in the default manifest.
@@ -684,7 +703,7 @@ func parseRefString(ref string) (int, int, error) {
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
 // a set of open CLs to run presubmit tests.
-func addPresubmitTestBuild(ctx *util.Context, cls clList) error {
+func addPresubmitTestBuild(ctx *util.Context, cls clList, tests []string) error {
 	addBuildUrl, err := url.Parse(jenkinsHostFlag)
 	if err != nil {
 		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
@@ -694,13 +713,6 @@ func addPresubmitTestBuild(ctx *util.Context, cls clList) error {
 		refs = append(refs, cl.Ref)
 		repos = append(repos, cl.Repo)
 	}
-
-	// Get tests to run.
-	var config util.Config
-	if err := util.LoadConfig("common", &config); err != nil {
-		return err
-	}
-	tests := config.ProjectTests(repos)
 
 	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestFlag)
 	addBuildUrl.RawQuery = url.Values{

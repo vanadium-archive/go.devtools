@@ -276,16 +276,19 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 			genMultiPartCL(1001, 1, "release.js.core", "t", 1, 2),
 			genMultiPartCL(1002, 1, "release.go.core", "t", 2, 2),
 		},
+		clList{
+			genCL(3000, 1, "non-existent-project"),
+		},
 	}
 	var buf bytes.Buffer
 	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false, false, false)
-	numSentCLs := sendCLListsToPresubmitTest(ctx, clLists, nil,
+	numSentCLs, err := sendCLListsToPresubmitTest(ctx, clLists, nil,
 		// Mock out the removeOutdatedBuilds function.
 		func(ctx *util.Context, cls clNumberToPatchsetMap) []error { return nil },
 
 		// Mock out the addPresubmitTestBuild function.
 		// It will return error for the first clList.
-		func(ctx *util.Context, cls clList) error {
+		func(ctx *util.Context, cls clList, tests []string) error {
 			if reflect.DeepEqual(cls, clLists[0]) {
 				return fmt.Errorf("err")
 			} else {
@@ -293,12 +296,16 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 			}
 		},
 	)
+	if err != nil {
+		t.Fatalf("want no error, got: %v", err)
+	}
 
 	// Check output and return value.
 	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
 [VANADIUM PRESUBMIT] addPresubmitTestBuild([{ChangeID: Labels:map[] MultiPart:<nil> PresubmitTest:all Ref:refs/changes/xx/1000/1 Repo:release.js.core}]) failed: err
-[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1
+[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1 (presubmit=none)
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
+[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/3000/1 (no tests found)
 `
 	if got := buf.String(); expectedOutput != got {
 		t.Fatalf("output: want:\n%v\n, got:\n%v", expectedOutput, got)
