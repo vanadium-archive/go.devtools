@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	defaultWWWTestTimeout           = 5 * time.Minute
-	defaultWWWPlaygroundTestTimeout = 5 * time.Minute
+	defaultWWWTestTimeout = 5 * time.Minute
 )
 
 // Runs specified make target in WWW Makefile as a test.
@@ -51,10 +50,6 @@ func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout t
 	}
 
 	return &TestResult{Status: TestPassed}, nil
-}
-
-func vanadiumWWWPlayground(ctx *util.Context, testName string) (*TestResult, error) {
-	return commonVanadiumWWW(ctx, testName, "test-playground", defaultWWWPlaygroundTestTimeout)
 }
 
 func vanadiumWWWSite(ctx *util.Context, testName string) (*TestResult, error) {

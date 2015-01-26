@@ -96,7 +96,6 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-presubmit-test":         vanadiumPresubmitTest,
 	"vanadium-prod-services-test":     vanadiumProdServicesTest,
 	"vanadium-vdl":                    vanadiumVDL,
-	"vanadium-www-playground":         vanadiumWWWPlayground,
 	"vanadium-www-site":               vanadiumWWWSite,
 	"vanadium-www-tutorials":          vanadiumWWWTutorials,
 }
