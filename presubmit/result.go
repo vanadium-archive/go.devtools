@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"v.io/lib/cmdline"
 	"v.io/tools/lib/testutil"
@@ -116,9 +119,131 @@ func runResult(command *cmdline.Command, args []string) (e error) {
 
 	// Post results.
 	refs := strings.Split(reviewTargetRefsFlag, ":")
-	if err := postTestReport(ctx, testResults, refs, true); err != nil {
+	if err := postTestReport(ctx, testResults, refs); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// postTestReport generates a test report and posts it to Gerrit.
+func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []string) (e error) {
+	// Do not post a test report if no tests were run.
+	if len(testResults) == 0 {
+		return nil
+	}
+
+	// Report current build cop.
+	var report bytes.Buffer
+	buildCop, err := util.BuildCop(ctx, time.Now())
+	if err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+	} else {
+		fmt.Fprintf(&report, "\nCurrent Build Cop: %s\n\n", buildCop)
+	}
+
+	// Report merge conflict.
+	for _, resultInfo := range testResults {
+		if resultInfo.result.Status == testutil.TestFailedMergeConflict {
+			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.result.MergeConflictCL)
+			if err := postMessage(ctx, message, refs); err != nil {
+				printf(ctx.Stderr(), "%v\n", err)
+			}
+			return nil
+		}
+	}
+
+	// Report test results.
+	fmt.Fprintf(&report, "Test results:\n")
+	nfailed := 0
+	for _, resultInfo := range testResults {
+		name := resultInfo.testName
+		result := resultInfo.result
+		if result.Status == testutil.TestSkipped {
+			fmt.Fprintf(&report, "skipped %v\n", name)
+			continue
+		}
+
+		// Get the status of the last completed build for this Jenkins test.
+		lastStatus, err := lastCompletedBuildStatus(name, resultInfo.slaveLabel)
+		lastStatusString := "?"
+		if err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		} else {
+			if lastStatus == "SUCCESS" {
+				lastStatusString = "✔"
+			} else {
+				lastStatusString = "✖"
+			}
+		}
+
+		var curStatusString string
+		if result.Status == testutil.TestPassed {
+			curStatusString = "✔"
+		} else {
+			nfailed++
+			curStatusString = "✖"
+		}
+
+		nameString := name
+		slaveLabel := resultInfo.slaveLabel
+		// Remove "-slave" from the label simplicity.
+		if isMultiConfigurationProject(name) {
+			slaveLabel = strings.Replace(slaveLabel, "-slave", "", -1)
+			nameString += fmt.Sprintf(" [%s]", slaveLabel)
+		}
+		fmt.Fprintf(&report, "%s ➔ %s: %s", lastStatusString, curStatusString, nameString)
+
+		if result.Status == testutil.TestTimedOut {
+			timeoutValue := testutil.DefaultTestTimeout
+			if result.TimeoutValue != 0 {
+				timeoutValue = result.TimeoutValue
+			}
+			fmt.Fprintf(&report, " [TIMED OUT after %s]\n", timeoutValue)
+			errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
+			if err := generateFailureReport(name, "timeout", errorMessage); err != nil {
+				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			}
+		} else {
+			fmt.Fprintf(&report, "\n")
+		}
+	}
+
+	// Check whether the master job failed or not.
+	// If the master job failed, then some sub-jobs failed to finish.
+	masterJobStatus, err := checkMasterJobStatus(ctx)
+	if err != nil {
+		fmt.Fprint(ctx.Stderr(), "%v\n", err)
+	} else {
+		if masterJobStatus == "FAILURE" {
+			msg := fmt.Sprintf(
+				"\nSOME TESTS FAILED TO RUN:\n"+
+					"Please check the tests with RED status in the following status page:\n"+
+					"%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestFlag, jenkinsBuildNumberFlag)
+			fmt.Fprintf(&report, "%s", msg)
+		}
+	}
+
+	if nfailed != 0 {
+		failedTestsReport, err := createFailedTestsReport(ctx, testResults)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(&report, "\n%s\n", failedTestsReport)
+	}
+
+	fmt.Fprintf(&report, "\nMore details at:\n%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestFlag, jenkinsBuildNumberFlag)
+	link := fmt.Sprintf("https://dev.v.io/jenkins/job/%s/buildWithParameters?REFS=%s&REPOS=%s&TESTS=%s",
+		presubmitTestFlag,
+		url.QueryEscape(reviewTargetRefsFlag),
+		url.QueryEscape(reposFlag),
+		url.QueryEscape(os.Getenv("TESTS")))
+	fmt.Fprintf(&report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
+
+	// Post test results.
+	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
+	if err := postMessage(ctx, report.String(), refs); err != nil {
+		return err
+	}
 	return nil
 }
