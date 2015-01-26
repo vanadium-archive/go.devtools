@@ -47,16 +47,17 @@ func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestRe
 	}
 
 	// Invoke "make test" for the vanadium namepsace browser.
-	opts := ctx.Run().Opts()
-	opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
-	if err := ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test"); err != nil {
-		if err == runutil.CommandTimedOutErr {
-			return &TestResult{
-				Status:       TestTimedOut,
-				TimeoutValue: defaultBrowserTestTimeout,
-			}, nil
+	makeTargetFunc := func(opts runutil.Opts) error {
+		opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
+		return ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test")
+	}
+	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Make test", "failure", makeTargetFunc); err != nil {
+		return nil, err
+	} else if testResult != nil {
+		if testResult.Status == TestTimedOut {
+			testResult.TimeoutValue = defaultBrowserTestTimeout
 		}
-		return &TestResult{Status: TestFailed}, nil
+		return testResult, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil
