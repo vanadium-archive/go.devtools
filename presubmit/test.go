@@ -813,7 +813,7 @@ func genTestResultLink(className, testCaseName, testFullName string, suffix int,
 	link := ""
 	rawurl := fmt.Sprintf("http://goto.google.com/vpst/%d/testReport/%s/%s/%s",
 		jenkinsBuildNumberFlag, safePackageName, safeClassName, safeTestCaseName)
-	if newMode && isMultiConfigurationProject(testName) {
+	if newMode {
 		rawurl = fmt.Sprintf("http://goto.google.com/vpst/%d/L=%s,TEST=%s/testReport/%s/%s/%s",
 			jenkinsBuildNumberFlag, slaveLabel, testName, safePackageName, safeClassName, safeTestCaseName)
 	}

@@ -25,7 +25,7 @@ var (
 
 const (
 	// Number of lines to be included in the error messsage of an xUnit report.
-	numLinesToOutput = 15
+	numLinesToOutput = 50
 )
 
 // binDirPath returns the path to the directory for storing temporary
