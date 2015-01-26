@@ -39,14 +39,16 @@ func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout t
 	}
 
 	// Invoke the make target.
-	if err := ctx.Run().TimedCommand(timeout, "make", makeTarget); err != nil {
-		if err == runutil.CommandTimedOutErr {
-			return &TestResult{
-				Status:       TestTimedOut,
-				TimeoutValue: timeout,
-			}, nil
+	makeTargetFunc := func(opts runutil.Opts) error {
+		return ctx.Run().TimedCommand(timeout, "make", makeTarget)
+	}
+	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Make "+makeTarget, "failure", makeTargetFunc); err != nil {
+		return nil, err
+	} else if testResult != nil {
+		if testResult.Status == TestTimedOut {
+			testResult.TimeoutValue = timeout
 		}
-		return &TestResult{Status: TestFailed}, nil
+		return testResult, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil

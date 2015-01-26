@@ -29,6 +29,7 @@ const (
 	testSkipped
 	testPassed
 	testFailed
+	testTimedout
 )
 
 type buildResult struct {

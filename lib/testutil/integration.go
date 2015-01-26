@@ -12,11 +12,12 @@ import (
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/envutil"
+	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
 const (
-	defaultIntegrationTestTimeout = 2 * time.Minute
+	defaultIntegrationTestTimeout = 5 * time.Minute
 )
 
 // binPackages enumerates the Go commands used by vanadium integration tests.
@@ -197,11 +198,14 @@ func runIntegrationTests(ctx *util.Context, testName string, testNamePredicate f
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		switch result.status {
-		case testFailed:
+		case testFailed, testTimedout:
 			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
 			f := testFailure{
 				Message: "test",
 				Data:    result.output,
+			}
+			if result.status == testTimedout {
+				f.Message = fmt.Sprintf("timed out after %s", defaultIntegrationTestTimeout)
 			}
 			c.Failures = append(c.Failures, f)
 			allPassed = false
@@ -256,7 +260,11 @@ func integrationTestWorker(ctx *util.Context, root string, env map[string]string
 		result.time = time.Now().Sub(start)
 		result.output = out.String()
 		if err != nil {
-			result.status = testFailed
+			if err == runutil.CommandTimedOutErr {
+				result.status = testTimedout
+			} else {
+				result.status = testFailed
+			}
 		} else {
 			result.status = testPassed
 		}
