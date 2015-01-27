@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+// TODO(jingjin): Mock out a VANADIUM_ROOT instance and common.json so
+// that changes to the actual common.json do not break this test.
+
 func TestJenkinsTestsToStart(t *testing.T) {
 	testCases := []struct {
 		projects            []string
@@ -27,6 +30,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			expectedJenkinsTest: []string{
 				"vanadium-go-build",
 				"vanadium-namespace-browser-test",
+				"vanadium-www-tutorials",
 			},
 		},
 	}
