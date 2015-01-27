@@ -541,11 +541,12 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 
 	// Pre-build non-test packages.
 	if err := buildTestDeps(ctx, pkgs); err != nil {
+		originalTestName := testName
 		if len(suffix) != 0 {
 			testName += " " + suffix
 		}
 		s := createTestSuiteWithFailure("BuildTestDependencies", testName, "dependencies build failure", err.Error(), 0)
-		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+		if err := createXUnitReport(ctx, originalTestName, []testSuite{*s}); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
