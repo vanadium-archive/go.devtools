@@ -41,6 +41,13 @@ type Opts struct {
 
 // New is the Run factory.
 func New(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, color, dryRun, verbose bool) *Run {
+	if color {
+		term := os.Getenv("TERM")
+		switch term {
+		case "dumb", "":
+			color = false
+		}
+	}
 	return &Run{
 		indent: 0,
 		opts: Opts{
