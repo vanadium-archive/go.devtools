@@ -11,7 +11,7 @@ Usage:
 The vcloud commands are:
    list        List GCE node information
    cp          Copy files to/from GCE node(s)
-   node        Manage GCE jenkins slave nodes
+   node        Manage GCE nodes
    run         Copy file(s) to GCE node(s) and run
    sh          Start a shell or run a command on GCE node(s)
    help        Display help for commands or topics
@@ -92,18 +92,44 @@ The vcloud cp flags are:
 
 Vcloud Node
 
-Manage GCE jenkins slave nodes.
+Manage GCE nodes.
 
 Usage:
    vcloud node <command>
 
 The vcloud node commands are:
-   create      Create GCE jenkins slave nodes
-   delete      Delete GCE jenkins slave nodes
+   authorize   Authorize a user to login to a GCE node
+   deauthorize Deauthorize a user to login to a GCE node
+   create      Create GCE nodes
+   delete      Delete GCE nodes
+
+Vcloud Node Authorize
+
+Authorizes a user to login to a GCE node (possibly as other user). For instance,
+this mechanism is used to give Jenkins slave nodes access to the GCE mirror of
+Vanadium repositories.
+
+Usage:
+   vcloud node authorize <userA>@<hostA> [<userB>@]<hostB>
+
+<userA>@<hostA> [<userB>@]<hostB> authorizes userA to log into GCE node hostB
+from GCE node hostA as user userB. The default value for userB is userA.
+
+Vcloud Node Deauthorize
+
+Deuthorizes a user to login to a GCE node (possibly as other user). For
+instance, this mechanism is used to revoke access of give Jenkins slave nodes to
+the GCE mirror of Vanadium repositories.
+
+Usage:
+   vcloud node deauthorize <userA>@<hostA> [<userB>@]<hostB>
+
+<userA>@<hostA> [<userB>@]<hostB> deauthorizes userA to log into GCE node hostB
+from GCE node hostA as user userB. The default value for userB is userA.
 
 Vcloud Node Create
 
-Create GCE jenkins slave nodes.  Runs 'gcloud compute instances create'.
+Create GCE nodes. Runs 'gcloud compute instances create'.
 
 Usage:
    vcloud node create [flags] <names>
@@ -117,12 +143,14 @@ The vcloud node create flags are:
    Image to create the machine from.
  -machine_type=n1-standard-8
    Machine type to create.
+ -setup_script=
+   Script to set up the machine.
  -zone=us-central1-f
    Zone to create the machine in.
 
 Vcloud Node Delete
 
-Delete GCE jenkins slave nodes.  Runs 'gcloud compute instances delete'.
+Delete GCE nodes. Runs 'gcloud compute instances delete'.
 
 Usage:
    vcloud node delete <names>
