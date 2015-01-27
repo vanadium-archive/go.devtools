@@ -1,14 +1,44 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+
+	"v.io/tools/lib/util"
 )
 
-// TODO(jingjin): Mock out a VANADIUM_ROOT instance and common.json so
-// that changes to the actual common.json do not break this test.
-
 func TestJenkinsTestsToStart(t *testing.T) {
+	// Setup a fake VANADIUM_ROOT.
+	ctx := util.DefaultContext()
+	tmpDir, err := ctx.Run().TempDir("", "")
+	if err != nil {
+		t.Fatalf("TempDir() failed: %v", err)
+	}
+	defer ctx.Run().RemoveAll(tmpDir)
+	oldRoot, err := util.VanadiumRoot()
+	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
+
+	// Create a test config file.
+	configFile, err := util.ConfigFile("common")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := ctx.Run().MkdirAll(filepath.Dir(configFile), os.FileMode(0755)); err != nil {
+		t.Fatalf("%v", err)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := ctx.Run().Symlink(filepath.Join(cwd, "testdata", "common.json"), configFile); err != nil {
+		t.Fatalf("%v", err)
+	}
+
 	testCases := []struct {
 		projects            []string
 		expectedJenkinsTest []string
