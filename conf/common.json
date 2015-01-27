@@ -103,7 +103,8 @@
       "vanadium-go-race",
       "vanadium-integration-test",
       "vanadium-prod-services-test",
-      "vanadium-vdl"
+      "vanadium-vdl",
+      "vanadium-www-tutorials"
     ],
     "javascript": [
       "vanadium-js-browser-integration",
