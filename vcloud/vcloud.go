@@ -163,6 +163,7 @@ var (
 	flagImage        string
 	flagBootDiskSize string
 	flagMachineType  string
+	flagSetupScript  string
 )
 
 func init() {
@@ -178,6 +179,7 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagImage, "image", "ubuntu-14-04", "Image to create the machine from.")
 	cmdNodeCreate.Flags.StringVar(&flagMachineType, "machine_type", "n1-standard-8", "Machine type to create.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to create the machine in.")
+	cmdNodeCreate.Flags.StringVar(&flagSetupScript, "setup_script", "", "Script to set up the machine.")
 }
 
 // nodeInfo represents the node info returned by 'gcloud compute instances list'
@@ -432,14 +434,14 @@ func (x nodeInfos) RunCommand(ctx *util.Context, user string, cmdline []string) 
 }
 
 // RunCopyAndRun implements the 'vcloud run' command.
-func (x nodeInfos) RunCopyAndRun(ctx *util.Context, files, cmds []string, outdir string) error {
+func (x nodeInfos) RunCopyAndRun(ctx *util.Context, user string, files, cmds []string, outdir string) error {
 	// 0) Pick a random number so that we use the same tmpdir on each node.
 	rand.Seed(time.Now().UnixNano())
 	tmpdir := fmt.Sprintf("./tmp_%X", rand.Int63())
 	fn := func(node nodeInfo) runResult {
 		result := runResult{node: node}
 		// 1) Create temporary directory.
-		result.Merge(node.RunCommand(ctx, *flagUser, []string{"mkdir", tmpdir}), "[run] create tmpdir %q", tmpdir)
+		result.Merge(node.RunCommand(ctx, user, []string{"mkdir", tmpdir}), "[run] create tmpdir %q", tmpdir)
 		if result.err != nil {
 			return result
 		}
@@ -454,7 +456,7 @@ func (x nodeInfos) RunCopyAndRun(ctx *util.Context, files, cmds []string, outdir
 			} else {
 				cmdline = append(cmdline, cmds...)
 			}
-			result.Merge(node.RunCommand(ctx, *flagUser, cmdline), "[run] run cmdline %v", cmdline)
+			result.Merge(node.RunCommand(ctx, user, cmdline), "[run] run cmdline %v", cmdline)
 			// 5) If outdir is specified, remove the run files from TMPDIR, and copy
 			// TMPDIR from the node to the local outdir.
 			if outdir != "" {
@@ -462,7 +464,7 @@ func (x nodeInfos) RunCopyAndRun(ctx *util.Context, files, cmds []string, outdir
 				for _, file := range files {
 					rmcmds = append(rmcmds, filepath.Base(file))
 				}
-				result.Merge(node.RunCommand(ctx, *flagUser, rmcmds), "[run] remove run files %v", rmcmds)
+				result.Merge(node.RunCommand(ctx, user, rmcmds), "[run] remove run files %v", rmcmds)
 				// If we have more than one node, it'd be pointless to copy into the
 				// same dst dir; the remote copies would overwrite each other.
 				makeSubdir := len(x) > 1
@@ -470,7 +472,7 @@ func (x nodeInfos) RunCopyAndRun(ctx *util.Context, files, cmds []string, outdir
 			}
 		}
 		// 6) Delete the temporary directory (always, if created successfully).
-		result.Merge(node.RunCommand(ctx, *flagUser, []string{"rm", "-rf", tmpdir}), "[run] delete tmpdir %q", tmpdir)
+		result.Merge(node.RunCommand(ctx, user, []string{"rm", "-rf", tmpdir}), "[run] delete tmpdir %q", tmpdir)
 		return result
 	}
 	return x.run(ctx.Stdout(), fn)
@@ -695,7 +697,7 @@ func runCopyAndRun(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return cmd.UsageErrorf("%v", err)
 	}
-	return nodes.RunCopyAndRun(ctx, files, cmdline, flagOutDir)
+	return nodes.RunCopyAndRun(ctx, *flagUser, files, cmdline, flagOutDir)
 }
 
 func splitCopyAndRunArgs(args []string) (files, cmdline []string, _ error) {

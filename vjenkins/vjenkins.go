@@ -1,33 +1,47 @@
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
 package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
-	"path/filepath"
-	"strings"
+	"os"
 	"time"
 
 	"v.io/lib/cmdline"
 	"v.io/tools/lib/util"
 )
 
+// TODO(jsimsa): Add tests by mocking out jenkins.
+
+func main() {
+	os.Exit(cmdVJenkins.Main())
+}
+
+var cmdVJenkins = &cmdline.Command{
+	Name:     "vjenkins",
+	Short:    "Vanadium command-line utility for interacting with Jenkins",
+	Long:     "Vanadium command-line utility for interacting with Jenkins.",
+	Children: []*cmdline.Command{cmdNode},
+}
+
 var cmdNode = &cmdline.Command{
 	Name:     "node",
-	Short:    "Manage GCE jenkins slave nodes",
-	Long:     "Manage GCE jenkins slave nodes.",
+	Short:    "Manage Jenkins slave nodes",
+	Long:     "Manage Jenkins slave nodes.",
 	Children: []*cmdline.Command{cmdNodeCreate, cmdNodeDelete},
 }
 
 var cmdNodeCreate = &cmdline.Command{
 	Run:   runNodeCreate,
 	Name:  "create",
-	Short: "Create GCE jenkins slave nodes",
+	Short: "Create Jenkins slave nodes",
 	Long: `
-Create GCE jenkins slave nodes.  Runs 'gcloud compute instances create'.
+Create Jenkins nodes. Uses the Jenkins REST API to create new slave nodes.
 `,
 	ArgsName: "<names>",
 	ArgsLong: "<names> is a list of names identifying nodes to be created.",
@@ -36,9 +50,9 @@ Create GCE jenkins slave nodes.  Runs 'gcloud compute instances create'.
 var cmdNodeDelete = &cmdline.Command{
 	Run:   runNodeDelete,
 	Name:  "delete",
-	Short: "Delete GCE jenkins slave nodes",
+	Short: "Delete Jenkins slave nodes",
 	Long: `
-Delete GCE jenkins slave nodes.  Runs 'gcloud compute instances delete'.
+Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
 `,
 	ArgsName: "<names>",
 	ArgsLong: "<names> is a list of names identifying nodes to be deleted.",
@@ -47,6 +61,23 @@ Delete GCE jenkins slave nodes.  Runs 'gcloud compute instances delete'.
 const (
 	jenkinsHost = "http://veyron-jenkins:8001/jenkins"
 )
+
+var (
+	// Global flags.
+	flagColor   = flag.Bool("color", false, "Format output in color.")
+	flagDryRun  = flag.Bool("n", false, "Show what commands will run, but do not execute them.")
+	flagVerbose = flag.Bool("v", false, "Print verbose output.")
+	// Command-specific flag.
+	flagDescription string
+)
+
+func init() {
+	cmdNodeCreate.Flags.StringVar(&flagDescription, "description", "", "Node description.")
+}
+
+func newContext(cmd *cmdline.Command) *util.Context {
+	return util.NewContextFromCommand(cmd, *flagColor, *flagDryRun, *flagVerbose)
+}
 
 // createRequest represents a request to create a new machine in
 // Jenkins configuration.
@@ -80,7 +111,7 @@ func addNodeToJenkins(ctx *util.Context, node string) (*http.Response, error) {
 	jenkins := ctx.Jenkins(jenkinsHost)
 	request := createRequest{
 		Name:              node,
-		Description:       flagMachineType,
+		Description:       flagDescription,
 		NumExecutors:      1,
 		RemoteFS:          "/home/veyron/jenkins",
 		Labels:            fmt.Sprintf("%s linux-slave", node),
@@ -161,99 +192,9 @@ func removeNodeFromJenkins(ctx *util.Context, node string) (*http.Response, erro
 	return jenkins.Invoke("POST", fmt.Sprintf("computer/%s/doDelete", node), url.Values{})
 }
 
+// runNodeCreate adds slave node(s) to Jenkins configuration.
 func runNodeCreate(cmd *cmdline.Command, args []string) error {
 	ctx := newContext(cmd)
-
-	// Create the GCE node(s).
-	createArgs := []string{
-		"compute",
-		"--project", *flagProject,
-		"instances",
-		"create",
-	}
-	createArgs = append(createArgs, args...)
-	createArgs = append(createArgs,
-		"--boot-disk-size", flagBootDiskSize,
-		"--image", flagImage,
-		"--machine-type", flagMachineType,
-		"--zone", flagZone,
-		"--scopes", "storage-full",
-	)
-	if err := ctx.Run().Command("gcloud", createArgs...); err != nil {
-		return err
-	}
-
-	// Create in-memory representation of node information.
-	allNodes, err := listAll(ctx, *flagDryRun)
-	if err != nil {
-		return err
-	}
-	nodes, err := allNodes.MatchNames(strings.Join(args, ","))
-	if err != nil {
-		return err
-	}
-
-	// Wait for the SSH server on all nodes to start up.
-	const numRetries = 10
-	const retryPeriod = 5 * time.Second
-	ready := false
-	for i := 0; i < numRetries; i++ {
-		if err := nodes.RunCommand(ctx, "veyron", []string{"echo"}); err != nil {
-			fmt.Fprintf(ctx.Stdout(), "attempt #%d to connect failed, will try again later\n", i+1)
-			time.Sleep(retryPeriod)
-			continue
-		}
-		ready = true
-		break
-	}
-	if !ready {
-		return fmt.Errorf("timed out waiting for nodes to start")
-	}
-
-	// Execute the jenkins setup script.
-	curlCmd := []string{"curl", "-u", "vanadium:D6HT]P,LrJ7e", "https://dev.v.io/noproxy/jenkins-setup.sh", "|", "bash"}
-	if err := nodes.RunCommand(ctx, "veyron", curlCmd); err != nil {
-		return err
-	}
-
-	// Copy the SSH keys from the newly created nodes to the local
-	// machine.
-	tmpDir, err := ctx.Run().TempDir("", "")
-	if err != nil {
-		return fmt.Errorf("TempDir() failed: %v", err)
-	}
-	defer ctx.Run().RemoveAll(tmpDir)
-	if err := nodes.RunCopy(ctx, []string{":/home/veyron/.ssh/id_rsa.pub"}, tmpDir); err != nil {
-		return err
-	}
-
-	// Append the keys to the authorized keys on the GCE git
-	// mirror.
-	sshKeys := []string{}
-	for _, node := range nodes {
-		var sshKeyDir string
-		if len(nodes) == 1 {
-			sshKeyDir = tmpDir
-		} else {
-			sshKeyDir = filepath.Join(tmpDir, node.Name)
-		}
-		sshKeyFile := filepath.Join(sshKeyDir, "id_rsa.pub")
-		bytes, err := ctx.Run().ReadFile(sshKeyFile)
-		if err != nil {
-			return fmt.Errorf("ReadFile(%v) failed: %v", sshKeyFile, err)
-		}
-		sshKeys = append(sshKeys, string(bytes))
-	}
-	gitMirror, err := allNodes.MatchNames("git-mirror")
-	if err != nil {
-		return err
-	}
-	echoCmd := []string{"echo", strings.Join(sshKeys, "\n"), ">>", "/home/git/.ssh/authorized_keys"}
-	if err := gitMirror.RunCommand(ctx, "git", echoCmd); err != nil {
-		return err
-	}
-
-	// Add the slave node(s) to Jenkins configuration.
 	for _, node := range args {
 		response, err := addNodeToJenkins(ctx, node)
 		if err != nil {
@@ -267,10 +208,9 @@ func runNodeCreate(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+// runNodeDelete removes slave node(s) from Jenkins configuration.
 func runNodeDelete(cmd *cmdline.Command, args []string) error {
 	ctx := newContext(cmd)
-
-	// Remove the slave node(s) from Jenkins configuration.
 	for _, node := range args {
 		// Wait for the node to become idle.
 		const numRetries = 60
@@ -292,23 +232,5 @@ func runNodeDelete(cmd *cmdline.Command, args []string) error {
 			return fmt.Errorf("HTTP request returned %d", response.StatusCode)
 		}
 	}
-
-	// Delete the GCE node(s).
-	var in bytes.Buffer
-	in.WriteString("Y\n") // answers the [Y/n] prompt
-	opts := ctx.Run().Opts()
-	opts.Stdin = &in
-	deleteArgs := []string{
-		"compute",
-		"--project", *flagProject,
-		"instances",
-		"delete",
-	}
-	deleteArgs = append(deleteArgs, args...)
-	deleteArgs = append(deleteArgs, "--zone", flagZone)
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", deleteArgs...); err != nil {
-		return err
-	}
-
 	return nil
 }
