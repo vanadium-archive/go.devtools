@@ -146,6 +146,9 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
 		// When "git pull" fails, record merge conflict error in test status file
 		// and xunit report.
+		if failedCL != nil {
+			fmt.Fprintf(ctx.Stderr(), "%s: %v\n", failedCL.String(), err)
+		}
 		if strings.Contains(err.Error(), "git pull") {
 			message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
 			result := testutil.TestResult{
@@ -158,9 +161,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 			if err := writeTestStatusFile(ctx, map[string]*testutil.TestResult{testFlag: &result}); err != nil {
 				return err
 			}
-		}
-		if failedCL != nil {
-			return fmt.Errorf("%s: %v", failedCL.String(), err)
+			return nil
 		}
 		return err
 	}
