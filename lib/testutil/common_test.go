@@ -38,82 +38,142 @@ exit 1`
 		t.Fatalf("WriteFile() failed: %v", err)
 	}
 
-	// No xUnit file exists.
-	testResult, err := genXUnitReportOnCmdError(ctx, "vanadium-go-test", "build", "failure",
-		func(opts runutil.Opts) error {
-			return ctx.Run().CommandWithOpts(opts, scriptFile)
-		})
-	if err != nil {
-		t.Fatalf("want no errors, got %v", err)
-	}
-	xUnitFileName := XUnitReportPath("vanadium-go-test")
-	gotSuites, err := parseXUnitFile(xUnitFileName)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	expectedSuites := &testSuites{
-		Suites: []testSuite{
-			testSuite{
-				Name: "vanadium-go-test",
-				Cases: []testCase{
-					testCase{
-						Name:      "build",
-						Classname: "vanadium-go-test",
-						Failures: []testFailure{
-							testFailure{
-								Message: "failure",
-								Data:    "......\nok: test 1\nfail: test 2\n",
-							},
-						},
-						Time: "0.00",
+	expectedGenSuite := testSuite{
+		Name: "vanadium-go-test",
+		Cases: []testCase{
+			testCase{
+				Name:      "build",
+				Classname: "vanadium-go-test",
+				Failures: []testFailure{
+					testFailure{
+						Message: "failure",
+						Data:    "Error message:\nexit status 1\n\nConsole output:\n......\nok: test 1\nfail: test 2\n",
 					},
 				},
-				Tests:    1,
-				Failures: 1,
+				Time: "0.00",
 			},
 		},
-		XMLName: xml.Name{
-			Local: "testsuites",
+		Tests:    1,
+		Failures: 1,
+	}
+	aFailedTestSuite := testSuite{
+		Name: "name1",
+		Cases: []testCase{
+			testCase{
+				Name:      "test1",
+				Classname: "class1",
+				Failures: []testFailure{
+					testFailure{
+						Message: "failure",
+						Data:    "test failed",
+					},
+				},
+				Time: "0.10",
+			},
 		},
-	}
-	if !reflect.DeepEqual(gotSuites, expectedSuites) {
-		t.Fatalf("want\n%#v\n\ngot\n%#v", expectedSuites, gotSuites)
-	}
-	if got, expected := testResult.Status, TestFailed; got != expected {
-		t.Fatalf("want %v, got %v", expected, got)
+		Tests:    1,
+		Failures: 1,
 	}
 
-	// There is already an xUnit file there, but empty (invalid).
-	if err := os.RemoveAll(xUnitFileName); err != nil {
-		t.Fatalf("RemoveAll(%s) failed: %v", xUnitFileName, err)
-	}
-	if err := ioutil.WriteFile(xUnitFileName, []byte{}, 0644); err != nil {
-		t.Fatalf("WriteFile(%s) failed: %v", xUnitFileName, err)
-	}
-	testResult, err = genXUnitReportOnCmdError(ctx, "vanadium-go-test", "build", "failure",
-		func(opts runutil.Opts) error {
-			return ctx.Run().CommandWithOpts(opts, scriptFile)
-		})
-	if err != nil {
-		t.Fatalf("want no errors, got %v", err)
-	}
-	gotSuites, err = parseXUnitFile(xUnitFileName)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	expectedSuites = &testSuites{
-		Suites: []testSuite{
-			expectedSuites.Suites[0],
+	// Tests.
+	testCases := []struct {
+		createXUnitFile bool
+		existingSuites  *testSuites
+		expectedSuites  *testSuites
+	}{
+		// No xUnit file exists.
+		{
+			createXUnitFile: false,
+			expectedSuites: &testSuites{
+				Suites: []testSuite{expectedGenSuite},
+				XMLName: xml.Name{
+					Local: "testsuites",
+				},
+			},
 		},
-		XMLName: xml.Name{
-			Local: "testsuites",
+		// xUnit file exists but empty (invalid).
+		{
+			createXUnitFile: true,
+			existingSuites:  &testSuites{},
+			expectedSuites: &testSuites{
+				Suites: []testSuite{expectedGenSuite},
+				XMLName: xml.Name{
+					Local: "testsuites",
+				},
+			},
+		},
+		// xUnit file exists but doesn't contain failed test cases.
+		{
+			createXUnitFile: true,
+			existingSuites: &testSuites{
+				Suites: []testSuite{
+					testSuite{
+						Name: "name1",
+						Cases: []testCase{
+							testCase{
+								Name:      "test1",
+								Classname: "class1",
+								Time:      "0.10",
+							},
+						},
+						Tests:    1,
+						Failures: 0,
+					},
+				},
+			},
+			expectedSuites: &testSuites{
+				Suites: []testSuite{expectedGenSuite},
+				XMLName: xml.Name{
+					Local: "testsuites",
+				},
+			},
+		},
+		// xUnit file exists and contains failed test cases.
+		{
+			createXUnitFile: true,
+			existingSuites: &testSuites{
+				Suites: []testSuite{aFailedTestSuite},
+			},
+			expectedSuites: &testSuites{
+				Suites: []testSuite{aFailedTestSuite},
+				XMLName: xml.Name{
+					Local: "testsuites",
+				},
+			},
 		},
 	}
-	if !reflect.DeepEqual(gotSuites, expectedSuites) {
-		t.Fatalf("want\n%#v\n\ngot\n%#v", expectedSuites, gotSuites)
-	}
-	if got, expected := testResult.Status, TestFailed; got != expected {
-		t.Fatalf("want %v, got %v", expected, got)
+
+	xUnitFileName := XUnitReportPath("vanadium-go-test")
+	for _, test := range testCases {
+		if err := os.RemoveAll(xUnitFileName); err != nil {
+			t.Fatalf("RemoveAll(%s) failed: %v", xUnitFileName, err)
+		}
+		if test.createXUnitFile && test.existingSuites != nil {
+			bytes, err := xml.MarshalIndent(test.existingSuites, "", "  ")
+			if err != nil {
+				t.Fatalf("MarshalIndent(%v) failed: %v", test.existingSuites, err)
+			}
+			if err := ioutil.WriteFile(xUnitFileName, bytes, os.FileMode(0644)); err != nil {
+				t.Fatalf("WriteFile(%v) failed: %v", xUnitFileName, err)
+			}
+		}
+		testResult, err := genXUnitReportOnCmdError(ctx, "vanadium-go-test", "build", "failure",
+			func(opts runutil.Opts) error {
+				return ctx.Run().CommandWithOpts(opts, scriptFile)
+			})
+		if err != nil {
+			t.Fatalf("want no errors, got %v", err)
+		}
+		gotSuites, err := parseXUnitFile(xUnitFileName)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if !reflect.DeepEqual(gotSuites, test.expectedSuites) {
+			t.Fatalf("want\n%#v\n\ngot\n%#v", test.expectedSuites, gotSuites)
+		}
+		if got, expected := testResult.Status, TestFailed; got != expected {
+			t.Fatalf("want %v, got %v", expected, got)
+		}
 	}
 }
 
