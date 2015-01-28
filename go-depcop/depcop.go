@@ -87,7 +87,7 @@ func (r dependencyRule) enforce(p *build.Package) (dependencyPolicyAction, error
 	return undecidedPolicyAction, nil
 }
 
-func collectDirs(root, suffix string, dirs map[string]struct{}) error {
+func collectDirs(root, suffix string, dirs map[string]bool) error {
 	path := filepath.Join(root, suffix)
 	fis, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -96,28 +96,28 @@ func collectDirs(root, suffix string, dirs map[string]struct{}) error {
 	for _, fi := range fis {
 		if fi.IsDir() {
 			suffix2 := filepath.Join(suffix, fi.Name())
-			dirs[suffix2] = struct{}{}
+			dirs[suffix2] = true
 			collectDirs(root, suffix2, dirs)
 		}
 	}
 	return nil
 }
 
-func computeIncomingDependencies() (map[string]map[string]struct{}, error) {
+func computeIncomingDependencies() (map[string]map[string]bool, error) {
 	gopath := os.Getenv("GOPATH")
 	if gopath == "" {
 		return nil, fmt.Errorf("GOPATH is not set")
 	}
 	dirs := strings.Split(gopath, ":")
-	allDirs := map[string]struct{}{}
+	allDirs := map[string]bool{}
 	for _, dir := range dirs {
 		if err := collectDirs(filepath.Join(dir, "src"), "", allDirs); err != nil {
 			return nil, err
 		}
 	}
-	allDeps := map[string]map[string]struct{}{}
+	allDeps := map[string]map[string]bool{}
 	for dir, _ := range allDirs {
-		allDeps[dir] = map[string]struct{}{}
+		allDeps[dir] = map[string]bool{}
 	}
 	for dir, _ := range allDirs {
 		mode := build.ImportMode(0)
@@ -131,7 +131,7 @@ func computeIncomingDependencies() (map[string]map[string]struct{}, error) {
 		}
 		for _, dep := range imports {
 			if deps, ok := allDeps[dep]; ok {
-				deps[dir] = struct{}{}
+				deps[dir] = true
 			}
 		}
 	}
