@@ -894,25 +894,21 @@ var thirdPartyExclusions []exclusion
 
 func init() {
 	thirdPartyExclusions = []exclusion{
-		// The following test requires an X server, which is not
-		// available on GCE.
+		// The following test requires an X server, which is not available
+		// on GCE.
 		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isGCE()},
 		// The following test requires IPv6, which is not available on
 		// GCE.
 		exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle", nil}, isGCE()},
-		// The following test expects to see "FAIL: TestBar" which
-		// causes go2xunit to fail.
+		// The following test expects to see "FAIL: TestBar" which causes
+		// go2xunit to fail.
 		exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage", nil}, isGCE() || isDarwin()},
-		// Don't run this test on darwin since it's too awkward to set up
-		// dbus at the system level.
-		exclusion{test{"github.com/guelfey/go.dbus", "TestSystemBus", nil}, isDarwin()},
-
-		// Don't run this test on mac systems prior to Yosemite since it can
-		// crash some machines.
+		// Don't run this test on mac systems prior to Yosemite since it
+		// can crash some machines.
 		exclusion{test{"golang.org/x/net/ipv6", ".*", nil}, !isYosemite()},
-
-		// Fsnotify tests are flaky on darwin. This begs the question of whether
-		// we should be relying on this library at all.
+		// The fsnotify package tests are flaky on darwin. This begs the
+		// question of whether we should be relying on this library at
+		// all.
 		exclusion{test{"github.com/howeyc/fsnotify", ".*", nil}, isDarwin()},
 	}
 }
