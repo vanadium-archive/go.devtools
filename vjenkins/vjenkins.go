@@ -131,6 +131,11 @@ func addNodeToJenkins(ctx *util.Context, node string) (*http.Response, error) {
 					"key":           "PATH",
 					"value":         "$HOME/go/bin:$PATH",
 				},
+				map[string]string{
+					"stapler-class": "hudson.slaves.EnvironmentVariablesNodeProperty$Entry",
+					"key":           "TERM",
+					"value":         "xterm-256color",
+				},
 			},
 		},
 		Launcher: map[string]string{
