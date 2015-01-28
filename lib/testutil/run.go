@@ -15,7 +15,6 @@ type TestResult struct {
 	Status          TestStatus
 	TimeoutValue    time.Duration       // Used when Status == TestTimedOut
 	MergeConflictCL string              // Used when Status == TestFailedMergeConflict
-	ExcludedPkgs    []string            // Packages that are excluded
 	ExcludedTests   map[string][]string // Tests that are excluded within packages keyed by package name
 	SkippedTests    map[string][]string // Tests that are skipped within packages keyed by package name
 }

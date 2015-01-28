@@ -26,7 +26,6 @@ type taskStatus int
 const (
 	buildPassed taskStatus = iota
 	buildFailed
-	testSkipped
 	testPassed
 	testFailed
 	testTimedout
@@ -572,16 +571,19 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 		if testThisPkg {
 			tasks <- goTestTask{pkg, specificTests, excludedTests}
 		} else {
-			taskResults <- testResult{pkg, "package excluded", pkgAndTestList[pkg], testSkipped, 0}
+			taskResults <- testResult{
+				pkg:      pkg,
+				output:   "package excluded",
+				excluded: excludedTests,
+				status:   testPassed,
+			}
 		}
 	}
 	close(tasks)
 
 	// Collect the results.
 
-	// excludedPkgs and Tests are a result of exclusion rules in this
-	// tool.
-	excludedPkgs := []string{}
+	// excludedTests are a result of exclusion rules in this tool.
 	excludedTests := map[string][]string{}
 	// skippedTests are a result of testing.Skip calls in the actual
 	// tests.
@@ -594,7 +596,8 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 		case buildFailed:
 			s = createTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time)
 		case testFailed, testPassed:
-			if strings.Index(result.output, "no test files") == -1 {
+			if strings.Index(result.output, "no test files") == -1 &&
+				strings.Index(result.output, "package excluded") == -1 {
 				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
 				if err != nil {
 					// Token too long error.
@@ -624,7 +627,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 				Pass(ctx, "%s\n", result.pkg)
 			}
 			if s.Skip > 0 {
-				Skipped(ctx, "%s %v\n", result.pkg, skippedTests[result.pkg])
+				Pass(ctx, "%s (skipped tests: %v)\n", result.pkg, skippedTests[result.pkg])
 			}
 
 			newCases := []testCase{}
@@ -637,12 +640,8 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			s.Cases = newCases
 			suites = append(suites, *s)
 		}
-		if result.status == testSkipped {
-			excludedPkgs = append(excludedPkgs, result.pkg)
-			Excluded(ctx, "%s package excluded\n", result.pkg)
-		}
 		if excluded := excludedTests[result.pkg]; excluded != nil {
-			Excluded(ctx, "%s has excluded tests: %v\n", result.pkg, excluded)
+			Pass(ctx, "%s (excluded tests: %v)\n", result.pkg, excluded)
 		}
 	}
 	close(taskResults)
@@ -653,7 +652,6 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	}
 	testResult := &TestResult{
 		Status:        TestPassed,
-		ExcludedPkgs:  excludedPkgs,
 		ExcludedTests: excludedTests,
 		SkippedTests:  skippedTests,
 	}
