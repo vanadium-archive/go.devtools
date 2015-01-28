@@ -7,9 +7,8 @@ import (
 	"strings"
 )
 
-func isGCE() bool {
-	sysuser := os.Getenv("USER")
-	return sysuser == "veyron" && runtime.GOOS == "linux"
+func isCI() bool {
+	return os.Getenv("USER") == "veyron"
 }
 
 func isDarwin() bool {

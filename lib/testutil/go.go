@@ -895,14 +895,14 @@ var thirdPartyExclusions []exclusion
 func init() {
 	thirdPartyExclusions = []exclusion{
 		// The following test requires an X server, which is not available
-		// on GCE.
-		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isGCE()},
+		// on some of our continuous integration instances.
+		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isCI()},
 		// The following test requires IPv6, which is not available on
-		// GCE.
-		exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle", nil}, isGCE()},
+		// some of our continuous integration instances.
+		exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle", nil}, isCI()},
 		// The following test expects to see "FAIL: TestBar" which causes
 		// go2xunit to fail.
-		exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage", nil}, isGCE() || isDarwin()},
+		exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage", nil}, true},
 		// Don't run this test on mac systems prior to Yosemite since it
 		// can crash some machines.
 		exclusion{test{"golang.org/x/net/ipv6", ".*", nil}, !isYosemite()},
