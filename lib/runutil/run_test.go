@@ -2,13 +2,17 @@ package runutil
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+const timedCommandTimeout = 3 * time.Second
 
 func TestCommandOK(t *testing.T) {
 	var out bytes.Buffer
@@ -78,12 +82,19 @@ func TestTimedCommandOK(t *testing.T) {
 func TestTimedCommandFail(t *testing.T) {
 	var out bytes.Buffer
 	run := New(nil, os.Stdin, &out, ioutil.Discard, false, false, true)
-	if err := run.TimedCommand(time.Second, "go", "run", "./testdata/slow_hello.go"); err == nil {
+	bin, err := buildSlowHello(run)
+	if bin != "" {
+		defer os.RemoveAll(filepath.Dir(bin))
+	}
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := run.TimedCommand(timedCommandTimeout, bin); err == nil {
 		t.Fatalf(`TimedCommand("go run ./testdata/slow_hello.go") did not fail when it should`)
 	} else if got, want := err, CommandTimedOutErr; got != want {
 		t.Fatalf("unexpected error: got %v, want %v", got, want)
 	}
-	if got, want := strings.TrimSpace(out.String()), ">> go run ./testdata/slow_hello.go\nhello\n>> TIMED OUT"; got != want {
+	if got, want := strings.TrimSpace(out.String()), fmt.Sprintf(">> %s\nhello\n>> TIMED OUT", bin); got != want {
 		t.Fatalf("unexpected output:\ngot\n%v\nwant\n%v", got, want)
 	}
 }
@@ -107,14 +118,21 @@ func TestTimedCommandWithOptsOK(t *testing.T) {
 func TestTimedCommandWithOptsFail(t *testing.T) {
 	var cmdOut, runOut bytes.Buffer
 	run := New(nil, os.Stdin, &runOut, ioutil.Discard, false, false, true)
+	bin, err := buildSlowHello(run)
+	if bin != "" {
+		defer os.RemoveAll(filepath.Dir(bin))
+	}
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	opts := run.Opts()
 	opts.Stdout = &cmdOut
-	if err := run.TimedCommandWithOpts(1*time.Second, opts, "go", "run", "./testdata/slow_hello.go"); err == nil {
+	if err := run.TimedCommandWithOpts(timedCommandTimeout, opts, bin); err == nil {
 		t.Fatalf(`TimedCommandWithOpts("go run ./testdata/slow_hello.go") did not fail when it should`)
 	} else if got, want := err, CommandTimedOutErr; got != want {
 		t.Fatalf("unexpected error: got %v, want %v", got, want)
 	}
-	if got, want := strings.TrimSpace(runOut.String()), ">> go run ./testdata/slow_hello.go\n>> TIMED OUT"; got != want {
+	if got, want := strings.TrimSpace(runOut.String()), fmt.Sprintf(">> %s\n>> TIMED OUT", bin); got != want {
 		t.Fatalf("unexpected output:\ngot\n%v\nwant\n%v", got, want)
 	}
 	if got, want := strings.TrimSpace(cmdOut.String()), "hello"; got != want {
@@ -221,4 +239,19 @@ func TestNested(t *testing.T) {
 	if got, want := strings.TrimSpace(out.String()), ">> greetings\n>>>> hello\n>>>> world\n>> OK"; got != want {
 		t.Fatalf("unexpected output:\ngot\n%v\nwant\n%v", got, want)
 	}
+}
+
+func buildSlowHello(run *Run) (string, error) {
+	tmpDir, err := ioutil.TempDir("", "runtest")
+	if err != nil {
+		return "", fmt.Errorf("TempDir() failed: %v", err)
+	}
+	bin := filepath.Join(tmpDir, "slow_hello")
+	buildArgs := []string{"build", "-o", bin, "./testdata/slow_hello.go"}
+	opts := run.Opts()
+	opts.Verbose = false
+	if err := run.CommandWithOpts(opts, "go", buildArgs...); err != nil {
+		return "", err
+	}
+	return bin, nil
 }
