@@ -54,6 +54,10 @@
     ]
   },
   "snapshot-label-tests": {
+    "old-store": [
+      "vanadium-go-build",
+      "vanadium-go-test"
+		],
     "stable-go": [
       "vanadium-go-build",
       "vanadium-go-test",
