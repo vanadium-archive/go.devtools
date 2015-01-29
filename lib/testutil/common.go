@@ -132,7 +132,8 @@ func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failure
 	if err := commandFunc(opts); err != nil {
 		xUnitFilePath := XUnitReportPath(testName)
 
-		// Only create the report when the xUnit file doesn't exist or is invalid.
+		// Only create the report when the xUnit file doesn't exist, is invalid, or
+		// exist but doesn't have failed test cases.
 		createXUnitFile := false
 		if _, err := os.Stat(xUnitFilePath); err != nil {
 			if os.IsNotExist(err) {
@@ -148,6 +149,14 @@ func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failure
 			var existingSuites testSuites
 			if err := xml.Unmarshal(bytes, &existingSuites); err != nil {
 				createXUnitFile = true
+			} else {
+				createXUnitFile = true
+				for _, curSuite := range existingSuites.Suites {
+					if curSuite.Failures > 0 || curSuite.Errors > 0 {
+						createXUnitFile = false
+						break
+					}
+				}
 			}
 		}
 
@@ -156,7 +165,8 @@ func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failure
 			// Include last <numLinesToOutput> lines of the output in the error message.
 			lines := strings.Split(out.String(), "\n")
 			startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
-			errMsg := "......\n" + strings.Join(lines[startLine:], "\n")
+			consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
+			errMsg := fmt.Sprintf("Error message:\n%s\n\nConsole output:\n%s", err.Error(), consoleOutput)
 			s := createTestSuiteWithFailure(testName, testCaseName, failureSummary, errMsg, 0)
 			suites := []testSuite{*s}
 
