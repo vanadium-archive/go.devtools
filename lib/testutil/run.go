@@ -73,6 +73,8 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"third_party-go-build":            thirdPartyGoBuild,
 	"third_party-go-test":             thirdPartyGoTest,
 	"third_party-go-race":             thirdPartyGoRace,
+	"vanadium-chat-shell-test":        vanadiumChatShellTest,
+	"vanadium-chat-web-test":          vanadiumChatWebTest,
 	"vanadium-namespace-browser-test": vanadiumNamespaceBrowserTest,
 	"vanadium-go-bench":               vanadiumGoBench,
 	"vanadium-go-build":               vanadiumGoBuild,
