@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -19,15 +20,19 @@ func vanadiumVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	}
 
 	// Install the vdl tool.
-	opts := ctx.Run().Opts()
-	opts.Env["GOPATH"] = filepath.Join(root, "release", "go")
-	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/core/veyron2/vdl/vdl"); err != nil {
+	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "VDLInstall", "failure",
+		func(opts runutil.Opts) error {
+			opts.Env["GOPATH"] = filepath.Join(root, "release", "go")
+			return ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/core/veyron2/vdl/vdl")
+		}); err != nil {
 		return nil, err
+	} else if testResult != nil {
+		return testResult, nil
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.
 	var out bytes.Buffer
-	opts = ctx.Run().Opts()
+	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
 	venv, err := util.VanadiumEnvironment(util.HostPlatform())
@@ -40,6 +45,11 @@ func vanadiumVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	output := strings.TrimSpace(out.String())
 	if err != nil || len(output) != 0 {
 		fmt.Fprintf(ctx.Stdout(), "%v\n", output)
+		s := createTestSuiteWithFailure(testName, "VDLAudit", "failure", output, 0)
+		suites := []testSuite{*s}
+		if err := createXUnitReport(ctx, testName, suites); err != nil {
+			return nil, err
+		}
 		return &TestResult{Status: TestFailed}, nil
 	}
 	return &TestResult{Status: TestPassed}, nil
