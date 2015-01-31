@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -188,25 +189,68 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e
 		}
 	}
 
-	// Generate a dummy test results file if the tests we run
-	// didn't produce any non-empty files.
-	testResultFiles, err = findTestResultFiles(ctx)
+	if testResult, err := generateDummyTestReportFile(ctx, testName); err != nil {
+		return nil, err
+	} else {
+		return testResult, nil
+	}
+}
+
+// generateDummyTestReportFile generate a dummy test report if
+// - the tests we run didn't produce any non-empty files, or
+// - the existing test report is invalid, or
+// - the existing test report has no test cases.
+func generateDummyTestReportFile(ctx *util.Context, testName string) (*TestResult, error) {
+	testResultFiles, err := findTestResultFiles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	hasXUnitReport := false
+	xUnitReportFile := ""
 	for _, file := range testResultFiles {
 		if strings.HasSuffix(file, ".xml") {
-			hasXUnitReport = true
+			xUnitReportFile = file
 			break
 		}
 	}
-	if !hasXUnitReport {
+	// No test report.
+	if xUnitReportFile == "" {
 		workspaceDir := os.Getenv("WORKSPACE")
 		dummyFile, perm := filepath.Join(workspaceDir, "tests_dummy.xml"), os.FileMode(0644)
 		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
 			return nil, fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
 		}
+		return &TestResult{Status: TestPassed}, nil
+	}
+
+	// Invalid xUnit file.
+	bytes, err := ioutil.ReadFile(xUnitReportFile)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFile(%s) failed: %v", xUnitReportFile, err)
+	}
+	var suites testSuites
+	if err := xml.Unmarshal(bytes, &suites); err != nil {
+		ctx.Run().RemoveAll(xUnitReportFile)
+		s := createTestSuiteWithFailure(testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error(), 0)
+		suites := []testSuite{*s}
+		if err := createXUnitReport(ctx, testName, suites); err != nil {
+			return nil, err
+		}
+		return &TestResult{Status: TestFailed}, nil
+	}
+
+	// No test cases.
+	numTestCases := 0
+	for _, suite := range suites.Suites {
+		numTestCases += len(suite.Cases)
+	}
+	if numTestCases == 0 {
+		ctx.Run().RemoveAll(xUnitReportFile)
+		s := createTestSuiteWithFailure(testName, "No Test Cases", "No Test Cases", "", 0)
+		suites := []testSuite{*s}
+		if err := createXUnitReport(ctx, testName, suites); err != nil {
+			return nil, err
+		}
+		return &TestResult{Status: TestFailed}, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil
