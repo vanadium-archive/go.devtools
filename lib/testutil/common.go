@@ -26,6 +26,10 @@ var (
 const (
 	// Number of lines to be included in the error messsage of an xUnit report.
 	numLinesToOutput = 50
+
+	// The initial size of the buffer for storing command output in the
+	// genXUnitReportOnCmdError function.
+	largeBufferBytes = 1048576
 )
 
 // binDirPath returns the path to the directory for storing temporary
@@ -125,11 +129,12 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 // genXUnitReportOnCmdError generates an xUnit test report if the given command
 // function returns an error.
 func genXUnitReportOnCmdError(ctx *util.Context, testName, testCaseName, failureSummary string, commandFunc func(runutil.Opts) error) (*TestResult, error) {
-	var out bytes.Buffer
+	largeBuffer := make([]byte, 0, largeBufferBytes)
+	out := bytes.NewBuffer(largeBuffer)
 	opts := ctx.Run().Opts()
-	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
-	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
-	if err := commandFunc(opts); err != nil {
+	opts.Stdout = io.MultiWriter(out, opts.Stdout)
+	opts.Stderr = io.MultiWriter(out, opts.Stderr)
+	if err := commandFunc(opts); err != nil && err != io.ErrShortWrite {
 		xUnitFilePath := XUnitReportPath(testName)
 
 		// Only create the report when the xUnit file doesn't exist, is invalid, or
