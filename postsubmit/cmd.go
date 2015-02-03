@@ -36,6 +36,7 @@ var (
 		"vanadium-js-vdl":                 struct{}{},
 		"vanadium-js-vom":                 struct{}{},
 		"vanadium-namespace-browser-test": struct{}{},
+		"vanadium-playground-test":        struct{}{},
 		"vanadium-www-site":               struct{}{},
 		"vanadium-www-tutorials":          struct{}{},
 	}

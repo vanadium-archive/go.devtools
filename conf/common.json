@@ -15,9 +15,6 @@
       "javascript",
       "projects"
     ],
-    "release.go.playground": [
-      "go"
-    ],
     "release.go.tools": [
       "go",
       "javascript",
@@ -39,6 +36,9 @@
     "release.projects.chat": [
       "vanadium-chat-shell-test",
       "vanadium-chat-web-test"
+    ],
+    "release.projects.playground": [
+      "vanadium-playground-test"
     ],
     "roadmap.go.examples": [
       "go"
@@ -86,6 +86,10 @@
       "vanadium-js-browser-integration",
       "vanadium-js-node-integration"
     ],
+    "vanadium-playground-test": [
+      "vanadium-go-build",
+      "vanadium-js-node-integration"
+    ],
     "vanadium-go-race": [
       "vanadium-go-test"
     ],
@@ -124,7 +128,8 @@
       "vanadium-js-vom"
     ],
     "projects": [
-      "vanadium-namespace-browser-test"
+      "vanadium-namespace-browser-test",
+      "vanadium-playground-test"
     ],
     "third_party-go": [
       "third_party-go-build",
