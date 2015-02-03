@@ -159,8 +159,8 @@ func vanadiumJSVom(ctx *util.Context, testName string) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "release", "javascript", "vom")
-	target := "test"
+	testDir := filepath.Join(root, "release", "javascript", "core")
+	target := "test-vom"
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = XUnitReportPath(testName)
