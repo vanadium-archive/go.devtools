@@ -107,11 +107,12 @@
   "test-groups": {
     "go": [
       "vanadium-go-build",
-      "vanadium-go-test",
+      "vanadium-go-generate",
       "vanadium-go-race",
+      "vanadium-go-test",
+      "vanadium-go-vdl",
       "vanadium-integration-test",
       "vanadium-prod-services-test",
-      "vanadium-vdl",
       "vanadium-www-tutorials"
     ],
     "javascript": [

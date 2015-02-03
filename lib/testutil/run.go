@@ -80,8 +80,10 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-go-build":               vanadiumGoBuild,
 	"vanadium-go-cover":               vanadiumGoCoverage,
 	"vanadium-go-doc":                 vanadiumGoDoc,
-	"vanadium-go-test":                vanadiumGoTest,
+	"vanadium-go-generate":            vanadiumGoGenerate,
 	"vanadium-go-race":                vanadiumGoRace,
+	"vanadium-go-test":                vanadiumGoTest,
+	"vanadium-go-vdl":                 vanadiumGoVDL,
 	"vanadium-integration-test":       vanadiumIntegrationTest,
 	"vanadium-integration-test-new":   vanadiumNewIntegrationTest,
 	"vanadium-js-build-extension":     vanadiumJSBuildExtension,
@@ -96,7 +98,6 @@ var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
 	"vanadium-presubmit-result":       vanadiumPresubmitResult,
 	"vanadium-presubmit-test":         vanadiumPresubmitTest,
 	"vanadium-prod-services-test":     vanadiumProdServicesTest,
-	"vanadium-vdl":                    vanadiumVDL,
 	"vanadium-www-site":               vanadiumWWWSite,
 	"vanadium-www-tutorials":          vanadiumWWWTutorials,
 }
@@ -199,6 +200,10 @@ func TestList() ([]string, error) {
 }
 
 // runTests runs the given tests, populating the results map.
+//
+// TODO(jingjin): move the logic that wraps internal errors in a
+// TestResult and creates an xUnit report if one does not exists from
+// the test function to this wrapper.
 func runTests(ctx *util.Context, tests []string, results map[string]*TestResult) error {
 	for _, test := range tests {
 		testFn, ok := testFunctions[test]

@@ -1043,11 +1043,57 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 	return &TestResult{Status: TestPassed}, nil
 }
 
-// vanadiumGoTest runs Go tests for vanadium projects.
-func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
-	suffix := suffixOpt(genTestNameSuffix("GoTest"))
-	return goTest(ctx, testName, pkgs, suffix)
+// vanadiumGoGenerate checks that files created by 'go generate' are
+// up-to-date.
+func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e error) {
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'v23 go generate v.io/...'.\n")
+
+	// Stash any uncommitted changes and defer functions that undo any
+	// changes created by this function and then unstash the original
+	// uncommitted changes.
+	projects, err := util.LocalProjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, project := range projects {
+		if err := ctx.Run().Chdir(project.Path); err != nil {
+			return nil, err
+		}
+		stashed, err := ctx.Git().Stash()
+		if err != nil {
+			return nil, err
+		}
+		defer collect.Error(func() error {
+			if err := ctx.Run().Chdir(project.Path); err != nil {
+				return err
+			}
+			if err := ctx.Git().Reset("HEAD"); err != nil {
+				return err
+			}
+			if stashed {
+				return ctx.Git().StashPop()
+			}
+			return nil
+		}, &e)
+	}
+
+	// Check if 'go generate' creates any changes.
+	if err := ctx.Run().Command("v23", "go", "generate", "v.io/..."); err != nil {
+		return nil, err
+	}
+	dirtyFiles := []string{}
+	for _, project := range projects {
+		files, err := ctx.Git(util.RootDirOpt(project.Path)).FilesWithUncommittedChanges()
+		if err != nil {
+			return nil, err
+		}
+		dirtyFiles = append(dirtyFiles, files...)
+	}
+	if len(dirtyFiles) != 0 {
+		fmt.Fprintf(ctx.Stdout(), "The following go generated files are not up-to-date:\n%v\n", strings.Join(dirtyFiles, "\n"))
+		return &TestResult{Status: TestFailed}, nil
+	}
+	return &TestResult{Status: TestPassed}, nil
 }
 
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
@@ -1071,4 +1117,11 @@ func genTestNameSuffix(baseSuffix string) string {
 		return fmt.Sprintf("[%s]", extraSuffix)
 	}
 	return fmt.Sprintf("[%s - %s]", baseSuffix, extraSuffix)
+}
+
+// vanadiumGoTest runs Go tests for vanadium projects.
+func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
+	pkgs := []string{"v.io/..."}
+	suffix := suffixOpt(genTestNameSuffix("GoTest"))
+	return goTest(ctx, testName, pkgs, suffix)
 }
