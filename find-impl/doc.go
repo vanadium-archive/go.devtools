@@ -52,7 +52,7 @@ The find-impl flags are:
 
 Find-Impl Version
 
-Print version of the veyron tool.
+Print version of the find-impl tool.
 
 Usage:
    find-impl version

@@ -63,7 +63,7 @@ The git-v23 review flags are:
  -d=false
    Send a draft changelist.
  -presubmit=all
-   The type of presubmit tests to run. Valid values: none, all.
+   The type of presubmit tests to run. Valid values: none,all.
  -r=
    Comma-seperated list of emails or LDAPs to request review.
 

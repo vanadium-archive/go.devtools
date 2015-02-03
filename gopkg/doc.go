@@ -5,10 +5,10 @@
 Print information about go package(s).
 
 Example of printing all top-level information about the vdl package:
-  veyron run gopkg v.io/core/veyron2/vdl
+  v23 run gopkg v.io/core/veyron2/vdl
 
 Example of printing the names of all Test* funcs from the vdl package:
-  veyron run gopkg -test -kind=func -name_re 'Test.*' -type_re 'func\(.*testing\.T\)' -noheader -notype v.io/core/veyron2/vdl
+  v23 run gopkg -test -kind=func -name_re 'Test.*' -type_re 'func\(.*testing\.T\)' -noheader -notype v.io/core/veyron2/vdl
 
 Usage:
    gopkg [flags] <args>

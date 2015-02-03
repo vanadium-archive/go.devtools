@@ -9,6 +9,7 @@ Usage:
 
 The presubmit commands are:
    query       Query open CLs from Gerrit
+   result      Process and post test results.
    test        Run tests for a CL
    version     Print version
    help        Display help for commands or topics
@@ -23,6 +24,8 @@ The presubmit flags are:
    The path to the .netrc file that stores Gerrit's credentials.
  -nocolor=false
    Do not use color to format output.
+ -project=vanadium-presubmit-test
+   The name of the Jenkins project to add presubmit-test builds to.
  -token=
    The Jenkins API token.
  -url=https://vanadium-review.googlesource.com
@@ -43,10 +46,26 @@ Usage:
 The presubmit query flags are:
  -log_file=$HOME/tmp/presubmit_log
    The file that stores the refs from the previous Gerrit query.
- -project=vanadium-presubmit-test
-   The name of the Jenkins project to add presubmit-test builds to.
  -query=(status:open -project:experimental)
    The string used to query Gerrit for open CLs.
+
+Presubmit Result
+
+Result processes all the test statuses and results files collected from all the
+presubmit test configuration builds, creates a result summary, and posts the
+summary back to the corresponding Gerrit review thread.
+
+Usage:
+   presubmit result [flags]
+
+The presubmit result flags are:
+ -build_number=-1
+   The number of the Jenkins build.
+ -refs=
+   The review references separated by ':'.
+ -repos=
+   The base names of remote repositories containing the CLs pointed by the refs,
+   separated by ':'.
 
 Presubmit Test
 
@@ -66,6 +85,8 @@ The presubmit test flags are:
  -repos=
    The base names of remote repositories containing the CLs pointed by the refs,
    separated by ':'.
+ -test=
+   The name of a single test to run.
 
 Presubmit Version
 
