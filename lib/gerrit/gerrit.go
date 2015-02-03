@@ -101,7 +101,7 @@ type QueryResult struct {
 	MultiPart     *MultiPartCLInfo
 	PresubmitTest PresubmitTestType
 	Ref           string
-	Repo          string
+	Project       string
 }
 
 type PresubmitTestType string
@@ -116,7 +116,7 @@ func PresubmitTestTypes() []string {
 }
 
 // MultiPartCLInfo contains data used to process multiple cls across
-// different repos.
+// different projects.
 type MultiPartCLInfo struct {
 	Topic string
 	Index int // This should be 1-based.
@@ -161,7 +161,7 @@ func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
 	for _, change := range changes {
 		queryResult := QueryResult{
 			Ref:      change.Revisions[change.Current_revision].Fetch.Http.Ref,
-			Repo:     change.Project,
+			Project:  change.Project,
 			ChangeID: change.Change_id,
 			Labels:   change.Labels,
 		}
@@ -285,10 +285,9 @@ func Reference(draft bool, reviewers, ccs, branch string) string {
 	return ref
 }
 
-// repoName returns the URL of the vanadium Gerrit repository with
-// respect to the repository identified by the current working
-// directory.
-func repoName(run *runutil.Run) (string, error) {
+// projectName returns the URL of the vanadium Gerrit project with
+// respect to the project identified by the current working directory.
+func projectName(run *runutil.Run) (string, error) {
 	args := []string{"config", "--get", "remote.origin.url"}
 	var stdout, stderr bytes.Buffer
 	opts := run.Opts()
@@ -301,17 +300,17 @@ func repoName(run *runutil.Run) (string, error) {
 }
 
 // Push pushes the current branch to Gerrit.
-func Push(run *runutil.Run, repoPathArg string, draft bool, reviewers, ccs, branch string) error {
-	repoPath := repoPathArg
-	if repoPathArg == "" {
+func Push(run *runutil.Run, projectPathArg string, draft bool, reviewers, ccs, branch string) error {
+	projectPath := projectPathArg
+	if projectPathArg == "" {
 		var err error
-		repoPath, err = repoName(run)
+		projectPath, err = projectName(run)
 		if err != nil {
 			return err
 		}
 	}
 	refspec := "HEAD:" + Reference(draft, reviewers, ccs, branch)
-	args := []string{"push", repoPath, refspec}
+	args := []string{"push", projectPath, refspec}
 	var stdout, stderr bytes.Buffer
 	opts := run.Opts()
 	opts.Stdout = &stdout

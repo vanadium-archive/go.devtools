@@ -1,15 +1,8 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
-	"html"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -58,31 +51,11 @@ type cl struct {
 	clNumber int
 	patchset int
 	ref      string
-	repo     string
+	project  string
 }
 
 func (c cl) String() string {
 	return fmt.Sprintf("http://go/vcl/%d/%d", c.clNumber, c.patchset)
-}
-
-type testResultInfo struct {
-	result     testutil.TestResult
-	testName   string
-	slaveLabel string
-}
-
-// All the multi-configuration Jenkins projects.
-var multiConfigurationProjects = map[string]struct{}{
-	"vanadium-go-build":         struct{}{},
-	"vanadium-go-test":          struct{}{},
-	"vanadium-integration-test": struct{}{},
-}
-
-// isMultiConfigurationProject checks whether the given project is a
-// multi-configuration project.
-func isMultiConfigurationProject(projectName string) bool {
-	_, ok := multiConfigurationProjects[projectName]
-	return ok
 }
 
 // runTest implements the 'test' subcommand.
@@ -90,27 +63,16 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 
 	// Basic sanity checks.
-	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
-	if err != nil {
+	if err := sanityChecks(command); err != nil {
 		return err
 	}
-	if _, err := os.Stat(manifestFilePath); err != nil {
-		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
-	}
-	if reposFlag == "" {
-		return command.UsageErrorf("-repos flag is required")
-	}
-	if reviewTargetRefsFlag == "" {
-		return command.UsageErrorf("-refs flag is required")
-	}
 
-	// Parse cls from refs and repos.
+	// Generate cls from the refs and projects flags.
 	cls, err := parseCLs()
 	if err != nil {
 		return err
 	}
 
-	// Parse the manifest file to get the local path for the repo.
 	projects, tools, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
@@ -144,21 +106,12 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 
 	// Prepare presubmit test branch.
 	if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
-		// When "git pull" fails, record merge conflict error in test status file
-		// and xunit report.
 		if failedCL != nil {
 			fmt.Fprintf(ctx.Stderr(), "%s: %v\n", failedCL.String(), err)
 		}
+		// Possible merge conflict.
 		if strings.Contains(err.Error(), "git pull") {
-			message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
-			result := testutil.TestResult{
-				Status:          testutil.TestFailedMergeConflict,
-				MergeConflictCL: failedCL.String(),
-			}
-			if err := generateFailureReport(testFlag, mergeConflictTestClass, message); err != nil {
-				return err
-			}
-			if err := writeTestStatusFile(ctx, map[string]*testutil.TestResult{testFlag: &result}); err != nil {
+			if err := recordMergeConflict(ctx, failedCL); err != nil {
 				return err
 			}
 			return nil
@@ -166,33 +119,17 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		return err
 	}
 
-	// Rebuild the developer tool.
-	toolsProject, ok := projects["release.go.tools"]
-	env := map[string]string{}
-	if !ok {
-		printf(ctx.Stderr(), "tools project not found, not rebuilding tools.\n")
-	} else {
-		// Find target Tools.
-		targetTools := []util.Tool{}
-		for name, tool := range tools {
-			if name == "v23" || name == "vdl" || name == "go-depcop" {
-				targetTools = append(targetTools, tool)
-			}
+	// Rebuild developer tools and override VANADIUM_ROOT/bin.
+	env, errs := rebuildDeveloperTools(ctx, projects, tools, tmpBinDir)
+	if len(errs) > 0 {
+		// Don't fail on errors.
+		for _, err := range errs {
+			printf(ctx.Stderr(), "%v\n", err)
 		}
-		// Rebuild.
-		for _, tool := range targetTools {
-			if err := util.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, toolsProject); err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
-			}
-		}
-		// Create a new PATH that replaces VANADIUM_ROOT/bin
-		// with the temporary directory in which the tools
-		// were rebuilt.
-		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "bin"), tmpBinDir, -1)
 	}
 
 	// Run the tests.
-	printf(ctx.Stdout(), "### Running the tests\n")
+	printf(ctx.Stdout(), "### Running the presubmit test\n")
 	if results, err := testutil.RunTests(ctx, env, []string{testFlag}); err == nil {
 		return writeTestStatusFile(ctx, results)
 	} else {
@@ -200,17 +137,35 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	}
 }
 
-// parseCLs parses cl info from refs and repos flag, and returns a
+// sanityChecks performs basic sanity checks for various flags.
+func sanityChecks(command *cmdline.Command) error {
+	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(manifestFilePath); err != nil {
+		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
+	}
+	if projectsFlag == "" {
+		return command.UsageErrorf("-projects flag is required")
+	}
+	if reviewTargetRefsFlag == "" {
+		return command.UsageErrorf("-refs flag is required")
+	}
+	return nil
+}
+
+// parseCLs parses cl info from refs and projects flag, and returns a
 // slice of "cl" objects.
 func parseCLs() ([]cl, error) {
 	refs := strings.Split(reviewTargetRefsFlag, ":")
-	repos := strings.Split(reposFlag, ":")
-	if got, want := len(refs), len(repos); got != want {
-		return nil, fmt.Errorf("Mismatching lengths of %v and %v: %v vs. %v", refs, repos, len(refs), len(repos))
+	projects := strings.Split(projectsFlag, ":")
+	if got, want := len(refs), len(projects); got != want {
+		return nil, fmt.Errorf("Mismatching lengths of %v and %v: %v vs. %v", refs, projects, len(refs), len(projects))
 	}
 	cls := []cl{}
 	for i, ref := range refs {
-		repo := repos[i]
+		project := projects[i]
 		clNumber, patchset, err := parseRefString(ref)
 		if err != nil {
 			return nil, err
@@ -219,7 +174,7 @@ func parseCLs() ([]cl, error) {
 			clNumber: clNumber,
 			patchset: patchset,
 			ref:      ref,
-			repo:     repo,
+			project:  project,
 		})
 	}
 	return cls, nil
@@ -249,9 +204,9 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 	// Pull changes for each cl.
 	printf(ctx.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
 	prepareFn := func(curCL cl) error {
-		localRepo, ok := projects[curCL.repo]
+		localRepo, ok := projects[curCL.project]
 		if !ok {
-			return fmt.Errorf("repo %q not found", curCL.repo)
+			return fmt.Errorf("project %q not found", curCL.project)
 		}
 		localRepoDir := localRepo.Path
 		if err := ctx.Run().Chdir(localRepoDir); err != nil {
@@ -276,6 +231,54 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 	return nil, nil
 }
 
+// recordMergeConflict records possible merge conflict in the test status file
+// and xUnit report.
+func recordMergeConflict(ctx *util.Context, failedCL *cl) error {
+	message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
+	result := testutil.TestResult{
+		Status:          testutil.TestFailedMergeConflict,
+		MergeConflictCL: failedCL.String(),
+	}
+	if err := generateFailureReport(testFlag, mergeConflictTestClass, message); err != nil {
+		return err
+	}
+	if err := writeTestStatusFile(ctx, map[string]*testutil.TestResult{testFlag: &result}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// rebuildDeveloperTools rebuilds developer tools (e.g. v23, vdl..) in a
+// temporary directory, which is used to replace VANADIUM_ROOT/bin in the PATH.
+func rebuildDeveloperTools(ctx *util.Context, projects util.Projects, tools util.Tools, tmpBinDir string) (map[string]string, []error) {
+	errs := []error{}
+	toolsProject, ok := projects["release.go.tools"]
+	env := map[string]string{}
+	if !ok {
+		errs = append(errs, fmt.Errorf("tools project not found, not rebuilding tools."))
+	} else {
+		// Find target Tools.
+		env := map[string]string{}
+		targetTools := []util.Tool{}
+		for name, tool := range tools {
+			if name == "v23" || name == "vdl" || name == "go-depcop" {
+				targetTools = append(targetTools, tool)
+			}
+		}
+		// Rebuild.
+		for _, tool := range targetTools {
+			if err := util.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, toolsProject); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		// Create a new PATH that replaces VANADIUM_ROOT/bin
+		// with the temporary directory in which the tools
+		// were rebuilt.
+		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "bin"), tmpBinDir, -1)
+	}
+	return env, errs
+}
+
 // cleanupPresubmitTestBranch removes the presubmit test branch.
 func cleanupAllPresubmitTestBranches(ctx *util.Context, projects map[string]util.Project) (e error) {
 	printf(ctx.Stdout(), "### Cleaning up\n")
@@ -285,21 +288,21 @@ func cleanupAllPresubmitTestBranches(ctx *util.Context, projects map[string]util
 	}
 	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
 	for _, project := range projects {
-		localRepoDir := project.Path
-		if err := ctx.Run().Chdir(localRepoDir); err != nil {
-			return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+		localProjectDir := project.Path
+		if err := ctx.Run().Chdir(localProjectDir); err != nil {
+			return fmt.Errorf("Chdir(%v) failed: %v", localProjectDir, err)
 		}
-		if err := resetRepo(ctx); err != nil {
+		if err := resetLocalProject(ctx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// resetRepo cleans up untracked files and uncommitted changes of the
+// resetLocalProject cleans up untracked files and uncommitted changes of the
 // current branch, checks out the master branch, and deletes all the
 // other branches.
-func resetRepo(ctx *util.Context) error {
+func resetLocalProject(ctx *util.Context) error {
 	// Clean up changes and check out master.
 	curBranchName, err := ctx.Git().CurrentBranchName()
 	if err != nil {
@@ -338,336 +341,6 @@ func resetRepo(ctx *util.Context) error {
 	return nil
 }
 
-// lastCompletedBuildStatus gets the status of the last completed
-// build for a given jenkins test.
-func lastCompletedBuildStatus(testName string, slaveLabel string) (_ string, e error) {
-	// Construct REST API URL to get build status.
-	statusUrl, err := url.Parse(jenkinsHostFlag)
-	if err != nil {
-		return "", fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
-	}
-	if isMultiConfigurationProject(testName) {
-		statusUrl.Path = fmt.Sprintf("%s/job/%s/L=%s/lastCompletedBuild/api/json", statusUrl.Path, testName, slaveLabel)
-	} else {
-		statusUrl.Path = fmt.Sprintf("%s/job/%s/lastCompletedBuild/api/json", statusUrl.Path, testName)
-	}
-	statusUrl.RawQuery = url.Values{
-		"token": {jenkinsTokenFlag},
-	}.Encode()
-
-	// Get and parse JSON response.
-	var body io.Reader
-	method, url, body := "GET", statusUrl.String(), nil
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return "", fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
-	}
-	req.Header.Add("Accept", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("Do(%v) failed: %v", req, err)
-	}
-	defer collect.Error(func() error { return res.Body.Close() }, &e)
-	return parseLastCompletedBuildStatusJsonResponse(res.Body)
-}
-
-// parseLastCompletedBuildStatusJsonResponse parses whether the last
-// completed build was successful or not.
-func parseLastCompletedBuildStatusJsonResponse(reader io.Reader) (string, error) {
-	r := bufio.NewReader(reader)
-	var status struct {
-		Result string
-	}
-	if err := json.NewDecoder(r).Decode(&status); err != nil {
-		return "", fmt.Errorf("Decode() failed: %v", err)
-	}
-
-	return status.Result, nil
-}
-
-type testCase struct {
-	ClassName string
-	Name      string
-	Status    string
-}
-
-func (t testCase) equal(t2 testCase) bool {
-	return t.ClassName == t2.ClassName && t.Name == t2.Name
-}
-
-type failureType int
-
-const (
-	fixedFailure failureType = iota
-	newFailure
-	knownFailure
-)
-
-func (t failureType) String() string {
-	switch t {
-	case fixedFailure:
-		return "FIXED FAILURE"
-	case newFailure:
-		return "NEW FAILURE"
-	case knownFailure:
-		return "KNOWN FAILURE"
-	default:
-		return "UNKNOWN FAILURE TYPE"
-	}
-}
-
-// failedTestLinks maps from failure type to links.
-type failedTestLinksMap map[failureType][]string
-
-// failedTestCases gets a list of failed test cases from the most
-// recent build of the given Jenkins test.
-func failedTestCases(ctx *util.Context, testName string, slaveLabel string) (_ []testCase, e error) {
-	jenkins := ctx.Jenkins(jenkinsHostFlag)
-	getTestRerpotUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", testName)
-	if isMultiConfigurationProject(testName) {
-		getTestRerpotUri = fmt.Sprintf("job/%s/L=%s/lastCompletedBuild/testReport/api/json", testName, slaveLabel)
-	}
-	getTestReportRes, err := jenkins.Invoke("GET", getTestRerpotUri, url.Values{
-		"token": {jenkinsTokenFlag},
-	})
-	if err != nil {
-		return []testCase{}, err
-	}
-	defer collect.Error(func() error { return getTestReportRes.Body.Close() }, &e)
-	return parseFailedTestCases(getTestReportRes.Body)
-}
-
-// parseFailedTestCases parses testCases from the given test report
-// JSON string.
-func parseFailedTestCases(reader io.Reader) ([]testCase, error) {
-	r := bufio.NewReader(reader)
-	var testCases struct {
-		Suites []struct {
-			Cases []testCase
-		}
-	}
-	failedTestCases := []testCase{}
-	if err := json.NewDecoder(r).Decode(&testCases); err != nil {
-		return failedTestCases, fmt.Errorf("Decode() failed: %v", err)
-	}
-	for _, suite := range testCases.Suites {
-		for _, curCase := range suite.Cases {
-			if curCase.Status == "FAILED" || curCase.Status == "REGRESSION" {
-				failedTestCases = append(failedTestCases, curCase)
-			}
-		}
-	}
-	return failedTestCases, nil
-}
-
-// createFailedTestsReport returns links for failed tests grouped by
-// failure types.
-func createFailedTestsReport(ctx *util.Context, testResults []testResultInfo) (_ string, e error) {
-	linksMap := failedTestLinksMap{}
-	// seenTests maps the test full names to number of times they
-	// have been seen in the test reports. This will be used to
-	// properly generate links to failed tests.
-	//
-	// For example, if TestA is tested multiple times, then their
-	// links will look like:
-	//   http://.../TestA
-	//   http://.../TestA_2
-	//   http://.../TestA_3
-	seenTests := map[string]int{}
-	for _, testResult := range testResults {
-		testName := testResult.testName
-		// For a given test script this-is-a-test.sh, its test
-		// report file is: tests_this_is_a_test.xml.
-		junitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
-		// The collected junit test report is located at:
-		// $WORKSPACE/test_results/$buildNumber/L=$slaveLabel,TEST=$testName/tests_xxx.xml
-		//
-		// See more details in result.go.
-		junitReportFile := filepath.Join(
-			os.Getenv("WORKSPACE"),
-			"test_results",
-			fmt.Sprintf("%d", jenkinsBuildNumberFlag),
-			fmt.Sprintf("L=%s,TEST=%s", testResult.slaveLabel, testResult.testName),
-			junitReportFileName)
-		fdReport, err := os.Open(junitReportFile)
-		if err != nil {
-			printf(ctx.Stderr(), "Open(%q) failed: %v\n", junitReportFile, err)
-			continue
-		}
-		defer collect.Error(func() error { return fdReport.Close() }, &e)
-		curLinksMap, err := genFailedTestLinks(ctx, fdReport, seenTests, testName, testResult.slaveLabel, failedTestCases)
-		if err != nil {
-			printf(ctx.Stderr(), "%v\n", err)
-			continue
-		}
-		for curFailureType, curLinks := range curLinksMap {
-			linksMap[curFailureType] = append(linksMap[curFailureType], curLinks...)
-		}
-	}
-
-	// Output links grouped by failure types.
-	var buf bytes.Buffer
-	for _, failureType := range []failureType{newFailure, knownFailure, fixedFailure} {
-		curLinks, ok := linksMap[failureType]
-		if !ok || len(curLinks) == 0 {
-			continue
-		}
-		failureTypeStr := failureType.String()
-		if len(curLinks) > 1 {
-			failureTypeStr += "S"
-		}
-		fmt.Fprintf(&buf, "%s:\n%s\n\n", failureTypeStr, strings.Join(curLinks, "\n"))
-	}
-	return buf.String(), nil
-}
-
-func genFailedTestLinks(ctx *util.Context, reader io.Reader, seenTests map[string]int, testName string, slaveLabel string, getFailedTestCases func(*util.Context, string, string) ([]testCase, error)) (failedTestLinksMap, error) {
-	// Get failed test cases from the corresponding Jenkins test to
-	// compare with the failed tests from presubmit.
-	failedTestCases, err := getFailedTestCases(ctx, testName, slaveLabel)
-	if err != nil {
-		printf(ctx.Stderr(), "%v\n", err)
-	}
-
-	// Parse xUnit report of the presubmit test.
-	r := bufio.NewReader(reader)
-	var testSuites struct {
-		Testsuites []struct {
-			Name      string `xml:"name,attr"`
-			Failures  string `xml:"failures,attr"`
-			Testcases []struct {
-				Classname string `xml:"classname,attr"`
-				Name      string `xml:"name,attr"`
-				Failure   struct {
-					Data string `xml:",chardata"`
-				} `xml:"failure,omitempty"`
-			} `xml:"testcase"`
-		} `xml:"testsuite"`
-	}
-	if err := xml.NewDecoder(r).Decode(&testSuites); err != nil {
-		return nil, fmt.Errorf("Decode() failed: %v", err)
-	}
-
-	linksMap := failedTestLinksMap{}
-	curFailedTestCases := []testCase{}
-	for _, curTestSuite := range testSuites.Testsuites {
-		for _, curTestCase := range curTestSuite.Testcases {
-			// Use test suite's name as the test case's class name if the
-			// class name is empty.
-			if curTestCase.Classname == "" {
-				curTestCase.Classname = curTestSuite.Name
-			}
-			// Unescape test name and class name.
-			curTestCase.Classname = html.UnescapeString(curTestCase.Classname)
-			curTestCase.Name = html.UnescapeString(curTestCase.Name)
-
-			testFullName := genTestFullName(curTestCase.Classname, curTestCase.Name)
-			testKey := testFullName
-			if slaveLabel != "" {
-				testKey = fmt.Sprintf("%s-%s", testFullName, slaveLabel)
-			}
-			seenTests[testKey]++
-
-			// A failed test.
-			if curTestCase.Failure.Data != "" {
-				link := genTestResultLink(curTestCase.Classname, curTestCase.Name, testFullName, seenTests[testKey], testName, slaveLabel)
-				// Determine whether the curTestCase is a new failure or not.
-				isNewFailure := true
-				for _, prevFailedTestCase := range failedTestCases {
-					if curTestCase.Classname == prevFailedTestCase.ClassName && curTestCase.Name == prevFailedTestCase.Name {
-						isNewFailure = false
-						break
-					}
-				}
-				if isNewFailure {
-					linksMap[newFailure] = append(linksMap[newFailure], link)
-				} else {
-					linksMap[knownFailure] = append(linksMap[knownFailure], link)
-				}
-
-				curFailedTestCases = append(curFailedTestCases, testCase{
-					ClassName: curTestCase.Classname,
-					Name:      curTestCase.Name,
-				})
-			}
-		}
-	}
-
-	// Generate links for "fixed" tests and put them into linksMap[fixedFailure].
-	for _, prevFailedTestCase := range failedTestCases {
-		fixed := true
-		for _, curFailedTestCase := range curFailedTestCases {
-			if prevFailedTestCase.equal(curFailedTestCase) {
-				fixed = false
-				break
-			}
-		}
-		if fixed {
-			testFullName := genTestFullName(prevFailedTestCase.ClassName, prevFailedTestCase.Name)
-			// To make things simpler we only show the names of the fixed tests.
-			linksMap[fixedFailure] = append(linksMap[fixedFailure], fmt.Sprintf("- %s", testFullName))
-		}
-	}
-	return linksMap, nil
-}
-
-func genTestFullName(className, testName string) string {
-	testFullName := fmt.Sprintf("%s.%s", className, testName)
-	// Replace the period "." in testFullName with
-	// "::" to stop gmail from turning it into a
-	// link automatically.
-	return strings.Replace(testFullName, ".", "::", -1)
-}
-
-func genTestResultLink(className, testCaseName, testFullName string, suffix int, testName, slaveLabel string) string {
-	packageName := "(root)"
-	// In JUnit:
-	// - If className contains ".", the part before the last "." becomes
-	//   the package name, and the part after it becomes the class name.
-	// - If className doesn't contain ".", the package name will be
-	//   "(root)".
-	if strings.Contains(className, ".") {
-		lastDotIndex := strings.LastIndex(className, ".")
-		packageName = className[0:lastDotIndex]
-		className = className[lastDotIndex+1:]
-	}
-	safePackageName := safePackageOrClassName(packageName)
-	safeClassName := safePackageOrClassName(className)
-	safeTestCaseName := safeTestName(testCaseName)
-	link := ""
-	rawurl := fmt.Sprintf("http://goto.google.com/vpst/%d/L=%s,TEST=%s/testReport/%s/%s/%s",
-		jenkinsBuildNumberFlag, slaveLabel, testName, safePackageName, safeClassName, safeTestCaseName)
-	testResultUrl, err := url.Parse(rawurl)
-	if err == nil {
-		link = fmt.Sprintf("- %s\n%s", testFullName, testResultUrl.String())
-		if suffix > 1 {
-			link = fmt.Sprintf("%s_%d", link, suffix)
-		}
-	} else {
-		link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
-	}
-	return link
-}
-
-// safePackageOrClassName gets the safe name of the package or class
-// name which will be used to construct the URL to a test case.
-//
-// The original implementation in junit jenkins plugin can be found
-// here: http://git.io/iVD0yw
-func safePackageOrClassName(name string) string {
-	return reURLUnsafeChars.ReplaceAllString(name, "_")
-}
-
-// safeTestName gets the safe name of the test name which will be used
-// to construct the URL to a test case. Note that this is different
-// from getting the safe name for package or class.
-//
-// The original implementation in junit jenkins plugin can be found
-// here: http://git.io/8X9o7Q
-func safeTestName(name string) string {
-	return reNotIdentifierChars.ReplaceAllString(name, "_")
-}
-
 // generateFailureReport generates a xunit test report file for
 // the given failing test.
 func generateFailureReport(testName string, className, errorMessage string) (e error) {
@@ -694,30 +367,6 @@ func generateFailureReport(testName string, className, errorMessage string) (e e
 	})
 }
 
-// postMessage posts the given message to Gerrit.
-func postMessage(ctx *util.Context, message string, refs []string) error {
-	// Basic sanity check for the Gerrit base URL.
-	gerritHost, err := checkGerritBaseUrl()
-	if err != nil {
-		return err
-	}
-
-	// Parse .netrc file to get Gerrit credential.
-	gerritCred, err := gerritHostCredential(gerritHost)
-	if err != nil {
-		return err
-	}
-
-	// Post the reviews.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
-	for _, ref := range refs {
-		if err := gerrit.PostReview(ref, message, nil); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // writeTestStatusFile writes the given TestResult map to a JSON file.
 // This file will be collected (along with the test report xunit file) by the
 // "master" presubmit project for generating final test results message.
@@ -742,25 +391,4 @@ func writeTestStatusFile(ctx *util.Context, results map[string]*testutil.TestRes
 		return fmt.Errorf("WriteFile(%v) failed: %v", statusFilePath, err)
 	}
 	return nil
-}
-
-// checkMasterJobStatus returns the status of the presubmit-test master job.
-func checkMasterJobStatus(ctx *util.Context) (_ string, e error) {
-	jenkins := ctx.Jenkins(jenkinsHostFlag)
-	getMasterJobStatusUri := fmt.Sprintf("job/%s/%d/api/json", presubmitTestFlag, jenkinsBuildNumberFlag)
-	getMasterJobStatusRes, err := jenkins.Invoke("GET", getMasterJobStatusUri, url.Values{
-		"token": {jenkinsTokenFlag},
-	})
-	if err != nil {
-		return "", err
-	}
-	defer collect.Error(func() error { return getMasterJobStatusRes.Body.Close() }, &e)
-	r := bufio.NewReader(getMasterJobStatusRes.Body)
-	var status struct {
-		Result string
-	}
-	if err := json.NewDecoder(r).Decode(&status); err != nil {
-		return "", fmt.Errorf("Decode() %v", err)
-	}
-	return status.Result, nil
 }

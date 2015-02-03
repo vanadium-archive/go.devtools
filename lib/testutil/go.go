@@ -734,7 +734,7 @@ func createTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput
 //
 // TODO(jsimsa): Unify the installation functions by moving the
 // gocover-cobertura and go2xunit tools into the third_party
-// repository.
+// project.
 func installGoCover(ctx *util.Context) error {
 	// Check if the tool exists.
 	var out bytes.Buffer

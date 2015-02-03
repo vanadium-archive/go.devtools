@@ -67,7 +67,7 @@ func TestParseQueryResults(t *testing.T) {
 			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
 			PresubmitTest: PresubmitTestTypeAll,
 			Ref:           "refs/changes/40/4440/1",
-			Repo:          "vanadium",
+			Project:       "vanadium",
 		},
 		{
 			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
@@ -76,14 +76,14 @@ func TestParseQueryResults(t *testing.T) {
 				"Code-Review": struct{}{},
 				"Verified":    struct{}{},
 			},
-			Ref:  "refs/changes/40/4440/1",
-			Repo: "vanadium",
+			Ref:     "refs/changes/40/4440/1",
+			Project: "vanadium",
 		},
 		{
 			ChangeID:      "I35d83f8adae5b7db1974062fdc744f700e456677",
 			PresubmitTest: PresubmitTestTypeNone,
 			Ref:           "refs/changes/43/4443/1",
-			Repo:          "tools",
+			Project:       "tools",
 		},
 	}
 

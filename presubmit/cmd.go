@@ -14,14 +14,14 @@ import (
 )
 
 const (
-	defaultConfigFile    = "$VANADIUM_ROOT/release/go/src/v.io/tools/conf/presubmit"
-	defaultGerritBaseUrl = "https://vanadium-review.googlesource.com"
-	defaultLogFilePath   = "$HOME/tmp/presubmit_log"
-	defaultNetRcFilePath = "$HOME/.netrc"
-	defaultPresubmitTest = "vanadium-presubmit-test"
-	defaultQueryString   = "(status:open -project:experimental)"
-	jenkinsBaseJobUrl    = "https://dev.v.io/jenkins/job"
-	outputPrefix         = "[VANADIUM PRESUBMIT]"
+	defaultConfigFile       = "$VANADIUM_ROOT/release/go/src/v.io/tools/conf/presubmit"
+	defaultGerritBaseUrl    = "https://vanadium-review.googlesource.com"
+	defaultLogFilePath      = "$HOME/tmp/presubmit_log"
+	defaultNetRcFilePath    = "$HOME/.netrc"
+	defaultPresubmitTestJob = "vanadium-presubmit-test"
+	defaultQueryString      = "(status:open -project:experimental)"
+	jenkinsBaseJobUrl       = "https://dev.v.io/jenkins/job"
+	outputPrefix            = "[VANADIUM PRESUBMIT]"
 )
 
 type credential struct {
@@ -40,9 +40,9 @@ var (
 	manifestFlag           string
 	netRcFilePathFlag      string
 	noColorFlag            bool
-	presubmitTestFlag      string
+	presubmitTestJobFlag   string
 	queryStringFlag        string
-	reposFlag              string
+	projectsFlag           string
 	reviewMessageFlag      string
 	reviewTargetRefsFlag   string
 	testFlag               string
@@ -59,15 +59,15 @@ func init() {
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.StringVar(&presubmitTestFlag, "project", defaultPresubmitTest, "The name of the Jenkins project to add presubmit-test builds to.")
+	cmdRoot.Flags.StringVar(&presubmitTestJobFlag, "job", defaultPresubmitTestJob, "The name of the Jenkins job to add presubmit-test builds to.")
 	cmdRoot.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
-	cmdResult.Flags.StringVar(&reposFlag, "repos", "", "The base names of remote repositories containing the CLs pointed by the refs, separated by ':'.")
+	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdResult.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
-	cmdTest.Flags.StringVar(&reposFlag, "repos", "", "The base names of remote repositories containing the CLs pointed by the refs, separated by ':'.")
+	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")

@@ -18,14 +18,14 @@ Run "presubmit help [command]" for command usage.
 The presubmit flags are:
  -host=
    The Jenkins host. Presubmit will not send any CLs to an empty host.
+ -job=vanadium-presubmit-test
+   The name of the Jenkins job to add presubmit-test builds to.
  -n=false
    Show what commands will run but do not execute them.
  -netrc=$HOME/.netrc
    The path to the .netrc file that stores Gerrit's credentials.
  -nocolor=false
    Do not use color to format output.
- -project=vanadium-presubmit-test
-   The name of the Jenkins project to add presubmit-test builds to.
  -token=
    The Jenkins API token.
  -url=https://vanadium-review.googlesource.com
@@ -36,8 +36,8 @@ The presubmit flags are:
 Presubmit Query
 
 This subcommand queries open CLs from Gerrit, calculates diffs from the previous
-query results, and sends each one with related metadata (ref, repo, changeId) to
-a Jenkins project which will run tests against the corresponding CL and post
+query results, and sends each one with related metadata (ref, project, changeId)
+to a Jenkins job which will run tests against the corresponding CL and post
 review with test results.
 
 Usage:
@@ -61,11 +61,11 @@ Usage:
 The presubmit result flags are:
  -build_number=-1
    The number of the Jenkins build.
+ -projects=
+   The base names of the remote projects containing the CLs pointed by the refs,
+   separated by ':'.
  -refs=
    The review references separated by ':'.
- -repos=
-   The base names of remote repositories containing the CLs pointed by the refs,
-   separated by ':'.
 
 Presubmit Test
 
@@ -80,11 +80,11 @@ The presubmit test flags are:
    The number of the Jenkins build.
  -manifest=default
    Name of the project manifest.
+ -projects=
+   The base names of the remote projects containing the CLs pointed by the refs,
+   separated by ':'.
  -refs=
    The review references separated by ':'.
- -repos=
-   The base names of remote repositories containing the CLs pointed by the refs,
-   separated by ':'.
  -test=
    The name of a single test to run.
 

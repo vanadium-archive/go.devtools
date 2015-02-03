@@ -13,7 +13,7 @@ func TestProjectTests(t *testing.T) {
 		"default":  []string{"tools-go-build", "tools-go-test"},
 	}))
 
-	// Get tests for a repo that is in the config file.
+	// Get tests for a project that is in the config file.
 	got := config.ProjectTests([]string{"vanadium"})
 	expected := []string{
 		"vanadium-go-build",
@@ -23,9 +23,9 @@ func TestProjectTests(t *testing.T) {
 		t.Errorf("want: %v, got: %v", expected, got)
 	}
 
-	// Get tests for a repo that is NOT in the config file.
+	// Get tests for a project that is NOT in the config file.
 	// This should return empty tests.
-	got, expected = config.ProjectTests([]string{"non-exist-repo"}), []string{}
+	got, expected = config.ProjectTests([]string{"non-exist-project"}), []string{}
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("want: %#v, got: %#v", expected, got)
 	}

@@ -127,7 +127,7 @@ func vanadiumPresubmitPoll(ctx *util.Context, testName string) (_ *TestResult, e
 // vanadiumPresubmitTest runs presubmit tests for a given project specified
 // in TEST environment variable.
 func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "TEST", "WORKSPACE"}); err != nil {
+	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "TEST", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
 
@@ -164,7 +164,7 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string) (_ *TestResult, e
 		"test",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
 		"-manifest", "default",
-		"-repos", os.Getenv("REPOS"),
+		"-projects", os.Getenv("PROJECTS"),
 		"-refs", os.Getenv("REFS"),
 		"-test", os.Getenv("TEST"),
 	)
@@ -258,7 +258,7 @@ func generateDummyTestReportFile(ctx *util.Context, testName string) (*TestResul
 
 // vanadiumPresubmitResult runs "presubmit result" command to process and post test resutls.
 func vanadiumPresubmitResult(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "REPOS", "WORKSPACE"}); err != nil {
+	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
 
@@ -283,7 +283,7 @@ func vanadiumPresubmitResult(ctx *util.Context, testName string) (_ *TestResult,
 		"result",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
 		"-refs", os.Getenv("REFS"),
-		"-repos", os.Getenv("REPOS"),
+		"-projects", os.Getenv("PROJECTS"),
 	)
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err

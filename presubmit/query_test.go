@@ -302,7 +302,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 	// Check output and return value.
 	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
-[VANADIUM PRESUBMIT] addPresubmitTestBuild([{ChangeID: Labels:map[] MultiPart:<nil> PresubmitTest:all Ref:refs/changes/xx/1000/1 Repo:release.js.core}]) failed: err
+[VANADIUM PRESUBMIT] addPresubmitTestBuild([{ChangeID: Labels:map[] MultiPart:<nil> PresubmitTest:all Ref:refs/changes/xx/1000/1 Project:release.js.core}]) failed: err
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1 (presubmit=none)
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/3000/1 (no tests found)
@@ -321,14 +321,14 @@ func TestQueuedOutdatedBuilds(t *testing.T) {
 	"items" : [
 	  {
 			"id": 10,
-			"params": "\nREPOS=release.js.core release.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
+			"params": "\nPROJECTS=release.js.core release.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
 			"task" : {
 				"name": "vanadium-presubmit-test"
 			}
 		},
 	  {
 			"id": 20,
-			"params": "\nREPOS=release.js.core\nREFS=refs/changes/99/4799/2",
+			"params": "\nPROJECTS=release.js.core\nREFS=refs/changes/99/4799/2",
 			"task" : {
 				"name": "vanadium-presubmit-test"
 			}
@@ -418,7 +418,7 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 			{
 				"parameters": [
 				  {
-						"name": "REPOS",
+						"name": "PROJECTS",
 						"value": "release.go.core"
 					},
 					{
@@ -438,7 +438,7 @@ func TestOngoingOutdatedBuilds(t *testing.T) {
 			{
 				"parameters": [
 				  {
-						"name": "REPOS",
+						"name": "PROJECTS",
 						"value": "release.js.core release.go.core"
 					},
 					{
@@ -633,23 +633,23 @@ func TestParseRefString(t *testing.T) {
 	}
 }
 
-func genCL(clNumber, patchset int, repo string) gerrit.QueryResult {
-	return genCLWithPresubmitTestType(clNumber, patchset, repo, gerrit.PresubmitTestTypeAll)
+func genCL(clNumber, patchset int, project string) gerrit.QueryResult {
+	return genCLWithPresubmitTestType(clNumber, patchset, project, gerrit.PresubmitTestTypeAll)
 }
 
-func genCLWithPresubmitTestType(clNumber, patchset int, repo string, presubmit gerrit.PresubmitTestType) gerrit.QueryResult {
+func genCLWithPresubmitTestType(clNumber, patchset int, project string, presubmit gerrit.PresubmitTestType) gerrit.QueryResult {
 	return gerrit.QueryResult{
 		Ref:           fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
-		Repo:          repo,
+		Project:       project,
 		ChangeID:      "",
 		PresubmitTest: presubmit,
 	}
 }
 
-func genMultiPartCL(clNumber, patchset int, repo, topic string, index, total int) gerrit.QueryResult {
+func genMultiPartCL(clNumber, patchset int, project, topic string, index, total int) gerrit.QueryResult {
 	return gerrit.QueryResult{
 		Ref:      fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
-		Repo:     repo,
+		Project:  project,
 		ChangeID: "",
 		MultiPart: &gerrit.MultiPartCLInfo{
 			Topic: topic,

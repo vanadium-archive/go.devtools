@@ -28,7 +28,7 @@ type clRefMap map[string]gerrit.QueryResult
 // clNumberToPatchsetMap is a map from CL numbers to the latest patchset of the CL.
 type clNumberToPatchsetMap map[int]int
 
-// multiPartCLSet represents a set of CLs that spans multiple repositories.
+// multiPartCLSet represents a set of CLs that spans multiple projects.
 type multiPartCLSet struct {
 	parts         map[int]gerrit.QueryResult // Indexed by cl's part index.
 	expectedTotal int
@@ -94,9 +94,9 @@ var cmdQuery = &cmdline.Command{
 	Short: "Query open CLs from Gerrit",
 	Long: `
 This subcommand queries open CLs from Gerrit, calculates diffs from the previous
-query results, and sends each one with related metadata (ref, repo, changeId) to
-a Jenkins project which will run tests against the corresponding CL and post review
-with test results.
+query results, and sends each one with related metadata (ref, project, changeId)
+to a Jenkins job which will run tests against the corresponding CL and post
+review with test results.
 `,
 	Run: runQuery,
 }
@@ -116,12 +116,12 @@ func runQuery(command *cmdline.Command, args []string) error {
 	}
 
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastStatus, err := lastCompletedBuildStatus(presubmitTestFlag, "")
+	lastStatus, err := lastCompletedBuildStatus(ctx, presubmitTestJobFlag, "")
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
 		if lastStatus == "FAILURE" {
-			printf(ctx.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestFlag)
+			printf(ctx.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJobFlag)
 			return nil
 		}
 	}
@@ -368,7 +368,7 @@ outer:
 		curCLMap := clNumberToPatchsetMap{}
 		clStrings := []string{}
 		skipPresubmitTest := false
-		repos := []string{}
+		projects := []string{}
 		for _, curCL := range curCLList {
 			// Ignore all CLs that are not in the default manifest.
 			// TODO(jingjin): find a better way so we can remove this check.
@@ -388,7 +388,7 @@ outer:
 				skipPresubmitTest = true
 			}
 
-			repos = append(repos, curCL.Repo)
+			projects = append(projects, curCL.Project)
 		}
 
 		for _, err := range removeOutdatedFn(ctx, curCLMap) {
@@ -409,7 +409,7 @@ outer:
 		if err := util.LoadConfig("common", &config); err != nil {
 			return clsSent, err
 		}
-		tests := config.ProjectTests(repos)
+		tests := config.ProjectTests(projects)
 		if len(tests) == 0 {
 			printf(ctx.Stdout(), "SKIP: Add %s (no tests found)\n", strings.Join(clStrings, ", "))
 			continue
@@ -428,10 +428,11 @@ outer:
 	return clsSent, nil
 }
 
-// isInDefaultManifest checks whether the given cl's repo is in the default manifest.
+// isInDefaultManifest checks whether the given cl's project is in the
+// default manifest.
 func isInDefaultManifest(ctx *util.Context, cl gerrit.QueryResult, defaultProjects map[string]util.Project) bool {
-	if _, ok := defaultProjects[cl.Repo]; !ok {
-		printf(ctx.Stdout(), "project=%q (%s) not found in the default manifest. Skipped.\n", cl.Repo, cl.Ref)
+	if _, ok := defaultProjects[cl.Project]; !ok {
+		printf(ctx.Stdout(), "project=%q (%s) not found in the default manifest. Skipped.\n", cl.Project, cl.Ref)
 		return false
 	}
 	return true
@@ -482,7 +483,7 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 	}
 
 	// Ongoing presubmit-test builds.
-	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestFlag)
+	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestJobFlag)
 	getLastBuildRes, err := jenkins.Invoke("GET", getLastBuildUri, url.Values{
 		"token": {jenkinsTokenFlag},
 	})
@@ -506,7 +507,7 @@ func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []
 		}
 
 		// Cancel it.
-		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestFlag, build.buildNumber)
+		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestJobFlag, build.buildNumber)
 		cancelOngoingBuildRes, err := jenkins.Invoke("POST", cancelOngoingBuildUri, url.Values{
 			"token": {jenkinsTokenFlag},
 		})
@@ -546,14 +547,14 @@ func queuedOutdatedBuilds(resBytes []byte, cls clNumberToPatchsetMap) (_ []queue
 
 	queuedItems := []queuedItem{}
 	for _, item := range items.Items {
-		if item.Task.Name != presubmitTestFlag {
+		if item.Task.Name != presubmitTestJobFlag {
 			continue
 		}
 		// Parse the ref, and append the id/ref of the build
 		// if it passes the checks.  The param string is in
 		// the form of:
-		// "\nREFS=ref/changes/12/3412/2\nREPOS=test" or
-		// "\nREPOS=test\nREFS=ref/changes/12/3412/2"
+		// "\nREFS=ref/changes/12/3412/2\nPROJECTS=test" or
+		// "\nPROJECTS=test\nREFS=ref/changes/12/3412/2"
 		parts := strings.Split(item.Params, "\n")
 		ref := ""
 		refPrefix := "REFS="
@@ -708,17 +709,17 @@ func addPresubmitTestBuild(ctx *util.Context, cls clList, tests []string) error 
 	if err != nil {
 		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
 	}
-	refs, repos := []string{}, []string{}
+	refs, projects := []string{}, []string{}
 	for _, cl := range cls {
 		refs = append(refs, cl.Ref)
-		repos = append(repos, cl.Repo)
+		projects = append(projects, cl.Project)
 	}
 
-	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestFlag)
+	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestJobFlag)
 	addBuildUrl.RawQuery = url.Values{
-		"token": {jenkinsTokenFlag},
-		"REFS":  {strings.Join(refs, ":")},
-		"REPOS": {strings.Join(repos, ":")},
+		"token":    {jenkinsTokenFlag},
+		"REFS":     {strings.Join(refs, ":")},
+		"PROJECTS": {strings.Join(projects, ":")},
 		// Separating by spaces is required by the Dynamic Axis plugin used in the
 		// new presubmit test target.
 		"TESTS": {strings.Join(tests, " ")},
