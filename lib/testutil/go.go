@@ -18,6 +18,7 @@ import (
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/envutil"
+	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -1078,8 +1079,12 @@ func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e er
 	}
 
 	// Check if 'go generate' creates any changes.
-	if err := ctx.Run().Command("v23", "go", "generate", "v.io/..."); err != nil {
+	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Go Generate", "failure", func(opts runutil.Opts) error {
+		return ctx.Run().Command("v23", "go", "generate", "v.io/...")
+	}); err != nil {
 		return nil, err
+	} else if testResult != nil {
+		return testResult, nil
 	}
 	dirtyFiles := []string{}
 	for _, project := range projects {
