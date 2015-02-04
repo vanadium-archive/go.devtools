@@ -4,12 +4,15 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"v.io/lib/cmdline"
@@ -17,7 +20,9 @@ import (
 )
 
 // TODO(jsimsa): Add tests by mocking out jenkins.
-
+//
+// TODO(jsimsa): Create a tools/lib/gcutil package that encapsulates
+// the interaction with GCE and use it here and in the vcloud tool.
 func main() {
 	os.Exit(cmdVJenkins.Main())
 }
@@ -67,12 +72,18 @@ var (
 	flagColor   = flag.Bool("color", false, "Format output in color.")
 	flagDryRun  = flag.Bool("n", false, "Show what commands will run, but do not execute them.")
 	flagVerbose = flag.Bool("v", false, "Print verbose output.")
-	// Command-specific flag.
+	// Command-specific flags.
 	flagDescription string
+	flagProject     string
+	flagZone        string
+
+	ipAddressRE = regexp.MustCompile(`^(\S*)\s*(\S*)\s(\S*)\s(\S*)\s(\S*)\s(\S*)$`)
 )
 
 func init() {
 	cmdNodeCreate.Flags.StringVar(&flagDescription, "description", "", "Node description.")
+	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "GCE zone of the machine.")
+	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "google.com:veyron", "GCE project of the machine.")
 }
 
 func newContext(cmd *cmdline.Command) *util.Context {
@@ -107,14 +118,14 @@ type nodeProperties struct {
 // NOTE: Jenkins REST API is not documented anywhere and the
 // particular HTTP request used to add a new machine to Jenkins
 // configuration has been crafted using trial and error.
-func addNodeToJenkins(ctx *util.Context, node string) (*http.Response, error) {
+func addNodeToJenkins(ctx *util.Context, name, host string) (*http.Response, error) {
 	jenkins := ctx.Jenkins(jenkinsHost)
 	request := createRequest{
-		Name:              node,
+		Name:              name,
 		Description:       flagDescription,
 		NumExecutors:      1,
 		RemoteFS:          "/home/veyron/jenkins",
-		Labels:            fmt.Sprintf("%s linux-slave", node),
+		Labels:            fmt.Sprintf("%s linux-slave", name),
 		Mode:              "EXCLUSIVE",
 		Type:              "hudson.slaves.DumbSlave$DescriptorImpl",
 		RetentionStrategy: map[string]string{"stapler-class": "hudson.slaves.RetentionStrategy$Always"},
@@ -140,7 +151,7 @@ func addNodeToJenkins(ctx *util.Context, node string) (*http.Response, error) {
 		},
 		Launcher: map[string]string{
 			"stapler-class": "hudson.plugins.sshslaves.SSHLauncher",
-			"host":          node,
+			"host":          host,
 			// The following ID has been retrieved from
 			// Jenkins configuration backup.
 			"credentialsId": "73f76f53-8332-4259-bc08-d6f0b8521a5b",
@@ -151,7 +162,7 @@ func addNodeToJenkins(ctx *util.Context, node string) (*http.Response, error) {
 		return nil, fmt.Errorf("Marshal(%v) failed: %v", request, err)
 	}
 	values := url.Values{
-		"name": {node},
+		"name": {name},
 		"type": {"hudson.slaves.DumbSlave$DescriptorImpl"},
 		"json": {string(bytes)},
 	}
@@ -190,6 +201,32 @@ func isNodeIdle(ctx *util.Context, node string) (bool, error) {
 	return false, fmt.Errorf("node %v not found", node)
 }
 
+// lookupIPAddress looks up the IP address for the given GCE node.
+func lookupIPAddress(ctx *util.Context, node string) (string, error) {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "compute", "instances",
+		"--project", flagProject,
+		"list", "--zones", flagZone, "-r", node); err != nil {
+		return "", err
+	}
+	// The expected output is two lines, the first one is a header and
+	// the second one is a node description.
+	output := strings.TrimSpace(out.String())
+	lines := strings.Split(output, "\n")
+	if got, want := len(lines), 2; got != want {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", lines, got, want)
+	}
+	// Parse the node information.
+	matches := ipAddressRE.FindStringSubmatch(lines[1])
+	if got, want := len(matches), 7; got != want {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", matches, got, want)
+	}
+	// The external IP address is the fifth column.
+	return matches[5], nil
+}
+
 // removeNodeFromJenkins sends an HTTP request to Jenkins that prompts
 // it to remove an existing machine from its configuration.
 func removeNodeFromJenkins(ctx *util.Context, node string) (*http.Response, error) {
@@ -200,8 +237,13 @@ func removeNodeFromJenkins(ctx *util.Context, node string) (*http.Response, erro
 // runNodeCreate adds slave node(s) to Jenkins configuration.
 func runNodeCreate(cmd *cmdline.Command, args []string) error {
 	ctx := newContext(cmd)
-	for _, node := range args {
-		response, err := addNodeToJenkins(ctx, node)
+	for _, name := range args {
+		ipAddress, err := lookupIPAddress(ctx, name)
+		if err != nil {
+			return err
+		}
+		fmt.Println(ipAddress)
+		response, err := addNodeToJenkins(ctx, name, ipAddress)
 		if err != nil {
 			return err
 		}
