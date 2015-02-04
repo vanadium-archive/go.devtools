@@ -43,6 +43,10 @@ Usage:
 The vjenkins node create flags are:
  -description=
    Node description.
+ -project=google.com:veyron
+   GCE project of the machine.
+ -zone=us-central1-f
+   GCE zone of the machine.
 
 Vjenkins Node Delete
 
