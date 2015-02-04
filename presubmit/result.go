@@ -159,9 +159,11 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 
 	reportBuildCop(ctx, &report)
 
+	numNewFailures := 0
 	if numFailedTests := reportTestResultsSummary(ctx, testResults, &report); numFailedTests != 0 {
 		// Report failed test cases grouped by failure types.
-		if err := reportFailedTestCases(ctx, testResults, &report); err != nil {
+		var err error
+		if numNewFailures, err = reportFailedTestCases(ctx, testResults, &report); err != nil {
 			return err
 		}
 	}
@@ -169,7 +171,11 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 	reportUsefulLinks(&report)
 
 	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
-	if err := postMessage(ctx, report.String(), refs); err != nil {
+	success := numNewFailures == 0
+	if success {
+		fmt.Fprintf(&report, "\n✔✔✔ NO NEW FAILURES. SETTING VERIFIED LABEL ✔✔✔\n")
+	}
+	if err := postMessage(ctx, report.String(), refs, success); err != nil {
 		return err
 	}
 	return nil
@@ -222,7 +228,7 @@ func reportMergeConflicts(ctx *util.Context, testResults []testResultInfo, refs 
 	for _, resultInfo := range testResults {
 		if resultInfo.result.Status == testutil.TestFailedMergeConflict {
 			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.result.MergeConflictCL)
-			if err := postMessage(ctx, message, refs); err != nil {
+			if err := postMessage(ctx, message, refs, false); err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
 			}
 			return true
@@ -385,11 +391,11 @@ type failedTestLinksMap map[failureType][]string
 
 // reportFailedTestCasesByFailureTypes reports failed test cases grouped by
 // failure types: new failures, known failures, and fixed failures.
-func reportFailedTestCases(ctx *util.Context, testResults []testResultInfo, report *bytes.Buffer) error {
+func reportFailedTestCases(ctx *util.Context, testResults []testResultInfo, report *bytes.Buffer) (int, error) {
 	// Get groups.
 	groups, err := genFailedTestCasesGroupsForAllTests(ctx, testResults)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Generate links for all groups.
@@ -412,7 +418,7 @@ func reportFailedTestCases(ctx *util.Context, testResults []testResultInfo, repo
 		fmt.Fprintf(report, "\n%s:\n%s\n\n", failureTypeStr, strings.Join(curLinks, "\n"))
 	}
 
-	return nil
+	return len(groups[newFailure]), nil
 }
 
 type failedTestCaseInfo struct {
@@ -694,8 +700,7 @@ func reportUsefulLinks(report *bytes.Buffer) {
 }
 
 // postMessage posts the given message to Gerrit.
-func postMessage(ctx *util.Context, message string, refs []string) error {
-	fmt.Fprintf(ctx.Stdout(), "%v\n", refs)
+func postMessage(ctx *util.Context, message string, refs []string, success bool) error {
 	// Basic sanity check for the Gerrit base URL.
 	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {
@@ -708,12 +713,44 @@ func postMessage(ctx *util.Context, message string, refs []string) error {
 		return err
 	}
 
-	// Post the reviews.
+	// Construct and post the reviews.
+	refsUsingVerifiedLabel, err := getRefsUsingVerifiedLabel(ctx, gerritCred)
+	if err != nil {
+		return err
+	}
+	value := "1"
+	if !success {
+		value = "-" + value
+	}
 	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
 	for _, ref := range refs {
-		if err := gerrit.PostReview(ref, message, nil); err != nil {
+		labels := map[string]string{}
+		if _, ok := refsUsingVerifiedLabel[ref]; ok {
+			labels["Verified"] = value
+		}
+		if err := gerrit.PostReview(ref, message, labels); err != nil {
 			return err
 		}
+		testutil.Pass(ctx, "review posted for %q with labels %v.\n", ref, labels)
 	}
 	return nil
+}
+
+func getRefsUsingVerifiedLabel(ctx *util.Context, gerritCred credential) (map[string]struct{}, error) {
+	// Query all open CLs.
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	cls, err := gerrit.Query(defaultQueryString)
+	if err != nil {
+		return nil, err
+	}
+
+	// Identify the refs that use the "Verified" label.
+	ret := map[string]struct{}{}
+	for _, cl := range cls {
+		if _, ok := cl.Labels["Verified"]; ok {
+			ret[cl.Ref] = struct{}{}
+		}
+	}
+
+	return ret, nil
 }
