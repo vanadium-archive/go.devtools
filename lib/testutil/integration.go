@@ -27,7 +27,6 @@ const (
 var binPackages = []string{
 	"v.io/apps/tunnel/tunneld",
 	"v.io/apps/tunnel/vsh",
-	"v.io/playground/builder",
 	"v.io/core/veyron/security/agent/agentd",
 	"v.io/core/veyron/security/agent/pingpong",
 	"v.io/core/veyron/services/mgmt/application/applicationd",
