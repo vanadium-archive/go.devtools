@@ -724,9 +724,6 @@ func postMessage(ctx *util.Context, message string, refs []string, success bool)
 		labels := map[string]string{}
 		if _, ok := refsUsingVerifiedLabel[ref]; ok {
 			labels["Verified"] = value
-			if success {
-				message += "\n✔✔✔ NO NEW FAILURES. SETTING VERIFIED LABEL ✔✔✔\n"
-			}
 		}
 		if err := gerrit.PostReview(ref, message, labels); err != nil {
 			return err
