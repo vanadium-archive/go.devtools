@@ -7,51 +7,6 @@
 -->
 <rotation>
   <shift>
-    <primary>wmleler</primary>
-    <secondary>ribrdb</secondary>
-    <startDate>Dec 3, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ribrdb</primary>
-    <secondary>sadovsky</secondary>
-    <startDate>Dec 10, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>sadovsky</primary>
-    <secondary>alexfandrianto</secondary>
-    <startDate>Dec 17, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>jingjin</primary>
-    <secondary>aghassemi</secondary>
-    <startDate>Dec 24, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>aghassemi</primary>
-    <secondary>ataly</secondary>
-    <startDate>Dec 31, 2014 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ataly</primary>
-    <secondary>ashankar</secondary>
-    <startDate>Jan 7, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ashankar</primary>
-    <secondary>bprosnitz</secondary>
-    <startDate>Jan 14, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>rjkroege</primary>
-    <secondary>caprita</secondary>
-    <startDate>Jan 21, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>caprita</primary>
-    <secondary>p</secondary>
-    <startDate>Jan 28, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
     <primary>p</primary>
     <secondary>gauthamt</secondary>
     <startDate>Feb 4, 2015 12:00:00 PM</startDate>
@@ -150,5 +105,55 @@
     <primary>toddw</primary>
     <secondary>wmleler</secondary>
     <startDate>Jun 17, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>wmleler</primary>
+    <secondary>ribrdb</secondary>
+    <startDate>Jun 24, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>ribrdb</primary>
+    <secondary>sjr</secondary>
+    <startDate>Jul 1, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>sjr</primary>
+    <secondary>sadovsky</secondary>
+    <startDate>Jul 8, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>sadovsky</primary>
+    <secondary>alexfandrianto</secondary>
+    <startDate>Jul 15, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>alexfandrianto</primary>
+    <secondary>aghassemi</secondary>
+    <startDate>Jul 22, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>aghassemi</primary>
+    <secondary>ataly</secondary>
+    <startDate>Jul 29, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>ataly</primary>
+    <secondary>ashankar</secondary>
+    <startDate>Aug 5, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>ashankar</primary>
+    <secondary>bprosnitz</secondary>
+    <startDate>Aug 12, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>bprosnitz</primary>
+    <secondary>caprita</secondary>
+    <startDate>Aug 19, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>caprita</primary>
+    <secondary>p</secondary>
+    <startDate>Aug 26, 2015 12:00:00 PM</startDate>
   </shift>
 </rotation>
