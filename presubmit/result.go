@@ -172,9 +172,6 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 
 	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
 	success := numNewFailures == 0
-	if success {
-		fmt.Fprintf(&report, "\n✔✔✔ NO NEW FAILURES. SETTING VERIFIED LABEL ✔✔✔\n")
-	}
 	if err := postMessage(ctx, report.String(), refs, success); err != nil {
 		return err
 	}
@@ -727,6 +724,9 @@ func postMessage(ctx *util.Context, message string, refs []string, success bool)
 		labels := map[string]string{}
 		if _, ok := refsUsingVerifiedLabel[ref]; ok {
 			labels["Verified"] = value
+			if success {
+				message += "\n✔✔✔ NO NEW FAILURES. SETTING VERIFIED LABEL ✔✔✔\n"
+			}
 		}
 		if err := gerrit.PostReview(ref, message, labels); err != nil {
 			return err
