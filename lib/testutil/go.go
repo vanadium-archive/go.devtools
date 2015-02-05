@@ -1095,7 +1095,12 @@ func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e er
 		dirtyFiles = append(dirtyFiles, files...)
 	}
 	if len(dirtyFiles) != 0 {
-		fmt.Fprintf(ctx.Stdout(), "The following go generated files are not up-to-date:\n%v\n", strings.Join(dirtyFiles, "\n"))
+		output := strings.Join(dirtyFiles, "\n")
+		fmt.Fprintf(ctx.Stdout(), "The following go generated files are not up-to-date:\n%v\n", output)
+		s := createTestSuiteWithFailure("GoGenerate", "GoGenerate", "go generate failure", output, 0)
+		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+			return nil, err
+		}
 		return &TestResult{Status: TestFailed}, nil
 	}
 	return &TestResult{Status: TestPassed}, nil
