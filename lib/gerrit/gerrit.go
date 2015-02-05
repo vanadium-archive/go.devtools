@@ -91,7 +91,7 @@ func (g *Gerrit) PostReview(ref string, message string, labels map[string]string
 	}
 	defer collect.Error(func() error { return res.Body.Close() }, &e)
 	defer collect.Error(func() error {
-		scanner := bytes.NewScanner(res.Body)
+		scanner := bufio.NewScanner(res.Body)
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
