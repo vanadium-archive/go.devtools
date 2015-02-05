@@ -90,13 +90,6 @@ func (g *Gerrit) PostReview(ref string, message string, labels map[string]string
 		return fmt.Errorf("Do(%v) failed: %v", req, err)
 	}
 	defer collect.Error(func() error { return res.Body.Close() }, &e)
-	defer collect.Error(func() error {
-		scanner := bufio.NewScanner(res.Body)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-		return scanner.Err()
-	}, &e)
 
 	return nil
 }
