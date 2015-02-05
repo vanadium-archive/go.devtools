@@ -6,6 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"regexp"
+	"runtime"
+	"strings"
 	"testing"
 
 	"v.io/tools/lib/util"
@@ -21,7 +24,23 @@ func init() {
 // caseMatch checks whether the given test cases match modulo their
 // execution time.
 func caseMatch(c1, c2 testCase) bool {
-	if c1.Name != c2.Name {
+
+	// Test names can have a CPU count appended to them (e.g. TestFoo-12)
+	// so we take care to strip that out when comparing with
+	// expected results.
+	ncpu := runtime.NumCPU()
+	re := regexp.MustCompile(fmt.Sprintf("(.*)-%d(.*)", ncpu))
+	stripNumCPU := func(s string) string {
+		parts := re.FindStringSubmatch(s)
+		switch len(parts) {
+		case 3:
+			return strings.TrimRight(parts[1]+parts[2], " ")
+		default:
+			return s
+		}
+	}
+
+	if stripNumCPU(c1.Name) != stripNumCPU(c2.Name) {
 		return false
 	}
 	if c1.Classname != c2.Classname {
@@ -152,8 +171,32 @@ var (
 						Classname: "v_io.tools/lib/testutil/testdata/foo",
 						Name:      "Test3",
 					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "TestHelperProcess",
+					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "TestV23",
+					},
 				},
-				Tests: 3,
+				Tests: 5,
+				Skip:  1,
+			},
+		},
+	}
+	wantV23Test = testSuites{
+		Suites: []testSuite{
+			testSuite{
+				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Cases: []testCase{
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "TestV23",
+					},
+				},
+				Tests: 1,
+				Skip:  0,
 			},
 		},
 	}
@@ -174,8 +217,17 @@ var (
 						Classname: "v_io.tools/lib/testutil/testdata/foo",
 						Name:      "Test3 [Suffix]",
 					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "TestHelperProcess [Suffix]",
+					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "TestV23 [Suffix]",
+					},
 				},
-				Tests: 3,
+				Tests: 5,
+				Skip:  1,
 			},
 		},
 	}
@@ -188,8 +240,13 @@ var (
 						Classname: "v_io.tools/lib/testutil/testdata/foo",
 						Name:      "Test1",
 					},
+					testCase{
+						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Name:      "TestV23",
+					},
 				},
-				Tests: 1,
+				Tests: 2,
+				Skip:  1,
 			},
 		},
 	}
@@ -323,6 +380,7 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 	tests := []exclusion{
 		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test2", nil}, true},
 		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test3", nil}, true},
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "TestHelperProcess", nil}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -333,7 +391,7 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 
 func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", ".*[23]", nil}, true},
+		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test[23]$|TestHelperProcess", nil}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -353,12 +411,20 @@ func TestGoTestExcludedPackage(t *testing.T) {
 	runGoTest(t, "", exclusions, wantExcludedPackage)
 }
 
-func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite testSuites) {
+func TestV23GoTest(t *testing.T) {
+	runGoTest(t, "", nil, wantV23Test, argsOpt{"--run=TestV23"}, nonTestArgsOpt([]string{"--v23.tests"}))
+}
+
+func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite testSuites, testOpts ...goTestOpt) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-test", "v.io/tools/lib/testutil/testdata/foo"
-	result, err := goTest(ctx, testName, []string{pkgName}, suffixOpt(suffix), excludedTestsOpt(excludedTests))
+
+	opts := []goTestOpt{suffixOpt(suffix), excludedTestsOpt(excludedTests)}
+	opts = append(opts, testOpts...)
+
+	result, err := goTest(ctx, testName, []string{pkgName}, opts...)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -27,7 +27,12 @@ func main() {
 	fmt.Printf("GOROOT: %s\n", runtime.GOROOT())
 	fmt.Printf("USER: %q\n", os.Getenv("USER"))
 	fmt.Println("Excluded tests:")
-	for _, t := range testutil.ExcludedThirdPartyTests() {
+	excluded, err := testutil.ExcludedThirdPartyTests()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get exclusions: %s", err)
+		os.Exit(1)
+	}
+	for _, t := range excluded {
 		fmt.Printf("%#v\n", t)
 	}
 }

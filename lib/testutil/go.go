@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,6 +16,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/envutil"
@@ -51,6 +55,9 @@ type goTestOpt interface {
 	goTestOpt()
 }
 
+type funcMatcherOpt struct{ funcMatcher }
+
+type nonTestArgsOpt []string
 type argsOpt []string
 type profilesOpt []string
 type timeoutOpt string
@@ -60,6 +67,8 @@ type excludedTestsOpt []test
 func (argsOpt) goBuildOpt()    {}
 func (argsOpt) goCoverageOpt() {}
 func (argsOpt) goTestOpt()     {}
+
+func (nonTestArgsOpt) goTestOpt() {}
 
 func (profilesOpt) goBuildOpt()    {}
 func (profilesOpt) goCoverageOpt() {}
@@ -71,6 +80,8 @@ func (timeoutOpt) goTestOpt()     {}
 func (suffixOpt) goTestOpt() {}
 
 func (excludedTestsOpt) goTestOpt() {}
+
+func (funcMatcherOpt) goTestOpt() {}
 
 // goBuild is a helper function for running Go builds.
 func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
@@ -364,15 +375,25 @@ func coverageWorker(ctx *util.Context, timeout string, args []string, pkgs <-cha
 	}
 }
 
-// goList is a helper function for listing Go packages.
-func goList(ctx *util.Context, pkgs []string) ([]string, error) {
+// runCmd is a helper function to run sub commands.
+func runCmd(ctx *util.Context, cmd string, args ...string) (*bytes.Buffer, error) {
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	args := append([]string{"go", "list"}, pkgs...)
-	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		fmt.Fprintln(ctx.Stdout(), out.String())
+		return nil, err
+	}
+	return &out, nil
+}
+
+// goList is a helper function for listing Go packages.
+func goList(ctx *util.Context, pkgs []string) ([]string, error) {
+	args := []string{"go", "list"}
+	args = append(args, pkgs...)
+	out, err := runCmd(ctx, "v23", args...)
+	if err != nil {
 		return nil, err
 	}
 	cleanOut := strings.TrimSpace(out.String())
@@ -382,72 +403,79 @@ func goList(ctx *util.Context, pkgs []string) ([]string, error) {
 	return strings.Split(cleanOut, "\n"), nil
 }
 
-// goListPackagesAndTests is a helper function for listing Go
-// packages, their tests and benchmarks.
-// TODO(cnicolaou): implement returning benchmarks also.
-func goListPackagesAndTests(ctx *util.Context, pkgs []string) ([]string, map[string][]string, map[string][]string, error) {
+// funcMatcher is the interface for determing if functions in the loaded ast
+// of a package match a certain criteria.
+type funcMatcher interface {
+	match(*types.Func) (bool, string)
+}
 
-	// Get a list of all packages and the test files in those
-	// packages.
-	var out bytes.Buffer
-	args := []string{"go", "list", "-f", "PACKAGE::{{.ImportPath}}\n{{range .TestGoFiles}}{{$.Dir}}/{{.}}\n{{end}}{{range .XTestGoFiles}}{{$.Dir}}/{{.}}\n{{end}}"}
-	args = append(args, pkgs...)
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
-		fmt.Fprintln(ctx.Stdout(), out.String())
-		return nil, nil, nil, err
+type matchGoTestFunc struct{}
+
+func (t *matchGoTestFunc) match(fn *types.Func) (bool, string) {
+	name := fn.Name()
+	// TODO(cnicolaou): match on signature, not just name.
+	return strings.HasPrefix(name, "Test"), name
+}
+func (t *matchGoTestFunc) goTestOpt() {}
+
+type matchV23TestFunc struct{}
+
+func (t *matchV23TestFunc) match(fn *types.Func) (bool, string) {
+	name := fn.Name()
+	// TODO(cnicolaou): match on signature, not just name.
+	return strings.HasPrefix(name, "TestV23"), name
+}
+
+func (t *matchV23TestFunc) goTestOpt() {}
+
+// goListPackagesAndFuncs is a helper function for listing Go
+// packages and obtaining lists of function names that are matched
+// by the matcher interface.
+func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
+
+	pkgList, err := goList(ctx, pkgs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list packages: %v", err)
 	}
 
-	// Parse the output from the list command to obtain a slice
-	// of package names and a map of package names to the test
-	// files in that package.
-	pkgRe := regexp.MustCompile(`^PACKAGE::(.*)`)
-	pkgFiles := map[string][]string{}
-	currentPackage := ""
-	scanner := bufio.NewScanner(&out)
-	for scanner.Scan() {
-		parts := pkgRe.FindStringSubmatch(scanner.Text())
-		if len(parts) == 2 {
-			currentPackage = parts[1]
-			continue
-		}
-		pkgFiles[currentPackage] = append(pkgFiles[currentPackage], scanner.Text())
+	env, err := util.VanadiumEnvironment(util.HostPlatform())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, nil, nil, err
-	}
+	// The loader/builder package don't consistently respect the GOPATH
+	// that can be set in loader.Config.Build, so we set it globally here
+	// and reset it on exit. This is clearly a concurrency bug as currently
+	// coded.
+	prev := build.Default.GOPATH
+	defer func() { build.Default.GOPATH = prev }()
 
-	// Run grep on all of the test files in each package and parse the
-	// output to obtain a list of the Test functions in each file.
-	testRe := regexp.MustCompile(`.*_test.go:func[[:space:]]+(Test.*)[[:space:]]*\(.*testing.T[[:space:]]*\).*`)
-	pkgList := []string{}
-	pkgsAndTests := map[string][]string{}
-	for pkg, files := range pkgFiles {
-		if len(files) == 0 {
-			continue
+	build.Default.GOPATH = env.Get("GOPATH")
+
+	matched := map[string][]string{}
+	for _, pkg := range pkgList {
+		config := loader.Config{
+			SourceImports:       false,
+			TypeCheckFuncBodies: func(string) bool { return false },
 		}
-		pkgList = append(pkgList, pkg)
-		// egrep must return 0 in order for this command to succeed so
-		// we match against 'package' which must always be present.
-		args = append([]string{"-H", "package|Test|Benchmark"}, files...)
-		if err := ctx.Run().CommandWithOpts(opts, "egrep", args...); err != nil {
-			fmt.Fprintln(ctx.Stdout(), out.String())
-			return nil, nil, nil, err
+		config.ImportWithTests(pkg)
+		prog, err := config.Load()
+		if err != nil {
+			return nil, nil, err
 		}
-		scanner := bufio.NewScanner(&out)
-		for scanner.Scan() {
-			parts := testRe.FindStringSubmatch(scanner.Text())
-			if len(parts) == 2 {
-				pkgsAndTests[pkg] = append(pkgsAndTests[pkg], parts[1])
+		for _, pi := range prog.InitialPackages() {
+			scope := pi.Pkg.Scope()
+			for _, sn := range scope.Names() {
+				fn, ok := scope.Lookup(sn).(*types.Func)
+				if !ok {
+					continue
+				}
+				if ok, result := matcher.match(fn); ok {
+					matched[pkg] = append(matched[pkg], result)
+				}
 			}
 		}
-		if err := scanner.Err(); err != nil {
-			return nil, nil, nil, err
-		}
 	}
-	return pkgList, pkgsAndTests, nil, nil
+	return pkgList, matched, nil
 }
 
 // filterExcludedTests filters out excluded tests returning an
@@ -510,6 +538,9 @@ type goTestTask struct {
 func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
 	args, profiles, suffix, excludedTestRules := []string{}, []string{}, "", []test{}
+	var matcher funcMatcher
+	matcher = &matchGoTestFunc{}
+	var nonTestArgs nonTestArgsOpt
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case timeoutOpt:
@@ -522,6 +553,10 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			suffix = string(typedOpt)
 		case excludedTestsOpt:
 			excludedTestRules = []test(typedOpt)
+		case nonTestArgsOpt:
+			nonTestArgs = typedOpt
+		case funcMatcherOpt:
+			matcher = typedOpt
 		}
 	}
 
@@ -553,7 +588,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	}
 
 	// Enumerate the packages and tests to be built.
-	pkgList, pkgAndTestList, _, err := goListPackagesAndTests(ctx, pkgs)
+	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(ctx, pkgs, matcher)
 	if err != nil {
 		return nil, err
 	}
@@ -563,12 +598,12 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	tasks := make(chan goTestTask, numPkgs)
 	taskResults := make(chan testResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go testWorker(ctx, timeout, args, tasks, taskResults)
+		go testWorker(ctx, timeout, args, nonTestArgs, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
 	for _, pkg := range pkgList {
-		testThisPkg, specificTests, excludedTests := filterExcludedTests(pkg, pkgAndTestList[pkg], excludedTestRules)
+		testThisPkg, specificTests, excludedTests := filterExcludedTests(pkg, pkgAndFuncList[pkg], excludedTestRules)
 		if testThisPkg {
 			tasks <- goTestTask{pkg, specificTests, excludedTests}
 		} else {
@@ -663,7 +698,7 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 }
 
 // testWorker tests packages.
-func testWorker(ctx *util.Context, timeout string, args []string, tasks <-chan goTestTask, results chan<- testResult) {
+func testWorker(ctx *util.Context, timeout string, args, nonTestArgs []string, tasks <-chan goTestTask, results chan<- testResult) {
 	opts := ctx.Run().Opts()
 	opts.Verbose = false
 	for task := range tasks {
@@ -673,6 +708,7 @@ func testWorker(ctx *util.Context, timeout string, args []string, tasks <-chan g
 			taskArgs = append(taskArgs, "-run", fmt.Sprintf("%s", strings.Join(task.specificTests, "|")))
 		}
 		taskArgs = append(taskArgs, task.pkg)
+		taskArgs = append(taskArgs, nonTestArgs...)
 		var out bytes.Buffer
 		opts.Stdout = &out
 		opts.Stderr = &out
@@ -1113,6 +1149,13 @@ func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 	timeout := timeoutOpt("15m")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
 	return goTest(ctx, testName, pkgs, args, timeout, suffix)
+}
+
+func vanadiumNewV23Test(ctx *util.Context, testName string) (*TestResult, error) {
+	pkgs := []string{"v.io/..."}
+	suffix := suffixOpt(genTestNameSuffix("GoV23Test"))
+	args := argsOpt([]string{"-v23.tests"})
+	return goTest(ctx, testName, pkgs, args, suffix, &matchV23TestFunc{})
 }
 
 func genTestNameSuffix(baseSuffix string) string {
