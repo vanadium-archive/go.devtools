@@ -16,11 +16,9 @@ const (
 // runJSTest is a harness for executing javascript tests.
 func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -44,16 +42,15 @@ func runJSTest(ctx *util.Context, testName, testDir, target string, cleanFn func
 	}
 
 	// Run the test target.
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Make "+target, "failure",
-		func(opts runutil.Opts) error {
-			return ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target)
-		}); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		if testResult.Status == TestTimedOut {
-			testResult.TimeoutValue = defaultJSTestTimeout
+	if err := ctx.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultJSTestTimeout,
+			}, nil
+		} else {
+			return nil, internalTestError{err, "Make " + target}
 		}
-		return testResult, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil

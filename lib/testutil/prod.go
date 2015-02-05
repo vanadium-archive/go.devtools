@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"v.io/tools/lib/collect"
-	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -69,22 +68,15 @@ type prodService struct {
 // vanadiumProdServicesTest runs a test of vanadium production services.
 func vanadiumProdServicesTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
-		return nil, err
-	} else if result != nil {
-		return result, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "BuildTools", "VRPC build failure",
-		func(opts runutil.Opts) error {
-			return ctx.Run().CommandWithOpts(opts, "v23", "go", "install", "v.io/core/veyron/tools/vrpc")
-		}); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+	if err := ctx.Run().Command("v23", "go", "install", "v.io/core/veyron/tools/vrpc"); err != nil {
+		return nil, internalTestError{err, "Install VRPC"}
 	}
 
 	// Describe the test cases.

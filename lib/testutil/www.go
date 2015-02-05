@@ -21,11 +21,9 @@ func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout t
 	}
 
 	// Initialize the test.
-	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -39,16 +37,15 @@ func commonVanadiumWWW(ctx *util.Context, testName, makeTarget string, timeout t
 	}
 
 	// Invoke the make target.
-	makeTargetFunc := func(opts runutil.Opts) error {
-		return ctx.Run().TimedCommand(timeout, "make", makeTarget)
-	}
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Make "+makeTarget, "failure", makeTargetFunc); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		if testResult.Status == TestTimedOut {
-			testResult.TimeoutValue = timeout
+	if err := ctx.Run().TimedCommand(timeout, "make", makeTarget); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: timeout,
+			}, nil
+		} else {
+			return nil, internalTestError{err, "Make " + makeTarget}
 		}
-		return testResult, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil

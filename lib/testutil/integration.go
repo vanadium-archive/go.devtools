@@ -274,11 +274,9 @@ func integrationTestWorker(ctx *util.Context, root string, env map[string]string
 // vanadiumIntegrationTest runs vanadium integration tests.
 func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -308,11 +306,9 @@ func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult,
 // vanadiumNewIntegrationTest runs the new Go-based integration tests.
 func vanadiumNewIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

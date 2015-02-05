@@ -16,11 +16,9 @@ const (
 // runTest is a helper for running the chat tests.
 func runTest(ctx *util.Context, testName, target string, profiles []string) (_ *TestResult, e error) {
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
 		return nil, err
-	} else if result != nil {
-		return result, nil
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -38,16 +36,15 @@ func runTest(ctx *util.Context, testName, target string, profiles []string) (_ *
 	if err := ctx.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
-	makeTargetFunc := func(opts runutil.Opts) error {
-		return ctx.Run().TimedCommandWithOpts(defaultChatTestTimeout, opts, "make", target)
-	}
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Make "+target, "failure", makeTargetFunc); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		if testResult.Status == TestTimedOut {
-			testResult.TimeoutValue = defaultJSTestTimeout
+	if err := ctx.Run().TimedCommand(defaultChatTestTimeout, "make", target); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultChatTestTimeout,
+			}, nil
+		} else {
+			return nil, internalTestError{err, "Make " + target}
 		}
-		return testResult, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil

@@ -22,7 +22,6 @@ import (
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/envutil"
-	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -96,11 +95,9 @@ func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildO
 	}
 
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
-		return nil, err
-	} else if result != nil {
-		return result, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -215,11 +212,9 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 	}
 
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
-		return nil, err
-	} else if result != nil {
-		return result, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -561,11 +556,9 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 	}
 
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, profiles)
+	cleanup, err := initTest(ctx, testName, profiles)
 	if err != nil {
-		return nil, err
-	} else if result != nil {
-		return result, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1024,11 +1017,9 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 	}
 
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
-		return nil, err
-	} else if result != nil {
-		return result, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1115,12 +1106,8 @@ func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e er
 	}
 
 	// Check if 'go generate' creates any changes.
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Go Generate", "failure", func(opts runutil.Opts) error {
-		return ctx.Run().Command("v23", "go", "generate", "v.io/...")
-	}); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+	if err := ctx.Run().Command("v23", "go", "generate", "v.io/..."); err != nil {
+		return nil, internalTestError{err, "Go Generate"}
 	}
 	dirtyFiles := []string{}
 	for _, project := range projects {

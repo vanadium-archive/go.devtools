@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -21,19 +20,15 @@ func vanadiumGoVDL(ctx *util.Context, testName string) (*TestResult, error) {
 	}
 
 	// Install the vdl tool.
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "VDLInstall", "failure",
-		func(opts runutil.Opts) error {
-			opts.Env["GOPATH"] = filepath.Join(root, "release", "go")
-			return ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/core/veyron2/vdl/vdl")
-		}); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+	opts := ctx.Run().Opts()
+	opts.Env["GOPATH"] = filepath.Join(root, "release", "go")
+	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/core/veyron2/vdl/vdl"); err != nil {
+		return nil, internalTestError{err, "Install VDL"}
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts = ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
 	venv, err := util.VanadiumEnvironment(util.HostPlatform())

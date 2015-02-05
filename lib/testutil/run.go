@@ -1,11 +1,18 @@
 package testutil
 
 import (
+	"bytes"
+	"encoding/xml"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
+	"v.io/tools/lib/runutil"
 	"v.io/tools/lib/util"
 )
 
@@ -26,6 +33,15 @@ const (
 	TestFailed
 	TestFailedMergeConflict
 	TestTimedOut
+)
+
+const (
+	// Number of lines to be included in the error messsage of an xUnit report.
+	numLinesToOutput = 50
+
+	// The initial size of the buffer for storing command output in the
+	// test context.
+	largeBufferBytes = 1048576
 )
 
 func (s TestStatus) String() string {
@@ -205,10 +221,6 @@ func TestList() ([]string, error) {
 }
 
 // runTests runs the given tests, populating the results map.
-//
-// TODO(jingjin): move the logic that wraps internal errors in a
-// TestResult and creates an xUnit report if one does not exists from
-// the test function to this wrapper.
 func runTests(ctx *util.Context, tests []string, results map[string]*TestResult) error {
 	for _, test := range tests {
 		testFn, ok := testFunctions[test]
@@ -216,14 +228,86 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult)
 			return fmt.Errorf("test %v does not exist", test)
 		}
 		fmt.Fprintf(ctx.Stdout(), "##### Running test %q #####\n", test)
-		result, err := testFn(ctx, test)
-		if err != nil {
-			return err
+
+		// Create a buffer to capture testFn's stdout and stderr.
+		largeBuffer := make([]byte, 0, largeBufferBytes)
+		out := bytes.NewBuffer(largeBuffer)
+		opts := ctx.Run().Opts()
+		stdout := io.MultiWriter(out, opts.Stdout)
+		stderr := io.MultiWriter(out, opts.Stderr)
+		newCtx := util.NewContext(ctx.Env(), ctx.Stdin(), stdout, stderr, ctx.Color(), ctx.DryRun(), ctx.Verbose())
+
+		result, internalErr := testFn(newCtx, test)
+		if internalErr != nil {
+			r, err := genXUnitReportOnInternalError(newCtx, test, internalErr, out.String())
+			if err != nil {
+				return err
+			}
+			result = r
 		}
 		results[test] = result
 		fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", results[test].Status)
 	}
 	return nil
+}
+
+// genXUnitReportOnInternalError generates an xUnit test report for the given
+// internal error.
+func genXUnitReportOnInternalError(ctx *util.Context, testName string, internalErr error, output string) (*TestResult, error) {
+	xUnitFilePath := XUnitReportPath(testName)
+
+	// Only create the report when the xUnit file doesn't exist, is invalid, or
+	// exist but doesn't have failed test cases.
+	createXUnitFile := false
+	if _, err := os.Stat(xUnitFilePath); err != nil {
+		if os.IsNotExist(err) {
+			createXUnitFile = true
+		} else {
+			return nil, fmt.Errorf("Stat(%s) failed: %v", xUnitFilePath, err)
+		}
+	} else {
+		bytes, err := ioutil.ReadFile(xUnitFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("ReadFile(%s) failed: %v", xUnitFilePath, err)
+		}
+		var existingSuites testSuites
+		if err := xml.Unmarshal(bytes, &existingSuites); err != nil {
+			createXUnitFile = true
+		} else {
+			createXUnitFile = true
+			for _, curSuite := range existingSuites.Suites {
+				if curSuite.Failures > 0 || curSuite.Errors > 0 {
+					createXUnitFile = false
+					break
+				}
+			}
+		}
+	}
+
+	if createXUnitFile {
+		errType := "Internal Error"
+		iErr, ok := internalErr.(internalTestError)
+		if ok {
+			errType = iErr.name
+		}
+		// Create a test suite to encapsulate the error.
+		// Include last <numLinesToOutput> lines of the output in the error message.
+		lines := strings.Split(output, "\n")
+		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
+		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
+		errMsg := fmt.Sprintf("Error message:\n%s\n\nConsole output:\n%s\n", internalErr.Error(), consoleOutput)
+		s := createTestSuiteWithFailure(testName, errType, errType, errMsg, 0)
+		suites := []testSuite{*s}
+
+		if err := createXUnitReport(ctx, testName, suites); err != nil {
+			return nil, err
+		}
+
+		if iErr == runutil.CommandTimedOutErr {
+			return &TestResult{Status: TestTimedOut}, nil
+		}
+	}
+	return &TestResult{Status: TestFailed}, nil
 }
 
 // createTestDepGraph creates a test dependency graph given a map of

@@ -25,11 +25,9 @@ func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestRe
 	xUnitFile := XUnitReportPath(testName)
 
 	// Initialize the test.
-	cleanup, result, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
-		return nil, err
-	} else if result != nil {
-		return result, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -47,17 +45,17 @@ func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestRe
 	}
 
 	// Invoke "make test" for the vanadium namepsace browser.
-	makeTargetFunc := func(opts runutil.Opts) error {
-		opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
-		return ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test")
-	}
-	if testResult, err := genXUnitReportOnCmdError(ctx, testName, "Make test", "failure", makeTargetFunc); err != nil {
-		return nil, err
-	} else if testResult != nil {
-		if testResult.Status == TestTimedOut {
-			testResult.TimeoutValue = defaultBrowserTestTimeout
+	opts := ctx.Run().Opts()
+	opts.Env["XUNIT_OUTPUT_FILE"] = xUnitFile
+	if err := ctx.Run().TimedCommandWithOpts(defaultBrowserTestTimeout, opts, "make", "test"); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultBrowserTestTimeout,
+			}, nil
+		} else {
+			return nil, internalTestError{err, "Make test"}
 		}
-		return testResult, nil
 	}
 
 	return &TestResult{Status: TestPassed}, nil

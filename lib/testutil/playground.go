@@ -23,11 +23,9 @@ func vanadiumPlaygroundTest(ctx *util.Context, testName string) (_ *TestResult, 
 	}
 
 	// Initialize the test.
-	cleanup, testResult, err := initTest(ctx, testName, []string{"web"})
+	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
-		return nil, err
-	} else if testResult != nil {
-		return testResult, nil
+		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -62,12 +60,15 @@ func vanadiumPlaygroundSubtest(ctx *util.Context, testName, caseName, casePath, 
 	if err = ctx.Run().Chdir(casePath); err != nil {
 		return
 	}
-	testFunc := func(opts runutil.Opts) error {
-		return ctx.Run().TimedCommand(defaultPlaygroundTestTimeout, "make", caseTarget)
-	}
-	tr, err = genXUnitReportOnCmdError(ctx, testName, caseName, "failure", testFunc)
-	if err == nil && tr != nil && tr.Status == TestTimedOut {
-		tr.TimeoutValue = defaultPlaygroundTestTimeout
+	if err := ctx.Run().TimedCommand(defaultPlaygroundTestTimeout, "make", caseTarget); err != nil {
+		if err == runutil.CommandTimedOutErr {
+			return &TestResult{
+				Status:       TestTimedOut,
+				TimeoutValue: defaultPlaygroundTestTimeout,
+			}, nil
+		} else {
+			return nil, internalTestError{err, "Make " + caseTarget}
+		}
 	}
 	return
 }
