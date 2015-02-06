@@ -447,6 +447,7 @@ func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatche
 	build.Default.GOPATH = env.Get("GOPATH")
 
 	matched := map[string][]string{}
+	pkgsWithTests := []string{}
 	for _, pkg := range pkgList {
 		config := loader.Config{
 			SourceImports:       false,
@@ -469,8 +470,11 @@ func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatche
 				}
 			}
 		}
+		if len(matched[pkg]) > 0 {
+			pkgsWithTests = append(pkgsWithTests, pkg)
+		}
 	}
-	return pkgList, matched, nil
+	return pkgsWithTests, matched, nil
 }
 
 // filterExcludedTests filters out excluded tests returning an
@@ -705,6 +709,7 @@ func testWorker(ctx *util.Context, timeout string, args, nonTestArgs []string, t
 		var out bytes.Buffer
 		opts.Stdout = &out
 		opts.Stderr = &out
+		opts.Verbose = true
 		start := time.Now()
 		err := ctx.Run().CommandWithOpts(opts, "v23", taskArgs...)
 		result := testResult{
@@ -1140,9 +1145,10 @@ func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
 
 func vanadiumNewV23Test(ctx *util.Context, testName string) (*TestResult, error) {
 	pkgs := []string{"v.io/..."}
-	suffix := suffixOpt(genTestNameSuffix("GoV23Test"))
-	args := argsOpt([]string{"-v23.tests"})
-	return goTest(ctx, testName, pkgs, args, suffix, &matchV23TestFunc{})
+	suffix := suffixOpt(genTestNameSuffix("V23Test"))
+	args := nonTestArgsOpt([]string{"-v23.tests"})
+	matcher := funcMatcherOpt{&matchV23TestFunc{}}
+	return goTest(ctx, testName, pkgs, args, suffix, matcher)
 }
 
 func genTestNameSuffix(baseSuffix string) string {
