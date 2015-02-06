@@ -411,7 +411,7 @@ func TestGoTestExcludedPackage(t *testing.T) {
 	runGoTest(t, "", exclusions, wantExcludedPackage)
 }
 
-func TestV23GoTest(t *testing.T) {
+func TestGoTestV23(t *testing.T) {
 	runGoTest(t, "", nil, wantV23Test, argsOpt{"--run=TestV23"}, nonTestArgsOpt([]string{"--v23.tests"}))
 }
 
