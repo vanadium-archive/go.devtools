@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultIntegrationTestTimeout = 5 * time.Minute
+	defaultIntegrationTestTimeout = 10 * time.Minute
 )
 
 // binPackages enumerates the Go commands used by vanadium integration tests.
