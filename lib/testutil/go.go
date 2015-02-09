@@ -700,7 +700,7 @@ func testWorker(ctx *util.Context, timeout string, args, nonTestArgs []string, t
 	opts.Verbose = false
 	for task := range tasks {
 		// Run the test.
-		taskArgs := append([]string{"go", "test", "-timeout", timeout, "-v"}, args...)
+		taskArgs := append([]string{"go", "test", "-short", "-timeout", timeout, "-v"}, args...)
 		if len(task.specificTests) != 0 {
 			taskArgs = append(taskArgs, "-run", fmt.Sprintf("%s", strings.Join(task.specificTests, "|")))
 		}
