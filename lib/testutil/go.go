@@ -709,7 +709,6 @@ func testWorker(ctx *util.Context, timeout string, args, nonTestArgs []string, t
 		var out bytes.Buffer
 		opts.Stdout = &out
 		opts.Stderr = &out
-		opts.Verbose = true
 		start := time.Now()
 		err := ctx.Run().CommandWithOpts(opts, "v23", taskArgs...)
 		result := testResult{
