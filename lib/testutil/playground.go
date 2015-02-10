@@ -16,7 +16,7 @@ const (
 // vanadiumPlaygroundTest runs integration tests for the Vanadium playground.
 //
 // TODO(ivanpi): Port the namespace browser test logic from shell to Go. Add more tests.
-func vanadiumPlaygroundTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumPlaygroundTest(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err

@@ -80,11 +80,11 @@ type testDepGraph map[string]*testNode
 // to run before being forcefully terminated.
 var DefaultTestTimeout = 10 * time.Minute
 
-var testMock = func(*util.Context, string) (*TestResult, error) {
+var testMock = func(*util.Context, string, ...TestOpt) (*TestResult, error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-var testFunctions = map[string]func(*util.Context, string) (*TestResult, error){
+var testFunctions = map[string]func(*util.Context, string, ...TestOpt) (*TestResult, error){
 	// TODO(jsimsa,cnicolaou): consider getting rid of the vanadium- prefix.
 	"ignore-this":                     testMock,
 	"third_party-go-build":            thirdPartyGoBuild,
@@ -134,8 +134,17 @@ func newTestContext(ctx *util.Context, env map[string]string) *util.Context {
 	return util.NewContext(tmpEnv, ctx.Stdin(), ctx.Stdout(), ctx.Stderr(), ctx.Color(), ctx.DryRun(), ctx.Verbose())
 }
 
+type TestOpt interface {
+	TestOpt()
+}
+
+type SubTestsOpt []string
+
+func (SubTestsOpt) TestOpt() {}
+
 // RunProjectTests runs all tests associated with the given projects.
-func RunProjectTests(ctx *util.Context, env map[string]string, projects []string) (map[string]*TestResult, error) {
+func RunProjectTests(ctx *util.Context, env map[string]string, projects []string,
+	opts ...TestOpt) (map[string]*TestResult, error) {
 	testCtx := newTestContext(ctx, env)
 
 	// Parse tests and dependencies from config file.
@@ -183,7 +192,7 @@ run:
 			if !ready {
 				continue
 			}
-			if err := runTests(testCtx, []string{test}, results); err != nil {
+			if err := runTests(testCtx, []string{test}, results, opts...); err != nil {
 				return nil, err
 			}
 			continue run
@@ -196,13 +205,13 @@ run:
 }
 
 // RunTests executes the given tests and reports the test results.
-func RunTests(ctx *util.Context, env map[string]string, tests []string) (map[string]*TestResult, error) {
+func RunTests(ctx *util.Context, env map[string]string, tests []string, opts ...TestOpt) (map[string]*TestResult, error) {
 	results := make(map[string]*TestResult, len(tests))
 	for _, test := range tests {
 		results[test] = &TestResult{}
 	}
 	testCtx := newTestContext(ctx, env)
-	if err := runTests(testCtx, tests, results); err != nil {
+	if err := runTests(testCtx, tests, results, opts...); err != nil {
 		return nil, err
 	}
 	return results, nil
@@ -221,7 +230,7 @@ func TestList() ([]string, error) {
 }
 
 // runTests runs the given tests, populating the results map.
-func runTests(ctx *util.Context, tests []string, results map[string]*TestResult) error {
+func runTests(ctx *util.Context, tests []string, results map[string]*TestResult, opts ...TestOpt) error {
 	for _, test := range tests {
 		testFn, ok := testFunctions[test]
 		if !ok {
@@ -232,12 +241,11 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult)
 		// Create a buffer to capture testFn's stdout and stderr.
 		largeBuffer := make([]byte, 0, largeBufferBytes)
 		out := bytes.NewBuffer(largeBuffer)
-		opts := ctx.Run().Opts()
-		stdout := io.MultiWriter(out, opts.Stdout)
-		stderr := io.MultiWriter(out, opts.Stderr)
+		runOpts := ctx.Run().Opts()
+		stdout := io.MultiWriter(out, runOpts.Stdout)
+		stderr := io.MultiWriter(out, runOpts.Stderr)
 		newCtx := util.NewContext(ctx.Env(), ctx.Stdin(), stdout, stderr, ctx.Color(), ctx.DryRun(), ctx.Verbose())
-
-		result, internalErr := testFn(newCtx, test)
+		result, internalErr := testFn(newCtx, test, opts...)
 		if internalErr != nil {
 			r, err := genXUnitReportOnInternalError(newCtx, test, internalErr, out.String())
 			if err != nil {

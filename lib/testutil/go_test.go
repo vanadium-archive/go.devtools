@@ -295,7 +295,7 @@ func TestGoBuild(t *testing.T) {
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-build", "v.io/tools/lib/testutil/testdata/foo"
-	result, err := goBuild(ctx, testName, []string{pkgName})
+	result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -325,7 +325,7 @@ func TestGoCoverage(t *testing.T) {
 
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-coverage", "v.io/tools/lib/testutil/testdata/foo"
-	result, err := goCoverage(ctx, testName, []string{pkgName})
+	result, err := goCoverage(ctx, testName, pkgsOpt([]string{pkgName}))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -421,10 +421,13 @@ func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSu
 	defer setupTempHome(t, ctx)()
 	testName, pkgName := "test-go-test", "v.io/tools/lib/testutil/testdata/foo"
 
-	opts := []goTestOpt{suffixOpt(suffix), excludedTestsOpt(excludedTests)}
+	opts := []goTestOpt{
+		pkgsOpt([]string{pkgName}),
+		suffixOpt(suffix),
+		excludedTestsOpt(excludedTests)}
 	opts = append(opts, testOpts...)
 
-	result, err := goTest(ctx, testName, []string{pkgName}, opts...)
+	result, err := goTest(ctx, testName, opts...)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

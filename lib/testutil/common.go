@@ -26,10 +26,15 @@ func (e internalTestError) Error() string {
 	return fmt.Sprintf("%s:\n%s\n", e.name, e.err.Error())
 }
 
+var testTmpDir = ""
+
 // binDirPath returns the path to the directory for storing temporary
 // binaries.
 func binDirPath() string {
-	return filepath.Join(os.Getenv("TMPDIR"), "bin")
+	if len(testTmpDir) == 0 {
+		panic("binDirPath shouldn't be called before initTest")
+	}
+	return filepath.Join(testTmpDir, "bin")
 }
 
 // initTest carries out the initial actions for the given test.
@@ -54,7 +59,9 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 	if err := os.Setenv("TMPDIR", workDir); err != nil {
 		return nil, err
 	}
+	testTmpDir = workDir
 	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
+	fmt.Fprintf(ctx.Stdout(), "bin dir = %q\n", binDirPath())
 
 	// Create a temporary directory for storing binaries.
 	if err := ctx.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {

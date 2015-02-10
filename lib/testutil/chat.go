@@ -51,11 +51,11 @@ func runTest(ctx *util.Context, testName, target string, profiles []string) (_ *
 }
 
 // vanadiumChatShellTest runs the tests for the chat shell client.
-func vanadiumChatShellTest(ctx *util.Context, testName string) (*TestResult, error) {
+func vanadiumChatShellTest(ctx *util.Context, testName string, _ ...TestOpt) (*TestResult, error) {
 	return runTest(ctx, testName, "test-shell", nil)
 }
 
 // vanadiumChatWebTest runs the tests for the chat web client.
-func vanadiumChatWebTest(ctx *util.Context, testName string) (*TestResult, error) {
+func vanadiumChatWebTest(ctx *util.Context, testName string, _ ...TestOpt) (*TestResult, error) {
 	return runTest(ctx, testName, "test-web", []string{"web"})
 }

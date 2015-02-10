@@ -62,6 +62,7 @@ type profilesOpt []string
 type timeoutOpt string
 type suffixOpt string
 type excludedTestsOpt []test
+type pkgsOpt []string
 
 func (argsOpt) goBuildOpt()    {}
 func (argsOpt) goCoverageOpt() {}
@@ -82,15 +83,21 @@ func (excludedTestsOpt) goTestOpt() {}
 
 func (funcMatcherOpt) goTestOpt() {}
 
+func (pkgsOpt) goTestOpt()     {}
+func (pkgsOpt) goBuildOpt()    {}
+func (pkgsOpt) goCoverageOpt() {}
+
 // goBuild is a helper function for running Go builds.
-func goBuild(ctx *util.Context, testName string, pkgs []string, opts ...goBuildOpt) (_ *TestResult, e error) {
-	args, profiles := []string{}, []string{}
+func goBuild(ctx *util.Context, testName string, opts ...goBuildOpt) (_ *TestResult, e error) {
+	args, profiles, pkgs := []string{}, []string{}, []string{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case argsOpt:
 			args = []string(typedOpt)
 		case profilesOpt:
 			profiles = []string(typedOpt)
+		case pkgsOpt:
+			pkgs = []string(typedOpt)
 		}
 	}
 
@@ -197,8 +204,9 @@ type coverageResult struct {
 const defaultTestCoverageTimeout = "5m"
 
 // goCoverage is a helper function for running Go coverage tests.
-func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCoverageOpt) (_ *TestResult, e error) {
+func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *TestResult, e error) {
 	timeout := defaultTestCoverageTimeout
+	pkgs := []string{}
 	args, profiles := []string{}, []string{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -208,6 +216,8 @@ func goCoverage(ctx *util.Context, testName string, pkgs []string, opts ...goCov
 			args = []string(typedOpt)
 		case profilesOpt:
 			profiles = []string(typedOpt)
+		case pkgsOpt:
+			pkgs = []string(typedOpt)
 		}
 	}
 
@@ -534,9 +544,9 @@ type goTestTask struct {
 }
 
 // goTest is a helper function for running Go tests.
-func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt) (_ *TestResult, e error) {
+func goTest(ctx *util.Context, testName string, opts ...goTestOpt) (_ *TestResult, e error) {
 	timeout := defaultTestTimeout
-	args, profiles, suffix, excludedTestRules := []string{}, []string{}, "", []test{}
+	args, profiles, suffix, excludedTestRules, pkgs := []string{}, []string{}, "", []test{}, []string{}
 	var matcher funcMatcher
 	matcher = &matchGoTestFunc{}
 	var nonTestArgs nonTestArgsOpt
@@ -556,6 +566,8 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 			nonTestArgs = typedOpt
 		case funcMatcherOpt:
 			matcher = typedOpt
+		case pkgsOpt:
+			pkgs = []string(typedOpt)
 		}
 	}
 
@@ -565,6 +577,8 @@ func goTest(ctx *util.Context, testName string, pkgs []string, opts ...goTestOpt
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
+
+	ctx.Run().Opts().Env["V23_BIN_DIR"] = binDirPath()
 
 	// Install dependencies.
 	if err := installGo2XUnit(ctx); err != nil {
@@ -968,53 +982,120 @@ func excludedTests(exclusions []exclusion) ([]test, error) {
 	return excluded, nil
 }
 
+// validateAgainstDefaultPackages makes sure that the packages requested
+// via opts are amongst the defaults assuming that all of the defaults are
+// specified in <pkg>/... form and returns one of each of the goBuildOpt,
+// goCoverageOpt and goTestOpt options.
+// If no packages are requested, the defaults are returned.
+// TODO(cnicolaou): ideally there'd be one piece of code that understands
+//   go package specifications that could be used here.
+func validateAgainstDefaultPackages(ctx *util.Context, opts []TestOpt, defaults []string) (pkgsOpt, error) {
+
+	optPkgs := []string{}
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case SubTestsOpt:
+			optPkgs = []string(v)
+		}
+	}
+
+	if len(optPkgs) == 0 {
+		defsOpt := pkgsOpt(defaults)
+		return defsOpt, nil
+	}
+
+	defPkgs, err := goList(ctx, defaults)
+	if err != nil {
+		return nil, err
+	}
+
+	pkgs, err := goList(ctx, optPkgs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range pkgs {
+		found := false
+		for _, d := range defPkgs {
+			if p == d {
+				found = true
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("requested packages %v is not one of %v", p, defaults)
+		}
+	}
+	po := pkgsOpt(pkgs)
+	return po, nil
+}
+
 // thirdPartyGoBuild runs Go build for third-party projects.
-func thirdPartyGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	return goBuild(ctx, testName, thirdPartyPkgs)
+func thirdPartyGoBuild(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
+	if err != nil {
+		return nil, err
+	}
+	return goBuild(ctx, testName, pkgs)
 }
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
-func thirdPartyGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := thirdPartyPkgs
+func thirdPartyGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
+	if err != nil {
+		return nil, err
+	}
 	exclusions, err := ExcludedThirdPartyTests()
 	if err != nil {
 		return nil, err
 	}
-	return goTest(ctx, testName, pkgs, excludedTestsOpt(exclusions))
+	return goTest(ctx, testName, excludedTestsOpt(exclusions), pkgs)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
-func thirdPartyGoRace(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := thirdPartyPkgs
+func thirdPartyGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
+	if err != nil {
+		return nil, err
+	}
 	args := argsOpt([]string{"-race"})
 	exclusions, err := ExcludedThirdPartyTests()
 	if err != nil {
 		return nil, err
 	}
-	return goTest(ctx, testName, pkgs, args, excludedTestsOpt(exclusions))
+	return goTest(ctx, testName, args, excludedTestsOpt(exclusions), pkgs)
 }
 
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
-func vanadiumGoBench(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
+func vanadiumGoBench(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
 	args := argsOpt([]string{"-bench", ".", "-run", "XXX"})
-	return goTest(ctx, testName, pkgs, args)
+	return goTest(ctx, testName, args, pkgs)
 }
 
 // vanadiumGoBuild runs Go build for the vanadium projects.
-func vanadiumGoBuild(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
+func vanadiumGoBuild(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
 	return goBuild(ctx, testName, pkgs)
 }
 
 // vanadiumGoCoverage runs Go coverage tests for vanadium projects.
-func vanadiumGoCoverage(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
+func vanadiumGoCoverage(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
 	return goCoverage(ctx, testName, pkgs)
 }
 
 // vanadiumGoDoc (re)starts the godoc server for vanadium projects.
-func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumGoDoc(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -1077,8 +1158,13 @@ func vanadiumGoDoc(ctx *util.Context, testName string) (_ *TestResult, e error) 
 
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
-func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e error) {
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'v23 go generate v.io/...'.\n")
+func vanadiumGoGenerate(ctx *util.Context, testName string, opts ...TestOpt) (_ *TestResult, e error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
+	pkgStr := strings.Join([]string(pkgs), " ")
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'v23 go generate %s'.\n", pkgStr)
 
 	// Stash any uncommitted changes and defer functions that undo any
 	// changes created by this function and then unstash the original
@@ -1109,8 +1195,10 @@ func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e er
 		}, &e)
 	}
 
+	fmt.Fprintf(os.Stderr, "PATH: %s\n", os.Getenv("PATH"))
 	// Check if 'go generate' creates any changes.
-	if err := ctx.Run().Command("v23", "go", "generate", "v.io/..."); err != nil {
+	args := append([]string{"go", "generate"}, []string(pkgs)...)
+	if err := ctx.Run().Command("v23", args...); err != nil {
 		return nil, internalTestError{err, "Go Generate"}
 	}
 	dirtyFiles := []string{}
@@ -1134,20 +1222,27 @@ func vanadiumGoGenerate(ctx *util.Context, testName string) (_ *TestResult, e er
 }
 
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
-func vanadiumGoRace(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
+func vanadiumGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
 	args := argsOpt([]string{"-race"})
 	timeout := timeoutOpt("15m")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
-	return goTest(ctx, testName, pkgs, args, timeout, suffix)
+	return goTest(ctx, testName, args, timeout, suffix, pkgs)
 }
 
-func vanadiumNewV23Test(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
+func vanadiumNewV23Test(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
 	suffix := suffixOpt(genTestNameSuffix("V23Test"))
 	args := nonTestArgsOpt([]string{"-v23.tests"})
 	matcher := funcMatcherOpt{&matchV23TestFunc{}}
-	return goTest(ctx, testName, pkgs, args, suffix, matcher)
+	result, err := goTest(ctx, testName, suffix, args, matcher, pkgs)
+	return result, err
 }
 
 func genTestNameSuffix(baseSuffix string) string {
@@ -1165,8 +1260,11 @@ func genTestNameSuffix(baseSuffix string) string {
 }
 
 // vanadiumGoTest runs Go tests for vanadium projects.
-func vanadiumGoTest(ctx *util.Context, testName string) (*TestResult, error) {
-	pkgs := []string{"v.io/..."}
+func vanadiumGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
 	suffix := suffixOpt(genTestNameSuffix("GoTest"))
-	return goTest(ctx, testName, pkgs, suffix)
+	return goTest(ctx, testName, suffix, pkgs)
 }

@@ -272,7 +272,7 @@ func integrationTestWorker(ctx *util.Context, root string, env map[string]string
 }
 
 // vanadiumIntegrationTest runs vanadium integration tests.
-func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumIntegrationTest(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {
@@ -304,7 +304,7 @@ func vanadiumIntegrationTest(ctx *util.Context, testName string) (_ *TestResult,
 }
 
 // vanadiumNewIntegrationTest runs the new Go-based integration tests.
-func vanadiumNewIntegrationTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumNewIntegrationTest(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestResult, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{"web"})
 	if err != nil {

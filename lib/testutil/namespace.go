@@ -17,7 +17,7 @@ const (
 // namespace browser.
 //
 // TODO(aghassemi): Port the namespace browser test logic from shell to Go.
-func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string) (_ *TestResult, e error) {
+func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestResult, e error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
