@@ -1132,6 +1132,12 @@ func vanadiumGoDoc(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestRes
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
 func vanadiumGoGenerate(ctx *util.Context, testName string, opts ...TestOpt) (_ *TestResult, e error) {
+	cleanup, err := initTest(ctx, testName, []string{})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
 	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
@@ -1184,8 +1190,13 @@ func vanadiumGoGenerate(ctx *util.Context, testName string, opts ...TestOpt) (_ 
 	if len(dirtyFiles) != 0 {
 		output := strings.Join(dirtyFiles, "\n")
 		fmt.Fprintf(ctx.Stdout(), "The following go generated files are not up-to-date:\n%v\n", output)
-		s := createTestSuiteWithFailure("GoGenerate", "GoGenerate", "go generate failure", output, 0)
-		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+		// Generate xUnit report.
+		suites := []testSuite{}
+		for _, dirtyFile := range dirtyFiles {
+			s := createTestSuiteWithFailure("GoGenerate", dirtyFile, "go generate failure", "Outdated file:\n"+dirtyFile, 0)
+			suites = append(suites, *s)
+		}
+		if err := createXUnitReport(ctx, testName, suites); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
