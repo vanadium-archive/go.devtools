@@ -258,7 +258,6 @@ func rebuildDeveloperTools(ctx *util.Context, projects util.Projects, tools util
 		errs = append(errs, fmt.Errorf("tools project not found, not rebuilding tools."))
 	} else {
 		// Find target Tools.
-		env := map[string]string{}
 		targetTools := []util.Tool{}
 		for name, tool := range tools {
 			if name == "v23" || name == "vdl" || name == "go-depcop" {

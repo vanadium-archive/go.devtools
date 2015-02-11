@@ -20,15 +20,13 @@ func vanadiumGoVDL(ctx *util.Context, testName string, _ ...TestOpt) (*TestResul
 	}
 
 	// Install the vdl tool.
-	opts := ctx.Run().Opts()
-	opts.Env["GOPATH"] = filepath.Join(root, "release", "go")
-	if err := ctx.Run().CommandWithOpts(opts, "go", "install", "v.io/core/veyron2/vdl/vdl"); err != nil {
+	if err := ctx.Run().Command("v23", "go", "install", "v.io/core/veyron2/vdl/vdl"); err != nil {
 		return nil, internalTestError{err, "Install VDL"}
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.
 	var out bytes.Buffer
-	opts = ctx.Run().Opts()
+	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
 	venv, err := util.VanadiumEnvironment(util.HostPlatform())
