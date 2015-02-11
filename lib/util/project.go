@@ -133,12 +133,6 @@ func LocalProjects(ctx *Context) (Projects, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(jsimsa): Remove this function once all projects
-	// created before go/vcl/1381 have been transitioned to the
-	// new format of v23 projects.
-	if err := createV23Dir(ctx, root); err != nil {
-		return nil, err
-	}
 	projects := Projects{}
 	if err := findLocalProjects(ctx, root, projects); err != nil {
 		return nil, err
@@ -386,146 +380,12 @@ func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 		// the value of the verbose flag.
 		opts := runutil.Opts{Verbose: true}
 		if err := ctx.Run().FunctionWithOpts(opts, updateFn, "build tool %q", tool.Name); err != nil {
-			// TODO(jsimsa): Switch this to Run().Output()?
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			failed = true
 		}
 	}
 	if failed {
 		return cmdline.ErrExitCode(2)
-	}
-	return nil
-}
-
-// createV23Dir makes sure that the VANADIUM_ROOT instance contains
-// appropriate .v23 directories.
-func createV23Dir(ctx *Context, path string) (e error) {
-	// If <path> points a directory that already contains the .v23
-	// subdirectory exists, do nothing.
-	v23Dir := filepath.Join(path, ".v23")
-	if _, err := os.Stat(v23Dir); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Stat(%v) failed: %v", v23Dir, err)
-	}
-
-	// Otherwise, create it for any git or hg project using a fix
-	// mapping from project remotes to project names.
-	names := map[string]string{
-		"git@git-mirror:/home/veyron/vanadium/deprecated":                         "deprecated",
-		"git@git-mirror:/home/veyron/vanadium/environment":                        "environment",
-		"git@git-mirror:/home/veyron/vanadium/experimental":                       "experimental",
-		"git@git-mirror:/home/veyron/vanadium/infrastructure":                     "infrastructure",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/apps":           "release.go.apps",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/core":           "release.go.core",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/jni":            "release.go.jni",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/lib":            "release.go.lib",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/playground":     "release.go.playground",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/tools":          "release.go.tools",
-		"git@git-mirror:/home/veyron/vanadium/release/go/src/v.io/wspr":           "release.go.wspr",
-		"git@git-mirror:/home/veyron/vanadium/release/java":                       "release.java",
-		"git@git-mirror:/home/veyron/vanadium/release/javascript/core":            "release.js.core",
-		"git@git-mirror:/home/veyron/vanadium/release/javascript/pgbundle":        "release.js.pgbundle",
-		"git@git-mirror:/home/veyron/vanadium/release/javascript/vom":             "release.js.vom",
-		"git@git-mirror:/home/veyron/vanadium/release/projects/namespace_browser": "namespace_browser",
-		"git@git-mirror:/home/veyron/vanadium/release/projects/chat":              "release.projects.chat",
-		"git@git-mirror:/home/veyron/vanadium/roadmap/go/src/v.io/store":          "roadmap.go.store",
-		"git@git-mirror:/home/veyron/vanadium/roadmap/javascript/store":           "roadmap.js.store",
-		"git@git-mirror:/home/veyron/vanadium/scripts":                            "scripts",
-		"git@git-mirror:/home/veyron/vanadium/third_party":                        "third_party",
-		"https://github.com/veyron/veyron-www":                                    "veyron-www",
-		"https://github.com/monopole/mdrip":                                       "mdrip",
-		"https://vanadium.googlesource.com/deprecated":                            "deprecated",
-		"https://vanadium.googlesource.com/environment":                           "environment",
-		"https://vanadium.googlesource.com/experimental":                          "experimental",
-		"https://vanadium.googlesource.com/infrastructure":                        "infrastructure",
-		"https://vanadium.googlesource.com/namespace_browser":                     "namespace_browser",
-		"https://vanadium.googlesource.com/release.go.apps":                       "release.go.apps",
-		"https://vanadium.googlesource.com/release.go.core":                       "release.go.core",
-		"https://vanadium.googlesource.com/release.go.jni":                        "release.go.jni",
-		"https://vanadium.googlesource.com/release.go.lib":                        "release.go.lib",
-		"https://vanadium.googlesource.com/release.go.playground":                 "release.go.playground",
-		"https://vanadium.googlesource.com/release.go.tools":                      "release.go.tools",
-		"https://vanadium.googlesource.com/release.go.wspr":                       "release.go.wspr",
-		"https://vanadium.googlesource.com/release.java":                          "release.java",
-		"https://vanadium.googlesource.com/release.js.core":                       "release.js.core",
-		"https://vanadium.googlesource.com/release.js.pgbundle":                   "release.js.pgbundle",
-		"https://vanadium.googlesource.com/release.js.vom":                        "release.js.vom",
-		"https://vanadium.googlesource.com/release.projects.chat":                 "release.projects.chat",
-		"https://vanadium.googlesource.com/roadmap.go.store":                      "roadmap.go.store",
-		"https://vanadium.googlesource.com/roadmap.js.store":                      "roadmap.js.store",
-		"https://vanadium.googlesource.com/scripts":                               "scripts",
-		"https://vanadium.googlesource.com/third_party":                           "third_party",
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
-	if err := ctx.Run().Chdir(path); err != nil {
-		return err
-	}
-	var project Project
-	gitDir := filepath.Join(path, ".git")
-	if _, err := os.Stat(gitDir); err == nil {
-		remote, err := ctx.Git().RepoName()
-		if err != nil {
-			return err
-		}
-		name, ok := names[remote]
-		if !ok {
-			// Skip over repositories not specified in
-			// <names>.
-			return nil
-		}
-		project = Project{
-			Name:     name,
-			Path:     path,
-			Protocol: "git",
-			Remote:   remote,
-			Revision: "HEAD",
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Stat(%v) failed: %v", gitDir, err)
-	}
-	hgDir := filepath.Join(path, ".hg")
-	if _, err := os.Stat(hgDir); err == nil {
-		remote, err := ctx.Hg().RepoName()
-		if err != nil {
-			return err
-		}
-		name, ok := names[remote]
-		if !ok {
-			// Skip over repositories not specified in
-			// <names>.
-			return nil
-		}
-		project = Project{
-			Name:     name,
-			Path:     path,
-			Protocol: "hg",
-			Remote:   remote,
-			Revision: "tip",
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("Stat(%v) failed: %v", hgDir, err)
-	}
-	if project.Path != "" {
-		if err := writeMetadata(ctx, project); err != nil {
-			return err
-		}
-	} else {
-		fileInfos, err := ioutil.ReadDir(path)
-		if err != nil {
-			return fmt.Errorf("ReadDir(%v) failed: %v", path, err)
-		}
-		for _, fileInfo := range fileInfos {
-			if fileInfo.IsDir() && !strings.HasPrefix(fileInfo.Name(), ".") {
-				if err := createV23Dir(ctx, filepath.Join(path, fileInfo.Name())); err != nil {
-					return err
-				}
-			}
-		}
 	}
 	return nil
 }
@@ -798,7 +658,6 @@ func updateProjects(ctx *Context, remoteProjects Projects, manifest string, gc b
 		// the value of the verbose flag.
 		opts := runutil.Opts{Verbose: true}
 		if err := ctx.Run().FunctionWithOpts(opts, updateFn, "%v", op); err != nil {
-			// TODO(jsimsa): Switch this to Run.Output()?
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			failed = true
 		}
