@@ -291,6 +291,18 @@ func TestNewSnapshotFromOS(t *testing.T) {
 	}
 }
 
+func pathsMatch(t *testing.T, path1, path2 string) bool {
+	eval1, err := filepath.EvalSymlinks(path1)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%v) failed: %v", path1, err)
+	}
+	eval2, err := filepath.EvalSymlinks(path2)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%v) failed: %v", path2, err)
+	}
+	return eval1 == eval2
+}
+
 // TestLookPathCommandOK checks that LookPath() succeeds when given an
 // existing command.
 func TestLookPathCommandOK(t *testing.T) {
@@ -322,11 +334,7 @@ func TestLookPathCommandOK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookPath(%v) failed: %v", command, err)
 	}
-	want, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%v) failed: %v", absPath, err)
-	}
-	if got != want {
+	if want := absPath; !pathsMatch(t, got, want) {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 }
@@ -383,7 +391,7 @@ func TestLookPathAbsoluteOK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookPath(%v) failed: %v", absPath, err)
 	}
-	if want := absPath; got != want {
+	if want := absPath; !pathsMatch(t, got, want) {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 }
@@ -471,11 +479,7 @@ func TestLookPathRelativeOK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookPath(%v) failed: %v", relPath, err)
 	}
-	want, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%v) failed: %v", absPath, err)
-	}
-	if got != want {
+	if want := absPath; !pathsMatch(t, got, want) {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 }

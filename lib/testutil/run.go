@@ -138,13 +138,12 @@ type TestOpt interface {
 	TestOpt()
 }
 
-type SubTestsOpt []string
+type PkgsOpt []string
 
-func (SubTestsOpt) TestOpt() {}
+func (PkgsOpt) TestOpt() {}
 
 // RunProjectTests runs all tests associated with the given projects.
-func RunProjectTests(ctx *util.Context, env map[string]string, projects []string,
-	opts ...TestOpt) (map[string]*TestResult, error) {
+func RunProjectTests(ctx *util.Context, env map[string]string, projects []string, opts ...TestOpt) (map[string]*TestResult, error) {
 	testCtx := newTestContext(ctx, env)
 
 	// Parse tests and dependencies from config file.

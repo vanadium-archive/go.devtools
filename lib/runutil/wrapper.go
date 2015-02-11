@@ -1,8 +1,8 @@
 package runutil
 
-// TODO(jsimsa): Write wrappers for functions from the Go standard
-// libraries "os" and "ioutil" that our tools use: Chmod(), Create(),
-// Open(), OpenFile(), ...
+// TODO(jsimsa): Write wrappers for additional functions from the Go
+// standard libraries "os" and "ioutil" that our tools use: Chmod(),
+// Create(), Open(), OpenFile(), ...
 
 import (
 	"fmt"

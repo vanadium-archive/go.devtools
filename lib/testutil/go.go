@@ -22,6 +22,7 @@ import (
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/envutil"
+	"v.io/tools/lib/goutil"
 	"v.io/tools/lib/util"
 )
 
@@ -109,7 +110,7 @@ func goBuild(ctx *util.Context, testName string, opts ...goBuildOpt) (_ *TestRes
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Enumerate the packages to be built.
-	pkgList, err := goList(ctx, pkgs)
+	pkgList, err := goutil.List(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +250,7 @@ func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *T
 	}
 
 	// Enumerate the packages for which coverage is to be computed.
-	pkgList, err := goList(ctx, pkgs)
+	pkgList, err := goutil.List(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -380,34 +381,6 @@ func coverageWorker(ctx *util.Context, timeout string, args []string, pkgs <-cha
 	}
 }
 
-// runCmd is a helper function to run sub commands.
-func runCmd(ctx *util.Context, cmd string, args ...string) (*bytes.Buffer, error) {
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, cmd, args...); err != nil {
-		fmt.Fprintln(ctx.Stdout(), out.String())
-		return nil, err
-	}
-	return &out, nil
-}
-
-// goList is a helper function for listing Go packages.
-func goList(ctx *util.Context, pkgs []string) ([]string, error) {
-	args := []string{"go", "list"}
-	args = append(args, pkgs...)
-	out, err := runCmd(ctx, "v23", args...)
-	if err != nil {
-		return nil, err
-	}
-	cleanOut := strings.TrimSpace(out.String())
-	if cleanOut == "" {
-		return nil, nil
-	}
-	return strings.Split(cleanOut, "\n"), nil
-}
-
 // funcMatcher is the interface for determing if functions in the loaded ast
 // of a package match a certain criteria.
 type funcMatcher interface {
@@ -438,7 +411,7 @@ func (t *matchV23TestFunc) goTestOpt() {}
 // by the matcher interface.
 func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 
-	pkgList, err := goList(ctx, pkgs)
+	pkgList, err := goutil.List(ctx, pkgs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list packages: %v", err)
 	}
@@ -994,7 +967,7 @@ func validateAgainstDefaultPackages(ctx *util.Context, opts []TestOpt, defaults 
 	optPkgs := []string{}
 	for _, opt := range opts {
 		switch v := opt.(type) {
-		case SubTestsOpt:
+		case PkgsOpt:
 			optPkgs = []string(v)
 		}
 	}
@@ -1004,12 +977,12 @@ func validateAgainstDefaultPackages(ctx *util.Context, opts []TestOpt, defaults 
 		return defsOpt, nil
 	}
 
-	defPkgs, err := goList(ctx, defaults)
+	defPkgs, err := goutil.List(ctx, defaults)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := goList(ctx, optPkgs)
+	pkgs, err := goutil.List(ctx, optPkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1195,7 +1168,6 @@ func vanadiumGoGenerate(ctx *util.Context, testName string, opts ...TestOpt) (_ 
 		}, &e)
 	}
 
-	fmt.Fprintf(os.Stderr, "PATH: %s\n", os.Getenv("PATH"))
 	// Check if 'go generate' creates any changes.
 	args := append([]string{"go", "generate"}, []string(pkgs)...)
 	if err := ctx.Run().Command("v23", args...); err != nil {
