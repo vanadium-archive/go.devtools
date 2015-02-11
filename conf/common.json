@@ -5,10 +5,16 @@
     "namespace_browser": [
       "vanadium-namespace-browser-test"
     ],
+    "release.go.apps": [
+      "go"
+    ],
     "release.go.core": [
       "go",
       "javascript",
       "projects"
+    ],
+    "release.go.jni": [
+      "go"
     ],
     "release.go.lib": [
       "go",
@@ -30,22 +36,12 @@
       "javascript",
       "projects"
     ],
-    "release.js.vom": [
-      "javascript",
-      "projects"
-    ],
     "release.projects.chat": [
       "vanadium-chat-shell-test",
       "vanadium-chat-web-test"
     ],
     "release.projects.playground": [
       "vanadium-playground-test"
-    ],
-    "roadmap.go.examples": [
-      "go"
-    ],
-    "roadmap.go.store": [
-      "go"
     ],
     "third_party": [
       "third_party-go",
