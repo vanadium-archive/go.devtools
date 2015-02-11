@@ -36,6 +36,9 @@ one of two forms:
    import path may denote two packages.  (Whether this behaviour is
    enabled is tool-specific, and may depend on additional flags.)
 
+   Due to current limitations in the type-checker, only the first
+   import path of the command line will contribute any tests.
+
 A '--' argument terminates the list of packages.
 
 The gopkg flags are:
