@@ -1002,6 +1002,19 @@ func validateAgainstDefaultPackages(ctx *util.Context, opts []TestOpt, defaults 
 	return po, nil
 }
 
+// getShortTestsOnlyOptValue gets the value of ShortTestsOnlyOpt from the given
+// TestOpt slice.
+func getShortTestsOnlyOptValue(opts []TestOpt) bool {
+	shortTestsOnly := false
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case ShortOpt:
+			shortTestsOnly = bool(v)
+		}
+	}
+	return shortTestsOnly
+}
+
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
 	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
@@ -1211,6 +1224,9 @@ func vanadiumGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestR
 		return nil, err
 	}
 	args := argsOpt([]string{"-race"})
+	if getShortTestsOnlyOptValue(opts) {
+		args = append(args, "-short")
+	}
 	timeout := timeoutOpt("15m")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
 	return goTest(ctx, testName, args, timeout, suffix, pkgs)
@@ -1248,6 +1264,10 @@ func vanadiumGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*TestR
 	if err != nil {
 		return nil, err
 	}
+	args := argsOpt([]string{})
+	if getShortTestsOnlyOptValue(opts) {
+		args = append(args, "-short")
+	}
 	suffix := suffixOpt(genTestNameSuffix("GoTest"))
-	return goTest(ctx, testName, suffix, pkgs)
+	return goTest(ctx, testName, suffix, pkgs, args)
 }

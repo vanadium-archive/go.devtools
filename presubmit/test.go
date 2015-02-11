@@ -130,7 +130,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
-	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, nil); err == nil {
+	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, testutil.ShortOpt(true)); err == nil {
 		return writeTestStatusFile(ctx, results)
 	} else {
 		return err

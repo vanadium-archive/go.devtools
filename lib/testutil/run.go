@@ -138,9 +138,17 @@ type TestOpt interface {
 	TestOpt()
 }
 
+// PkgsOpt is an option that can be used to specify which Go tests to run using
+// a list of Go package expressions.
 type PkgsOpt []string
 
+// ShortOpt is an option to specify whether to run short tests only in
+// VanadiumGoTest and VanadiumGoRace.
+type ShortOpt bool
+
 func (PkgsOpt) TestOpt() {}
+
+func (ShortOpt) TestOpt() {}
 
 // RunProjectTests runs all tests associated with the given projects.
 func RunProjectTests(ctx *util.Context, env map[string]string, projects []string, opts ...TestOpt) (map[string]*TestResult, error) {
