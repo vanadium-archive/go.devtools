@@ -6,18 +6,25 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/tools/lib/collect"
 	"v.io/tools/lib/util"
 )
 
 // vanadiumGoVDL checks that all VDL-based Go source files are
 // up-to-date.
-func vanadiumGoVDL(ctx *util.Context, testName string, _ ...TestOpt) (*TestResult, error) {
+func vanadiumGoVDL(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestResult, e error) {
 	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'v23 run vdl generate --lang=go all'.\n")
 
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
 	}
+
+	cleanup, err := initTest(ctx, testName, []string{})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vdl tool.
 	if err := ctx.Run().Command("v23", "go", "install", "v.io/core/veyron2/vdl/vdl"); err != nil {
@@ -39,8 +46,13 @@ func vanadiumGoVDL(ctx *util.Context, testName string, _ ...TestOpt) (*TestResul
 	output := strings.TrimSpace(out.String())
 	if err != nil || len(output) != 0 {
 		fmt.Fprintf(ctx.Stdout(), "%v\n", output)
-		s := createTestSuiteWithFailure(testName, "VDLAudit", "failure", output, 0)
-		suites := []testSuite{*s}
+		// Create xUnit report.
+		files := strings.Split(output, "\n")
+		suites := []testSuite{}
+		for _, file := range files {
+			s := createTestSuiteWithFailure("VDLAudit", file, "VDL audit failure", "Outdated file:\n"+file, 0)
+			suites = append(suites, *s)
+		}
 		if err := createXUnitReport(ctx, testName, suites); err != nil {
 			return nil, err
 		}
