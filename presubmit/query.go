@@ -20,17 +20,17 @@ import (
 	"v.io/tools/lib/util"
 )
 
-type clList []gerrit.QueryResult
+type clList []gerrit.Change
 
 // clRefMap indexes cls by their ref strings.
-type clRefMap map[string]gerrit.QueryResult
+type clRefMap map[string]gerrit.Change
 
 // clNumberToPatchsetMap is a map from CL numbers to the latest patchset of the CL.
 type clNumberToPatchsetMap map[int]int
 
 // multiPartCLSet represents a set of CLs that spans multiple projects.
 type multiPartCLSet struct {
-	parts         map[int]gerrit.QueryResult // Indexed by cl's part index.
+	parts         map[int]gerrit.Change // Indexed by cl's part index.
 	expectedTotal int
 	expectedTopic string
 }
@@ -38,14 +38,14 @@ type multiPartCLSet struct {
 // NewMultiPartCLSet creates a new instance of multiPartCLSet.
 func NewMultiPartCLSet() *multiPartCLSet {
 	return &multiPartCLSet{
-		parts:         map[int]gerrit.QueryResult{},
+		parts:         map[int]gerrit.Change{},
 		expectedTotal: -1,
 		expectedTopic: "",
 	}
 }
 
 // addCL adds a CL to the set after it passes a series of checks.
-func (s *multiPartCLSet) addCL(cl gerrit.QueryResult) error {
+func (s *multiPartCLSet) addCL(cl gerrit.Change) error {
 	if cl.MultiPart == nil {
 		return fmt.Errorf("no multi part info found: %#v", cl)
 	}
@@ -172,12 +172,18 @@ func runQuery(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if numCLs, err := sendCLListsToPresubmitTest(
-		ctx, newCLLists, defaultProjects, removeOutdatedBuilds, addPresubmitTestBuild); err != nil {
-		return err
-	} else {
-		numSentCLs += numCLs
+	sender := clsSender{
+		clLists:          newCLLists,
+		defaultProjects:  defaultProjects,
+		clsSent:          0,
+		removeOutdatedFn: removeOutdatedBuilds,
+		addPresubmitFn:   addPresubmitTestBuild,
+		postMessageFn:    postMessage,
 	}
+	if err := sender.sendCLListsToPresubmitTest(ctx); err != nil {
+		return err
+	}
+	numSentCLs += sender.clsSent
 
 	return nil
 }
@@ -258,7 +264,7 @@ func writeLog(ctx *util.Context, cls clList) (e error) {
 	// Index CLs with their refs.
 	results := clRefMap{}
 	for _, cl := range cls {
-		results[cl.Ref] = cl
+		results[cl.Reference()] = cl
 	}
 
 	fd, err := os.OpenFile(logFilePathFlag, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
@@ -303,10 +309,10 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 	multiPartCLs := clList{}
 	for _, curCL := range curCLs {
 		// Ref could be empty in cases where a patchset is causing conflicts.
-		if curCL.Ref == "" {
+		if curCL.Reference() == "" {
 			continue
 		}
-		if _, ok := prevCLsMap[curCL.Ref]; !ok {
+		if _, ok := prevCLsMap[curCL.Reference()]; !ok {
 			// This individual cl is newer.
 			if curCL.MultiPart == nil {
 				// This cl is not a multi part cl.
@@ -352,87 +358,149 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 	return newCLs
 }
 
+type clsSender struct {
+	clLists          []clList
+	defaultProjects  map[string]util.Project
+	clsSent          int
+	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error
+	addPresubmitFn   func(*util.Context, clList, []string) error
+	postMessageFn    func(*util.Context, string, []string, bool) error
+}
+
 // sendCLListsToPresubmitTest sends the given clLists to presubmit-test Jenkins
-// target one by one to run presubmit-test builds. It returns how many CLs have
+// job one by one to run presubmit-test builds. It returns how many CLs have
 // been sent successfully.
-func sendCLListsToPresubmitTest(
-	ctx *util.Context,
-	clLists []clList,
-	defaultProjects map[string]util.Project,
-	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error,
-	addPresubmitFn func(*util.Context, clList, []string) error) (int, error) {
-	clsSent := 0
-outer:
-	for _, curCLList := range clLists {
-		// Check and cancel matched outdated builds.
-		curCLMap := clNumberToPatchsetMap{}
-		clStrings := []string{}
-		skipPresubmitTest := false
-		projects := []string{}
-		for _, curCL := range curCLList {
-			// Ignore all CLs that are not in the default manifest.
-			// TODO(jingjin): find a better way so we can remove this check.
-			if defaultProjects != nil && !isInDefaultManifest(ctx, curCL, defaultProjects) {
-				continue outer
-			}
-
-			cl, patchset, err := parseRefString(curCL.Ref)
-			if err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
-				continue outer
-			}
-			curCLMap[cl] = patchset
-			clStrings = append(clStrings, fmt.Sprintf("http://go/vcl/%d/%d", cl, patchset))
-
-			if curCL.PresubmitTest == gerrit.PresubmitTestTypeNone {
-				skipPresubmitTest = true
-			}
-
-			projects = append(projects, curCL.Project)
-		}
-
-		for _, err := range removeOutdatedFn(ctx, curCLMap) {
-			if err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
-			}
+func (s *clsSender) sendCLListsToPresubmitTest(ctx *util.Context) error {
+	for _, curCLList := range s.clLists {
+		clListInfo := s.processCLList(ctx, curCLList)
+		if clListInfo == nil {
+			continue
 		}
 
 		// Don't send curCLList to presubmit-test if at least one of them
 		// have PresubmitTest set to none.
-		if skipPresubmitTest {
-			printf(ctx.Stdout(), "SKIP: Add %s (presubmit=none)\n", strings.Join(clStrings, ", "))
+		if clListInfo.skipPresubmitTest {
+			printf(ctx.Stdout(), "SKIP: Add %s (presubmit=none)\n", clListInfo.clString)
 			continue
 		}
 
-		// Get tests to run.
-		var config util.Config
-		if err := util.LoadConfig("common", &config); err != nil {
-			return clsSent, err
+		// Skip if there is no tests to run.
+		tests, err := s.getTestsToRun(clListInfo.projects)
+		if err != nil {
+			return err
 		}
-		tests := config.ProjectTests(projects)
 		if len(tests) == 0 {
-			printf(ctx.Stdout(), "SKIP: Add %s (no tests found)\n", strings.Join(clStrings, ", "))
+			printf(ctx.Stdout(), "SKIP: Add %s (no tests found)\n", clListInfo.clString)
 			continue
+		}
+
+		// Don't send curCLList to presubmit-test if at least one of them
+		// has an non-google owner. Instead, post a link that one of our
+		// team members has to click to trigger the presubmit-test manually.
+		if clListInfo.hasNonGoogleOwner {
+			if err := s.handleNonGoogleOwner(ctx, clListInfo.refs, clListInfo.projects, tests); err != nil {
+				return err
+			}
+			printf(ctx.Stdout(), "SKIP: Add %s (non-google owner)\n", clListInfo.clString)
+			continue
+		}
+
+		// Check and cancel matched outdated builds.
+		for _, err := range s.removeOutdatedFn(ctx, clListInfo.clMap) {
+			if err != nil {
+				printf(ctx.Stderr(), "%v\n", err)
+			}
 		}
 
 		// Send curCLList to presubmit-test.
-		strCLs := fmt.Sprintf("Add %s", strings.Join(clStrings, ", "))
-		if err := addPresubmitFn(ctx, curCLList, tests); err != nil {
+		strCLs := fmt.Sprintf("Add %s", clListInfo.clString)
+		if err := s.addPresubmitFn(ctx, curCLList, tests); err != nil {
 			printf(ctx.Stdout(), "FAIL: %s\n", strCLs)
-			printf(ctx.Stderr(), "addPresubmitTestBuild(%+v) failed: %v\n", curCLList, err)
+			printf(ctx.Stderr(), "addPresubmitTestBuild failed: %v\n", err)
 		} else {
 			printf(ctx.Stdout(), "PASS: %s\n", strCLs)
-			clsSent += len(curCLList)
+			s.clsSent += len(curCLList)
 		}
 	}
-	return clsSent, nil
+	return nil
+
+}
+
+type clListInfo struct {
+	clMap             clNumberToPatchsetMap
+	clString          string
+	skipPresubmitTest bool
+	hasNonGoogleOwner bool
+	projects          []string
+	refs              []string
+}
+
+func (s *clsSender) processCLList(ctx *util.Context, curCLList clList) *clListInfo {
+	curCLMap := clNumberToPatchsetMap{}
+	clStrings := []string{}
+	skipPresubmitTest := false
+	hasNonGoogleOwner := false
+	projects := []string{}
+	refs := []string{}
+	for _, curCL := range curCLList {
+		// Ignore all CLs that are not in the default manifest.
+		// TODO(jingjin): find a better way so we can remove this check.
+		if s.defaultProjects != nil && !isInDefaultManifest(ctx, curCL, s.defaultProjects) {
+			return nil
+		}
+
+		cl, patchset, err := parseRefString(curCL.Reference())
+		if err != nil {
+			printf(ctx.Stderr(), "%v\n", err)
+			return nil
+		}
+		curCLMap[cl] = patchset
+		clStrings = append(clStrings, fmt.Sprintf("http://go/vcl/%d/%d", cl, patchset))
+
+		if curCL.PresubmitTest == gerrit.PresubmitTestTypeNone {
+			skipPresubmitTest = true
+		}
+
+		if !strings.HasSuffix(curCL.OwnerEmail(), "@google.com") {
+			hasNonGoogleOwner = true
+		}
+
+		projects = append(projects, curCL.Project)
+		refs = append(refs, curCL.Reference())
+	}
+	return &clListInfo{
+		clMap:             curCLMap,
+		clString:          strings.Join(clStrings, ", "),
+		skipPresubmitTest: skipPresubmitTest,
+		hasNonGoogleOwner: hasNonGoogleOwner,
+		projects:          projects,
+		refs:              refs,
+	}
+}
+
+func (s *clsSender) getTestsToRun(projects []string) ([]string, error) {
+	var config util.Config
+	if err := util.LoadConfig("common", &config); err != nil {
+		return nil, err
+	}
+	tests := config.ProjectTests(projects)
+	return tests, nil
+}
+
+func (s *clsSender) handleNonGoogleOwner(ctx *util.Context, refs, projects, tests []string) error {
+	link := genStartPresubmitBuildLink(strings.Join(refs, ":"), strings.Join(projects, ":"), strings.Join(tests, " "))
+	message := fmt.Sprintf("A Vanadium team member will manually trigger presubmit tests for this change:\n%s\n", link)
+	if err := s.postMessageFn(ctx, message, refs, false); err != nil {
+		return err
+	}
+	return nil
 }
 
 // isInDefaultManifest checks whether the given cl's project is in the
 // default manifest.
-func isInDefaultManifest(ctx *util.Context, cl gerrit.QueryResult, defaultProjects map[string]util.Project) bool {
+func isInDefaultManifest(ctx *util.Context, cl gerrit.Change, defaultProjects map[string]util.Project) bool {
 	if _, ok := defaultProjects[cl.Project]; !ok {
-		printf(ctx.Stdout(), "project=%q (%s) not found in the default manifest. Skipped.\n", cl.Project, cl.Ref)
+		printf(ctx.Stdout(), "project=%q (%s) not found in the default manifest. Skipped.\n", cl.Project, cl.Reference())
 		return false
 	}
 	return true
@@ -711,7 +779,7 @@ func addPresubmitTestBuild(ctx *util.Context, cls clList, tests []string) error 
 	}
 	refs, projects := []string{}, []string{}
 	for _, cl := range cls {
-		refs = append(refs, cl.Ref)
+		refs = append(refs, cl.Reference())
 		projects = append(projects, cl.Project)
 	}
 

@@ -94,14 +94,43 @@ func (g *Gerrit) PostReview(ref string, message string, labels map[string]string
 	return nil
 }
 
-// QueryResult represents query result data we care about.
-type QueryResult struct {
-	ChangeID      string
-	Labels        map[string]struct{}
-	MultiPart     *MultiPartCLInfo
-	PresubmitTest PresubmitTestType
-	Ref           string
-	Project       string
+// Change represents a changelist in Gerrit.
+type Change struct {
+	Change_id        string
+	Current_revision string
+	Project          string
+	Topic            string
+	Revisions        Revisions
+	Owner            Owner
+	Labels           map[string]struct{}
+	MultiPart        *MultiPartCLInfo
+	PresubmitTest    PresubmitTestType
+}
+
+type Revisions map[string]Revision
+type Revision struct {
+	Fetch  `json:"fetch"`
+	Commit `json:"commit"`
+}
+type Fetch struct {
+	Http `json:"http"`
+}
+type Http struct {
+	Ref string
+}
+type Commit struct {
+	Message string
+}
+type Owner struct {
+	Email string
+}
+
+func (c Change) Reference() string {
+	return c.Revisions[c.Current_revision].Fetch.Http.Ref
+}
+
+func (c Change) OwnerEmail() string {
+	return c.Owner.Email
 }
 
 type PresubmitTestType string
@@ -124,8 +153,8 @@ type MultiPartCLInfo struct {
 }
 
 // parseQueryResults parses a list of Gerrit ChangeInfo entries (json
-// result of a query) and returns a list of QueryResult entries.
-func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
+// result of a query) and returns a list of Change entries.
+func parseQueryResults(reader io.Reader) ([]Change, error) {
 	r := bufio.NewReader(reader)
 
 	// The first line of the input is the XSSI guard
@@ -134,37 +163,15 @@ func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
 		return nil, err
 	}
 
-	// Parse the remaining ChangeInfo entries and extract data to
-	// construct the QueryResult slice to return.
-	var changes []struct {
-		Change_id        string
-		Current_revision string
-		Project          string
-		Topic            string
-		Revisions        map[string]struct {
-			Fetch struct {
-				Http struct {
-					Ref string
-				}
-			}
-			Commit struct {
-				Message string // This contains both "subject" and the rest of the commit message.
-			}
-		}
-		Labels map[string]struct{}
-	}
+	// Parse the remaining input to construct a slice of Change objects
+	// to return.
+	var changes []Change
 	if err := json.NewDecoder(r).Decode(&changes); err != nil {
 		return nil, fmt.Errorf("Decode() failed: %v", err)
 	}
 
-	var refs []QueryResult
+	newChanges := []Change{}
 	for _, change := range changes {
-		queryResult := QueryResult{
-			Ref:      change.Revisions[change.Current_revision].Fetch.Http.Ref,
-			Project:  change.Project,
-			ChangeID: change.Change_id,
-			Labels:   change.Labels,
-		}
 		clMessage := change.Revisions[change.Current_revision].Commit.Message
 		multiPartCLInfo, err := parseMultiPartMatch(clMessage)
 		if err != nil {
@@ -173,12 +180,11 @@ func parseQueryResults(reader io.Reader) ([]QueryResult, error) {
 		if multiPartCLInfo != nil {
 			multiPartCLInfo.Topic = change.Topic
 		}
-		queryResult.MultiPart = multiPartCLInfo
-		presubmitType := parsePresubmitTestType(clMessage)
-		queryResult.PresubmitTest = presubmitType
-		refs = append(refs, queryResult)
+		change.MultiPart = multiPartCLInfo
+		change.PresubmitTest = parsePresubmitTestType(clMessage)
+		newChanges = append(newChanges, change)
 	}
-	return refs, nil
+	return newChanges, nil
 }
 
 // parseMultiPartMatch uses multiPartRE (a pattern like: MultiPart: 1/3) to match the given string.
@@ -225,8 +231,8 @@ func parsePresubmitTestType(match string) PresubmitTestType {
 // See the following links for more details about Gerrit search syntax:
 // - https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#list-changes
 // - https://gerrit-review.googlesource.com/Documentation/user-search.html
-func (g *Gerrit) Query(query string) (_ []QueryResult, e error) {
-	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&o=CURRENT_COMMIT&o=LABELS&q=%s", g.host, url.QueryEscape(query))
+func (g *Gerrit) Query(query string) (_ []Change, e error) {
+	url := fmt.Sprintf("%s/a/changes/?o=CURRENT_REVISION&o=CURRENT_COMMIT&o=LABELS&o=DETAILED_ACCOUNTS&q=%s", g.host, url.QueryEscape(query))
 	var body io.Reader
 	method, body := "GET", nil
 	req, err := http.NewRequest(method, url, body)

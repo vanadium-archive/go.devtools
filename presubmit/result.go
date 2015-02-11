@@ -688,11 +688,7 @@ func safeTestName(name string) string {
 // - Retry current build.
 func reportUsefulLinks(report *bytes.Buffer) {
 	fmt.Fprintf(report, "\nMore details at:\n%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestJobFlag, jenkinsBuildNumberFlag)
-	link := fmt.Sprintf("https://dev.v.io/jenkins/job/%s/buildWithParameters?REFS=%s&PROJECTS=%s&TESTS=%s",
-		presubmitTestJobFlag,
-		url.QueryEscape(reviewTargetRefsFlag),
-		url.QueryEscape(projectsFlag),
-		url.QueryEscape(os.Getenv("TESTS")))
+	link := genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, os.Getenv("TESTS"))
 	fmt.Fprintf(report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
 }
 
@@ -745,7 +741,7 @@ func getRefsUsingVerifiedLabel(ctx *util.Context, gerritCred credential) (map[st
 	ret := map[string]struct{}{}
 	for _, cl := range cls {
 		if _, ok := cl.Labels["Verified"]; ok {
-			ret[cl.Ref] = struct{}{}
+			ret[cl.Reference()] = struct{}{}
 		}
 	}
 

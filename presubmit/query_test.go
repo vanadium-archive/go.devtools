@@ -14,14 +14,14 @@ import (
 
 func TestMultiPartCLSet(t *testing.T) {
 	set := NewMultiPartCLSet()
-	checkMultiPartCLSet(t, -1, map[int]gerrit.QueryResult{}, set)
+	checkMultiPartCLSet(t, -1, map[int]gerrit.Change{}, set)
 
 	// Add a non-multipart cl.
 	cl := genCL(1000, 1, "relase.go.core")
 	if err := set.addCL(cl); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
-	checkMultiPartCLSet(t, -1, map[int]gerrit.QueryResult{}, set)
+	checkMultiPartCLSet(t, -1, map[int]gerrit.Change{}, set)
 
 	// Add a multi part cl.
 	cl.MultiPart = &gerrit.MultiPartCLInfo{
@@ -32,7 +32,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	if err := set.addCL(cl); err != nil {
 		t.Fatalf("addCL(%v) failed: %v", cl, err)
 	}
-	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+	checkMultiPartCLSet(t, 2, map[int]gerrit.Change{
 		1: cl,
 	}, set)
 
@@ -46,7 +46,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	if err := set.addCL(cl2); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
-	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+	checkMultiPartCLSet(t, 2, map[int]gerrit.Change{
 		1: cl,
 	}, set)
 
@@ -55,7 +55,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	if err := set.addCL(cl3); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
-	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+	checkMultiPartCLSet(t, 2, map[int]gerrit.Change{
 		1: cl,
 	}, set)
 
@@ -64,7 +64,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	if err := set.addCL(cl4); err == nil {
 		t.Fatalf("expected addCL(%v) to fail and it did not", cl)
 	}
-	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+	checkMultiPartCLSet(t, 2, map[int]gerrit.Change{
 		1: cl,
 	}, set)
 
@@ -73,7 +73,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	if err := set.addCL(cl5); err != nil {
 		t.Fatalf("addCL(%v) failed: %v", cl, err)
 	}
-	checkMultiPartCLSet(t, 2, map[int]gerrit.QueryResult{
+	checkMultiPartCLSet(t, 2, map[int]gerrit.Change{
 		1: cl,
 		2: cl5,
 	}, set)
@@ -89,7 +89,7 @@ func TestMultiPartCLSet(t *testing.T) {
 	}
 }
 
-func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[int]gerrit.QueryResult, set *multiPartCLSet) {
+func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[int]gerrit.Change, set *multiPartCLSet) {
 	if expectedTotal != set.expectedTotal {
 		t.Fatalf("total: want %v, got %v", expectedTotal, set.expectedTotal)
 	}
@@ -193,22 +193,22 @@ func TestNewOpenCLs(t *testing.T) {
 		},
 		// prevCLsMap is not empty, curCLs is.
 		testCase{
-			prevCLsMap: clRefMap{nonMultiPartCLs[0].Ref: nonMultiPartCLs[0]},
+			prevCLsMap: clRefMap{nonMultiPartCLs[0].Reference(): nonMultiPartCLs[0]},
 			curCLs:     clList{},
 			expected:   []clList{},
 		},
 		// prevCLsMap and curCLs are not empty, and they have overlapping refs.
 		testCase{
 			prevCLsMap: clRefMap{
-				nonMultiPartCLs[0].Ref: nonMultiPartCLs[0],
-				nonMultiPartCLs[1].Ref: nonMultiPartCLs[1],
+				nonMultiPartCLs[0].Reference(): nonMultiPartCLs[0],
+				nonMultiPartCLs[1].Reference(): nonMultiPartCLs[1],
 			},
 			curCLs:   clList{nonMultiPartCLs[1], nonMultiPartCLs[2]},
 			expected: []clList{clList{nonMultiPartCLs[2]}},
 		},
 		// prevCLsMap and curCLs are not empty, and they have NO overlapping refs.
 		testCase{
-			prevCLsMap: clRefMap{nonMultiPartCLs[0].Ref: nonMultiPartCLs[0]},
+			prevCLsMap: clRefMap{nonMultiPartCLs[0].Reference(): nonMultiPartCLs[0]},
 			curCLs:     clList{nonMultiPartCLs[1]},
 			expected:   []clList{clList{nonMultiPartCLs[1]}},
 		},
@@ -219,14 +219,14 @@ func TestNewOpenCLs(t *testing.T) {
 		// len(curCLs) > len(prevCLsMap).
 		// And the CLs in curCLs have different topics.
 		testCase{
-			prevCLsMap: clRefMap{multiPartCLs[0].Ref: multiPartCLs[0]},
+			prevCLsMap: clRefMap{multiPartCLs[0].Reference(): multiPartCLs[0]},
 			curCLs:     clList{multiPartCLs[0], multiPartCLs[2]},
 			expected:   []clList{},
 		},
 		// len(curCLs) > len(prevCLsMap).
 		// And the CLs in curCLs form a complete multi part cls set.
 		testCase{
-			prevCLsMap: clRefMap{multiPartCLs[0].Ref: multiPartCLs[0]},
+			prevCLsMap: clRefMap{multiPartCLs[0].Reference(): multiPartCLs[0]},
 			curCLs:     clList{multiPartCLs[0], multiPartCLs[1]},
 			expected:   []clList{clList{multiPartCLs[0], multiPartCLs[1]}},
 		},
@@ -234,8 +234,8 @@ func TestNewOpenCLs(t *testing.T) {
 		// And cl[6] has a larger patchset than multiPartCLs[4] with identical cl number.
 		testCase{
 			prevCLsMap: clRefMap{
-				multiPartCLs[0].Ref: multiPartCLs[0],
-				multiPartCLs[1].Ref: multiPartCLs[1],
+				multiPartCLs[0].Reference(): multiPartCLs[0],
+				multiPartCLs[1].Reference(): multiPartCLs[1],
 			},
 			curCLs:   clList{multiPartCLs[0], multiPartCLs[3]},
 			expected: []clList{clList{multiPartCLs[0], multiPartCLs[3]}},
@@ -245,8 +245,8 @@ func TestNewOpenCLs(t *testing.T) {
 		// Tests for mixed.
 		testCase{
 			prevCLsMap: clRefMap{
-				multiPartCLs[0].Ref: multiPartCLs[0],
-				multiPartCLs[1].Ref: multiPartCLs[1],
+				multiPartCLs[0].Reference(): multiPartCLs[0],
+				multiPartCLs[1].Reference(): multiPartCLs[1],
 			},
 			curCLs: clList{nonMultiPartCLs[0], multiPartCLs[0], multiPartCLs[3]},
 			expected: []clList{
@@ -270,11 +270,19 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 			genCL(1000, 1, "release.js.core"),
 		},
 		clList{
-			genCLWithPresubmitTestType(2000, 1, "release.js.core", gerrit.PresubmitTestTypeNone),
+			genCLWithMoreData(2000, 1, "release.js.core", gerrit.PresubmitTestTypeNone, "vj@google.com"),
+		},
+		clList{
+			genCLWithMoreData(2010, 1, "release.js.core", gerrit.PresubmitTestTypeAll, "foo@bar.com"),
 		},
 		clList{
 			genMultiPartCL(1001, 1, "release.js.core", "t", 1, 2),
 			genMultiPartCL(1002, 1, "release.go.core", "t", 2, 2),
+		},
+		clList{
+			genMultiPartCL(1003, 1, "release.js.core", "t", 1, 3),
+			genMultiPartCL(1004, 1, "release.go.core", "t", 2, 3),
+			genMultiPartCLWithMoreData(1005, 1, "release.go.core", "t", 3, 3, "foo@bar.com"),
 		},
 		clList{
 			genCL(3000, 1, "non-existent-project"),
@@ -282,36 +290,44 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false, false, false)
-	numSentCLs, err := sendCLListsToPresubmitTest(ctx, clLists, nil,
+	sender := clsSender{
+		clLists:         clLists,
+		defaultProjects: nil,
+
 		// Mock out the removeOutdatedBuilds function.
-		func(ctx *util.Context, cls clNumberToPatchsetMap) []error { return nil },
+		removeOutdatedFn: func(ctx *util.Context, cls clNumberToPatchsetMap) []error { return nil },
 
 		// Mock out the addPresubmitTestBuild function.
 		// It will return error for the first clList.
-		func(ctx *util.Context, cls clList, tests []string) error {
+		addPresubmitFn: func(ctx *util.Context, cls clList, tests []string) error {
 			if reflect.DeepEqual(cls, clLists[0]) {
 				return fmt.Errorf("err")
 			} else {
 				return nil
 			}
 		},
-	)
-	if err != nil {
+
+		// Mock out postMessage function.
+		postMessageFn: func(ctx *util.Context, message string, refs []string, success bool) error { return nil },
+	}
+	if err := sender.sendCLListsToPresubmitTest(ctx); err != nil {
 		t.Fatalf("want no error, got: %v", err)
 	}
 
 	// Check output and return value.
 	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
-[VANADIUM PRESUBMIT] addPresubmitTestBuild([{ChangeID: Labels:map[] MultiPart:<nil> PresubmitTest:all Ref:refs/changes/xx/1000/1 Project:release.js.core}]) failed: err
+[VANADIUM PRESUBMIT] addPresubmitTestBuild failed: err
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1 (presubmit=none)
+[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2010/1 (non-google owner)
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
+[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/1003/1, http://go/vcl/1004/1, http://go/vcl/1005/1 (non-google owner)
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/3000/1 (no tests found)
 `
 	if got := buf.String(); expectedOutput != got {
 		t.Fatalf("output: want:\n%v\n, got:\n%v", expectedOutput, got)
 	}
-	if expected := 2; expected != numSentCLs {
-		t.Fatalf("numSentCLs: want %d, got %d", expected, numSentCLs)
+	if expected := 2; expected != sender.clsSent {
+		t.Fatalf("numSentCLs: want %d, got %d", expected, sender.clsSent)
 	}
 }
 
@@ -633,24 +649,53 @@ func TestParseRefString(t *testing.T) {
 	}
 }
 
-func genCL(clNumber, patchset int, project string) gerrit.QueryResult {
-	return genCLWithPresubmitTestType(clNumber, patchset, project, gerrit.PresubmitTestTypeAll)
+func genCL(clNumber, patchset int, project string) gerrit.Change {
+	return genCLWithMoreData(clNumber, patchset, project, gerrit.PresubmitTestTypeAll, "vj@google.com")
 }
 
-func genCLWithPresubmitTestType(clNumber, patchset int, project string, presubmit gerrit.PresubmitTestType) gerrit.QueryResult {
-	return gerrit.QueryResult{
-		Ref:           fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
+func genCLWithMoreData(clNumber, patchset int, project string, presubmit gerrit.PresubmitTestType, ownerEmail string) gerrit.Change {
+	change := gerrit.Change{
+		Current_revision: "r",
+		Revisions: gerrit.Revisions{
+			"r": gerrit.Revision{
+				Fetch: gerrit.Fetch{
+					Http: gerrit.Http{
+						Ref: fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
+					},
+				},
+			},
+		},
 		Project:       project,
-		ChangeID:      "",
+		Change_id:     "",
 		PresubmitTest: presubmit,
+		Owner: gerrit.Owner{
+			Email: ownerEmail,
+		},
 	}
+	return change
 }
 
-func genMultiPartCL(clNumber, patchset int, project, topic string, index, total int) gerrit.QueryResult {
-	return gerrit.QueryResult{
-		Ref:      fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
-		Project:  project,
-		ChangeID: "",
+func genMultiPartCL(clNumber, patchset int, project, topic string, index, total int) gerrit.Change {
+	return genMultiPartCLWithMoreData(clNumber, patchset, project, topic, index, total, "vj@google.com")
+}
+
+func genMultiPartCLWithMoreData(clNumber, patchset int, project, topic string, index, total int, ownerEmail string) gerrit.Change {
+	return gerrit.Change{
+		Current_revision: "r",
+		Revisions: gerrit.Revisions{
+			"r": gerrit.Revision{
+				Fetch: gerrit.Fetch{
+					Http: gerrit.Http{
+						Ref: fmt.Sprintf("refs/changes/xx/%d/%d", clNumber, patchset),
+					},
+				},
+			},
+		},
+		Project:   project,
+		Change_id: "",
+		Owner: gerrit.Owner{
+			Email: ownerEmail,
+		},
 		MultiPart: &gerrit.MultiPartCLInfo{
 			Topic: topic,
 			Index: index,

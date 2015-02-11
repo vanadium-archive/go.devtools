@@ -14,6 +14,11 @@ func TestParseQueryResults(t *testing.T) {
 			"change_id": "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
 			"current_revision": "3654e38b2f80a5410ea94f1d7321477d89cac391",
 			"project": "vanadium",
+			"owner": {
+				"_account_id": 1234,
+				"name": "Veyron Jenkins",
+				"email": "vj@google.com"
+			},
 			"revisions": {
 				"3654e38b2f80a5410ea94f1d7321477d89cac391": {
 					"fetch": {
@@ -32,12 +37,21 @@ func TestParseQueryResults(t *testing.T) {
 				"Verified": {}
 			},
 			"project": "vanadium",
+			"owner": {
+				"_account_id": 1234,
+				"name": "Veyron Jenkins",
+				"email": "vj@google.com"
+			},
+			"topic": "test",
 			"revisions": {
 				"3654e38b2f80a5410ea94f1d7321477d89cac391": {
 					"fetch": {
 						"http": {
 							"ref": "refs/changes/40/4440/1"
 						}
+					},
+					"commit": {
+						"message": "MultiPart: 1/3\nPresubmitTest: none"
 					}
 				}
 			}
@@ -46,6 +60,11 @@ func TestParseQueryResults(t *testing.T) {
 			"change_id": "I35d83f8adae5b7db1974062fdc744f700e456677",
 			"current_revision": "b60413712472f1b576c7be951c4de309c6edaa53",
 			"project": "tools",
+			"owner": {
+				"_account_id": 1234,
+				"name": "Veyron Jenkins",
+				"email": "vj@google.com"
+			},
 			"revisions": {
 				"b60413712472f1b576c7be951c4de309c6edaa53": {
 					"fetch": {
@@ -61,29 +80,37 @@ func TestParseQueryResults(t *testing.T) {
 		}
 	]
 	`
-
-	expected := []QueryResult{
+	expectedFields := []struct {
+		ref           string
+		project       string
+		ownerEmail    string
+		multiPart     *MultiPartCLInfo
+		presubmitType PresubmitTestType
+	}{
 		{
-			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
-			PresubmitTest: PresubmitTestTypeAll,
-			Ref:           "refs/changes/40/4440/1",
-			Project:       "vanadium",
+			ref:           "refs/changes/40/4440/1",
+			project:       "vanadium",
+			ownerEmail:    "vj@google.com",
+			multiPart:     nil,
+			presubmitType: PresubmitTestTypeAll,
 		},
 		{
-			ChangeID:      "I26f771cebd6e512b89e98bec1fadfa1cb2aad6e8",
-			PresubmitTest: PresubmitTestTypeAll,
-			Labels: map[string]struct{}{
-				"Code-Review": struct{}{},
-				"Verified":    struct{}{},
+			ref:        "refs/changes/40/4440/1",
+			project:    "vanadium",
+			ownerEmail: "vj@google.com",
+			multiPart: &MultiPartCLInfo{
+				Topic: "test",
+				Index: 1,
+				Total: 3,
 			},
-			Ref:     "refs/changes/40/4440/1",
-			Project: "vanadium",
+			presubmitType: PresubmitTestTypeNone,
 		},
 		{
-			ChangeID:      "I35d83f8adae5b7db1974062fdc744f700e456677",
-			PresubmitTest: PresubmitTestTypeNone,
-			Ref:           "refs/changes/43/4443/1",
-			Project:       "tools",
+			ref:           "refs/changes/43/4443/1",
+			project:       "tools",
+			ownerEmail:    "vj@google.com",
+			multiPart:     nil,
+			presubmitType: PresubmitTestTypeNone,
 		},
 	}
 
@@ -91,8 +118,23 @@ func TestParseQueryResults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Errorf("want: %#v, got: %#v", expected, got)
+	for i, curChange := range got {
+		f := expectedFields[i]
+		if want, got := f.ref, curChange.Reference(); want != got {
+			t.Fatalf("%d: want: %q, got: %q", i, want, got)
+		}
+		if want, got := f.project, curChange.Project; want != got {
+			t.Fatalf("%d: want: %q, got: %q", i, want, got)
+		}
+		if want, got := f.ownerEmail, curChange.OwnerEmail(); want != got {
+			t.Fatalf("%d: want: %q, got: %q", i, want, got)
+		}
+		if want, got := f.multiPart, curChange.MultiPart; !reflect.DeepEqual(want, got) {
+			t.Fatalf("%d: want:\n%#v\ngot:\n%#v\n", i, want, got)
+		}
+		if want, got := f.presubmitType, curChange.PresubmitTest; want != got {
+			t.Fatalf("%d: want: %q, got: %q", i, want, got)
+		}
 	}
 }
 
