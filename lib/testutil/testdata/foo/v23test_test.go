@@ -11,4 +11,4 @@ import (
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
-func V23Test(i v23tests.T) {}
+func V23Test(i *v23tests.T) {}
