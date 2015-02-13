@@ -102,10 +102,6 @@ var testFunctions = map[string]func(*util.Context, string, ...TestOpt) (*TestRes
 	"vanadium-go-test":                vanadiumGoTest,
 	"vanadium-go-vdl":                 vanadiumGoVDL,
 	"vanadium-integration-test":       vanadiumIntegrationTest,
-	"vanadium-integration-test-new":   vanadiumNewIntegrationTest,
-	// TOOD(cnicolaou): test-v3 below will be renamed to
-	// vanadium-integration-test when the migration is done.
-	"vanadium-integration-test-v3":    vanadiumNewV23Test,
 	"vanadium-js-build-extension":     vanadiumJSBuildExtension,
 	"vanadium-js-doc":                 vanadiumJSDoc,
 	"vanadium-js-browser-integration": vanadiumJSBrowserIntegration,

@@ -1232,7 +1232,7 @@ func vanadiumGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestR
 	return goTest(ctx, testName, args, timeout, suffix, pkgs)
 }
 
-func vanadiumNewV23Test(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
+func vanadiumIntegrationTest(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
 	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
