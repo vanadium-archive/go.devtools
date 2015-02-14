@@ -14,9 +14,7 @@ import (
 
 var (
 	jenkinsHost = "http://veyron-jenkins:8001/jenkins"
-	// The token below belongs to jingjin@google.com.
-	jenkinsToken = "0e67bfe70302a528807d3594730c9d8b"
-	netrcFile    = filepath.Join(os.Getenv("HOME"), ".netrc")
+	netrcFile   = filepath.Join(os.Getenv("HOME"), ".netrc")
 )
 
 const (
@@ -111,7 +109,6 @@ func vanadiumPresubmitPoll(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 	}
 	args = append(args,
 		"-host", jenkinsHost,
-		"-token", jenkinsToken,
 		"-netrc", netrcFile,
 		"query",
 		"-log_file", logfile)
@@ -155,7 +152,6 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 	}
 	args = append(args,
 		"-host", jenkinsHost,
-		"-token", jenkinsToken,
 		"-netrc", netrcFile,
 		"test",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
@@ -272,7 +268,6 @@ func vanadiumPresubmitResult(ctx *util.Context, testName string, _ ...TestOpt) (
 	}
 	args = append(args,
 		"-host", jenkinsHost,
-		"-token", jenkinsToken,
 		"-netrc", netrcFile,
 		"result",
 		"-build_number", os.Getenv("BUILD_NUMBER"),

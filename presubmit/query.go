@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"reflect"
@@ -513,201 +512,74 @@ func isInDefaultManifest(ctx *util.Context, cl gerrit.Change, defaultProjects ma
 // Since this is not a critical operation, we simply print out the
 // errors if we see any.
 func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []error) {
-	jenkins := ctx.Jenkins(jenkinsHostFlag)
-	// Queued presubmit-test builds.
-	getQueuedBuildsRes, err := jenkins.Invoke("GET", "queue/api/json", url.Values{
-		"token": {jenkinsTokenFlag},
-	})
-	if err != nil {
-		errs = append(errs, nil)
-	} else {
-		// Get queued presubmit-test builds.
-		defer collect.Errors(func() error { return getQueuedBuildsRes.Body.Close() }, &errs)
-		bytes, err := ioutil.ReadAll(getQueuedBuildsRes.Body)
-		if err != nil {
-			errs = append(errs, err)
-			return
-		}
-		queuedItems, queuedErrs := queuedOutdatedBuilds(bytes, cls)
-		errs = append(errs, queuedErrs...)
+	collect.Errors(func() error { return removeQueuedOutdatedBuilds(ctx, cls) }, &errs)
+	collect.Errors(func() error { return removeOngoingOutdatedBuilds(ctx, cls) }, &errs)
+	return
+}
 
-		// Cancel them.
-		for _, queuedItem := range queuedItems {
-			cancelQueuedItemUri := "queue/cancelItem"
-			cancelQueuedItemRes, err := jenkins.Invoke("POST", cancelQueuedItemUri, url.Values{
-				"id":    {fmt.Sprintf("%d", queuedItem.id)},
-				"token": {jenkinsTokenFlag},
-			})
+func removeQueuedOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) error {
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+	if err != nil {
+		return err
+	}
+
+	// Get queued outdated builds.
+	queuedBuilds, err := jenkins.QueuedBuilds(presubmitTestJobFlag)
+	if err != nil {
+		return err
+	}
+
+	for _, build := range queuedBuilds {
+		refs := build.ParseRefs()
+		if refs == "" {
+			return err
+		}
+		buildOutdated, err := isBuildOutdated(refs, cls)
+		if err != nil {
+			return err
+		}
+		if buildOutdated {
+			if err := jenkins.CancelQueuedBuild(fmt.Sprintf("%d", build.Id)); err != nil {
+				return err
+			}
+			printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", refs)
+		}
+	}
+	return nil
+}
+
+func removeOngoingOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) error {
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+	if err != nil {
+		return err
+	}
+
+	buildInfos, err := jenkins.OngoingBuilds(presubmitTestJobFlag)
+	if err != nil {
+		return err
+	}
+
+	for _, buildInfo := range buildInfos {
+		if !buildInfo.Building {
+			continue
+		}
+		refs := buildInfo.ParseRefs()
+		if refs != "" {
+			buildOutdated, err := isBuildOutdated(refs, cls)
 			if err != nil {
-				errs = append(errs, err)
+				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 				continue
-			} else {
-				printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", queuedItem.ref)
-				if err := cancelQueuedItemRes.Body.Close(); err != nil {
-					errs = append(errs, err)
+			}
+			// Cancel outdated running build.
+			if buildOutdated {
+				if err := jenkins.CancelOngoingBuild(presubmitTestJobFlag, buildInfo.Number); err != nil {
+					return err
 				}
+				printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", refs)
 			}
 		}
 	}
-
-	// Ongoing presubmit-test builds.
-	getLastBuildUri := fmt.Sprintf("job/%s/lastBuild/api/json", presubmitTestJobFlag)
-	getLastBuildRes, err := jenkins.Invoke("GET", getLastBuildUri, url.Values{
-		"token": {jenkinsTokenFlag},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	} else {
-		// Get ongoing presubmit-test build.
-		defer collect.Errors(func() error { return getLastBuildRes.Body.Close() }, &errs)
-		bytes, err := ioutil.ReadAll(getLastBuildRes.Body)
-		if err != nil {
-			errs = append(errs, err)
-			return
-		}
-		build, err := ongoingOutdatedBuild(bytes, cls)
-		if err != nil {
-			errs = append(errs, err)
-			return
-		}
-		if build.buildNumber < 0 {
-			return
-		}
-
-		// Cancel it.
-		cancelOngoingBuildUri := fmt.Sprintf("job/%s/%d/stop", presubmitTestJobFlag, build.buildNumber)
-		cancelOngoingBuildRes, err := jenkins.Invoke("POST", cancelOngoingBuildUri, url.Values{
-			"token": {jenkinsTokenFlag},
-		})
-		if err != nil {
-			errs = append(errs, err)
-		} else {
-			printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", build.ref)
-			if err := cancelOngoingBuildRes.Body.Close(); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-	return errs
-}
-
-type queuedItem struct {
-	id  int
-	ref string
-}
-
-// queuedOutdatedBuilds returns the ids and refs of queued
-// presubmit-test builds that have the given cl number and equal or
-// smaller patchset number.
-func queuedOutdatedBuilds(resBytes []byte, cls clNumberToPatchsetMap) (_ []queuedItem, errs []error) {
-	var items struct {
-		Items []struct {
-			Id     int
-			Params string `json:"params,omitempty"`
-			Task   struct {
-				Name string
-			}
-		}
-	}
-	if err := json.Unmarshal(resBytes, &items); err != nil {
-		return nil, []error{fmt.Errorf("Decode() in queuedOutdatedBuilds failed: %v\n%s", err, string(resBytes))}
-	}
-
-	queuedItems := []queuedItem{}
-	for _, item := range items.Items {
-		if item.Task.Name != presubmitTestJobFlag {
-			continue
-		}
-		// Parse the ref, and append the id/ref of the build
-		// if it passes the checks.  The param string is in
-		// the form of:
-		// "\nREFS=ref/changes/12/3412/2\nPROJECTS=test" or
-		// "\nPROJECTS=test\nREFS=ref/changes/12/3412/2"
-		parts := strings.Split(item.Params, "\n")
-		ref := ""
-		refPrefix := "REFS="
-		for _, part := range parts {
-			if strings.HasPrefix(part, refPrefix) {
-				ref = strings.TrimPrefix(part, refPrefix)
-				break
-			}
-		}
-		if ref == "" {
-			errs = append(errs, fmt.Errorf("%s failed to find ref parameter: %q", outputPrefix, item.Params))
-			continue
-		}
-		buildOutdated, err := isBuildOutdated(ref, cls)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if buildOutdated {
-			queuedItems = append(queuedItems, queuedItem{
-				id:  item.Id,
-				ref: ref,
-			})
-		}
-	}
-
-	return queuedItems, errs
-}
-
-type ongoingBuild struct {
-	buildNumber int
-	ref         string
-}
-
-// ongoingOutdatedBuild returns the build number/ref of the last
-// presubmit build if the build is still ongoing and the build has the
-// given cl number and a smaller patchset index.
-func ongoingOutdatedBuild(resBytes []byte, cls clNumberToPatchsetMap) (ongoingBuild, error) {
-	invalidOngoingBuild := ongoingBuild{buildNumber: -1}
-
-	var build struct {
-		Actions []struct {
-			Parameters []struct {
-				Name  string
-				Value string
-			}
-		}
-		Building bool
-		Number   int
-	}
-	if err := json.Unmarshal(resBytes, &build); err != nil {
-		return invalidOngoingBuild, fmt.Errorf("Decode() in ongoingOutdatedBuild failed: %v\n%s", err, string(resBytes))
-	}
-
-	if !build.Building {
-		return invalidOngoingBuild, nil
-	}
-
-	// Parse the ref, and return the build number if it passes the checks.
-	ref := ""
-loop:
-	for _, action := range build.Actions {
-		for _, param := range action.Parameters {
-			if param.Name == "REFS" {
-				ref = param.Value
-				break loop
-			}
-		}
-	}
-	if ref != "" {
-		buildOutdated, err := isBuildOutdated(ref, cls)
-		if err != nil {
-			return invalidOngoingBuild, nil
-		}
-		if buildOutdated {
-			return ongoingBuild{
-				buildNumber: build.Number,
-				ref:         ref,
-			}, nil
-		} else {
-			return invalidOngoingBuild, nil
-		}
-	}
-
-	return ongoingBuild{}, fmt.Errorf("%s failed to find ref string", outputPrefix)
+	return nil
 }
 
 // isBuildOutdated checks whether a build (identified by the given refs string)
@@ -728,6 +600,15 @@ func isBuildOutdated(curRefs string, newCLs clNumberToPatchsetMap) (bool, error)
 	// Check curCLs and newCLs have the same set of cl numbers.
 	newCLNumbers := sortedKeys(newCLs)
 	if !reflect.DeepEqual(sortedKeys(curCLs), newCLNumbers) {
+		// curCLs are outdated when curCLs and newCLs have overlapping refs.
+		// For example: curCLs = {1000/1}, and newCLs = {1000/2, 2000/1}.
+		// In this case, 1000/1 becomes part of the MultiPart CLs, which makes
+		// 1000/1 outdated.
+		for curCLNumber, curPatchset := range curCLs {
+			if newPatchset, ok := newCLs[curCLNumber]; ok && newPatchset >= curPatchset {
+				return true, nil
+			}
+		}
 		return false, nil
 	}
 
@@ -773,28 +654,24 @@ func parseRefString(ref string) (int, int, error) {
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
 // a set of open CLs to run presubmit tests.
 func addPresubmitTestBuild(ctx *util.Context, cls clList, tests []string) error {
-	addBuildUrl, err := url.Parse(jenkinsHostFlag)
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
+		return err
 	}
+
 	refs, projects := []string{}, []string{}
 	for _, cl := range cls {
 		refs = append(refs, cl.Reference())
 		projects = append(projects, cl.Project)
 	}
-
-	addBuildUrl.Path = fmt.Sprintf("%s/job/%s/buildWithParameters", addBuildUrl.Path, presubmitTestJobFlag)
-	addBuildUrl.RawQuery = url.Values{
-		"token":    {jenkinsTokenFlag},
+	if err := jenkins.AddBuildWithParameter(presubmitTestJobFlag, url.Values{
 		"REFS":     {strings.Join(refs, ":")},
 		"PROJECTS": {strings.Join(projects, ":")},
 		// Separating by spaces is required by the Dynamic Axis plugin used in the
 		// new presubmit test target.
 		"TESTS": {strings.Join(tests, " ")},
-	}.Encode()
-	resp, err := http.Get(addBuildUrl.String())
-	if err == nil {
-		resp.Body.Close()
+	}); err != nil {
+		return err
 	}
-	return err
+	return nil
 }

@@ -22,7 +22,6 @@ func vanadiumPostsubmitPoll(ctx *util.Context, testName string, _ ...TestOpt) (_
 	}
 	args = append(args,
 		"-host", jenkinsHost,
-		"-token", jenkinsToken,
 		"poll",
 		"-manifest", "all-mirror",
 	)

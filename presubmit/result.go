@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
@@ -17,7 +16,7 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/collect"
+	"v.io/tools/lib/jenkins"
 	"v.io/tools/lib/testutil"
 	"v.io/tools/lib/util"
 )
@@ -185,38 +184,21 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 // result reporting step (the cmdResult command implemented in this file),
 // but just in case.
 func reportFailedPresubmitBuild(ctx *util.Context, report *bytes.Buffer) bool {
-	masterJobStatus, err := checkMasterBuildStatus(ctx)
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		fmt.Fprint(ctx.Stderr(), "%v\n", err)
-	} else {
-		if masterJobStatus == "FAILURE" {
-			fmt.Fprintf(report, "SOME TESTS FAILED TO RUN.\nRetrying...\n")
-			return true
-		}
+		return true
+	}
+
+	masterJobInfo, err := jenkins.BuildInfo(presubmitTestJobFlag, jenkinsBuildNumberFlag)
+	if err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		return true
+	}
+	if masterJobInfo.Result == "FAILURE" {
+		fmt.Fprintf(report, "SOME TESTS FAILED TO RUN.\nRetrying...\n")
+		return true
 	}
 	return false
-}
-
-// checkMasterBuildStatus returns the status of the current presubmit-test
-// master build.
-func checkMasterBuildStatus(ctx *util.Context) (_ string, e error) {
-	jenkins := ctx.Jenkins(jenkinsHostFlag)
-	getMasterBuildStatusUri := fmt.Sprintf("job/%s/%d/api/json", presubmitTestJobFlag, jenkinsBuildNumberFlag)
-	getMasterBuildStatusRes, err := jenkins.Invoke("GET", getMasterBuildStatusUri, url.Values{
-		"token": {jenkinsTokenFlag},
-	})
-	if err != nil {
-		return "", err
-	}
-	defer collect.Error(func() error { return getMasterBuildStatusRes.Body.Close() }, &e)
-	r := bufio.NewReader(getMasterBuildStatusRes.Body)
-	var status struct {
-		Result string
-	}
-	if err := json.NewDecoder(r).Decode(&status); err != nil {
-		return "", fmt.Errorf("Decode() %v", err)
-	}
-	return status.Result, nil
 }
 
 // reportMergeConflicts posts a review about possible merge conflicts.
@@ -321,45 +303,20 @@ func isMultiConfigurationJob(jobName string) bool {
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given jenkins test.
 func lastCompletedBuildStatus(ctx *util.Context, jobName string, slaveLabel string) (_ string, e error) {
-	jenkins := ctx.Jenkins(jenkinsHostFlag)
-	statusUri := fmt.Sprintf("job/%s/lastCompletedBuild/api/json", jobName)
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+	if err != nil {
+		return "", err
+	}
+
+	buildSpec := fmt.Sprintf("%s/lastCompletedBuild", jobName)
 	if isMultiConfigurationJob(jobName) {
-		statusUri = fmt.Sprintf("job/%s/L=%s/lastCompletedBuild/api/json", jobName, slaveLabel)
+		buildSpec = fmt.Sprintf("%s/L=%s/lastCompletedBuild", jobName, slaveLabel)
 	}
-	statusRes, err := jenkins.Invoke("GET", statusUri, url.Values{
-		"token": {jenkinsTokenFlag},
-	})
+	buildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
 	if err != nil {
 		return "", err
 	}
-	defer collect.Error(func() error { return statusRes.Body.Close() }, &e)
-	bytes, err := ioutil.ReadAll(statusRes.Body)
-	if err != nil {
-		return "", err
-	}
-	return parseLastCompletedBuildStatus(bytes)
-}
-
-// parseLastCompletedBuildStatus parses whether the last completed build
-// was successful or not.
-func parseLastCompletedBuildStatus(response []byte) (string, error) {
-	var status struct {
-		Result string
-	}
-	if err := json.Unmarshal(response, &status); err != nil {
-		return "", fmt.Errorf("Unmarshal(%v) failed: %v", string(response), err)
-	}
-	return status.Result, nil
-}
-
-type testCase struct {
-	ClassName string
-	Name      string
-	Status    string
-}
-
-func (t testCase) equal(t2 testCase) bool {
-	return t.ClassName == t2.ClassName && t.Name == t2.Name
+	return buildInfo.Result, nil
 }
 
 type failureType int
@@ -491,45 +448,17 @@ func genFailedTestCasesGroupsForAllTests(ctx *util.Context, testResults []testRe
 
 // getFailedTestCases gets a list of failed test cases from the most
 // recent build of the given Jenkins test.
-func getFailedTestCases(ctx *util.Context, jobName string, slaveLabel string) (_ []testCase, e error) {
-	jenkins := ctx.Jenkins(jenkinsHostFlag)
-	getTestReportUri := fmt.Sprintf("job/%s/lastCompletedBuild/testReport/api/json", jobName)
-	if isMultiConfigurationJob(jobName) {
-		getTestReportUri = fmt.Sprintf("job/%s/L=%s/lastCompletedBuild/testReport/api/json", jobName, slaveLabel)
-	}
-	getTestReportRes, err := jenkins.Invoke("GET", getTestReportUri, url.Values{
-		"token": {jenkinsTokenFlag},
-	})
+func getFailedTestCases(ctx *util.Context, jobName string, slaveLabel string) (_ []jenkins.TestCase, e error) {
+	jenkinsObj, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		return []testCase{}, err
+		return []jenkins.TestCase{}, err
 	}
-	defer collect.Error(func() error { return getTestReportRes.Body.Close() }, &e)
-	bytes, err := ioutil.ReadAll(getTestReportRes.Body)
-	if err != nil {
-		return []testCase{}, err
-	}
-	return parseFailedTestCases(bytes)
-}
 
-// parseFailedTestCases parses testCases from the given test report JSON string.
-func parseFailedTestCases(response []byte) ([]testCase, error) {
-	var testCases struct {
-		Suites []struct {
-			Cases []testCase
-		}
+	buildSpec := fmt.Sprintf("%s/lastCompletedBuild", jobName)
+	if isMultiConfigurationJob(jobName) {
+		buildSpec = fmt.Sprintf("%s/L=%s/lastCompletedBuild", jobName, slaveLabel)
 	}
-	failedTestCases := []testCase{}
-	if err := json.Unmarshal(response, &testCases); err != nil {
-		return failedTestCases, fmt.Errorf("Unmarshal(%v) failed: %v", string(response), err)
-	}
-	for _, suite := range testCases.Suites {
-		for _, curCase := range suite.Cases {
-			if curCase.Status == "FAILED" || curCase.Status == "REGRESSION" {
-				failedTestCases = append(failedTestCases, curCase)
-			}
-		}
-	}
-	return failedTestCases, nil
+	return jenkinsObj.FailedTestCasesForBuildSpec(buildSpec)
 }
 
 type testSuites struct {
@@ -548,7 +477,7 @@ type testSuites struct {
 
 // genFailedTestCasesGroupsForOneTest generates groups for failed tests.
 // See comments of genFailedTestsGroupsForAllTests.
-func genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []testCase) (*failedTestCasesGroups, error) {
+func genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
 	slaveLabel := testResult.slaveLabel
 	testName := testResult.testName
 
@@ -559,7 +488,7 @@ func genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResult
 	}
 
 	groups := failedTestCasesGroups{}
-	curFailedTestCases := []testCase{}
+	curFailedTestCases := []jenkins.TestCase{}
 	for _, curTestSuite := range suites.Testsuites {
 		for _, curTestCase := range curTestSuite.Testcases {
 			// Use test suite's name as the test case's class name if the
@@ -598,7 +527,7 @@ func genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResult
 				} else {
 					groups[knownFailure] = append(groups[knownFailure], linkInfo)
 				}
-				curFailedTestCases = append(curFailedTestCases, testCase{
+				curFailedTestCases = append(curFailedTestCases, jenkins.TestCase{
 					ClassName: curTestCase.Classname,
 					Name:      curTestCase.Name,
 				})
@@ -609,7 +538,7 @@ func genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResult
 	for _, postsubmitFailedTestCase := range postsubmitFailedTestCases {
 		fixed := true
 		for _, curFailedTestCase := range curFailedTestCases {
-			if postsubmitFailedTestCase.equal(curFailedTestCase) {
+			if postsubmitFailedTestCase.Equal(curFailedTestCase) {
 				fixed = false
 				break
 			}

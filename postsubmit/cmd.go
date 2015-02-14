@@ -4,8 +4,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,12 +16,11 @@ import (
 
 var (
 	// flags
-	dryRunFlag       bool
-	jenkinsHostFlag  string
-	jenkinsTokenFlag string
-	manifestFlag     string
-	noColorFlag      bool
-	verboseFlag      bool
+	dryRunFlag      bool
+	jenkinsHostFlag string
+	manifestFlag    string
+	noColorFlag     bool
+	verboseFlag     bool
 
 	// A root test watches changes and triggers other Jenkins targets.
 	defaultRootTests = map[string]struct{}{
@@ -46,7 +43,6 @@ func init() {
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.StringVar(&jenkinsTokenFlag, "token", "", "The Jenkins API token.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
 	cmdPoll.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
 }
@@ -193,22 +189,14 @@ func jenkinsTestsToStart(projects []string) ([]string, error) {
 // startJenkinsTests uses Jenkins API to start a build to each of the
 // given Jenkins tests.
 func startJenkinsTests(ctx *util.Context, tests []string) error {
-	urlParam := url.Values{
-		"token": {jenkinsTokenFlag},
-	}.Encode()
-	jenkinsUrl, err := url.Parse(jenkinsHostFlag)
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		return fmt.Errorf("Parse(%q) failed: %v", jenkinsHostFlag, err)
+		return err
 	}
-	basePath := jenkinsUrl.Path
+
 	for _, test := range tests {
-		addBuildUrl := jenkinsUrl
-		addBuildUrl.Path = fmt.Sprintf("%s/job/%s/build", basePath, test)
-		addBuildUrl.RawQuery = urlParam
-		resp, err := http.Get(addBuildUrl.String())
 		msg := fmt.Sprintf("add build to %q\n", test)
-		if err == nil {
-			resp.Body.Close()
+		if err := jenkins.AddBuild(test); err == nil {
 			testutil.Pass(ctx, "%s", msg)
 		} else {
 			testutil.Fail(ctx, "%s", msg)

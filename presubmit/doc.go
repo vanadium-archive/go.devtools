@@ -26,8 +26,6 @@ The presubmit flags are:
    The path to the .netrc file that stores Gerrit's credentials.
  -nocolor=false
    Do not use color to format output.
- -token=
-   The Jenkins API token.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false

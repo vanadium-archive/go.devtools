@@ -331,218 +331,6 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 	}
 }
 
-func TestQueuedOutdatedBuilds(t *testing.T) {
-	response := `
-{
-	"items" : [
-	  {
-			"id": 10,
-			"params": "\nPROJECTS=release.js.core release.go.core\nREFS=refs/changes/78/4778/1:refs/changes/50/4750/2",
-			"task" : {
-				"name": "vanadium-presubmit-test"
-			}
-		},
-	  {
-			"id": 20,
-			"params": "\nPROJECTS=release.js.core\nREFS=refs/changes/99/4799/2",
-			"task" : {
-				"name": "vanadium-presubmit-test"
-			}
-		},
-	  {
-			"id": 30,
-			"task" : {
-				"name": "vanadium-go-test"
-			}
-		}
-	]
-}
-	`
-	type testCase struct {
-		cls      clNumberToPatchsetMap
-		expected []queuedItem
-	}
-	testCases := []testCase{
-		// A single matching CL with larger patchset.
-		testCase{
-			cls: clNumberToPatchsetMap{4799: 3},
-			expected: []queuedItem{queuedItem{
-				id:  20,
-				ref: "refs/changes/99/4799/2",
-			}},
-		},
-		// A single matching CL with equal patchset.
-		testCase{
-			cls: clNumberToPatchsetMap{4799: 2},
-			expected: []queuedItem{queuedItem{
-				id:  20,
-				ref: "refs/changes/99/4799/2",
-			}},
-		},
-		// A single matching CL with smaller patchset.
-		testCase{
-			cls:      clNumberToPatchsetMap{4799: 1},
-			expected: []queuedItem{},
-		},
-		// Non-matching cl.
-		testCase{
-			cls:      clNumberToPatchsetMap{1234: 1},
-			expected: []queuedItem{},
-		},
-		// Matching multi part CLs, with one equal patchset and one smaller patch set.
-		testCase{
-			cls:      clNumberToPatchsetMap{4778: 1, 4750: 1},
-			expected: []queuedItem{},
-		},
-		// Matching multi part CLs, with equal patchset for both
-		testCase{
-			cls: clNumberToPatchsetMap{4778: 1, 4750: 2},
-			expected: []queuedItem{queuedItem{
-				id:  10,
-				ref: "refs/changes/78/4778/1:refs/changes/50/4750/2",
-			}},
-		},
-		// Matching multi part CLs, with larger patchset for both
-		testCase{
-			cls: clNumberToPatchsetMap{4778: 3, 4750: 4},
-			expected: []queuedItem{queuedItem{
-				id:  10,
-				ref: "refs/changes/78/4778/1:refs/changes/50/4750/2",
-			}},
-		},
-		// Try to match multi part CLs, but one cl number doesn't match.
-		testCase{
-			cls:      clNumberToPatchsetMap{4778: 3, 4751: 4},
-			expected: []queuedItem{},
-		},
-	}
-	for _, test := range testCases {
-		got, errs := queuedOutdatedBuilds([]byte(response), test.cls)
-		if len(errs) != 0 {
-			t.Fatalf("want no errors, got: %v", errs)
-		}
-		if !reflect.DeepEqual(test.expected, got) {
-			t.Fatalf("want %v, got %v", test.expected, got)
-		}
-	}
-}
-
-func TestOngoingOutdatedBuilds(t *testing.T) {
-	nonMultiPartResponse := `
-	{
-		"actions": [
-			{
-				"parameters": [
-				  {
-						"name": "PROJECTS",
-						"value": "release.go.core"
-					},
-					{
-						"name": "REFS",
-						"value": "refs/changes/96/5396/3"
-					}
-				]
-			}
-		],
-		"building": true,
-		"number": 1234
-	}
-	`
-	multiPartResponse := `
-	{
-		"actions": [
-			{
-				"parameters": [
-				  {
-						"name": "PROJECTS",
-						"value": "release.js.core release.go.core"
-					},
-					{
-						"name": "REFS",
-						"value": "refs/changes/00/5400/2:refs/changes/96/5396/3"
-					}
-				]
-			}
-		],
-		"building": true,
-		"number": 2014
-	}
-	`
-	type testCase struct {
-		cls      clNumberToPatchsetMap
-		input    string
-		expected ongoingBuild
-	}
-	nonMultiPartBuild := ongoingBuild{
-		buildNumber: 1234,
-		ref:         "refs/changes/96/5396/3",
-	}
-	multiPartBuild := ongoingBuild{
-		buildNumber: 2014,
-		ref:         "refs/changes/00/5400/2:refs/changes/96/5396/3",
-	}
-	invalidBuild := ongoingBuild{buildNumber: -1}
-	testCases := []testCase{
-		// A single matching CL with larger patchset.
-		testCase{
-			cls:      clNumberToPatchsetMap{5396: 4},
-			input:    nonMultiPartResponse,
-			expected: nonMultiPartBuild,
-		},
-		// A single matching CL with equal patchset.
-		testCase{
-			cls:      clNumberToPatchsetMap{5396: 3},
-			input:    nonMultiPartResponse,
-			expected: nonMultiPartBuild,
-		},
-		// A single matching CL with smaller patchset.
-		testCase{
-			cls:      clNumberToPatchsetMap{5396: 2},
-			input:    nonMultiPartResponse,
-			expected: invalidBuild,
-		},
-		// Non-matching CL.
-		testCase{
-			cls:      clNumberToPatchsetMap{1999: 2},
-			input:    nonMultiPartResponse,
-			expected: invalidBuild,
-		},
-		// Matching multi part CLs, with one equal patchset and one smaller patch set.
-		testCase{
-			cls:      clNumberToPatchsetMap{5400: 2, 5396: 2},
-			input:    multiPartResponse,
-			expected: invalidBuild,
-		},
-		// Matching multi part CLs, with equal patchset for both
-		testCase{
-			cls:      clNumberToPatchsetMap{5400: 2, 5396: 3},
-			input:    multiPartResponse,
-			expected: multiPartBuild,
-		},
-		// Matching multi part CLs, with larger patchset for both
-		testCase{
-			cls:      clNumberToPatchsetMap{5400: 3, 5396: 4},
-			input:    multiPartResponse,
-			expected: multiPartBuild,
-		},
-		// Try to match multi part CLs, but one cl number doesn't match.
-		testCase{
-			cls:      clNumberToPatchsetMap{5400: 3, 8399: 4},
-			input:    multiPartResponse,
-			expected: invalidBuild,
-		},
-	}
-	for _, test := range testCases {
-		got, err := ongoingOutdatedBuild([]byte(test.input), test.cls)
-		if err != nil {
-			t.Fatalf("want no errors, got: %v", err)
-		}
-		if !reflect.DeepEqual(test.expected, got) {
-			t.Fatalf("want %v, got %v", test.expected, got)
-		}
-	}
-}
-
 func TestIsBuildOutdated(t *testing.T) {
 	type testCase struct {
 		refs     string
@@ -564,11 +352,23 @@ func TestIsBuildOutdated(t *testing.T) {
 
 		// Builds with multiple refs.
 		//
-		// One of the cl numbers doesn't match.
+		// Overlapping cls.
+		testCase{
+			refs:     "refs/changes/10/1001/2",
+			cls:      clNumberToPatchsetMap{1001: 3, 2000: 2},
+			outdated: true,
+		},
+		// The other case with overlapping cl.
 		testCase{
 			refs:     "refs/changes/10/1000/2:refs/changes/10/2000/2",
 			cls:      clNumberToPatchsetMap{1001: 2, 2000: 2},
-			outdated: false,
+			outdated: true,
+		},
+		// Both refs don't match.
+		testCase{
+			refs:     "refs/changes/10/1000/2:refs/changes/10/2000/2",
+			cls:      clNumberToPatchsetMap{1001: 2, 2000: 2},
+			outdated: true,
 		},
 		// Both patchsets in "cls" are smaller.
 		testCase{
@@ -590,13 +390,13 @@ func TestIsBuildOutdated(t *testing.T) {
 		},
 	}
 
-	for _, test := range testCases {
+	for i, test := range testCases {
 		outdated, err := isBuildOutdated(test.refs, test.cls)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}
 		if expected, got := test.outdated, outdated; expected != got {
-			t.Fatalf("want %v, got %v", expected, got)
+			t.Fatalf("%d: want %v, got %v", i, expected, got)
 		}
 	}
 }

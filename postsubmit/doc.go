@@ -20,8 +20,6 @@ The postsubmit flags are:
    Show what commands will run but do not execute them.
  -nocolor=false
    Do not use color to format output.
- -token=
-   The Jenkins API token.
  -v=false
    Print verbose output.
 

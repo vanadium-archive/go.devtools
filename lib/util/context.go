@@ -104,7 +104,7 @@ func (ctx Context) Hg(opts ...hgOpt) *hgutil.Hg {
 
 // Jenkins returns a new Jenkins instance that can be used to
 // communicate with a Jenkins server running at the given host.
-func (ctx Context) Jenkins(host string) *jenkins.Jenkins {
+func (ctx Context) Jenkins(host string) (*jenkins.Jenkins, error) {
 	return jenkins.New(host)
 }
 
