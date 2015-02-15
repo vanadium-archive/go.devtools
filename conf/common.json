@@ -113,6 +113,7 @@
       "vanadium-go-test",
       "vanadium-go-vdl",
       "vanadium-integration-test",
+      "vanadium-integration-test-old",
       "vanadium-prod-services-test",
       "vanadium-www-tutorials"
     ],
