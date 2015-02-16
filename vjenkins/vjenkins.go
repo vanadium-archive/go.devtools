@@ -59,26 +59,25 @@ Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
 	ArgsLong: "<names> is a list of names identifying nodes to be deleted.",
 }
 
-const (
-	jenkinsHost   = "http://veyron-jenkins:8001/jenkins"
-	credentialsId = "73f76f53-8332-4259-bc08-d6f0b8521a5b"
-)
-
 var (
 	// Global flags.
 	flagColor   = flag.Bool("color", false, "Format output in color.")
 	flagDryRun  = flag.Bool("n", false, "Show what commands will run, but do not execute them.")
 	flagVerbose = flag.Bool("v", false, "Print verbose output.")
 	// Command-specific flags.
-	flagDescription string
-	flagProject     string
-	flagZone        string
+	flagCredentialsId string
+	flagDescription   string
+	flagJenkinsHost   string
+	flagProject       string
+	flagZone          string
 
 	ipAddressRE = regexp.MustCompile(`^(\S*)\s*(\S*)\s(\S*)\s(\S*)\s(\S*)\s(\S*)$`)
 )
 
 func init() {
+	cmdNodeCreate.Flags.StringVar(&flagCredentialsId, "credentials_id", "73f76f53-8332-4259-bc08-d6f0b8521a5b", "The credentials ID used to connect the master to the node.")
 	cmdNodeCreate.Flags.StringVar(&flagDescription, "description", "", "Node description.")
+	cmdNodeCreate.Flags.StringVar(&flagJenkinsHost, "jenkins", "localhost:8080", "The host of the Jenkins master.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "GCE zone of the machine.")
 	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "google.com:veyron", "GCE project of the machine.")
 }
@@ -116,7 +115,7 @@ func lookupIPAddress(ctx *util.Context, node string) (string, error) {
 // runNodeCreate adds slave node(s) to Jenkins configuration.
 func runNodeCreate(cmd *cmdline.Command, args []string) error {
 	ctx := newContext(cmd)
-	jenkins, err := ctx.Jenkins(jenkinsHost)
+	jenkins, err := ctx.Jenkins(flagJenkinsHost)
 	if err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func runNodeCreate(cmd *cmdline.Command, args []string) error {
 			return err
 		}
 		fmt.Println(ipAddress)
-		if err := jenkins.AddNodeToJenkins(name, ipAddress, flagDescription, credentialsId); err != nil {
+		if err := jenkins.AddNodeToJenkins(name, ipAddress, flagDescription, flagCredentialsId); err != nil {
 			return err
 		}
 	}
@@ -137,7 +136,7 @@ func runNodeCreate(cmd *cmdline.Command, args []string) error {
 // runNodeDelete removes slave node(s) from Jenkins configuration.
 func runNodeDelete(cmd *cmdline.Command, args []string) error {
 	ctx := newContext(cmd)
-	jenkins, err := ctx.Jenkins(jenkinsHost)
+	jenkins, err := ctx.Jenkins(flagJenkinsHost)
 	if err != nil {
 		return err
 	}
