@@ -5,12 +5,16 @@
 Vanadium command-line utility for interacting with Jenkins.
 
 Usage:
-   vjenkins <command>
+   vjenkins [flags] <command>
 
 The vjenkins commands are:
    node        Manage Jenkins slave nodes
    help        Display help for commands or topics
 Run "vjenkins help [command]" for command usage.
+
+The vjenkins flags are:
+ -jenkins=http://veyron-jenkins:8001/jenkins
+   The host of the Jenkins master.
 
 The global flags are:
  -color=false
@@ -45,8 +49,6 @@ The vjenkins node create flags are:
    The credentials ID used to connect the master to the node.
  -description=
    Node description.
- -jenkins=localhost:8080
-   The host of the Jenkins master.
  -project=google.com:veyron
    GCE project of the machine.
  -zone=us-central1-f

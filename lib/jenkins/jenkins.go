@@ -17,30 +17,38 @@ import (
 )
 
 const (
-	// The file storing Jenkins API token on Google Storage.
-	// TODO(jingjin): update the file with the bot's token after moving Jenkins master
-	// to corp.
-	tokenLocation = "gs://vanadium-jenkins/token"
+	// The file storing Jenkins API username/token on Google Storage.
+	// In this file, username and token are separated by a space.
+	credentialLocation = "gs://vanadium-jenkins/cred"
 
-	// Number of attempts to read token from Google Storage.
-	readTokenAttemptsCount = 5
+	// Number of attempts to read credential from Google Storage.
+	readCredentialAttemptsCount = 5
 )
 
-var defaultToken = ""
+type credential struct {
+	user  string
+	token string
+}
 
-// readTokenFromGoogleStorage reads the token file content on Google Storage if
-// defaultToken var has not been set.
+var defaultCred credential
+
+func (c credential) isSet() bool {
+	return c.user != "" && c.token != ""
+}
+
+// readCredFromGoogleStorage reads the credential file content on Google Storage
+// if defaultCred is not set.
 // TODO(jsimsa): move this to the gcutil package.
-func readTokenFromGoogleStorage() error {
-	if defaultToken != "" {
+func readCredFromGoogleStorage() error {
+	if defaultCred.isSet() {
 		return nil
 	}
 
 	var out bytes.Buffer
-	cmd := exec.Command("gsutil", "-q", "cat", tokenLocation)
+	cmd := exec.Command("gsutil", "-q", "cat", credentialLocation)
 	cmd.Stdout = &out
 	succeeded := false
-	for i := 1; i <= readTokenAttemptsCount; i++ {
+	for i := 1; i <= readCredentialAttemptsCount; i++ {
 		if i != 1 {
 			fmt.Printf("Attempt #%d:\n", i)
 		}
@@ -52,20 +60,28 @@ func readTokenFromGoogleStorage() error {
 		}
 	}
 	if succeeded {
-		defaultToken = strings.TrimSuffix(out.String(), "\n")
+		parts := strings.Split(strings.TrimSuffix(out.String(), "\n"), " ")
+		if got, want := len(parts), 2; got != want {
+			return fmt.Errorf("len(%v): want %d, got %d", parts, want, got)
+		}
+		defaultCred.user = parts[0]
+		defaultCred.token = parts[1]
 		return nil
 	}
-	return fmt.Errorf("failed to read token from Google Storage")
+	return fmt.Errorf("failed to read credential from Google Storage")
 }
 
 func New(host string) (*Jenkins, error) {
 	j := &Jenkins{
 		host: host,
 	}
-	if err := readTokenFromGoogleStorage(); err != nil {
-		return nil, err
+	// TODO(jingjin): remove this check after transition is done.
+	if !strings.Contains(host, "veyron-jenkins") {
+		if err := readCredFromGoogleStorage(); err != nil {
+			return nil, err
+		}
 	}
-	j.token = defaultToken
+	j.cred = defaultCred
 	return j, nil
 }
 
@@ -78,8 +94,8 @@ func NewForTesting() *Jenkins {
 }
 
 type Jenkins struct {
-	host  string
-	token string
+	host string
+	cred credential
 
 	// The following fields are for testing only.
 
@@ -477,15 +493,15 @@ func (j *Jenkins) invoke(method, suffix string, values url.Values) (_ []byte, er
 		return nil, fmt.Errorf("Parse(%q) failed: %v", j.host, err)
 	}
 	apiURL.Path = fmt.Sprintf("%s/%s", apiURL.Path, suffix)
-	// Always add token which is required for any API calls in a Jenkins with
-	// user login enabled.
-	values["token"] = []string{j.token}
 	apiURL.RawQuery = values.Encode()
 	var body io.Reader
 	url, body := apiURL.String(), nil
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest(%q, %q, %v) failed: %v", method, url, body, err)
+	}
+	if j.cred.isSet() {
+		req.SetBasicAuth(j.cred.user, j.cred.token)
 	}
 	req.Header.Add("Accept", "application/json")
 	res, err := http.DefaultClient.Do(req)
@@ -495,7 +511,15 @@ func (j *Jenkins) invoke(method, suffix string, values url.Values) (_ []byte, er
 	// queue/cancelItem API returns 404 even successful.
 	// See: https://issues.jenkins-ci.org/browse/JENKINS-21311.
 	if suffix != "queue/cancelItem" && res.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("HTTP request %q returned %d", strings.Replace(url, j.token, "xxx", -1), res.StatusCode)
+		// When using username/token authentication, Jenkins always returns 403 if
+		// not using preemptive authentication.
+		// https://wiki.jenkins-ci.org/display/JENKINS/Authenticating+scripted+clients.
+		//
+		// TODO(jingjin): figure out how to do preemptive authentication in go.
+		// TODO(jingjin): clean up after moving Jenkins to corp.
+		if !j.cred.isSet() || (j.cred.isSet() && res.StatusCode != http.StatusForbidden) {
+			return nil, fmt.Errorf("HTTP request %q returned %d", url, res.StatusCode)
+		}
 	}
 	defer collect.Error(func() error { return res.Body.Close() }, &err)
 	bytes, err := ioutil.ReadAll(res.Body)

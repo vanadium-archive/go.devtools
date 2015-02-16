@@ -75,9 +75,9 @@ var (
 )
 
 func init() {
+	cmdVJenkins.Flags.StringVar(&flagJenkinsHost, "jenkins", "http://veyron-jenkins:8001/jenkins", "The host of the Jenkins master.")
 	cmdNodeCreate.Flags.StringVar(&flagCredentialsId, "credentials_id", "73f76f53-8332-4259-bc08-d6f0b8521a5b", "The credentials ID used to connect the master to the node.")
 	cmdNodeCreate.Flags.StringVar(&flagDescription, "description", "", "Node description.")
-	cmdNodeCreate.Flags.StringVar(&flagJenkinsHost, "jenkins", "localhost:8080", "The host of the Jenkins master.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "GCE zone of the machine.")
 	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "google.com:veyron", "GCE project of the machine.")
 }
