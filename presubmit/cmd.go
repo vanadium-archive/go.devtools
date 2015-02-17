@@ -20,7 +20,7 @@ const (
 	defaultNetRcFilePath    = "$HOME/.netrc"
 	defaultPresubmitTestJob = "vanadium-presubmit-test"
 	defaultQueryString      = "(status:open -project:experimental)"
-	jenkinsBaseJobUrl       = "https://dev.v.io/jenkins/job"
+	jenkinsBaseJobUrl       = "https://veyron.corp.google.com/jenkins/job"
 	outputPrefix            = "[VANADIUM PRESUBMIT]"
 )
 
