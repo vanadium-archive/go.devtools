@@ -76,7 +76,7 @@ func vanadiumJSDoc(ctx *util.Context, testName string, _ ...TestOpt) (*TestResul
 	}
 	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "docs"
-	webDir, jsDocDir := "/usr/share/nginx/www/jsdoc", filepath.Join(testDir, "docs")
+	webDir, jsDocDir := "/var/www/jsdoc", filepath.Join(testDir, "docs")
 	cleanFn := func() error {
 		if err := ctx.Run().RemoveAll(webDir); err != nil {
 			return err
