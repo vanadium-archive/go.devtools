@@ -155,7 +155,7 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 		"-netrc", netrcFile,
 		"test",
 		"-build_number", os.Getenv("BUILD_NUMBER"),
-		"-manifest", "default",
+		"-manifest", "public",
 		"-projects", os.Getenv("PROJECTS"),
 		"-refs", os.Getenv("REFS"),
 		"-test", os.Getenv("TEST"),
