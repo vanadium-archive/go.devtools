@@ -218,7 +218,7 @@ func (j *Jenkins) BuildInfoForSpec(buildSpec string) (*BuildInfo, error) {
 // AddBuild adds a build to the given job.
 func (j *Jenkins) AddBuild(jobName string) error {
 	addBuildUri := fmt.Sprintf("job/%s/build", jobName)
-	_, err := j.invoke("GET", addBuildUri, url.Values{})
+	_, err := j.invoke("POST", addBuildUri, url.Values{})
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func (j *Jenkins) AddBuild(jobName string) error {
 // AddBuildWithParameter adds a parameterized build to the given job.
 func (j *Jenkins) AddBuildWithParameter(jobName string, params url.Values) error {
 	addBuildUri := fmt.Sprintf("job/%s/buildWithParameters", jobName)
-	_, err := j.invoke("GET", addBuildUri, params)
+	_, err := j.invoke("POST", addBuildUri, params)
 	if err != nil {
 		return err
 	}
@@ -440,15 +440,15 @@ func (j *Jenkins) invoke(method, suffix string, values url.Values) (_ []byte, er
 	if err != nil {
 		return nil, fmt.Errorf("Do(%v) failed: %v", req, err)
 	}
-	// queue/cancelItem API returns 404 even successful.
-	// See: https://issues.jenkins-ci.org/browse/JENKINS-21311.
-	if suffix != "queue/cancelItem" && res.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("HTTP request %q returned %d", url, res.StatusCode)
-	}
 	defer collect.Error(func() error { return res.Body.Close() }, &err)
 	bytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
+	}
+	// queue/cancelItem API returns 404 even successful.
+	// See: https://issues.jenkins-ci.org/browse/JENKINS-21311.
+	if suffix != "queue/cancelItem" && res.StatusCode >= http.StatusBadRequest {
+		return nil, fmt.Errorf("HTTP request %q returned %d:\n%s", url, res.StatusCode, string(bytes))
 	}
 	return bytes, nil
 }
