@@ -40,6 +40,9 @@
       "vanadium-chat-shell-test",
       "vanadium-chat-web-test"
     ],
+    "release.projects.pipe2browser": [
+      "vanadium-pipe2browser-test"
+    ],
     "release.projects.playground": [
       "vanadium-playground-test"
     ],
@@ -129,6 +132,7 @@
       "vanadium-chat-shell-test",
       "vanadium-chat-web-test",
       "vanadium-namespace-browser-test",
+      "vanadium-pipe2browser-test",
       "vanadium-playground-test"
     ],
     "third_party-go": [
