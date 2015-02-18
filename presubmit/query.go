@@ -167,13 +167,13 @@ func runQuery(command *cmdline.Command, args []string) error {
 
 	// Send the new open CLs one by one to the given Jenkins
 	// project to run presubmit-test builds.
-	defaultProjects, _, err := util.ReadManifest(ctx, "default")
+	projects, _, err := util.ReadManifest(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
 	sender := clsSender{
 		clLists:          newCLLists,
-		defaultProjects:  defaultProjects,
+		projects:         projects,
 		clsSent:          0,
 		removeOutdatedFn: removeOutdatedBuilds,
 		addPresubmitFn:   addPresubmitTestBuild,
@@ -359,7 +359,7 @@ func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 
 type clsSender struct {
 	clLists          []clList
-	defaultProjects  map[string]util.Project
+	projects         map[string]util.Project
 	clsSent          int
 	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error
 	addPresubmitFn   func(*util.Context, clList, []string) error
@@ -372,13 +372,19 @@ type clsSender struct {
 func (s *clsSender) sendCLListsToPresubmitTest(ctx *util.Context) error {
 	for _, curCLList := range s.clLists {
 		clListInfo := s.processCLList(ctx, curCLList)
-		if clListInfo == nil {
+		curCLList = clListInfo.filteredCLList
+		if len(curCLList) == 0 {
+			printf(ctx.Stdout(), "SKIP: Empty CL set\n")
 			continue
 		}
 
 		// Don't send curCLList to presubmit-test if at least one of them
 		// have PresubmitTest set to none.
 		if clListInfo.skipPresubmitTest {
+			// Set verified+1 label.
+			if err := s.postMessageFn(ctx, "Presubmit tests skipped.\n", clListInfo.refs, true); err != nil {
+				return err
+			}
 			printf(ctx.Stdout(), "SKIP: Add %s (presubmit=none)\n", clListInfo.clString)
 			continue
 		}
@@ -389,6 +395,10 @@ func (s *clsSender) sendCLListsToPresubmitTest(ctx *util.Context) error {
 			return err
 		}
 		if len(tests) == 0 {
+			// Set verified+1 label when there is no tests to run.
+			if err := s.postMessageFn(ctx, "No tests found.\n", clListInfo.refs, true); err != nil {
+				return err
+			}
 			printf(ctx.Stdout(), "SKIP: Add %s (no tests found)\n", clListInfo.clString)
 			continue
 		}
@@ -432,6 +442,7 @@ type clListInfo struct {
 	hasNonGoogleOwner bool
 	projects          []string
 	refs              []string
+	filteredCLList    clList
 }
 
 func (s *clsSender) processCLList(ctx *util.Context, curCLList clList) *clListInfo {
@@ -441,12 +452,14 @@ func (s *clsSender) processCLList(ctx *util.Context, curCLList clList) *clListIn
 	hasNonGoogleOwner := false
 	projects := []string{}
 	refs := []string{}
+	filteredCLList := clList{}
 	for _, curCL := range curCLList {
-		// Ignore all CLs that are not in the default manifest.
+		// Ignore all CLs that are not in projects identified by the manifestFlag.
 		// TODO(jingjin): find a better way so we can remove this check.
-		if s.defaultProjects != nil && !isInDefaultManifest(ctx, curCL, s.defaultProjects) {
-			return nil
+		if s.projects != nil && !isKnowProject(ctx, curCL, s.projects) {
+			continue
 		}
+		filteredCLList = append(filteredCLList, curCL)
 
 		cl, patchset, err := parseRefString(curCL.Reference())
 		if err != nil {
@@ -474,6 +487,7 @@ func (s *clsSender) processCLList(ctx *util.Context, curCLList clList) *clListIn
 		hasNonGoogleOwner: hasNonGoogleOwner,
 		projects:          projects,
 		refs:              refs,
+		filteredCLList:    filteredCLList,
 	}
 }
 
@@ -495,11 +509,11 @@ func (s *clsSender) handleNonGoogleOwner(ctx *util.Context, refs, projects, test
 	return nil
 }
 
-// isInDefaultManifest checks whether the given cl's project is in the
-// default manifest.
-func isInDefaultManifest(ctx *util.Context, cl gerrit.Change, defaultProjects map[string]util.Project) bool {
-	if _, ok := defaultProjects[cl.Project]; !ok {
-		printf(ctx.Stdout(), "project=%q (%s) not found in the default manifest. Skipped.\n", cl.Project, cl.Reference())
+// isKnownProject checks whether the given cl's project is in the
+// given set of projects.
+func isKnowProject(ctx *util.Context, cl gerrit.Change, projects map[string]util.Project) bool {
+	if _, ok := projects[cl.Project]; !ok {
+		printf(ctx.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
 		return false
 	}
 	return true

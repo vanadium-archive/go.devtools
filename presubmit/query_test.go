@@ -287,12 +287,19 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		clList{
 			genCL(3000, 1, "non-existent-project"),
 		},
+		clList{
+			genMultiPartCL(1005, 1, "release.js.core", "t", 1, 2),
+			genMultiPartCL(1006, 1, "non-existent-project", "t", 2, 2),
+		},
 	}
 	var buf bytes.Buffer
 	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false, false, false)
 	sender := clsSender{
-		clLists:         clLists,
-		defaultProjects: nil,
+		clLists: clLists,
+		projects: map[string]util.Project{
+			"release.go.core": util.Project{},
+			"release.js.core": util.Project{},
+		},
 
 		// Mock out the removeOutdatedBuilds function.
 		removeOutdatedFn: func(ctx *util.Context, cls clNumberToPatchsetMap) []error { return nil },
@@ -321,12 +328,15 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2010/1 (non-google owner)
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1001/1, http://go/vcl/1002/1
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/1003/1, http://go/vcl/1004/1, http://go/vcl/1005/1 (non-google owner)
-[VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/3000/1 (no tests found)
+[VANADIUM PRESUBMIT] project="non-existent-project" (refs/changes/xx/3000/1) not found. Skipped.
+[VANADIUM PRESUBMIT] SKIP: Empty CL set
+[VANADIUM PRESUBMIT] project="non-existent-project" (refs/changes/xx/1006/1) not found. Skipped.
+[VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1005/1
 `
 	if got := buf.String(); expectedOutput != got {
 		t.Fatalf("output: want:\n%v\n, got:\n%v", expectedOutput, got)
 	}
-	if expected := 2; expected != sender.clsSent {
+	if expected := 3; expected != sender.clsSent {
 		t.Fatalf("numSentCLs: want %d, got %d", expected, sender.clsSent)
 	}
 }
