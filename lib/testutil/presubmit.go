@@ -111,6 +111,7 @@ func vanadiumPresubmitPoll(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 		"-host", jenkinsHost,
 		"-netrc", netrcFile,
 		"query",
+		"-manifest", "public",
 		"-log_file", logfile)
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
 		return nil, err
