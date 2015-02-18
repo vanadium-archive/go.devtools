@@ -512,6 +512,7 @@ func (s *clsSender) handleNonGoogleOwner(ctx *util.Context, refs, projects, test
 // isKnownProject checks whether the given cl's project is in the
 // given set of projects.
 func isKnowProject(ctx *util.Context, cl gerrit.Change, projects map[string]util.Project) bool {
+	fmt.Printf("cur project: %s, projects: %v\n", cl.Project, projects)
 	if _, ok := projects[cl.Project]; !ok {
 		printf(ctx.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
 		return false
