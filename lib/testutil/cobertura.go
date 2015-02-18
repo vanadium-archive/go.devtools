@@ -69,7 +69,7 @@ func coverageFromGoTestOutput(ctx *util.Context, testOutput io.Reader) (*testCov
 	if err != nil {
 		return nil, err
 	}
-	bin := filepath.Join(root, "environment", "golib", "bin", "gocover-cobertura")
+	bin := filepath.Join(root, "third_party", "go", "bin", "gocover-cobertura")
 	env, err := util.VanadiumEnvironment(util.HostPlatform())
 	if err != nil {
 		return nil, err

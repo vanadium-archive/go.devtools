@@ -66,7 +66,7 @@ func testSuiteFromGoTestOutput(ctx *util.Context, testOutput io.Reader) (*testSu
 	if err != nil {
 		return nil, err
 	}
-	bin := filepath.Join(root, "environment", "golib", "bin", "go2xunit")
+	bin := filepath.Join(root, "third_party", "go", "bin", "go2xunit")
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdin = testOutput

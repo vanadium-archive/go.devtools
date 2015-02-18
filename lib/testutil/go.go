@@ -799,13 +799,12 @@ func installGoCoverCobertura(ctx *util.Context) error {
 		return err
 	}
 	// Check if the tool exists.
-	bin := filepath.Join(root, "environment", "golib", "bin", "gocover-cobertura")
+	bin := filepath.Join(root, "third_party", "go", "bin", "gocover-cobertura")
 	if _, err := os.Stat(bin); err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
 		opts := ctx.Run().Opts()
-		opts.Env["GOPATH"] = filepath.Join(root, "environment", "golib")
 		if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
 			return err
 		}
@@ -820,13 +819,12 @@ func installGo2XUnit(ctx *util.Context) error {
 		return err
 	}
 	// Check if the tool exists.
-	bin := filepath.Join(root, "environment", "golib", "bin", "go2xunit")
+	bin := filepath.Join(root, "third_party", "go", "bin", "go2xunit")
 	if _, err := os.Stat(bin); err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
 		opts := ctx.Run().Opts()
-		opts.Env["GOPATH"] = filepath.Join(root, "environment", "golib")
 		if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 			return err
 		}
@@ -891,13 +889,6 @@ func getListenerPID(ctx *util.Context, port string) (int, error) {
 	}
 
 	return pid, nil
-}
-
-var thirdPartyPkgs = []string{
-	"code.google.com/...",
-	"github.com/...",
-	"golang.org/...",
-	"google.golang.org/...",
 }
 
 type test struct {
@@ -1017,16 +1008,24 @@ func getShortTestsOnlyOptValue(opts []TestOpt) bool {
 
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
+	pkgs, err := thirdPartyPkgs()
 	if err != nil {
 		return nil, err
 	}
-	return goBuild(ctx, testName, pkgs)
+	validatedPkgs, err := validateAgainstDefaultPackages(ctx, opts, pkgs)
+	if err != nil {
+		return nil, err
+	}
+	return goBuild(ctx, testName, validatedPkgs)
 }
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
+	pkgs, err := thirdPartyPkgs()
+	if err != nil {
+		return nil, err
+	}
+	validatedPkgs, err := validateAgainstDefaultPackages(ctx, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1034,12 +1033,16 @@ func thirdPartyGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*Tes
 	if err != nil {
 		return nil, err
 	}
-	return goTest(ctx, testName, excludedTestsOpt(exclusions), pkgs)
+	return goTest(ctx, testName, excludedTestsOpt(exclusions), validatedPkgs)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, thirdPartyPkgs)
+	pkgs, err := thirdPartyPkgs()
+	if err != nil {
+		return nil, err
+	}
+	validatedPkgs, err := validateAgainstDefaultPackages(ctx, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1048,7 +1051,30 @@ func thirdPartyGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*Tes
 	if err != nil {
 		return nil, err
 	}
-	return goTest(ctx, testName, args, excludedTestsOpt(exclusions), pkgs)
+	return goTest(ctx, testName, args, excludedTestsOpt(exclusions), validatedPkgs)
+}
+
+// thirdPartyPkgs returns a list of Go expressions that describe all
+// third-party packages.
+func thirdPartyPkgs() ([]string, error) {
+	root, err := util.VanadiumRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	thirdPartyDir := filepath.Join(root, "third_party", "go", "src")
+	fileInfos, err := ioutil.ReadDir(thirdPartyDir)
+	if err != nil {
+		return nil, fmt.Errorf("ReadDir(%v) failed: %v", thirdPartyDir, err)
+	}
+
+	pkgs := []string{}
+	for _, fileInfo := range fileInfos {
+		if fileInfo.IsDir() {
+			pkgs = append(pkgs, fileInfo.Name()+"/...")
+		}
+	}
+	return pkgs, nil
 }
 
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
