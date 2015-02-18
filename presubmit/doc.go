@@ -44,6 +44,8 @@ Usage:
 The presubmit query flags are:
  -log_file=$HOME/tmp/presubmit_log
    The file that stores the refs from the previous Gerrit query.
+ -manifest=default
+   Name of the project manifest.
  -query=(status:open -project:experimental)
    The string used to query Gerrit for open CLs.
 
