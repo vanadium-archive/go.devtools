@@ -316,7 +316,7 @@ func resetLocalProject(ctx *util.Context) error {
 		return err
 	}
 	// Discard any uncommitted changes.
-	if err := ctx.Git().Reset("HEAD"); err != nil {
+	if err := ctx.Git().Reset("origin/master"); err != nil {
 		return err
 	}
 
