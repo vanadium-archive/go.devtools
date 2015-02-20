@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"text/template"
+	"time"
 
 	"v.io/lib/cmdline"
 	"v.io/tools/lib/collect"
@@ -45,6 +47,8 @@ const failureReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 const (
 	mergeConflictTestClass   = "merge conflict"
 	mergeConflictMessageTmpl = "Possible merge conflict detected in %s.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted."
+	unknownStatus            = "UNKNOWN"
+	nanoToMiliSeconds        = 1000000
 )
 
 type cl struct {
@@ -66,6 +70,10 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	if err := sanityChecks(command); err != nil {
 		return err
 	}
+
+	// Record the current timestamp so we can get the correct postsubmit build
+	// when processing the results.
+	curTimestamp := time.Now().UnixNano() / nanoToMiliSeconds
 
 	// Generate cls from the refs and projects flags.
 	cls, err := parseCLs()
@@ -131,7 +139,14 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
 	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, testutil.ShortOpt(true)); err == nil {
-		return writeTestStatusFile(ctx, results)
+		result, ok := results[testFlag]
+		if !ok {
+			return fmt.Errorf("No test result found for %q", testFlag)
+		}
+		if result.Status == testutil.TestTimedOut {
+			writeTimedOutTestReport(ctx, testFlag, *result)
+		}
+		return writeTestStatusFile(ctx, *result, curTimestamp)
 	} else {
 		return err
 	}
@@ -242,7 +257,9 @@ func recordMergeConflict(ctx *util.Context, failedCL *cl) error {
 	if err := generateFailureReport(testFlag, mergeConflictTestClass, message); err != nil {
 		return err
 	}
-	if err := writeTestStatusFile(ctx, map[string]*testutil.TestResult{testFlag: &result}); err != nil {
+	// We use math.MaxInt64 here so that the logic that tries to find the newest
+	// build before the given timestamp terminates after the first iteration.
+	if err := writeTestStatusFile(ctx, result, math.MaxInt64); err != nil {
 		return err
 	}
 	return nil
@@ -340,7 +357,7 @@ func resetLocalProject(ctx *util.Context) error {
 	return nil
 }
 
-// generateFailureReport generates a xunit test report file for
+// generateFailureReport generates a xUnit test report file for
 // the given failing test.
 func generateFailureReport(testName string, className, errorMessage string) (e error) {
 	type tmplData struct {
@@ -366,12 +383,24 @@ func generateFailureReport(testName string, className, errorMessage string) (e e
 	})
 }
 
-// writeTestStatusFile writes the given TestResult map to a JSON file.
-// This file will be collected (along with the test report xunit file) by the
+// writeTimedOutTestReport writes a xUnit test report for the given timed-out test.
+func writeTimedOutTestReport(ctx *util.Context, testName string, result testutil.TestResult) {
+	timeoutValue := testutil.DefaultTestTimeout
+	if result.TimeoutValue != 0 {
+		timeoutValue = result.TimeoutValue
+	}
+	errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
+	if err := generateFailureReport(testName, "timeout", errorMessage); err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+	}
+}
+
+// writeTestStatusFile writes the given TestResult and timestamp to a JSON file.
+// This file will be collected (along with the test report xUnit file) by the
 // "master" presubmit project for generating final test results message.
 //
 // For more details, see comments in result.go.
-func writeTestStatusFile(ctx *util.Context, results map[string]*testutil.TestResult) error {
+func writeTestStatusFile(ctx *util.Context, result testutil.TestResult, curTimestamp int64) error {
 	// Get the file path.
 	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("status_%s.json", strings.Replace(testFlag, "-", "_", -1))
 	statusFilePath := ""
@@ -382,9 +411,15 @@ func writeTestStatusFile(ctx *util.Context, results map[string]*testutil.TestRes
 	}
 
 	// Write to file.
-	bytes, err := json.Marshal(results)
+	r := testResultInfo{
+		Result:     result,
+		TestName:   testFlag,
+		SlaveLabel: os.Getenv("L"), // Slave label is stored in environment variable "L"
+		Timestamp:  curTimestamp,
+	}
+	bytes, err := json.Marshal(r)
 	if err != nil {
-		return fmt.Errorf("Marshal(%v) failed: %v", results, err)
+		return fmt.Errorf("Marshal(%v) failed: %v", r, err)
 	}
 	if err := ctx.Run().WriteFile(statusFilePath, bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", statusFilePath, err)

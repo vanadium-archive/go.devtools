@@ -100,10 +100,12 @@ func (j *Jenkins) QueuedBuilds(jobName string) (_ []QueuedBuild, err error) {
 }
 
 type BuildInfo struct {
-	Actions  []BuildInfoAction
-	Building bool
-	Number   int
-	Result   string
+	Actions   []BuildInfoAction
+	Building  bool
+	Number    int
+	Result    string
+	Id        string
+	Timestamp int64
 }
 
 type BuildInfoAction struct {

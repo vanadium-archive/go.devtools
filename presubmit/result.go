@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,14 +33,12 @@ summary back to the corresponding Gerrit review thread.
 	Run: runResult,
 }
 
-var (
-	subJobDirRE = regexp.MustCompile(".*L=(.*),TEST=.*")
-)
-
 type testResultInfo struct {
-	result     testutil.TestResult
-	testName   string
-	slaveLabel string
+	Result           testutil.TestResult
+	TestName         string
+	SlaveLabel       string
+	Timestamp        int64
+	PostSubmitResult string
 }
 
 // runResult implements the 'result' subcommand.
@@ -74,56 +72,31 @@ type testResultInfo struct {
 func runResult(command *cmdline.Command, args []string) (e error) {
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 
-	// Process test status files.
+	// Find all status files and store their paths in a slice.
 	workspaceDir := os.Getenv("WORKSPACE")
 	curTestResultsDir := filepath.Join(workspaceDir, "test_results", fmt.Sprintf("%d", jenkinsBuildNumberFlag))
-	// Store all status file paths in a map indexed by slave labels.
-	statusFiles := map[string][]string{}
+	statusFiles := []string{}
 	filepath.Walk(curTestResultsDir, func(path string, info os.FileInfo, err error) error {
 		fileName := info.Name()
 		if strings.HasPrefix(fileName, "status_") && strings.HasSuffix(fileName, ".json") {
-			// Find the slave label from the file path.
-			if matches := subJobDirRE.FindStringSubmatch(path); matches != nil {
-				slaveLabel := matches[1]
-				statusFiles[slaveLabel] = append(statusFiles[slaveLabel], path)
-			}
+			statusFiles = append(statusFiles, path)
 		}
 		return nil
 	})
 
 	// Read status files and add them to the "results" map below.
-	results := map[string]testutil.TestResult{}
-	names := []string{}
-	for slaveLabel, curStatusFiles := range statusFiles {
-		for _, statusFile := range curStatusFiles {
-			bytes, err := ioutil.ReadFile(statusFile)
-			if err != nil {
-				return fmt.Errorf("ReadFile(%v) failed: %v", statusFile, err)
-			}
-			curResult := map[string]testutil.TestResult{}
-			if err := json.Unmarshal(bytes, &curResult); err != nil {
-				return fmt.Errorf("Unmarshal() failed: %v", err)
-			}
-			// The key of the "results" map is "${testName}|${slaveLabel}" so we can
-			// sort them nicely when generating the "testResults" slice below.
-			for t, r := range curResult {
-				name := t + "|" + slaveLabel
-				results[name] = r
-				names = append(names, name)
-			}
-		}
-	}
-
-	// Create testResultInfo slice sorted by names.
-	sort.Strings(names)
+	sort.Strings(statusFiles)
 	testResults := []testResultInfo{}
-	for _, name := range names {
-		parts := strings.Split(name, "|")
-		testResults = append(testResults, testResultInfo{
-			result:     results[name],
-			testName:   parts[0],
-			slaveLabel: parts[1],
-		})
+	for _, statusFile := range statusFiles {
+		bytes, err := ioutil.ReadFile(statusFile)
+		if err != nil {
+			return fmt.Errorf("ReadFile(%v) failed: %v", statusFile, err)
+		}
+		var curResult testResultInfo
+		if err := json.Unmarshal(bytes, &curResult); err != nil {
+			return fmt.Errorf("Unmarshal() failed: %v", err)
+		}
+		testResults = append(testResults, curResult)
 	}
 
 	// Post results.
@@ -158,8 +131,9 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 
 	reportBuildCop(ctx, &report)
 
+	failedTestNames := []string{}
 	numNewFailures := 0
-	if numFailedTests := reportTestResultsSummary(ctx, testResults, &report); numFailedTests != 0 {
+	if failedTestNames = reportTestResultsSummary(ctx, testResults, &report); len(failedTestNames) != 0 {
 		// Report failed test cases grouped by failure types.
 		var err error
 		if numNewFailures, err = reportFailedTestCases(ctx, testResults, &report); err != nil {
@@ -167,7 +141,7 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 		}
 	}
 
-	reportUsefulLinks(&report)
+	reportUsefulLinks(&report, failedTestNames)
 
 	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
 	success := numNewFailures == 0
@@ -186,14 +160,16 @@ func postTestReport(ctx *util.Context, testResults []testResultInfo, refs []stri
 func reportFailedPresubmitBuild(ctx *util.Context, report *bytes.Buffer) bool {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		return true
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		return false
 	}
 
 	masterJobInfo, err := jenkins.BuildInfo(presubmitTestJobFlag, jenkinsBuildNumberFlag)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-		return true
+		return false
 	}
+	printf(ctx.Stdout(), masterJobInfo.Result)
 	if masterJobInfo.Result == "FAILURE" {
 		fmt.Fprintf(report, "SOME TESTS FAILED TO RUN.\nRetrying...\n")
 		return true
@@ -205,8 +181,8 @@ func reportFailedPresubmitBuild(ctx *util.Context, report *bytes.Buffer) bool {
 // It returns whether any merge conflicts are found in the given testResults.
 func reportMergeConflicts(ctx *util.Context, testResults []testResultInfo, refs []string) bool {
 	for _, resultInfo := range testResults {
-		if resultInfo.result.Status == testutil.TestFailedMergeConflict {
-			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.result.MergeConflictCL)
+		if resultInfo.Result.Status == testutil.TestFailedMergeConflict {
+			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.Result.MergeConflictCL)
 			if err := postMessage(ctx, message, refs, false); err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
 			}
@@ -226,42 +202,40 @@ func reportBuildCop(ctx *util.Context, report *bytes.Buffer) {
 	}
 }
 
-// reportTestResultsSummary reports test results summary.
-// The summary shows each test's status change (e.g. pass -> fail).
-func reportTestResultsSummary(ctx *util.Context, testResults []testResultInfo, report *bytes.Buffer) int {
+// reportTestResultsSummary populates the given buffer with a test
+// results summary (one transition for each test) and returns a list of
+// failed tests.
+func reportTestResultsSummary(ctx *util.Context, testResults []testResultInfo, report *bytes.Buffer) []string {
 	fmt.Fprintf(report, "Test results:\n")
-	nfailed := 0
+	failedTestNames := []string{}
 	for _, resultInfo := range testResults {
-		name := resultInfo.testName
-		result := resultInfo.result
+		name := resultInfo.TestName
+		result := resultInfo.Result
+		slaveLabel := resultInfo.SlaveLabel
 		if result.Status == testutil.TestSkipped {
 			fmt.Fprintf(report, "skipped %v\n", name)
 			continue
 		}
 
 		// Get the status of the last completed build for this Jenkins test.
-		lastStatus, err := lastCompletedBuildStatus(ctx, name, resultInfo.slaveLabel)
-		lastStatusString := "?"
-		if err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-		} else {
-			if lastStatus == "SUCCESS" {
-				lastStatusString = "✔"
-			} else {
-				lastStatusString = "✖"
-			}
+		lastStatus := getPostSubmitBuildStatus(ctx, name, slaveLabel, resultInfo.Timestamp)
+		lastStatusString := "✖"
+		switch lastStatus {
+		case unknownStatus:
+			lastStatusString = "?"
+		case "SUCCESS":
+			lastStatusString = "✔"
 		}
 
 		var curStatusString string
 		if result.Status == testutil.TestPassed {
 			curStatusString = "✔"
 		} else {
-			nfailed++
+			failedTestNames = append(failedTestNames, name)
 			curStatusString = "✖"
 		}
 
 		nameString := name
-		slaveLabel := resultInfo.slaveLabel
 		// Remove "-slave" from the label simplicity.
 		if isMultiConfigurationJob(name) {
 			slaveLabel = strings.Replace(slaveLabel, "-slave", "", -1)
@@ -275,15 +249,47 @@ func reportTestResultsSummary(ctx *util.Context, testResults []testResultInfo, r
 				timeoutValue = result.TimeoutValue
 			}
 			fmt.Fprintf(report, " [TIMED OUT after %s]\n", timeoutValue)
-			errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
-			if err := generateFailureReport(name, "timeout", errorMessage); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-			}
 		} else {
 			fmt.Fprintf(report, "\n")
 		}
 	}
-	return nfailed
+	return failedTestNames
+}
+
+// getPostSubmitBuildResultBefore gets the status of the given postsubmit
+// test's result that ran before the given timestamp.
+func getPostSubmitBuildStatus(ctx *util.Context, jobName, slaveLabel string, timestamp int64) string {
+	fmt.Fprintf(ctx.Stdout(), "Getting postsubmit build status for %s-%s before timestamp %d...\n", jobName, slaveLabel, timestamp)
+	buildInfo, err := lastCompletedBuildStatus(ctx, jobName, slaveLabel)
+	if err != nil {
+		testutil.Fail(ctx, "%v\n", err)
+		return unknownStatus
+	}
+	curIdStr := buildInfo.Id
+	curId, err := strconv.Atoi(curIdStr)
+	if err != nil {
+		testutil.Fail(ctx, "Atoi(%v) failed: %v\n", curIdStr, err)
+		return unknownStatus
+	}
+	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+	for i := curId; i >= 0; i-- {
+		fmt.Fprintf(ctx.Stdout(), "Checking build %d...\n", i)
+		buildSpec := fmt.Sprintf("%s/%d", jobName, i)
+		if isMultiConfigurationJob(jobName) {
+			buildSpec = fmt.Sprintf("%s/L=%s/%d", jobName, slaveLabel, i)
+		}
+		curBuildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
+		if err != nil {
+			testutil.Fail(ctx, "%v\n", err)
+			return unknownStatus
+		}
+		if curBuildInfo.Timestamp > timestamp {
+			continue
+		}
+		testutil.Pass(ctx, "Got build status of build %d: %s\n", i, buildInfo.Result)
+		return buildInfo.Result
+	}
+	return unknownStatus
 }
 
 // All the multi-configuration Jenkins jobs.
@@ -302,10 +308,10 @@ func isMultiConfigurationJob(jobName string) bool {
 
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given jenkins test.
-func lastCompletedBuildStatus(ctx *util.Context, jobName string, slaveLabel string) (_ string, e error) {
+func lastCompletedBuildStatus(ctx *util.Context, jobName string, slaveLabel string) (*jenkins.BuildInfo, error) {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	buildSpec := fmt.Sprintf("%s/lastCompletedBuild", jobName)
@@ -314,9 +320,9 @@ func lastCompletedBuildStatus(ctx *util.Context, jobName string, slaveLabel stri
 	}
 	buildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return buildInfo.Result, nil
+	return buildInfo, nil
 }
 
 type failureType int
@@ -405,8 +411,8 @@ func genFailedTestCasesGroupsForAllTests(ctx *util.Context, testResults []testRe
 	//   http://.../TestA_3
 	seenTests := map[string]int{}
 	for _, testResult := range testResults {
-		testName := testResult.testName
-		slaveLabel := testResult.slaveLabel
+		testName := testResult.TestName
+		slaveLabel := testResult.SlaveLabel
 		// For a given test script this-is-a-test.sh, its test
 		// report file is: tests_this_is_a_test.xml.
 		xUnitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
@@ -478,8 +484,8 @@ type testSuites struct {
 // genFailedTestCasesGroupsForOneTest generates groups for failed tests.
 // See comments of genFailedTestsGroupsForAllTests.
 func genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
-	slaveLabel := testResult.slaveLabel
-	testName := testResult.testName
+	slaveLabel := testResult.SlaveLabel
+	testName := testResult.TestName
 
 	// Parse xUnit report of the presubmit test.
 	suites := testSuites{}
@@ -614,11 +620,19 @@ func safeTestName(name string) string {
 
 // reportUsefulLinks reports useful links:
 // - Current presubmit-test master status page.
+// - Retry failed tests only.
 // - Retry current build.
-func reportUsefulLinks(report *bytes.Buffer) {
+func reportUsefulLinks(report *bytes.Buffer, failedTestNames []string) {
 	fmt.Fprintf(report, "\nMore details at:\n%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestJobFlag, jenkinsBuildNumberFlag)
-	link := genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, os.Getenv("TESTS"))
-	fmt.Fprintf(report, "\nTo re-run presubmit tests without uploading a new patch set:\n(blank screen means success)\n%s\n", link)
+	if len(failedTestNames) > 0 {
+		// Generate link to retry failed tests only.
+		link := genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, strings.Join(failedTestNames, " "))
+		fmt.Fprintf(report, "\nTo re-run FAILED TESTS ONLY without uploading a new patch set:\n(click Proceed button on the next screen)\n%s\n", link)
+
+		// Generate link to retry the whole presubmit test.
+		link = genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, os.Getenv("TESTS"))
+		fmt.Fprintf(report, "\nTo re-run presubmit tests without uploading a new patch set:\n(click Proceed button on the next screen)\n%s\n", link)
+	}
 }
 
 // postMessage posts the given message to Gerrit.

@@ -53,9 +53,9 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
 	tests := []test{
 		test{
 			testResult: testResultInfo{
-				result:     testutil.TestResult{Status: testutil.TestFailed},
-				testName:   "vanadium-go-test",
-				slaveLabel: "linux-slave",
+				Result:     testutil.TestResult{Status: testutil.TestFailed},
+				TestName:   "vanadium-go-test",
+				SlaveLabel: "linux-slave",
 			},
 			postsubmitFailedTestCases: []jenkins.TestCase{},
 			expectedGroups: &failedTestCasesGroups{
