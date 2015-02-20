@@ -180,6 +180,7 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagMachineType, "machine_type", "n1-standard-8", "Machine type to create.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to create the machine in.")
 	cmdNodeCreate.Flags.StringVar(&flagSetupScript, "setup_script", "", "Script to set up the machine.")
+	cmdNodeDelete.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to delete the machine in.")
 }
 
 // nodeInfo represents the node info returned by 'gcloud compute instances list'
@@ -566,7 +567,7 @@ func listAll(ctx *util.Context, dryrun bool) (nodeInfos, error) {
 	opts.DryRun = dryrun
 	opts.Stdin = nil
 	opts.Stdout = &stdout
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "compute", "instances", "list"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "compute", "instances", "list", "--project", *flagProject); err != nil {
 		return nil, err
 	}
 	if ctx.Verbose() {

@@ -153,9 +153,13 @@ Vcloud Node Delete
 Delete GCE nodes. Runs 'gcloud compute instances delete'.
 
 Usage:
-   vcloud node delete <names>
+   vcloud node delete [flags] <names>
 
 <names> is a list of names identifying nodes to be deleted.
+
+The vcloud node delete flags are:
+ -zone=us-central1-f
+   Zone to delete the machine in.
 
 Vcloud Run
 
