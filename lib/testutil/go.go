@@ -1016,7 +1016,8 @@ func thirdPartyGoBuild(ctx *util.Context, testName string, opts ...TestOpt) (*Te
 	if err != nil {
 		return nil, err
 	}
-	return goBuild(ctx, testName, validatedPkgs)
+	profiles := profilesOpt([]string{"syncbase"})
+	return goBuild(ctx, testName, validatedPkgs, profiles)
 }
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
@@ -1033,7 +1034,8 @@ func thirdPartyGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*Tes
 	if err != nil {
 		return nil, err
 	}
-	return goTest(ctx, testName, excludedTestsOpt(exclusions), validatedPkgs)
+	profiles := profilesOpt([]string{"syncbase"})
+	return goTest(ctx, testName, excludedTestsOpt(exclusions), validatedPkgs, profiles)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
@@ -1051,7 +1053,8 @@ func thirdPartyGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*Tes
 	if err != nil {
 		return nil, err
 	}
-	return goTest(ctx, testName, args, excludedTestsOpt(exclusions), validatedPkgs)
+	profiles := profilesOpt([]string{"syncbase"})
+	return goTest(ctx, testName, args, excludedTestsOpt(exclusions), validatedPkgs, profiles)
 }
 
 // thirdPartyPkgs returns a list of Go expressions that describe all
