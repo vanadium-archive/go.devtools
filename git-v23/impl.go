@@ -372,6 +372,10 @@ func (r *review) checkGoFormat() (e error) {
 		if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
 			continue
 		}
+		// Skip Go files with a "testdata" component in the path.
+		if strings.Contains(path, "testdata"+string(filepath.Separator)) {
+			continue
+		}
 		goFiles = append(goFiles, file)
 	}
 	// Check if the formatting differs from gofmt.
