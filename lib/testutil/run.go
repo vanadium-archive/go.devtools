@@ -102,6 +102,7 @@ var testFunctions = map[string]func(*util.Context, string, ...TestOpt) (*TestRes
 	"vanadium-go-race":          vanadiumGoRace,
 	"vanadium-go-test":          vanadiumGoTest,
 	"vanadium-go-vdl":           vanadiumGoVDL,
+	"vanadium-go-ipc-stress":    vanadiumGoIPCStress,
 	"vanadium-integration-test": vanadiumIntegrationTest,
 	// TODO(jingjin): remove when the transition to go-based tests is done.
 	"vanadium-integration-test-old":   vanadiumIntegrationTestOld,
