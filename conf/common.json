@@ -27,6 +27,11 @@
       "javascript",
       "projects"
     ],
+    "release.go.v23": [
+      "go",
+      "javascript",
+      "projects"
+    ],
     "release.go.wspr": [
       "go",
       "javascript",
