@@ -464,12 +464,12 @@ func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatche
 // indication of whether this package should be included in test runs
 // and a list of the specific tests that should be run (which if nil
 // means running all of the tests), and a list of the skipped tests.
-func filterExcludedTests(pkg string, tests []string, excludedTests []test) (bool, []string, []string) {
+func filterExcludedTests(pkg string, testNames []string, excludedTests []test) (bool, []string, []string) {
 	excluded := []string{}
-	for _, test := range tests {
+	for _, name := range testNames {
 		for _, exclude := range excludedTests {
-			if exclude.pkg == pkg && exclude.re.MatchString(test) {
-				excluded = append(excluded, test)
+			if exclude.pkgRE.MatchString(pkg) && exclude.nameRE.MatchString(name) {
+				excluded = append(excluded, name)
 				break
 			}
 		}
@@ -480,16 +480,16 @@ func filterExcludedTests(pkg string, tests []string, excludedTests []test) (bool
 	}
 
 	remaining := []string{}
-	for _, test := range tests {
+	for _, name := range testNames {
 		found := false
 		for _, exclude := range excluded {
-			if test == exclude {
+			if name == exclude {
 				found = true
 				break
 			}
 		}
 		if !found {
-			remaining = append(remaining, test)
+			remaining = append(remaining, name)
 		}
 	}
 	return len(remaining) > 0, remaining, excluded
@@ -892,9 +892,10 @@ func getListenerPID(ctx *util.Context, port string) (int, error) {
 }
 
 type test struct {
-	pkg  string
-	name string
-	re   *regexp.Regexp
+	pkg    string
+	name   string
+	pkgRE  *regexp.Regexp
+	nameRE *regexp.Regexp
 }
 
 type exclusion struct {
@@ -906,31 +907,23 @@ var thirdPartyExclusions []exclusion
 
 func init() {
 	thirdPartyExclusions = []exclusion{
-		// The following test requires an X server, which is not available
-		// on some of our continuous integration instances. It also
-		// seems to be broken on macs with some sort of cgo problem:
-		//	duplicate symbol _CGCreate in:
-		//  $WORK/golang.org/x/mobile/gl/glutil/_test/_obj_test/context_darwin.cgo2.o
-		// $WORK/golang.org/x/mobile/gl/glutil/_test/_obj_test/context_darwin_amd64.cgo2.o
-		// ld: 1 duplicate symbol for architecture x86_64
-		// clang: error: linker command failed with exit code 1 (use -v to see invocation)
-		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isCIOrDarwin()},
-		// This is similarly broken on macs due to some sort of cgo problem:
-		// /usr/local/go/pkg/tool/darwin_amd64/6c: duplicate TEXT for _cgoexp_faea4ae70acb_setGeom
-		exclusion{test{"golang.org/x/mobile/app", ".*", nil}, isDarwin()},
+		// These tests are not maintained very well and are broken on all
+		// platforms.
+		// TODO(spetrovic): Put these back in once the owners fixes them.
+		exclusion{test{pkg: "golang.org/x/mobile", name: ".*"}, true},
 		// The following test requires IPv6, which is not available on
 		// some of our continuous integration instances.
-		exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle", nil}, isCI()},
+		exclusion{test{pkg: "golang.org/x/net/icmp", name: "TestPingGoogle"}, isCI()},
 		// The following test expects to see "FAIL: TestBar" which causes
 		// go2xunit to fail.
-		exclusion{test{"golang.org/x/tools/go/ssa/interp", "TestTestmainPackage", nil}, true},
+		exclusion{test{pkg: "golang.org/x/tools/go/ssa/interp", name: "TestTestmainPackage"}, true},
 		// Don't run this test on mac systems prior to Yosemite since it
 		// can crash some machines.
-		exclusion{test{"golang.org/x/net/ipv6", ".*", nil}, !isYosemite()},
+		exclusion{test{pkg: "golang.org/x/net/ipv6", name: ".*"}, !isYosemite()},
 		// The fsnotify package tests are flaky on darwin. This begs the
 		// question of whether we should be relying on this library at
 		// all.
-		exclusion{test{"github.com/howeyc/fsnotify", ".*", nil}, isDarwin()},
+		exclusion{test{pkg: "github.com/howeyc/fsnotify", name: ".*"}, isDarwin()},
 	}
 }
 
@@ -944,11 +937,13 @@ func excludedTests(exclusions []exclusion) ([]test, error) {
 	excluded := make([]test, 0, len(exclusions))
 	for _, e := range exclusions {
 		if e.exclude {
-			re, err := regexp.Compile(e.desc.name)
-			if err != nil {
+			var err error
+			if e.desc.pkgRE, err = regexp.Compile(e.desc.pkg); err != nil {
 				return nil, err
 			}
-			e.desc.re = re
+			if e.desc.nameRE, err = regexp.Compile(e.desc.name); err != nil {
+				return nil, err
+			}
 			excluded = append(excluded, e.desc)
 		}
 	}
