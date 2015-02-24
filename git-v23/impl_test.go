@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -500,6 +501,7 @@ func TestGoFormatOK(t *testing.T) {
 	if err := ctx.Git().CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
+	// Make a simple Go file.
 	file, fileContent := "file.go", `package main
 
 func main() {}
@@ -507,8 +509,18 @@ func main() {}
 	if err := ctx.Run().WriteFile(file, []byte(fileContent), 0644); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", file, fileContent, err)
 	}
-	commitMessage := "Commit " + file
-	if err := ctx.Git().CommitFile(file, commitMessage); err != nil {
+	// Make an invalid Go file in a testdata/ directory.
+	const testdata = "testdata"
+	testFile, testContent := filepath.Join(testdata, "invalid.go"), "// No package decl"
+	if err := ctx.Run().MkdirAll(testdata, 0744); err != nil {
+		t.Fatalf("MkdirAll(%v) failed: %v", testdata, err)
+	}
+	if err := ctx.Run().WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("WriteFile(%v, %v) failed: %v", testFile, testContent, err)
+	}
+	// Commit the files.
+	commitMessage := fmt.Sprint("Commit %v", []string{file, testFile})
+	if err := ctx.Git().CommitWithMessage(commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 	draft, edit, repo, reviewers, ccs, presubmit := false, false, gerritPath, "", "", gerrit.PresubmitTestTypeAll
