@@ -1,7 +1,7 @@
 {
 	"dependencies": {
 		"outgoing": [
-			{"allow": "veyron/runtimes/..."}
+			{"allow": "v23/runtimes/..."}
 		]
 	}
 }

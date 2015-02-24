@@ -25,10 +25,10 @@ var cmdGoPkg = &cmdline.Command{
 Print information about go package(s).
 
 Example of printing all top-level information about the vdl package:
-  v23 run gopkg v.io/core/veyron2/vdl
+  v23 run gopkg v.io/v23/vdl
 
 Example of printing the names of all Test* funcs from the vdl package:
-  v23 run gopkg -test -kind=func -name_re 'Test.*' -type_re 'func\(.*testing\.T\)' -noheader -notype v.io/core/veyron2/vdl
+  v23 run gopkg -test -kind=func -name_re 'Test.*' -type_re 'func\(.*testing\.T\)' -noheader -notype v.io/v23/vdl
 `,
 	ArgsName: "<args>",
 	ArgsLong: loader.FromArgsUsage,

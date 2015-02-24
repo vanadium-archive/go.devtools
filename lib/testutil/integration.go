@@ -43,7 +43,7 @@ var binPackages = []string{
 	"v.io/core/veyron/tools/principal",
 	"v.io/core/veyron/tools/profile",
 	"v.io/core/veyron/tools/naming/simulator",
-	"v.io/core/veyron2/vdl/vdl",
+	"v.io/v23/vdl/vdl",
 	"v.io/wspr/veyron/services/wsprd",
 }
 

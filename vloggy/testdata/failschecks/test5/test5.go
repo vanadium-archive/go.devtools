@@ -3,7 +3,7 @@
 // pointers)
 package test5
 
-import "v.io/core/veyron2/vlog"
+import "v.io/v23/vlog"
 
 type Type struct{}
 

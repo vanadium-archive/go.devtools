@@ -25,26 +25,26 @@ var dependencyPolicyConfigTests = []dependencyPolicyConfigTest{
 			{IsDenyRule: true, PackageExpression: "syscall"},
 		}, Incoming: []dependencyRule{},
 	}},
-	{"testdata/veyron-runtimes.depcop", dependencyPolicy{
+	{"testdata/v23-runtimes.depcop", dependencyPolicy{
 		Incoming: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "veyron2/rt/..."},
+			{IsDenyRule: false, PackageExpression: "v23/rt/..."},
 			{IsDenyRule: true, PackageExpression: "..."},
 		}, Outgoing: []dependencyRule{},
 	}},
-	{"testdata/veyron-x.depcop", dependencyPolicy{
+	{"testdata/v23-x.depcop", dependencyPolicy{
 		Incoming: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "veyron/X/..."},
+			{IsDenyRule: false, PackageExpression: "v23/X/..."},
 			{IsDenyRule: true, PackageExpression: "..."},
 		}, Outgoing: []dependencyRule{},
 	}},
-	{"testdata/veyron2-rt.depcop", dependencyPolicy{
+	{"testdata/v23-rt.depcop", dependencyPolicy{
 		Outgoing: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "veyron/runtimes/..."},
+			{IsDenyRule: false, PackageExpression: "v23/runtimes/..."},
 		}, Incoming: []dependencyRule{},
 	}},
-	{"testdata/veyron2.depcop", dependencyPolicy{
+	{"testdata/v23.depcop", dependencyPolicy{
 		Outgoing: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "veyron2/..."},
+			{IsDenyRule: false, PackageExpression: "v23/..."},
 			{IsDenyRule: true, PackageExpression: "..."},
 		}, Incoming: []dependencyRule{},
 	}},

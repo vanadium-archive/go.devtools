@@ -48,8 +48,8 @@ It uses golang.org/x/tools/{loader,types} to load and examine
 the types of a collection of go files. The input must be valid go
 packages.
 
-find-impl --interface=veyron2/security.Context <packages> will find
-all implementations of veyron2/security.Context in the specified
+find-impl --interface=v23/security.Context <packages> will find
+all implementations of v23/security.Context in the specified
 packages.
 
 A common use case will be:
