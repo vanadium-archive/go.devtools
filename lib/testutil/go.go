@@ -433,7 +433,7 @@ func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatche
 	pkgsWithTests := []string{}
 	for _, pkg := range pkgList {
 		config := loader.Config{
-			SourceImports:       false,
+			ImportFromBinary:    true,
 			TypeCheckFuncBodies: func(string) bool { return false },
 		}
 		config.ImportWithTests(pkg)
@@ -907,8 +907,17 @@ var thirdPartyExclusions []exclusion
 func init() {
 	thirdPartyExclusions = []exclusion{
 		// The following test requires an X server, which is not available
-		// on some of our continuous integration instances.
-		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isCI()},
+		// on some of our continuous integration instances. It also
+		// seems to be broken on macs with some sort of cgo problem:
+		//	duplicate symbol _CGCreate in:
+		//  $WORK/golang.org/x/mobile/gl/glutil/_test/_obj_test/context_darwin.cgo2.o
+		// $WORK/golang.org/x/mobile/gl/glutil/_test/_obj_test/context_darwin_amd64.cgo2.o
+		// ld: 1 duplicate symbol for architecture x86_64
+		// clang: error: linker command failed with exit code 1 (use -v to see invocation)
+		exclusion{test{"golang.org/x/mobile/gl/glutil", "TestImage", nil}, isCIOrDarwin()},
+		// This is similarly broken on macs due to some sort of cgo problem:
+		// /usr/local/go/pkg/tool/darwin_amd64/6c: duplicate TEXT for _cgoexp_faea4ae70acb_setGeom
+		exclusion{test{"golang.org/x/mobile/app", ".*", nil}, isDarwin()},
 		// The following test requires IPv6, which is not available on
 		// some of our continuous integration instances.
 		exclusion{test{"golang.org/x/net/icmp", "TestPingGoogle", nil}, isCI()},

@@ -29,3 +29,7 @@ func isYosemite() bool {
 func isLinux() bool {
 	return runtime.GOOS == "linux"
 }
+
+func isCIOrDarwin() bool {
+	return isCI() || isDarwin()
+}
