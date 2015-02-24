@@ -36,7 +36,7 @@ const (
 func load(interfaces, implementations, tags []string) (prog *loader.Program, err error) {
 	buildContext := build.Default
 	buildContext.BuildTags = tags
-	conf := loader.Config{SourceImports: true, Build: &buildContext}
+	conf := loader.Config{ImportFromBinary: false, Build: &buildContext}
 	allPackages := append(append([]string{}, interfaces...), implementations...)
 	conf.FromArgs(allPackages, false)
 	conf.ParserMode |= parser.ParseComments
