@@ -106,9 +106,9 @@ func (g *Git) Commit() error {
 }
 
 // CommitAmend amends the previous commit with the currently staged changes,
-// and the given message.
+// and the given message.  Empty commits are allowed.
 func (g *Git) CommitAmend(message string) error {
-	return g.run("commit", "--amend", "-m", message)
+	return g.run("commit", "--amend", "--allow-empty", "-m", message)
 }
 
 // CommitAndEdit commits all files in staging and allows the user to edit the
