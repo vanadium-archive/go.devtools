@@ -902,29 +902,32 @@ var thirdPartyExclusions []exclusion
 
 func init() {
 	thirdPartyExclusions = []exclusion{
+		// The fsnotify package tests are flaky on darwin. This begs the
+		// question of whether we should be relying on this library at
+		// all.
+		exclusion{test{pkg: "github.com/howeyc/fsnotify", name: ".*"}, isDarwin()},
 		// These tests are not maintained very well and are broken on all
 		// platforms.
 		// TODO(spetrovic): Put these back in once the owners fixes them.
 		exclusion{test{pkg: "golang.org/x/mobile", name: ".*"}, true},
-		// The following test is way out of date and doesn't work any more.
-		exclusion{test{pkg: "golang.org/x/tools", name: "TestCheck"}, true},
 		// The following test requires IPv6, which is not available on
 		// some of our continuous integration instances.
 		exclusion{test{pkg: "golang.org/x/net/icmp", name: "TestPingGoogle"}, isCI()},
+		// Don't run this test on mac systems prior to Yosemite since it
+		// can crash some machines.
+		exclusion{test{pkg: "golang.org/x/net/ipv6", name: ".*"}, !isYosemite()},
+		// The following test is way out of date and doesn't work any more.
+		exclusion{test{pkg: "golang.org/x/tools", name: "TestCheck"}, true},
+		// The following two tests use too much memory.
+		exclusion{test{pkg: "golang.org/x/tools/go/loader", name: "TestStdlib"}, true},
+		exclusion{test{pkg: "golang.org/x/tools/go/ssa", name: "TestStdlib"}, true},
 		// The following test expects to see "FAIL: TestBar" which causes
 		// go2xunit to fail.
 		exclusion{test{pkg: "golang.org/x/tools/go/ssa/interp", name: "TestTestmainPackage"}, true},
 		// More broken tests.
 		exclusion{test{pkg: "golang.org/x/tools/go/types", name: "TestCheck"}, true},
-		exclusion{test{pkg: "golang.org/x/tools/refactor/importgraph", name: "TestBuild"}, true},
 		exclusion{test{pkg: "golang.org/x/tools/refactor/lexical", name: "TestStdlib"}, true},
-		// Don't run this test on mac systems prior to Yosemite since it
-		// can crash some machines.
-		exclusion{test{pkg: "golang.org/x/net/ipv6", name: ".*"}, !isYosemite()},
-		// The fsnotify package tests are flaky on darwin. This begs the
-		// question of whether we should be relying on this library at
-		// all.
-		exclusion{test{pkg: "github.com/howeyc/fsnotify", name: ".*"}, isDarwin()},
+		exclusion{test{pkg: "golang.org/x/tools/refactor/importgraph", name: "TestBuild"}, true},
 	}
 }
 
