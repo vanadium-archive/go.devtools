@@ -294,6 +294,7 @@ func getPostSubmitBuildStatus(ctx *util.Context, jobName, slaveLabel string, tim
 
 // All the multi-configuration Jenkins jobs.
 var multiConfigurationJobs = map[string]struct{}{
+	"third_party-go-test":       struct{}{},
 	"vanadium-go-build":         struct{}{},
 	"vanadium-go-test":          struct{}{},
 	"vanadium-integration-test": struct{}{},
