@@ -138,7 +138,9 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
-	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, testutil.ShortOpt(true)); err == nil {
+	prefix := fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("L"), testFlag)
+	opts := []testutil.TestOpt{testutil.ShortOpt(true), testutil.PrefixOpt(prefix)}
+	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, opts...); err == nil {
 		result, ok := results[testFlag]
 		if !ok {
 			return fmt.Errorf("No test result found for %q", testFlag)

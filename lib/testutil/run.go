@@ -2,12 +2,15 @@ package testutil
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -36,12 +39,12 @@ const (
 )
 
 const (
-	// Number of lines to be included in the error messsage of an xUnit report.
+	// numLinesToOutput identifies the number of lines to be included in
+	// the error messsage of an xUnit report.
 	numLinesToOutput = 50
-
-	// The initial size of the buffer for storing command output in the
-	// test context.
-	largeBufferBytes = 1048576
+	// gsPrefix identifies the prefix of a Google Storage location where
+	// test results are stored.
+	gsPrefix = "gs://vanadium-test-results/v0/"
 )
 
 func (s TestStatus) String() string {
@@ -140,15 +143,21 @@ type TestOpt interface {
 	TestOpt()
 }
 
-// PkgsOpt is an option that can be used to specify which Go tests to run using
-// a list of Go package expressions.
+// PrefixOpt is an option that specifies the location where to
+// store test results.
+type PrefixOpt string
+
+func (PrefixOpt) TestOpt() {}
+
+// PkgsOpt is an option that specifies which Go tests to run using a
+// list of Go package expressions.
 type PkgsOpt []string
 
-// ShortOpt is an option to specify whether to run short tests only in
-// VanadiumGoTest and VanadiumGoRace.
-type ShortOpt bool
-
 func (PkgsOpt) TestOpt() {}
+
+// ShortOpt is an option that specifies whether to run short tests
+// only in VanadiumGoTest and VanadiumGoRace.
+type ShortOpt bool
 
 func (ShortOpt) TestOpt() {}
 
@@ -240,6 +249,14 @@ func TestList() ([]string, error) {
 
 // runTests runs the given tests, populating the results map.
 func runTests(ctx *util.Context, tests []string, results map[string]*TestResult, opts ...TestOpt) error {
+	path := ""
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case PrefixOpt:
+			path = gsPrefix + string(typedOpt)
+		}
+	}
+
 	for _, test := range tests {
 		testFn, ok := testFunctions[test]
 		if !ok {
@@ -247,20 +264,28 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult,
 		}
 		fmt.Fprintf(ctx.Stdout(), "##### Running test %q #####\n", test)
 
-		// Create a buffer to capture testFn's stdout and stderr.
-		largeBuffer := make([]byte, 0, largeBufferBytes)
-		out := bytes.NewBuffer(largeBuffer)
+		// Create a 1MB buffer to capture the test function output.
+		var out bytes.Buffer
+		const largeBufferSize = 1 << 20
+		out.Grow(largeBufferSize)
 		runOpts := ctx.Run().Opts()
-		stdout := io.MultiWriter(out, runOpts.Stdout)
-		stderr := io.MultiWriter(out, runOpts.Stderr)
+		stdout := io.MultiWriter(&out, runOpts.Stdout)
+		stderr := io.MultiWriter(&out, runOpts.Stderr)
 		newCtx := util.NewContext(ctx.Env(), ctx.Stdin(), stdout, stderr, ctx.Color(), ctx.DryRun(), ctx.Verbose())
-		result, internalErr := testFn(newCtx, test, opts...)
-		if internalErr != nil {
-			r, err := genXUnitReportOnInternalError(newCtx, test, internalErr, out.String())
+
+		// Run the test and collect the test results.
+		result, err := testFn(newCtx, test, opts...)
+		if err != nil {
+			r, err := generateXUnitReportForError(newCtx, test, err, out.String())
 			if err != nil {
 				return err
 			}
 			result = r
+		}
+		if path != "" {
+			if err := persistTestData(ctx, result, &out, test, path); err != nil {
+				fmt.Fprintf(ctx.Stderr(), "failed to store test results: %v\n", err)
+			}
 		}
 		results[test] = result
 		fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", results[test].Status)
@@ -268,13 +293,68 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult,
 	return nil
 }
 
-// genXUnitReportOnInternalError generates an xUnit test report for the given
-// internal error.
-func genXUnitReportOnInternalError(ctx *util.Context, testName string, internalErr error, output string) (*TestResult, error) {
-	xUnitFilePath := XUnitReportPath(testName)
+// persistTestData uploads test data to Google Storage.
+func persistTestData(ctx *util.Context, result *TestResult, output *bytes.Buffer, test, path string) error {
+	// Write test data to a temporary directory.
+	tmpDir, err := ctx.Run().TempDir("", "")
+	if err != nil {
+		return err
+	}
+	defer ctx.Run().RemoveAll(tmpDir)
+	conf := struct {
+		Arch string
+		OS   string
+	}{
+		Arch: runtime.GOARCH,
+		OS:   runtime.GOOS,
+	}
+	{
+		bytes, err := json.Marshal(conf)
+		if err != nil {
+			return fmt.Errorf("Marshal(%v) failed: %v", err)
+		}
+		confFile := filepath.Join(tmpDir, "conf")
+		if err := ctx.Run().WriteFile(confFile, bytes, os.FileMode(0600)); err != nil {
+			return err
+		}
+	}
+	{
+		bytes, err := json.Marshal(result)
+		if err != nil {
+			return fmt.Errorf("Marshal(%v) failed: %v", err)
+		}
+		resultFile := filepath.Join(tmpDir, "result")
+		if err := ctx.Run().WriteFile(resultFile, bytes, os.FileMode(0600)); err != nil {
+			return err
+		}
+	}
+	outputFile := filepath.Join(tmpDir, "output")
+	if err := ctx.Run().WriteFile(outputFile, output.Bytes(), os.FileMode(0600)); err != nil {
+		return err
+	}
+	// Upload test data to Google Storage.
+	{
+		args := []string{"cp", "-q", "-m", filepath.Join(tmpDir, "*"), path + "/" + test}
+		if err := ctx.Run().Command("gsutil", args...); err != nil {
+			return err
+		}
+	}
+	{
+		args := []string{"cp", "-q", XUnitReportPath(test), path + "/" + test + "/" + "xunit.xml"}
+		if err := ctx.Run().Command("gsutil", args...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	// Only create the report when the xUnit file doesn't exist, is invalid, or
-	// exist but doesn't have failed test cases.
+// generateXUnitReportForError generates an xUnit test report for the
+// given (internal) error.
+func generateXUnitReportForError(ctx *util.Context, test string, err error, output string) (*TestResult, error) {
+	xUnitFilePath := XUnitReportPath(test)
+
+	// Only create the report when the xUnit file doesn't exist, is
+	// invalid, or exist but doesn't have failed test cases.
 	createXUnitFile := false
 	if _, err := os.Stat(xUnitFilePath); err != nil {
 		if os.IsNotExist(err) {
@@ -303,24 +383,24 @@ func genXUnitReportOnInternalError(ctx *util.Context, testName string, internalE
 
 	if createXUnitFile {
 		errType := "Internal Error"
-		iErr, ok := internalErr.(internalTestError)
+		internalErr, ok := err.(internalTestError)
 		if ok {
-			errType = iErr.name
+			errType = internalErr.name
 		}
-		// Create a test suite to encapsulate the error.
-		// Include last <numLinesToOutput> lines of the output in the error message.
+		// Create a test suite to encapsulate the error. Include last
+		// <numLinesToOutput> lines of the output in the error message.
 		lines := strings.Split(output, "\n")
 		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
 		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
 		errMsg := fmt.Sprintf("Error message:\n%s\n\nConsole output:\n%s\n", internalErr.Error(), consoleOutput)
-		s := createTestSuiteWithFailure(testName, errType, errType, errMsg, 0)
+		s := createTestSuiteWithFailure(test, errType, errType, errMsg, 0)
 		suites := []testSuite{*s}
 
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
+		if err := createXUnitReport(ctx, test, suites); err != nil {
 			return nil, err
 		}
 
-		if iErr == runutil.CommandTimedOutErr {
+		if internalErr == runutil.CommandTimedOutErr {
 			return &TestResult{Status: TestTimedOut}, nil
 		}
 	}
