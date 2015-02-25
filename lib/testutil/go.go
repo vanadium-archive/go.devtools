@@ -919,6 +919,9 @@ func init() {
 		// The following test expects to see "FAIL: TestBar" which causes
 		// go2xunit to fail.
 		exclusion{test{pkg: "golang.org/x/tools/go/ssa/interp", name: "TestTestmainPackage"}, true},
+		// More broken tests.
+		exclusion{test{pkg: "golang.org/x/tools/go/types", name: "TestCheck"}, true},
+		exclusion{test{pkg: "golang.org/x/tools/refactor/importgraph", name: "TestBuild"}, true},
 		// Don't run this test on mac systems prior to Yosemite since it
 		// can crash some machines.
 		exclusion{test{pkg: "golang.org/x/net/ipv6", name: ".*"}, !isYosemite()},
