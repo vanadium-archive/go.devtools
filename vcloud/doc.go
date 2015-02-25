@@ -22,7 +22,7 @@ The global flags are:
    Format output in color.
  -n=false
    Show what commands will run, but do not execute them.
- -project=google.com:veyron
+ -project=vanadium-internal
    Specify the gcloud project.
  -user=veyron
    Run operations as the given user on each node.

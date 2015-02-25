@@ -232,7 +232,7 @@ var defaultMessageHeader = `
 #
 # For example:
 #
-# veyron/runtimes/google/ipc/stream/proxy: add publish address
+# ipc/stream/proxy: add publish address
 #
 # The listen address is not always the same as the address that external
 # users need to connect to. This CL adds a new argument to proxy.New()

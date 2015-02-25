@@ -18,12 +18,12 @@ func TestParseUserAndHost(t *testing.T) {
 	testCases := []testCase{
 		// Valid arguments: testing two different users.
 		testCase{
-			args:          []string{"jiri@home", "veyron@work"},
+			args:          []string{"jiri@home", "vanadium@work"},
 			expectedError: nil,
 			expectedHostA: "home",
 			expectedHostB: "work",
 			expectedUserA: "jiri",
-			expectedUserB: "veyron",
+			expectedUserB: "vanadium",
 		},
 		// Valid arguments: testing the default for the second user.
 		testCase{
@@ -54,7 +54,7 @@ func TestParseUserAndHost(t *testing.T) {
 		},
 		// Invalid arguments: more than one '@' character.
 		testCase{
-			args:          []string{"jiri@home@office", "veyron@work"},
+			args:          []string{"jiri@home@office", "vanadium@work"},
 			expectedError: fmt.Errorf("unexpected length of [jiri home office]: expected at most 2"),
 			expectedHostA: "",
 			expectedHostB: "",

@@ -15,16 +15,16 @@ func TestEnforceDependencyRulesOnPackage(t *testing.T) {
 	var dependencyRuleTests = []dependencyRuleTest{
 		{dependencyPolicy{
 			Outgoing: []dependencyRule{
-				{false, "veyron2/..."},
+				{false, "v23/..."},
 				{true, "..."},
 			},
 		}, []dependencyRuleTestCase{
-			{true, &build.Package{ImportPath: "veyron/test"}, rejectedPolicyAction, 1},
-			{true, &build.Package{ImportPath: "veyron2/test"}, approvedPolicyAction, 0},
+			{true, &build.Package{ImportPath: "google/test"}, rejectedPolicyAction, 1},
+			{true, &build.Package{ImportPath: "v23/test"}, approvedPolicyAction, 0},
 			{true, &build.Package{ImportPath: "fmt", Goroot: true}, undecidedPolicyAction, 0xc0de},
-			{false, &build.Package{ImportPath: "cool-veyron-app"}, undecidedPolicyAction, 0xcafe},
-			{false, &build.Package{ImportPath: "veyron2/testing"}, undecidedPolicyAction, 42},
-			{false, &build.Package{ImportPath: "veyron/testing"}, undecidedPolicyAction, 0},
+			{false, &build.Package{ImportPath: "cool-v23-app"}, undecidedPolicyAction, 0xcafe},
+			{false, &build.Package{ImportPath: "v23/testing"}, undecidedPolicyAction, 42},
+			{false, &build.Package{ImportPath: "google/testing"}, undecidedPolicyAction, 0},
 		}},
 		{dependencyPolicy{
 			Outgoing: []dependencyRule{

@@ -152,7 +152,7 @@ var (
 	flagColor   = flag.Bool("color", false, "Format output in color.")
 	flagDryRun  = flag.Bool("n", false, "Show what commands will run, but do not execute them.")
 	flagVerbose = flag.Bool("v", false, "Print verbose output.")
-	flagProject = flag.String("project", "google.com:veyron", "Specify the gcloud project.")
+	flagProject = flag.String("project", "vanadium-internal", "Specify the gcloud project.")
 	flagUser    = flag.String("user", "veyron", "Run operations as the given user on each node.")
 	// Command-specific flags.
 	flagListNoHeader bool

@@ -13,7 +13,7 @@ The vjenkins commands are:
 Run "vjenkins help [command]" for command usage.
 
 The vjenkins flags are:
- -jenkins=http://veyron-jenkins:8001/jenkins
+ -jenkins=http://localhost:8080/jenkins
    The host of the Jenkins master.
 
 The global flags are:
@@ -49,7 +49,7 @@ The vjenkins node create flags are:
    The credentials ID used to connect the master to the node.
  -description=
    Node description.
- -project=google.com:veyron
+ -project=vanadium-internal
    GCE project of the machine.
  -zone=us-central1-f
    GCE zone of the machine.
