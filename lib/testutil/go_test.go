@@ -378,9 +378,9 @@ func TestGoTestWithSuffix(t *testing.T) {
 // test based test logic.
 func TestGoTestWithExcludedTests(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test2", nil}, true},
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test3", nil}, true},
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "TestHelperProcess", nil}, true},
+		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "Test2"}, true},
+		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "Test3"}, true},
+		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "TestHelperProcess"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -391,7 +391,7 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 
 func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", "Test[23]$|TestHelperProcess", nil}, true},
+		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "Test[23]$|TestHelperProcess"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -402,7 +402,7 @@ func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 
 func TestGoTestExcludedPackage(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{"v.io/tools/lib/testutil/testdata/foo", ".*", nil}, true},
+		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: ".*"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {

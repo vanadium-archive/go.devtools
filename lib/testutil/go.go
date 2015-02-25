@@ -1039,7 +1039,8 @@ func thirdPartyGoTest(ctx *util.Context, testName string, opts ...TestOpt) (*Tes
 		return nil, err
 	}
 	profiles := profilesOpt([]string{"syncbase"})
-	return goTest(ctx, testName, excludedTestsOpt(exclusions), validatedPkgs, profiles)
+	suffix := suffixOpt(genTestNameSuffix("GoTest"))
+	return goTest(ctx, testName, suffix, excludedTestsOpt(exclusions), validatedPkgs, profiles)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
@@ -1058,7 +1059,8 @@ func thirdPartyGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*Tes
 		return nil, err
 	}
 	profiles := profilesOpt([]string{"syncbase"})
-	return goTest(ctx, testName, args, excludedTestsOpt(exclusions), validatedPkgs, profiles)
+	suffix := suffixOpt(genTestNameSuffix("GoRace"))
+	return goTest(ctx, testName, suffix, args, excludedTestsOpt(exclusions), validatedPkgs, profiles)
 }
 
 // thirdPartyPkgs returns a list of Go expressions that describe all
