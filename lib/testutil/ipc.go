@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	testNumServerNodes      = 4
-	testNumClientNodes      = 6
-	testNumWorkersPerClient = 16
+	testNumServerNodes      = 5
+	testNumClientNodes      = 10
+	testNumWorkersPerClient = 15
 	testMaxChunkCnt         = 100
 	testMaxPayloadSize      = 10000
 	testDuration            = 1 * time.Hour
@@ -25,10 +25,11 @@ const (
 	testWaitTimeForServerUp = 3 * time.Minute
 	testPort                = 10000
 
-	gceProject     = "vanadium-internal"
-	gceZone        = "asia-east1-a"
-	gceMachineType = "n1-highcpu-8"
-	gceNodePrefix  = "tmpnode-ipc-stress"
+	gceProject           = "vanadium-internal"
+	gceZone              = "asia-east1-a"
+	gceServerMachineType = "n1-highcpu-8"
+	gceClientMachineType = "n1-highcpu-4"
+	gceNodePrefix        = "tmpnode-ipc-stress"
 
 	vcloudPkg = "v.io/tools/vcloud"
 	serverPkg = "v.io/core/veyron/runtimes/google/ipc/stress/stressd"
@@ -106,16 +107,21 @@ func createNodes(ctx *util.Context) error {
 		"node", "create",
 		"-project", gceProject,
 		"-zone", gceZone,
-		"-machine_type", gceMachineType,
-	}
-	for n := 0; n < testNumServerNodes; n++ {
-		args = append(args, serverNodeName(n))
-	}
-	for n := 0; n < testNumClientNodes; n++ {
-		args = append(args, clientNodeName(n))
 	}
 
-	return ctx.Run().Command(cmd, args...)
+	serverArgs := append(args, "-machine_type", gceServerMachineType)
+	for n := 0; n < testNumServerNodes; n++ {
+		serverArgs = append(serverArgs, serverNodeName(n))
+	}
+	if err := ctx.Run().Command(cmd, serverArgs...); err != nil {
+		return err
+	}
+
+	clientArgs := append(args, "-machine_type", gceClientMachineType)
+	for n := 0; n < testNumClientNodes; n++ {
+		clientArgs = append(clientArgs, clientNodeName(n))
+	}
+	return ctx.Run().Command(cmd, clientArgs...)
 }
 
 func deleteNodes(ctx *util.Context) error {
