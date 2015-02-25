@@ -129,7 +129,9 @@ func VanadiumEnvironment(platform Platform) (*envutil.Snapshot, error) {
 		if err := setBluetoothCgoEnv(env, root, strings.TrimSpace(string(arch))); err != nil {
 			return nil, err
 		}
-		if err := setSyncbaseCgoEnv(env, root); err != nil {
+	}
+	if platform.OS == "darwin" || platform.OS == "linux" {
+		if err := setSyncbaseCgoEnv(env, root, platform.OS); err != nil {
 			return nil, err
 		}
 	}
@@ -314,7 +316,7 @@ func setNaclEnv(env *envutil.Snapshot, platform Platform) error {
 // setSyncbaseCgoEnv sets the CGO_ENABLED variable and adds the LevelDB
 // third-party C++ libraries vanadium Go code depends on to the CGO_CFLAGS and
 // CGO_LDFLAGS variables.
-func setSyncbaseCgoEnv(env *envutil.Snapshot, root string) error {
+func setSyncbaseCgoEnv(env *envutil.Snapshot, root, arch string) error {
 	// Set the CGO_* variables for the vanadium syncbase component.
 	env.Set("CGO_ENABLED", "1")
 	cflags := env.GetTokens("CGO_CFLAGS", " ")
@@ -326,7 +328,10 @@ func setSyncbaseCgoEnv(env *envutil.Snapshot, root string) error {
 		}
 	} else {
 		cflags = append(cflags, filepath.Join("-I"+dir, "include"))
-		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"), "-Wl,-rpath", filepath.Join(dir, "lib"))
+		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"))
+		if arch == "linux" {
+			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir, "lib"))
+		}
 	}
 	env.SetTokens("CGO_CFLAGS", cflags, " ")
 	env.SetTokens("CGO_LDFLAGS", ldflags, " ")
