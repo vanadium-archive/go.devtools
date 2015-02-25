@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/build"
+	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -16,9 +19,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
 
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/envutil"
@@ -384,13 +384,13 @@ func coverageWorker(ctx *util.Context, timeout string, args []string, pkgs <-cha
 // funcMatcher is the interface for determing if functions in the loaded ast
 // of a package match a certain criteria.
 type funcMatcher interface {
-	match(*types.Func) (bool, string)
+	match(*ast.FuncDecl) (bool, string)
 }
 
 type matchGoTestFunc struct{}
 
-func (t *matchGoTestFunc) match(fn *types.Func) (bool, string) {
-	name := fn.Name()
+func (t *matchGoTestFunc) match(fn *ast.FuncDecl) (bool, string) {
+	name := fn.Name.String()
 	// TODO(cnicolaou): match on signature, not just name.
 	return strings.HasPrefix(name, "Test"), name
 }
@@ -398,8 +398,8 @@ func (t *matchGoTestFunc) goTestOpt() {}
 
 type matchV23TestFunc struct{}
 
-func (t *matchV23TestFunc) match(fn *types.Func) (bool, string) {
-	name := fn.Name()
+func (t *matchV23TestFunc) match(fn *ast.FuncDecl) (bool, string) {
+	name := fn.Name.String()
 	// TODO(cnicolaou): match on signature, not just name.
 	return strings.HasPrefix(name, "TestV23"), name
 }
@@ -411,40 +411,35 @@ func (t *matchV23TestFunc) goTestOpt() {}
 // by the matcher interface.
 func goListPackagesAndFuncs(ctx *util.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 
+	env, err := util.VanadiumEnvironment(util.HostPlatform())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
+	}
 	pkgList, err := goutil.List(ctx, pkgs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list packages: %v", err)
 	}
 
-	env, err := util.VanadiumEnvironment(util.HostPlatform())
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
-	}
-	// The loader/builder package don't consistently respect the GOPATH
-	// that can be set in loader.Config.Build, so we set it globally here
-	// and reset it on exit. This is clearly a concurrency bug as currently
-	// coded.
-	prev := build.Default.GOPATH
-	defer func() { build.Default.GOPATH = prev }()
-
-	build.Default.GOPATH = env.Get("GOPATH")
-
 	matched := map[string][]string{}
 	pkgsWithTests := []string{}
+
+	buildContext := build.Default
+	buildContext.GOPATH = env.Get("GOPATH")
 	for _, pkg := range pkgList {
-		config := loader.Config{
-			ImportFromBinary:    true,
-			TypeCheckFuncBodies: func(string) bool { return false },
-		}
-		config.ImportWithTests(pkg)
-		prog, err := config.Load()
+		pi, err := buildContext.Import(pkg, ".", build.ImportMode(0))
 		if err != nil {
 			return nil, nil, err
 		}
-		for _, pi := range prog.InitialPackages() {
-			scope := pi.Pkg.Scope()
-			for _, sn := range scope.Names() {
-				fn, ok := scope.Lookup(sn).(*types.Func)
+		testFiles := append(pi.TestGoFiles, pi.XTestGoFiles...)
+		fset := token.NewFileSet() // positions are relative to fset
+		for _, testFile := range testFiles {
+			file := filepath.Join(pi.Dir, testFile)
+			testAST, err := parser.ParseFile(fset, file, nil, parser.Mode(0))
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed parsing: %v: %v", file, err)
+			}
+			for _, decl := range testAST.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
 				if !ok {
 					continue
 				}
