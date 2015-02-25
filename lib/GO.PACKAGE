@@ -1,12 +1,12 @@
 {
 	"dependencies": {
 		"incoming": [
-   			    {"allow": "v.io/tools/..."}
+			{"allow": "v.io/tools/..."}
 		],
 		"outgoing": [
-   			    {"allow": "v.io/lib/..."},
-			    {"allow": "v.io/tools/lib/..."},
-			    {"deny": "..."}
+			{"allow": "v.io/lib/..."},
+			{"allow": "v.io/tools/lib/..."},
+			{"deny": "..."}
 		]
 	}
 }
