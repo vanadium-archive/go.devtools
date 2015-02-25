@@ -911,6 +911,8 @@ func init() {
 		// platforms.
 		// TODO(spetrovic): Put these back in once the owners fixes them.
 		exclusion{test{pkg: "golang.org/x/mobile", name: ".*"}, true},
+		// The following test is way out of date and doesn't work any more.
+		exclusion{test{pkg: "golang.org/x/tools", name: "TestCheck"}, true},
 		// The following test requires IPv6, which is not available on
 		// some of our continuous integration instances.
 		exclusion{test{pkg: "golang.org/x/net/icmp", name: "TestPingGoogle"}, isCI()},
