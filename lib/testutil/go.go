@@ -917,6 +917,7 @@ func init() {
 		// More broken tests.
 		exclusion{test{pkg: "golang.org/x/tools/go/types", name: "TestCheck"}, true},
 		exclusion{test{pkg: "golang.org/x/tools/refactor/importgraph", name: "TestBuild"}, true},
+		exclusion{test{pkg: "golang.org/x/tools/refactor/lexical", name: "TestStdlib"}, true},
 		// Don't run this test on mac systems prior to Yosemite since it
 		// can crash some machines.
 		exclusion{test{pkg: "golang.org/x/net/ipv6", name: ".*"}, !isYosemite()},
