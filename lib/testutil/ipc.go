@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/runtimes/google/ipc/stress"
 	"v.io/tools/lib/collect"
 	"v.io/tools/lib/util"
 )
@@ -254,7 +253,7 @@ func runTest(ctx *util.Context, testName string) (*TestResult, error) {
 	fmt.Fprintf(ctx.Stdout(), "server ipc stats: %+v\n", *sStats)
 	fmt.Fprint(ctx.Stdout(), "\n")
 
-	if cStats.SumCount != sStats.SumCount || cStats.SumStreamCount != sStats.SumStreamCount {
+	if cStats.sumCount != sStats.sumCount || cStats.sumStreamCount != sStats.sumStreamCount {
 		suite := createTestSuiteWithFailure("StressTest", "VerifyStats", "Mismatched", fmt.Sprintf("%v != %v", cStats, sStats), 0)
 		if err := createXUnitReport(ctx, testName, []testSuite{*suite}); err != nil {
 			return nil, err
@@ -265,7 +264,12 @@ func runTest(ctx *util.Context, testName string) (*TestResult, error) {
 	return &TestResult{Status: TestPassed}, nil
 }
 
-func readStats(out string) (*stress.Stats, *stress.Stats, error) {
+type stressStats struct {
+	sumCount       uint64
+	sumStreamCount uint64
+}
+
+func readStats(out string) (*stressStats, *stressStats, error) {
 	re := regexp.MustCompile(`client stats: {SumCount:(\d+) SumStreamCount:(\d+)}`)
 	n, cStats, err := readOneStats(re, out)
 	if err != nil {
@@ -287,8 +291,8 @@ func readStats(out string) (*stress.Stats, *stress.Stats, error) {
 	return cStats, sStats, nil
 }
 
-func readOneStats(re *regexp.Regexp, out string) (int, *stress.Stats, error) {
-	var stats stress.Stats
+func readOneStats(re *regexp.Regexp, out string) (int, *stressStats, error) {
+	var stats stressStats
 	matches := re.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
 		if len(match) != 3 {
@@ -307,8 +311,8 @@ func readOneStats(re *regexp.Regexp, out string) (int, *stress.Stats, error) {
 			// this as a failure since it is very unlikely.
 			return 0, nil, fmt.Errorf("zero count: %v", match)
 		}
-		stats.SumCount += sumCount
-		stats.SumStreamCount += sumStreamCount
+		stats.sumCount += sumCount
+		stats.sumStreamCount += sumStreamCount
 	}
 	return len(matches), &stats, nil
 }
