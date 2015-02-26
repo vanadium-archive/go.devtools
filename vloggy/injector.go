@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"

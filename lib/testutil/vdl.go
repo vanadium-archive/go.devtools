@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/util"
 )
 
 // vanadiumGoVDL checks that all VDL-based Go source files are

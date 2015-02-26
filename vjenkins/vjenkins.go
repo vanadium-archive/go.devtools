@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 // TODO(jsimsa): Add tests by mocking out jenkins.

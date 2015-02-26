@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 func init() {
@@ -143,10 +143,10 @@ var (
 	wantBuild = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Build",
 					},
 				},
@@ -157,26 +157,26 @@ var (
 	wantTest = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test1",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test2",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test3",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestHelperProcess",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
 				},
@@ -188,10 +188,10 @@ var (
 	wantV23Test = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
 				},
@@ -203,26 +203,26 @@ var (
 	wantTestWithSuffix = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test1 [Suffix]",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test2 [Suffix]",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test3 [Suffix]",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestHelperProcess [Suffix]",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23 [Suffix]",
 					},
 				},
@@ -234,14 +234,14 @@ var (
 	wantTestWithExcludedTests = testSuites{
 		Suites: []testSuite{
 			testSuite{
-				Name: "v_io.tools/lib/testutil/testdata/foo",
+				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
 				Cases: []testCase{
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test1",
 					},
 					testCase{
-						Classname: "v_io.tools/lib/testutil/testdata/foo",
+						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
 				},
@@ -258,14 +258,14 @@ var (
 		BranchRate: 0,
 		Packages: []testCoveragePkg{
 			testCoveragePkg{
-				Name:       "v.io/tools/lib/testutil/testdata/foo",
+				Name:       "v.io/x/devtools/lib/testutil/testdata/foo",
 				LineRate:   0,
 				BranchRate: 0,
 				Complexity: 0,
 				Classes: []testCoverageClass{
 					testCoverageClass{
 						Name:       "-",
-						Filename:   "v.io/tools/lib/testutil/testdata/foo/foo.go",
+						Filename:   "v.io/x/devtools/lib/testutil/testdata/foo/foo.go",
 						LineRate:   0,
 						BranchRate: 0,
 						Complexity: 0,
@@ -294,7 +294,7 @@ func TestGoBuild(t *testing.T) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
-	testName, pkgName := "test-go-build", "v.io/tools/lib/testutil/testdata/foo"
+	testName, pkgName := "test-go-build", "v.io/x/devtools/lib/testutil/testdata/foo"
 	result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -324,7 +324,7 @@ func TestGoCoverage(t *testing.T) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
-	testName, pkgName := "test-go-coverage", "v.io/tools/lib/testutil/testdata/foo"
+	testName, pkgName := "test-go-coverage", "v.io/x/devtools/lib/testutil/testdata/foo"
 	result, err := goCoverage(ctx, testName, pkgsOpt([]string{pkgName}))
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -378,9 +378,9 @@ func TestGoTestWithSuffix(t *testing.T) {
 // test based test logic.
 func TestGoTestWithExcludedTests(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "Test2"}, true},
-		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "Test3"}, true},
-		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "TestHelperProcess"}, true},
+		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test2"}, true},
+		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test3"}, true},
+		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "TestHelperProcess"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -391,7 +391,7 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 
 func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: "Test[23]$|TestHelperProcess"}, true},
+		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test[23]$|TestHelperProcess"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -402,7 +402,7 @@ func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 
 func TestGoTestExcludedPackage(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{pkg: "v.io/tools/lib/testutil/testdata/foo", name: ".*"}, true},
+		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: ".*"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -419,7 +419,7 @@ func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSu
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
-	testName, pkgName := "test-go-test", "v.io/tools/lib/testutil/testdata/foo"
+	testName, pkgName := "test-go-test", "v.io/x/devtools/lib/testutil/testdata/foo"
 
 	opts := []goTestOpt{
 		pkgsOpt([]string{pkgName}),

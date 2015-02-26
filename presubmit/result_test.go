@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/tools/lib/jenkins"
-	"v.io/tools/lib/testutil"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/jenkins"
+	"v.io/x/devtools/lib/testutil"
+	"v.io/x/devtools/lib/util"
 )
 
 func TestGenFailedTestCasesGroupsForOneTest(t *testing.T) {
@@ -16,14 +16,14 @@ func TestGenFailedTestCasesGroupsForOneTest(t *testing.T) {
   <testsuite name="ts1" tests="4" errors="2" failures="2" skip="0">
     <testcase classname="c1.n" name="n1" time="0">
 		  <failure message="error">
-# v.io/tools/presubmit
-release/go/src/v.io/tools/presubmit/main.go:106: undefined: test
+# v.io/x/devtools/presubmit
+release/go/src/v.io/x/devtools/presubmit/main.go:106: undefined: test
 		  </failure>
     </testcase>
     <testcase classname="c2.n" name="n2" time="0">
 		  <failure message="error">
-# v.io/tools/v23
-release/go/src/v.io/tools/v23/main.go:1: you should feel bad
+# v.io/x/devtools/v23
+release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 		  </failure>
     </testcase>
     <testcase classname="c3.n" name="n3" time="0">
@@ -34,8 +34,8 @@ release/go/src/v.io/tools/v23/main.go:1: you should feel bad
     </testcase>
     <testcase classname="go.vanadium.abc" name="n5" time="0">
 		  <failure message="error">
-# v.io/tools/v23
-release/go/src/v.io/tools/v23/main.go:1: you should feel bad
+# v.io/x/devtools/v23
+release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 		  </failure>
     </testcase>
   </testsuite>

@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/tools/lib/envutil"
+	"v.io/x/devtools/lib/envutil"
 )
 
 const (

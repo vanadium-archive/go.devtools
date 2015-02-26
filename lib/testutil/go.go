@@ -20,10 +20,10 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/envutil"
-	"v.io/tools/lib/goutil"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/envutil"
+	"v.io/x/devtools/lib/goutil"
+	"v.io/x/devtools/lib/util"
 )
 
 type taskStatus int

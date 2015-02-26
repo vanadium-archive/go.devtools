@@ -10,7 +10,7 @@ import (
 const (
 	failingPrefix       = "failschecks"
 	failingPackageCount = 7
-	testPackagePrefix   = "v.io/tools/vloggy/testdata"
+	testPackagePrefix   = "v.io/x/devtools/vloggy/testdata"
 )
 
 func TestValidPackages(t *testing.T) {

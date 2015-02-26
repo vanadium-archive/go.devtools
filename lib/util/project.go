@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/gitutil"
-	"v.io/tools/lib/runutil"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/gitutil"
+	"v.io/x/devtools/lib/runutil"
 )
 
 // CL represents a changelist.
@@ -337,7 +337,7 @@ func BuildTool(ctx *Context, outputDir, name, pkg string, toolsProject Project) 
 	default:
 		return UnsupportedProtocolErr(toolsProject.Protocol)
 	}
-	ldflags := fmt.Sprintf("-X v.io/tools/lib/version.Version %d", count)
+	ldflags := fmt.Sprintf("-X v.io/x/devtools/lib/version.Version %d", count)
 	args := []string{"build", "-ldflags", ldflags, "-o", output, pkg}
 	var stderr bytes.Buffer
 	opts := ctx.Run().Opts()

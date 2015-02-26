@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/gitutil"
-	"v.io/tools/lib/runutil"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/gitutil"
+	"v.io/x/devtools/lib/runutil"
 )
 
 var (

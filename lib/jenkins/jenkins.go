@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/tools/lib/collect"
+	"v.io/x/devtools/lib/collect"
 )
 
 func New(host string) (*Jenkins, error) {

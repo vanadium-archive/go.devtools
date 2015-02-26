@@ -5,7 +5,7 @@ import (
 	"go/build"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/version"
+	"v.io/x/devtools/lib/version"
 )
 
 var (

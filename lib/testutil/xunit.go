@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 type testSuites struct {

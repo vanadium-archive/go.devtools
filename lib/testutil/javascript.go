@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/runutil"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/runutil"
+	"v.io/x/devtools/lib/util"
 )
 
 const (

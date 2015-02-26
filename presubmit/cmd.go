@@ -9,12 +9,12 @@ import (
 	"strings"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/util"
-	"v.io/tools/lib/version"
+	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/version"
 )
 
 const (
-	defaultConfigFile       = "$VANADIUM_ROOT/release/go/src/v.io/tools/conf/presubmit"
+	defaultConfigFile       = "$VANADIUM_ROOT/release/go/src/v.io/x/devtools/conf/presubmit"
 	defaultGerritBaseUrl    = "https://vanadium-review.googlesource.com"
 	defaultLogFilePath      = "$HOME/tmp/presubmit_log"
 	defaultNetRcFilePath    = "$HOME/.netrc"

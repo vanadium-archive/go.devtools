@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 // List inputs a list of Go package expressions and returns a list of

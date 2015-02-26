@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/tools/lib/gerrit"
-	"v.io/tools/lib/gitutil"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/gerrit"
+	"v.io/x/devtools/lib/gitutil"
+	"v.io/x/devtools/lib/util"
 )
 
 // assertCommitCount asserts that the commit count between two

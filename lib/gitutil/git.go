@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/tools/lib/runutil"
+	"v.io/x/devtools/lib/runutil"
 )
 
 const Force = true

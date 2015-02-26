@@ -5,11 +5,11 @@ import (
 	"os"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/gerrit"
-	"v.io/tools/lib/gitutil"
-	"v.io/tools/lib/hgutil"
-	"v.io/tools/lib/jenkins"
-	"v.io/tools/lib/runutil"
+	"v.io/x/devtools/lib/gerrit"
+	"v.io/x/devtools/lib/gitutil"
+	"v.io/x/devtools/lib/hgutil"
+	"v.io/x/devtools/lib/jenkins"
+	"v.io/x/devtools/lib/runutil"
 )
 
 // Context represents an execution context of a tool command

@@ -8,9 +8,9 @@
 // in a single file within a related package:
 //
 // 1) if you obtained the code using 'go get':
-// "go run $(go list -f {{.Dir}} v.io/tools/lib/testutil)/excluded_tests.go"
+// "go run $(go list -f {{.Dir}} v.io/x/devtools/lib/testutil)/excluded_tests.go"
 // 2) if you are using the v23 tool and "VANADIUM_ROOT" setup.
-// "v23 go run $(v23 go list -f {{.Dir}} v.io/tools/lib/testutil)/excluded_tests.go"
+// "v23 go run $(v23 go list -f {{.Dir}} v.io/x/devtools/lib/testutil)/excluded_tests.go"
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 	"os"
 	"runtime"
 
-	"v.io/tools/lib/testutil"
+	"v.io/x/devtools/lib/testutil"
 )
 
 func main() {

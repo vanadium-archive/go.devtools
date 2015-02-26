@@ -1,8 +1,8 @@
 package testutil
 
 import (
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/util"
 )
 
 // vanadiumPostsubmitPoll polls for new changes in all projects' master branches,

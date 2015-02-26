@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 var (

@@ -1,8 +1,8 @@
 package testinternal
 
 import (
-	"v.io/tools/go-depcop/testdata/test-internal/internal"
-	"v.io/tools/go-depcop/testdata/test-internal/internal/child"
+	"v.io/x/devtools/go-depcop/testdata/test-internal/internal"
+	"v.io/x/devtools/go-depcop/testdata/test-internal/internal/child"
 )
 
 func main() {

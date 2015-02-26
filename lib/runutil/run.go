@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/tools/lib/envutil"
+	"v.io/x/devtools/lib/envutil"
 )
 
 const (

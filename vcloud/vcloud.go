@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 // TODO(toddw): Add tests by mocking out gcloud.

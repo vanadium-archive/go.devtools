@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"time"
 
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/util"
 )
 
 // generateTestSuite generates an xUnit test suite that encapsulates

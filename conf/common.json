@@ -32,7 +32,8 @@
       "javascript",
       "projects"
     ],
-    "release.go.wspr": [
+    "release.go.x.devtools": [
+      "third_party-go",
       "go",
       "javascript",
       "projects"

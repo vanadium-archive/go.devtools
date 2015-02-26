@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/util"
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {

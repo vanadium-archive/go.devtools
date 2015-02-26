@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/tools/lib/collect"
-	"v.io/tools/lib/util"
+	"v.io/x/devtools/lib/collect"
+	"v.io/x/devtools/lib/util"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 	gceClientMachineType = "n1-highcpu-4"
 	gceNodePrefix        = "tmpnode-ipc-stress"
 
-	vcloudPkg = "v.io/tools/vcloud"
+	vcloudPkg = "v.io/x/devtools/vcloud"
 	serverPkg = "v.io/core/veyron/runtimes/google/ipc/stress/stressd"
 	clientPkg = "v.io/core/veyron/runtimes/google/ipc/stress/stress"
 )
