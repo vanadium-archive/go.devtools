@@ -35,7 +35,7 @@ func TestProjectTests(t *testing.T) {
 	}
 }
 
-func TestGenXUnitReportOnInternalError(t *testing.T) {
+func TestGenXUnitReportForError(t *testing.T) {
 	ctx := util.DefaultContext()
 
 	// Set WORKSPACE to a tmp dir.
@@ -170,7 +170,7 @@ func TestGenXUnitReportOnInternalError(t *testing.T) {
 				t.Fatalf("WriteFile(%v) failed: %v", xUnitFileName, err)
 			}
 		}
-		testResult, err := genXUnitReportOnInternalError(ctx, "vanadium-go-test", internalErr, "output message")
+		testResult, err := generateXUnitReportForError(ctx, "vanadium-go-test", internalErr, "output message")
 		if err != nil {
 			t.Fatalf("want no errors, got %v", err)
 		}
