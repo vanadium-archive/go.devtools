@@ -45,10 +45,11 @@ const failureReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
 `
 
 const (
-	mergeConflictTestClass   = "merge conflict"
-	mergeConflictMessageTmpl = "Possible merge conflict detected in %s.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted."
-	unknownStatus            = "UNKNOWN"
-	nanoToMiliSeconds        = 1000000
+	mergeConflictTestClass    = "merge conflict"
+	mergeConflictMessageTmpl  = "Possible merge conflict detected in %s.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted."
+	nanoToMiliSeconds         = 1000000
+	prepareTestBranchAttempts = 3
+	unknownStatus             = "UNKNOWN"
 )
 
 type cl struct {
@@ -113,18 +114,27 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	}()
 
 	// Prepare presubmit test branch.
-	if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
-		if failedCL != nil {
-			fmt.Fprintf(ctx.Stderr(), "%s: %v\n", failedCL.String(), err)
-		}
-		// Possible merge conflict.
-		if strings.Contains(err.Error(), "git pull") {
-			if err := recordMergeConflict(ctx, failedCL); err != nil {
-				return err
+	for i := 1; i <= prepareTestBranchAttempts; i++ {
+		if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
+			if i > 1 {
+				fmt.Fprintf(ctx.Stdout(), "Attempt #%d:\n", i)
 			}
-			return nil
+			if failedCL != nil {
+				fmt.Fprintf(ctx.Stderr(), "%s: %v\n", failedCL.String(), err)
+			}
+			if strings.Contains(err.Error(), "unable to access") {
+				// Cannot access googlesource.com, try again.
+				continue
+			}
+			if strings.Contains(err.Error(), "git pull") {
+				// Possible merge conflict.
+				if err := recordMergeConflict(ctx, failedCL); err != nil {
+					return err
+				}
+				return nil
+			}
+			return err
 		}
-		return err
 	}
 
 	// Rebuild developer tools and override VANADIUM_ROOT/bin.
