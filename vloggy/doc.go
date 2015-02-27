@@ -10,8 +10,8 @@ construct, and 2) automatically inject such logging constructs.
 
 LIMITATIONS:
 
-vloggy requires the "v.io/v23/vlog" to be imported as "vlog".  Aliasing the log
-package to another name makes vloggy ignore the calls.  Importing any other
+vloggy requires the "v.io/x/lib/vlog" to be imported as "vlog".  Aliasing the
+log package to another name makes vloggy ignore the calls.  Importing any other
 package with the name "vlog" will invoke undefined behavior.
 
 Usage:

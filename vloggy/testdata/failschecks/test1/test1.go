@@ -4,7 +4,7 @@ package test1
 
 import (
 	"fmt"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 type Type1 struct{}

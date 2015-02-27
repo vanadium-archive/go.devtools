@@ -2,7 +2,7 @@
 // all the necessary logging constructs.
 package passeschecks
 
-import "v.io/v23/vlog"
+import "v.io/x/lib/vlog"
 
 type Type1 struct{}
 
