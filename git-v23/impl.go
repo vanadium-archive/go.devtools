@@ -34,6 +34,7 @@ var (
 	verboseFlag     bool
 	uncommittedFlag bool
 	untrackedFlag   bool
+	editFlag        bool
 )
 
 // init carries out the package initialization.
@@ -50,6 +51,7 @@ func init() {
 	cmdReview.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
 	cmdReview.Flags.StringVar(&presubmitFlag, "presubmit", string(gerrit.PresubmitTestTypeAll),
 		fmt.Sprintf("The type of presubmit tests to run. Valid values: %s.", strings.Join(gerrit.PresubmitTestTypes(), ",")))
+	cmdReview.Flags.BoolVar(&editFlag, "edit", true, "Open an editor to edit the commit message.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -251,8 +253,8 @@ func runReview(command *cmdline.Command, _ []string) error {
 	}
 
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
-	edit, repo := true, ""
-	review, err := NewReview(ctx, draftFlag, edit, repo, reviewersFlag, ccsFlag, gerrit.PresubmitTestType(presubmitFlag))
+	repo := ""
+	review, err := NewReview(ctx, draftFlag, editFlag, repo, reviewersFlag, ccsFlag, gerrit.PresubmitTestType(presubmitFlag))
 	if err != nil {
 		return err
 	}
