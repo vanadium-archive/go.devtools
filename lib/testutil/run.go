@@ -332,13 +332,13 @@ func persistTestData(ctx *util.Context, result *TestResult, output *bytes.Buffer
 	}
 	// Upload test data to Google Storage.
 	{
-		args := []string{"cp", "-q", "-m", filepath.Join(tmpDir, "*"), path + "/" + test}
+		args := []string{"-q", "-m", "cp", filepath.Join(tmpDir, "*"), path + "/" + test}
 		if err := ctx.Run().Command("gsutil", args...); err != nil {
 			return err
 		}
 	}
 	{
-		args := []string{"cp", "-q", XUnitReportPath(test), path + "/" + test + "/" + "xunit.xml"}
+		args := []string{"-q", "cp", XUnitReportPath(test), path + "/" + test + "/" + "xunit.xml"}
 		if err := ctx.Run().Command("gsutil", args...); err != nil {
 			return err
 		}
@@ -381,16 +381,16 @@ func generateXUnitReportForError(ctx *util.Context, test string, err error, outp
 
 	if createXUnitFile {
 		errType := "Internal Error"
-		internalErr, ok := err.(internalTestError)
-		if ok {
+		if internalErr, ok := err.(internalTestError); ok {
 			errType = internalErr.name
+			err = internalErr.err
 		}
 		// Create a test suite to encapsulate the error. Include last
 		// <numLinesToOutput> lines of the output in the error message.
 		lines := strings.Split(output, "\n")
 		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
 		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
-		errMsg := fmt.Sprintf("Error message:\n%s\n\nConsole output:\n%s\n", internalErr.Error(), consoleOutput)
+		errMsg := fmt.Sprintf("Error message:\n%s:\n%s\n\n\nConsole output:\n%s\n", errType, err.Error(), consoleOutput)
 		s := createTestSuiteWithFailure(test, errType, errType, errMsg, 0)
 		suites := []testSuite{*s}
 
@@ -398,7 +398,7 @@ func generateXUnitReportForError(ctx *util.Context, test string, err error, outp
 			return nil, err
 		}
 
-		if internalErr == runutil.CommandTimedOutErr {
+		if err == runutil.CommandTimedOutErr {
 			return &TestResult{Status: TestTimedOut}, nil
 		}
 	}
