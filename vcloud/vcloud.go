@@ -1,5 +1,5 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
 package main
 
 import (
@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/lib/cmdline"
 )
 
 // TODO(toddw): Add tests by mocking out gcloud.

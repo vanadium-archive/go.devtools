@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/lib/cmdline"
 	"v.io/x/devtools/lib/util"
 	"v.io/x/devtools/lib/version"
+	"v.io/x/lib/cmdline"
 )
 
 const (

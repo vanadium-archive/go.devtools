@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"go/build"
 
-	"v.io/lib/cmdline"
 	"v.io/x/devtools/lib/version"
+	"v.io/x/lib/cmdline"
 )
 
 var (

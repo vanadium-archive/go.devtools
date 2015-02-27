@@ -14,10 +14,10 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/lib/cmdline"
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/gitutil"
 	"v.io/x/devtools/lib/runutil"
+	"v.io/x/lib/cmdline"
 )
 
 // CL represents a changelist.

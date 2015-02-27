@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/x/devtools/lib/jenkins"
 	"v.io/x/devtools/lib/testutil"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/lib/cmdline"
 )
 
 // cmdResult represents the 'result' command of the presubmit tool.

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 )
 
 var cmdNode = &cmdline.Command{

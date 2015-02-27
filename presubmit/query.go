@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/lib/cmdline"
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/gerrit"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/lib/cmdline"
 )
 
 type clList []gerrit.Change
