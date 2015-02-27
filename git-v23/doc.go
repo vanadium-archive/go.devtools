@@ -62,6 +62,8 @@ The git-v23 review flags are:
    Check that no uncommitted changes exist.
  -d=false
    Send a draft changelist.
+ -edit=true
+   Open an editor to edit the commit message.
  -presubmit=all
    The type of presubmit tests to run. Valid values: none,all.
  -r=
