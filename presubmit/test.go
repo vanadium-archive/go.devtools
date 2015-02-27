@@ -135,6 +135,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 			}
 			return err
 		}
+		break
 	}
 
 	// Rebuild developer tools and override VANADIUM_ROOT/bin.
