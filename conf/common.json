@@ -8,11 +8,6 @@
     "release.go.apps": [
       "go"
     ],
-    "release.go.core": [
-      "go",
-      "javascript",
-      "projects"
-    ],
     "release.go.jni": [
       "go"
     ],
@@ -28,6 +23,11 @@
       "projects"
     ],
     "release.go.x.lib": [
+      "go",
+      "javascript",
+      "projects"
+    ],
+    "release.go.x.ref": [
       "go",
       "javascript",
       "projects"
