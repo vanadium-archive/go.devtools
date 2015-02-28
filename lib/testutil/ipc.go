@@ -32,8 +32,8 @@ const (
 	gceNodePrefix        = "tmpnode-ipc-stress"
 
 	vcloudPkg = "v.io/x/devtools/vcloud"
-	serverPkg = "v.io/core/veyron/runtimes/google/ipc/stress/stressd"
-	clientPkg = "v.io/core/veyron/runtimes/google/ipc/stress/stress"
+	serverPkg = "v.io/x/ref/runtimes/google/ipc/stress/stressd"
+	clientPkg = "v.io/x/ref/runtimes/google/ipc/stress/stress"
 )
 
 var (

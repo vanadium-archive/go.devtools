@@ -27,7 +27,7 @@ func vanadiumGoVDL(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestRes
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vdl tool.
-	if err := ctx.Run().Command("v23", "go", "install", "v.io/core/veyron/tools/vdl"); err != nil {
+	if err := ctx.Run().Command("v23", "go", "install", "v.io/x/ref/tools/vdl"); err != nil {
 		return nil, internalTestError{err, "Install VDL"}
 	}
 

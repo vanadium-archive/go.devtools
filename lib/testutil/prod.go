@@ -75,7 +75,7 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string, _ ...TestOpt) 
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
-	if err := ctx.Run().Command("v23", "go", "install", "v.io/core/veyron/tools/vrpc"); err != nil {
+	if err := ctx.Run().Command("v23", "go", "install", "v.io/x/ref/tools/vrpc"); err != nil {
 		return nil, internalTestError{err, "Install VRPC"}
 	}
 
