@@ -410,7 +410,7 @@ func (r *review) checkGoDependencies() error {
 		return err
 	}
 	pkgs := strings.Split(strings.TrimSpace(out.String()), "\n")
-	args := []string{"run", "go-depcop", "check"}
+	args := []string{"run", "go-depcop", "--include_tests", "check"}
 	args = append(args, pkgs...)
 	out.Reset()
 	if err := r.ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
