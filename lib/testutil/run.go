@@ -338,9 +338,16 @@ func persistTestData(ctx *util.Context, result *TestResult, output *bytes.Buffer
 		}
 	}
 	{
-		args := []string{"-q", "cp", XUnitReportPath(test), path + "/" + test + "/" + "xunit.xml"}
-		if err := ctx.Run().Command("gsutil", args...); err != nil {
-			return err
+		xUnitFile := XUnitReportPath(test)
+		if _, err := os.Stat(xUnitFile); err == nil {
+			args := []string{"-q", "cp", xUnitFile, path + "/" + test + "/" + "xunit.xml"}
+			if err := ctx.Run().Command("gsutil", args...); err != nil {
+				return err
+			}
+		} else {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("Stat(%v) failed: %v", xUnitFile, err)
+			}
 		}
 	}
 	return nil
