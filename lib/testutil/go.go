@@ -928,6 +928,9 @@ func init() {
 		exclusion{test{pkg: "golang.org/x/tools/go/types", name: "TestCheck"}, true},
 		exclusion{test{pkg: "golang.org/x/tools/refactor/lexical", name: "TestStdlib"}, true},
 		exclusion{test{pkg: "golang.org/x/tools/refactor/importgraph", name: "TestBuild"}, true},
+		// The godoc test does some really stupid string matching where it doesn't want
+		// cmd/gc to appear, but we have v.io/x/ref/cmd/gclogs.
+		exclusion{test{pkg: "golang.org/x/tools/cmd/godoc", name: "TestWeb"}, true},
 	}
 }
 
