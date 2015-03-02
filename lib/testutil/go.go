@@ -728,24 +728,6 @@ func buildTestDeps(ctx *util.Context, pkgs []string) error {
 	return fmt.Errorf("%v\n%s", err, out.String())
 }
 
-func createTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput string, duration time.Duration) *testSuite {
-	s := testSuite{Name: pkgName}
-	c := testCase{
-		Classname: pkgName,
-		Name:      testName,
-		Time:      fmt.Sprintf("%.2f", duration.Seconds()),
-	}
-	s.Tests = 1
-	f := testFailure{
-		Message: failureMessage,
-		Data:    failureOutput,
-	}
-	c.Failures = append(c.Failures, f)
-	s.Failures = 1
-	s.Cases = append(s.Cases, c)
-	return &s
-}
-
 // installGoCover makes sure the "go cover" tool is installed.
 //
 // TODO(jsimsa): Unify the installation functions by moving the

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"v.io/x/devtools/lib/util"
 )
@@ -109,4 +110,22 @@ func createXUnitReport(ctx *util.Context, testName string, suites []testSuite) e
 		return fmt.Errorf("WriteFile(%v) failed: %v", XUnitReportPath(testName), err)
 	}
 	return nil
+}
+
+func createTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput string, duration time.Duration) *testSuite {
+	s := testSuite{Name: pkgName}
+	c := testCase{
+		Classname: pkgName,
+		Name:      testName,
+		Time:      fmt.Sprintf("%.2f", duration.Seconds()),
+	}
+	s.Tests = 1
+	f := testFailure{
+		Message: failureMessage,
+		Data:    failureOutput,
+	}
+	c.Failures = append(c.Failures, f)
+	s.Failures = 1
+	s.Cases = append(s.Cases, c)
+	return &s
 }
