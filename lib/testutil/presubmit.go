@@ -182,10 +182,10 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 		}
 	}
 
-	if testResult, err := generateDummyTestReportFile(ctx, testName); err != nil {
+	if err := generateDummyTestReportFile(ctx, testName); err != nil {
 		return nil, err
 	} else {
-		return testResult, nil
+		return &TestResult{Status: TestPassed}, nil
 	}
 }
 
@@ -193,10 +193,10 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 // - the tests we run didn't produce any non-empty files, or
 // - the existing test report is invalid, or
 // - the existing test report has no test cases.
-func generateDummyTestReportFile(ctx *util.Context, testName string) (*TestResult, error) {
+func generateDummyTestReportFile(ctx *util.Context, testName string) error {
 	testResultFiles, err := findTestResultFiles(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	xUnitReportFile := ""
 	for _, file := range testResultFiles {
@@ -210,15 +210,15 @@ func generateDummyTestReportFile(ctx *util.Context, testName string) (*TestResul
 		workspaceDir := os.Getenv("WORKSPACE")
 		dummyFile, perm := filepath.Join(workspaceDir, "tests_dummy.xml"), os.FileMode(0644)
 		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
-			return nil, fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
+			return fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
 		}
-		return &TestResult{Status: TestPassed}, nil
+		return nil
 	}
 
 	// Invalid xUnit file.
 	bytes, err := ioutil.ReadFile(xUnitReportFile)
 	if err != nil {
-		return nil, fmt.Errorf("ReadFile(%s) failed: %v", xUnitReportFile, err)
+		return fmt.Errorf("ReadFile(%s) failed: %v", xUnitReportFile, err)
 	}
 	var suites testSuites
 	if err := xml.Unmarshal(bytes, &suites); err != nil {
@@ -226,9 +226,9 @@ func generateDummyTestReportFile(ctx *util.Context, testName string) (*TestResul
 		s := createTestSuiteWithFailure(testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error(), 0)
 		suites := []testSuite{*s}
 		if err := createXUnitReport(ctx, testName, suites); err != nil {
-			return nil, err
+			return err
 		}
-		return &TestResult{Status: TestFailed}, nil
+		return nil
 	}
 
 	// No test cases.
@@ -241,12 +241,12 @@ func generateDummyTestReportFile(ctx *util.Context, testName string) (*TestResul
 		s := createTestSuiteWithFailure(testName, "No Test Cases", "No Test Cases", "", 0)
 		suites := []testSuite{*s}
 		if err := createXUnitReport(ctx, testName, suites); err != nil {
-			return nil, err
+			return err
 		}
-		return &TestResult{Status: TestFailed}, nil
+		return nil
 	}
 
-	return &TestResult{Status: TestPassed}, nil
+	return nil
 }
 
 // vanadiumPresubmitResult runs "presubmit result" command to process and post test resutls.
