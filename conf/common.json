@@ -5,32 +5,33 @@
     "namespace_browser": [
       "vanadium-namespace-browser-test"
     ],
-    "release.go.apps": [
-      "go"
-    ],
     "release.go.jni": [
       "go"
     ],
     "release.go.v23": [
       "go",
       "javascript",
-      "projects"
+      "projects",
+      "vanadium-bootstrap"
     ],
     "release.go.x.devtools": [
       "third_party-go",
       "go",
       "javascript",
-      "projects"
+      "projects",
+      "vanadium-bootstrap"
     ],
     "release.go.x.lib": [
       "go",
       "javascript",
-      "projects"
+      "projects",
+      "vanadium-bootstrap"
     ],
     "release.go.x.ref": [
       "go",
       "javascript",
-      "projects"
+      "projects",
+      "vanadium-bootstrap"
     ],
     "release.js.core": [
       "javascript",
@@ -45,6 +46,9 @@
     ],
     "release.projects.playground": [
       "vanadium-playground-test"
+    ],
+    "scripts": [
+      "vanadium-bootstrap"
     ],
     "third_party": [
       "third_party-go",
