@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/util"
@@ -43,6 +44,7 @@ func vanadiumBootstrap(ctx *util.Context, testName string, _ ...TestOpt) (_ *Tes
 	opts := ctx.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
+	opts.Env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(oldRoot, "bin"), "", -1)
 	for i := 1; i <= numAttempts; i++ {
 		if i > 1 {
 			fmt.Fprintf(ctx.Stdout(), "Attempt %d/%d:\n", i, numAttempts)
