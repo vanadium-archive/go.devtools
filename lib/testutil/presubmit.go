@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,21 +14,6 @@ import (
 var (
 	jenkinsHost = "http://localhost:8080/jenkins"
 	netrcFile   = filepath.Join(os.Getenv("HOME"), ".netrc")
-)
-
-const (
-	dummyTestResult = `<?xml version="1.0" encoding="utf-8"?>
-<!--
-  This file will be used to generate a dummy test results file
-  in case the presubmit tests produce no test result files.
--->
-<testsuites>
-  <testsuite name="NO_TESTS" tests="1" errors="0" failures="0" skip="0">
-    <testcase classname="NO_TESTS" name="NO_TESTS" time="0">
-    </testcase>
-  </testsuite>
-</testsuites>
-`
 )
 
 // findTestResultFiles returns a slice of paths to presubmit test
@@ -60,7 +44,7 @@ func findTestResultFiles(ctx *util.Context) ([]string, error) {
 		}
 	}
 
-	// Collect non-javascript test results.
+	// Collect xUnit xml files and test status json files.
 	workspaceDir := os.Getenv("WORKSPACE")
 	fileInfoList, err := ioutil.ReadDir(workspaceDir)
 	if err != nil {
@@ -182,71 +166,7 @@ func vanadiumPresubmitTest(ctx *util.Context, testName string, _ ...TestOpt) (_ 
 		}
 	}
 
-	if err := generateDummyTestReportFile(ctx, testName); err != nil {
-		return nil, err
-	} else {
-		return &TestResult{Status: TestPassed}, nil
-	}
-}
-
-// generateDummyTestReportFile generate a dummy test report if
-// - the tests we run didn't produce any non-empty files, or
-// - the existing test report is invalid, or
-// - the existing test report has no test cases.
-func generateDummyTestReportFile(ctx *util.Context, testName string) error {
-	testResultFiles, err := findTestResultFiles(ctx)
-	if err != nil {
-		return err
-	}
-	xUnitReportFile := ""
-	for _, file := range testResultFiles {
-		if strings.HasSuffix(file, ".xml") {
-			xUnitReportFile = file
-			break
-		}
-	}
-	// No test report.
-	if xUnitReportFile == "" {
-		workspaceDir := os.Getenv("WORKSPACE")
-		dummyFile, perm := filepath.Join(workspaceDir, "tests_dummy.xml"), os.FileMode(0644)
-		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
-			return fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
-		}
-		return nil
-	}
-
-	// Invalid xUnit file.
-	bytes, err := ioutil.ReadFile(xUnitReportFile)
-	if err != nil {
-		return fmt.Errorf("ReadFile(%s) failed: %v", xUnitReportFile, err)
-	}
-	var suites testSuites
-	if err := xml.Unmarshal(bytes, &suites); err != nil {
-		ctx.Run().RemoveAll(xUnitReportFile)
-		s := createTestSuiteWithFailure(testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error(), 0)
-		suites := []testSuite{*s}
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// No test cases.
-	numTestCases := 0
-	for _, suite := range suites.Suites {
-		numTestCases += len(suite.Cases)
-	}
-	if numTestCases == 0 {
-		ctx.Run().RemoveAll(xUnitReportFile)
-		s := createTestSuiteWithFailure(testName, "No Test Cases", "No Test Cases", "", 0)
-		suites := []testSuite{*s}
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return nil
+	return &TestResult{Status: TestPassed}, nil
 }
 
 // vanadiumPresubmitResult runs "presubmit result" command to process and post test resutls.
