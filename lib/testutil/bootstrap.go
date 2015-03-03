@@ -2,12 +2,17 @@ package testutil
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/util"
+)
+
+const (
+	numAttempts = 3
 )
 
 // vanadiumBootstrap runs a test of Vanadium bootstrapping.
@@ -37,7 +42,15 @@ func vanadiumBootstrap(ctx *util.Context, testName string, _ ...TestOpt) (_ *Tes
 	opts := ctx.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
-	if err := ctx.Run().CommandWithOpts(opts, filepath.Join(oldRoot, "scripts", "setup", "vanadium")); err != nil {
+	for i := 1; i <= numAttempts; i++ {
+		if i > 1 {
+			fmt.Fprintf(ctx.Stdout(), "Attempt %d/%d:\n", i, numAttempts)
+		}
+		if err = ctx.Run().CommandWithOpts(opts, filepath.Join(oldRoot, "scripts", "setup", "vanadium")); err == nil {
+			break
+		}
+	}
+	if err != nil {
 		// Create xUnit report.
 		suites := []testSuite{}
 		s := createTestSuiteWithFailure("VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String(), 0)
