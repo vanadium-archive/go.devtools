@@ -33,7 +33,8 @@ func vanadiumBootstrap(ctx *util.Context, testName string, _ ...TestOpt) (_ *Tes
 	}
 	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 
-	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
+	root := filepath.Join(tmpDir, "root")
+	if err := os.Setenv("VANADIUM_ROOT", root); err != nil {
 		return nil, internalTestError{err, "Setenv"}
 	}
 
