@@ -79,7 +79,7 @@ var summaryTemplate = template.Must(template.New("summary").Parse(`
 {{ else }}
 <font color="red">FAIL</font>
 {{ end }}
-<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&label={{ $label.Name }}&job={{ $job.Name }}>{{ $job.Name }}"</a>
+<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&label={{ $label.Name }}&job={{ $job.Name }}">{{ $job.Name }}</a>
 {{ end }}
 </ul>
 {{ end }}
