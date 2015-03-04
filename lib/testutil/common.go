@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 var (
@@ -95,7 +96,7 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 	}
 
 	// Remove xUnit test report file.
-	if err := ctx.Run().RemoveAll(XUnitReportPath(testName)); err != nil {
+	if err := ctx.Run().RemoveAll(xunit.ReportPath(testName)); err != nil {
 		return nil, err
 	}
 

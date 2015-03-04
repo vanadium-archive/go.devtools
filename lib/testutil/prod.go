@@ -9,21 +9,22 @@ import (
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
-// generateTestSuite generates an xUnit test suite that encapsulates
-// the given input.
-func generateTestSuite(ctx *util.Context, success bool, pkg string, duration time.Duration, output string) *testSuite {
+// generateXUnitTestSuite generates an xUnit test suite that
+// encapsulates the given input.
+func generateXUnitTestSuite(ctx *util.Context, success bool, pkg string, duration time.Duration, output string) *xunit.TestSuite {
 	// Generate an xUnit test suite describing the result.
-	s := testSuite{Name: pkg}
-	c := testCase{
+	s := xunit.TestSuite{Name: pkg}
+	c := xunit.TestCase{
 		Classname: pkg,
 		Name:      "Test",
 		Time:      fmt.Sprintf("%.2f", duration.Seconds()),
 	}
 	if !success {
 		fmt.Fprintf(ctx.Stdout(), "%s ... failed\n%v\n", pkg, output)
-		f := testFailure{
+		f := xunit.Failure{
 			Message: "vrpc",
 			Data:    output,
 		}
@@ -38,7 +39,7 @@ func generateTestSuite(ctx *util.Context, success bool, pkg string, duration tim
 }
 
 // testProdService test the given production service.
-func testProdService(ctx *util.Context, service prodService) (*testSuite, error) {
+func testProdService(ctx *util.Context, service prodService) (*xunit.TestSuite, error) {
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return nil, err
@@ -50,13 +51,13 @@ func testProdService(ctx *util.Context, service prodService) (*testSuite, error)
 	opts.Stderr = &out
 	start := time.Now()
 	if err := ctx.Run().TimedCommandWithOpts(DefaultTestTimeout, opts, bin, "signature", service.objectName); err != nil {
-		return generateTestSuite(ctx, false, service.name, time.Now().Sub(start), out.String()), nil
+		return generateXUnitTestSuite(ctx, false, service.name, time.Now().Sub(start), out.String()), nil
 	}
 	if !service.regexp.Match(out.Bytes()) {
 		fmt.Fprintf(ctx.Stderr(), "couldn't match regexp `%s` in output:\n%v\n", service.regexp, out.String())
-		return generateTestSuite(ctx, false, service.name, time.Now().Sub(start), "mismatching signature"), nil
+		return generateXUnitTestSuite(ctx, false, service.name, time.Now().Sub(start), "mismatching signature"), nil
 	}
-	return generateTestSuite(ctx, true, service.name, time.Now().Sub(start), ""), nil
+	return generateXUnitTestSuite(ctx, true, service.name, time.Now().Sub(start), ""), nil
 }
 
 type prodService struct {
@@ -81,7 +82,7 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string, _ ...TestOpt) 
 
 	// Describe the test cases.
 	namespaceRoot := "/ns.dev.v.io:8101"
-	allPassed, suites := true, []testSuite{}
+	allPassed, suites := true, []xunit.TestSuite{}
 	services := []prodService{
 		prodService{
 			name:       "mounttable",
@@ -125,7 +126,7 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string, _ ...TestOpt) 
 	}
 
 	// Create the xUnit report.
-	if err := createXUnitReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {

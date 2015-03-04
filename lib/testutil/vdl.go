@@ -8,6 +8,7 @@ import (
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 // vanadiumGoVDL checks that all VDL-based Go source files are
@@ -48,12 +49,12 @@ func vanadiumGoVDL(ctx *util.Context, testName string, _ ...TestOpt) (_ *TestRes
 		fmt.Fprintf(ctx.Stdout(), "%v\n", output)
 		// Create xUnit report.
 		files := strings.Split(output, "\n")
-		suites := []testSuite{}
+		suites := []xunit.TestSuite{}
 		for _, file := range files {
-			s := createTestSuiteWithFailure("VDLAudit", file, "VDL audit failure", "Outdated file:\n"+file, 0)
+			s := xunit.CreateTestSuiteWithFailure("VDLAudit", file, "VDL audit failure", "Outdated file:\n"+file, 0)
 			suites = append(suites, *s)
 		}
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil

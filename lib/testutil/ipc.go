@@ -12,6 +12,7 @@ import (
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 const (
@@ -247,8 +248,8 @@ func runTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Verify the ipc stats.
 	cStats, sStats, err := readStats(out.String())
 	if err != nil {
-		suite := createTestSuiteWithFailure("StressTest", "ReadStats", "Failure", err.Error(), 0)
-		if err := createXUnitReport(ctx, testName, []testSuite{*suite}); err != nil {
+		suite := xunit.CreateTestSuiteWithFailure("StressTest", "ReadStats", "Failure", err.Error(), 0)
+		if err := xunit.CreateReport(ctx, testName, []xunit.TestSuite{*suite}); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
@@ -260,8 +261,9 @@ func runTest(ctx *util.Context, testName string) (*TestResult, error) {
 	fmt.Fprint(ctx.Stdout(), "\n")
 
 	if cStats.sumCount != sStats.sumCount || cStats.sumStreamCount != sStats.sumStreamCount {
-		suite := createTestSuiteWithFailure("StressTest", "VerifyStats", "Mismatched", fmt.Sprintf("%v != %v", cStats, sStats), 0)
-		if err := createXUnitReport(ctx, testName, []testSuite{*suite}); err != nil {
+		output := fmt.Sprintf("%v != %v", cStats, sStats)
+		suite := xunit.CreateTestSuiteWithFailure("StressTest", "VerifyStats", "Mismatched", output, 0)
+		if err := xunit.CreateReport(ctx, testName, []xunit.TestSuite{*suite}); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil

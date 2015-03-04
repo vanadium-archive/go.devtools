@@ -7,6 +7,7 @@ import (
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/runutil"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 const (
@@ -71,7 +72,7 @@ func vanadiumChatWebTest(ctx *util.Context, testName string, _ ...TestOpt) (*Tes
 // vanadiumNamespaceBrowserTest runs the tests for the Vanadium namespace browser.
 func vanadiumNamespaceBrowserTest(ctx *util.Context, testName string, _ ...TestOpt) (*TestResult, error) {
 	env := map[string]string{
-		"XUNIT_OUTPUT_FILE": XUnitReportPath(testName),
+		"XUNIT_OUTPUT_FILE": xunit.ReportPath(testName),
 	}
 
 	return runProjectTest(ctx, testName, "namespace_browser", "test", env, []string{"web"})

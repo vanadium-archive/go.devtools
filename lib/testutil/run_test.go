@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 func TestProjectTests(t *testing.T) {
@@ -50,14 +51,14 @@ func TestGenXUnitReportForError(t *testing.T) {
 	}
 	defer os.Setenv("WORKSPACE", oldWorkspaceDir)
 
-	expectedGenSuite := testSuite{
+	expectedGenSuite := xunit.TestSuite{
 		Name: "vanadium-go-test",
-		Cases: []testCase{
-			testCase{
+		Cases: []xunit.TestCase{
+			xunit.TestCase{
 				Name:      "Init",
 				Classname: "vanadium-go-test",
-				Failures: []testFailure{
-					testFailure{
+				Failures: []xunit.Failure{
+					xunit.Failure{
 						Message: "Init",
 						Data:    "Error message:\nInit:\nsomething is wrong\n\n\nConsole output:\n......\noutput message\n",
 					},
@@ -68,14 +69,14 @@ func TestGenXUnitReportForError(t *testing.T) {
 		Tests:    1,
 		Failures: 1,
 	}
-	aFailedTestSuite := testSuite{
+	aFailedTestSuite := xunit.TestSuite{
 		Name: "name1",
-		Cases: []testCase{
-			testCase{
+		Cases: []xunit.TestCase{
+			xunit.TestCase{
 				Name:      "test1",
 				Classname: "class1",
-				Failures: []testFailure{
-					testFailure{
+				Failures: []xunit.Failure{
+					xunit.Failure{
 						Message: "failure",
 						Data:    "test failed",
 					},
@@ -90,14 +91,14 @@ func TestGenXUnitReportForError(t *testing.T) {
 	// Tests.
 	testCases := []struct {
 		createXUnitFile bool
-		existingSuites  *testSuites
-		expectedSuites  *testSuites
+		existingSuites  *xunit.TestSuites
+		expectedSuites  *xunit.TestSuites
 	}{
 		// No xUnit file exists.
 		{
 			createXUnitFile: false,
-			expectedSuites: &testSuites{
-				Suites: []testSuite{expectedGenSuite},
+			expectedSuites: &xunit.TestSuites{
+				Suites: []xunit.TestSuite{expectedGenSuite},
 				XMLName: xml.Name{
 					Local: "testsuites",
 				},
@@ -106,9 +107,9 @@ func TestGenXUnitReportForError(t *testing.T) {
 		// xUnit file exists but empty (invalid).
 		{
 			createXUnitFile: true,
-			existingSuites:  &testSuites{},
-			expectedSuites: &testSuites{
-				Suites: []testSuite{expectedGenSuite},
+			existingSuites:  &xunit.TestSuites{},
+			expectedSuites: &xunit.TestSuites{
+				Suites: []xunit.TestSuite{expectedGenSuite},
 				XMLName: xml.Name{
 					Local: "testsuites",
 				},
@@ -117,12 +118,12 @@ func TestGenXUnitReportForError(t *testing.T) {
 		// xUnit file exists but doesn't contain failed test cases.
 		{
 			createXUnitFile: true,
-			existingSuites: &testSuites{
-				Suites: []testSuite{
-					testSuite{
+			existingSuites: &xunit.TestSuites{
+				Suites: []xunit.TestSuite{
+					xunit.TestSuite{
 						Name: "name1",
-						Cases: []testCase{
-							testCase{
+						Cases: []xunit.TestCase{
+							xunit.TestCase{
 								Name:      "test1",
 								Classname: "class1",
 								Time:      "0.10",
@@ -133,8 +134,8 @@ func TestGenXUnitReportForError(t *testing.T) {
 					},
 				},
 			},
-			expectedSuites: &testSuites{
-				Suites: []testSuite{expectedGenSuite},
+			expectedSuites: &xunit.TestSuites{
+				Suites: []xunit.TestSuite{expectedGenSuite},
 				XMLName: xml.Name{
 					Local: "testsuites",
 				},
@@ -143,11 +144,11 @@ func TestGenXUnitReportForError(t *testing.T) {
 		// xUnit file exists and contains failed test cases.
 		{
 			createXUnitFile: true,
-			existingSuites: &testSuites{
-				Suites: []testSuite{aFailedTestSuite},
+			existingSuites: &xunit.TestSuites{
+				Suites: []xunit.TestSuite{aFailedTestSuite},
 			},
-			expectedSuites: &testSuites{
-				Suites: []testSuite{aFailedTestSuite},
+			expectedSuites: &xunit.TestSuites{
+				Suites: []xunit.TestSuite{aFailedTestSuite},
 				XMLName: xml.Name{
 					Local: "testsuites",
 				},
@@ -155,7 +156,7 @@ func TestGenXUnitReportForError(t *testing.T) {
 		},
 	}
 
-	xUnitFileName := XUnitReportPath("vanadium-go-test")
+	xUnitFileName := xunit.ReportPath("vanadium-go-test")
 	internalErr := internalTestError{fmt.Errorf("something is wrong"), "Init"}
 	for _, test := range testCases {
 		if err := os.RemoveAll(xUnitFileName); err != nil {
@@ -187,12 +188,12 @@ func TestGenXUnitReportForError(t *testing.T) {
 	}
 }
 
-func parseXUnitFile(fileName string) (*testSuites, error) {
+func parseXUnitFile(fileName string) (*xunit.TestSuites, error) {
 	bytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("ReadFile(%s) failed: %v", fileName, err)
 	}
-	var s testSuites
+	var s xunit.TestSuites
 	if err := xml.Unmarshal(bytes, &s); err != nil {
 		return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(bytes))
 	}
