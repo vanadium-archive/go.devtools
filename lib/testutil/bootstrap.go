@@ -56,10 +56,7 @@ func vanadiumBootstrap(ctx *util.Context, testName string, _ ...TestOpt) (_ *Tes
 	}
 	if err != nil {
 		// Create xUnit report.
-		suites := []xunit.TestSuite{}
-		s := xunit.CreateTestSuiteWithFailure("VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String(), 0)
-		suites = append(suites, *s)
-		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateFailureReport(ctx, testName, "VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String()); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil

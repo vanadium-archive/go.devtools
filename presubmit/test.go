@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/gitutil"
 	"v.io/x/devtools/lib/testutil"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 	"v.io/x/lib/cmdline"
 )
 
@@ -29,20 +29,6 @@ file, and posts test results back to the corresponding Gerrit review thread.
 `,
 	Run: runTest,
 }
-
-const failureReportTmpl = `<?xml version="1.0" encoding="utf-8"?>
-<testsuites>
-  <testsuite name="timeout" tests="1" errors="0" failures="1" skip="0">
-    <testcase classname="{{.ClassName}}" name="{{.TestName}}" time="0">
-      <failure type="error">
-<![CDATA[
-{{.ErrorMessage}}
-]]>
-      </failure>
-    </testcase>
-  </testsuite>
-</testsuites>
-`
 
 const (
 	mergeConflictTestClass    = "merge conflict"
@@ -156,9 +142,6 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		if !ok {
 			return fmt.Errorf("No test result found for %q", testFlag)
 		}
-		if result.Status == testutil.TestTimedOut {
-			writeTimedOutTestReport(ctx, testFlag, *result)
-		}
 		return writeTestStatusFile(ctx, *result, curTimestamp)
 	} else {
 		return err
@@ -263,12 +246,12 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 // and xUnit report.
 func recordMergeConflict(ctx *util.Context, failedCL *cl) error {
 	message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
+	if err := xunit.CreateFailureReport(ctx, testFlag, testFlag, "MergeConflict", message, message); err != nil {
+		return nil
+	}
 	result := testutil.TestResult{
 		Status:          testutil.TestFailedMergeConflict,
 		MergeConflictCL: failedCL.String(),
-	}
-	if err := generateFailureReport(testFlag, mergeConflictTestClass, message); err != nil {
-		return err
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest
 	// build before the given timestamp terminates after the first iteration.
@@ -368,44 +351,6 @@ func resetLocalProject(ctx *util.Context) error {
 	}
 
 	return nil
-}
-
-// generateFailureReport generates a xUnit test report file for
-// the given failing test.
-func generateFailureReport(testName string, className, errorMessage string) (e error) {
-	type tmplData struct {
-		ClassName    string
-		TestName     string
-		ErrorMessage string
-	}
-	tmpl, err := template.New("failureReport").Parse(failureReportTmpl)
-	if err != nil {
-		return fmt.Errorf("Parse(%q) failed: %v", failureReportTmpl, err)
-	}
-	reportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
-	reportFile := filepath.Join(vroot, "..", reportFileName)
-	f, err := os.Create(reportFile)
-	if err != nil {
-		return fmt.Errorf("Create(%q) failed: %v", reportFile, err)
-	}
-	defer collect.Error(func() error { return f.Close() }, &e)
-	return tmpl.Execute(f, tmplData{
-		ClassName:    className,
-		TestName:     testName,
-		ErrorMessage: errorMessage,
-	})
-}
-
-// writeTimedOutTestReport writes a xUnit test report for the given timed-out test.
-func writeTimedOutTestReport(ctx *util.Context, testName string, result testutil.TestResult) {
-	timeoutValue := testutil.DefaultTestTimeout
-	if result.TimeoutValue != 0 {
-		timeoutValue = result.TimeoutValue
-	}
-	errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
-	if err := generateFailureReport(testName, "timeout", errorMessage); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-	}
 }
 
 // writeTestStatusFile writes the given TestResult and timestamp to a JSON file.

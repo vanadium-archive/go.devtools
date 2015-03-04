@@ -248,8 +248,7 @@ func runTest(ctx *util.Context, testName string) (*TestResult, error) {
 	// Verify the ipc stats.
 	cStats, sStats, err := readStats(out.String())
 	if err != nil {
-		suite := xunit.CreateTestSuiteWithFailure("StressTest", "ReadStats", "Failure", err.Error(), 0)
-		if err := xunit.CreateReport(ctx, testName, []xunit.TestSuite{*suite}); err != nil {
+		if err := xunit.CreateFailureReport(ctx, testName, "StressTest", "ReadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
@@ -262,8 +261,7 @@ func runTest(ctx *util.Context, testName string) (*TestResult, error) {
 
 	if cStats.sumCount != sStats.sumCount || cStats.sumStreamCount != sStats.sumStreamCount {
 		output := fmt.Sprintf("%v != %v", cStats, sStats)
-		suite := xunit.CreateTestSuiteWithFailure("StressTest", "VerifyStats", "Mismatched", output, 0)
-		if err := xunit.CreateReport(ctx, testName, []xunit.TestSuite{*suite}); err != nil {
+		if err := xunit.CreateFailureReport(ctx, testName, "StressTest", "VerifyStats", "Mismatched", output); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil

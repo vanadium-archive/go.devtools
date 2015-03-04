@@ -97,6 +97,15 @@ func CreateTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput
 	return &s
 }
 
+// CreateFailureReport creates an xUnit report for the given failure.
+func CreateFailureReport(ctx *util.Context, testName, pkgName, testCaseName, failureMessage, failureOutput string) error {
+	s := CreateTestSuiteWithFailure(pkgName, testCaseName, failureMessage, failureOutput, 0)
+	if err := CreateReport(ctx, testName, []TestSuite{*s}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ReportPath returns the path to the xUnit file.
 //
 // TODO(jsimsa): Once all Jenkins shell test scripts are ported to Go,

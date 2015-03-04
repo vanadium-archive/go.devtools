@@ -292,6 +292,9 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult,
 
 		// Run the test and collect the test results.
 		result, err := testFn(newCtx, test, opts...)
+		if result.Status == TestTimedOut {
+			writeTimedOutTestReport(newCtx, test, *result)
+		}
 		if err == nil {
 			err = checkTestReportFile(newCtx, test)
 		}
@@ -313,11 +316,28 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult,
 	return nil
 }
 
+// writeTimedOutTestReport writes a xUnit test report for the given timed-out test.
+func writeTimedOutTestReport(ctx *util.Context, testName string, result TestResult) {
+	timeoutValue := DefaultTestTimeout
+	if result.TimeoutValue != 0 {
+		timeoutValue = result.TimeoutValue
+	}
+	errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
+	if err := xunit.CreateFailureReport(ctx, testName, testName, "Timeout", errorMessage, errorMessage); err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+	}
+}
+
 // checkTestReportFile checks that the test report file exists, contains a
 // valid xUnit test report, and the set of test cases is non-empty. If any of
 // these is not true, the function generates a dummy test report file that
 // meets these requirements.
 func checkTestReportFile(ctx *util.Context, testName string) error {
+	// Skip the checks for presubmit-test itself.
+	if testName == "vanadium-presubmit-test" {
+		return nil
+	}
+
 	xUnitReportFile := xunit.ReportPath(testName)
 	if _, err := os.Stat(xUnitReportFile); err != nil {
 		if !os.IsNotExist(err) {
@@ -339,9 +359,7 @@ func checkTestReportFile(ctx *util.Context, testName string) error {
 	var suites xunit.TestSuites
 	if err := xml.Unmarshal(bytes, &suites); err != nil {
 		ctx.Run().RemoveAll(xUnitReportFile)
-		s := xunit.CreateTestSuiteWithFailure(testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error(), 0)
-		suites := []xunit.TestSuite{*s}
-		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateFailureReport(ctx, testName, testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error()); err != nil {
 			return err
 		}
 		return nil
@@ -354,9 +372,7 @@ func checkTestReportFile(ctx *util.Context, testName string) error {
 	}
 	if numTestCases == 0 {
 		ctx.Run().RemoveAll(xUnitReportFile)
-		s := xunit.CreateTestSuiteWithFailure(testName, "No Test Cases", "No Test Cases", "", 0)
-		suites := []xunit.TestSuite{*s}
-		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateFailureReport(ctx, testName, testName, "No Test Cases", "No Test Cases", ""); err != nil {
 			return err
 		}
 		return nil
@@ -472,10 +488,7 @@ func generateXUnitReportForError(ctx *util.Context, test string, err error, outp
 		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
 		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
 		errMsg := fmt.Sprintf("Error message:\n%s:\n%s\n\n\nConsole output:\n%s\n", errType, err.Error(), consoleOutput)
-		s := xunit.CreateTestSuiteWithFailure(test, errType, errType, errMsg, 0)
-		suites := []xunit.TestSuite{*s}
-
-		if err := xunit.CreateReport(ctx, test, suites); err != nil {
+		if err := xunit.CreateFailureReport(ctx, test, test, errType, errType, errMsg); err != nil {
 			return nil, err
 		}
 
