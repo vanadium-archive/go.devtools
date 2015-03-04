@@ -243,8 +243,7 @@ func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *T
 
 	// Pre-build non-test packages.
 	if err := buildTestDeps(ctx, pkgs); err != nil {
-		s := xunit.CreateTestSuiteWithFailure("BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error(), 0)
-		if err := xunit.CreateReport(ctx, testName, []xunit.TestSuite{*s}); err != nil {
+		if err := xunit.CreateFailureReport(ctx, testName, "BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
@@ -560,8 +559,7 @@ func goTest(ctx *util.Context, testName string, opts ...goTestOpt) (_ *TestResul
 		if len(suffix) != 0 {
 			testName += " " + suffix
 		}
-		s := xunit.CreateTestSuiteWithFailure("BuildTestDependencies", testName, "dependencies build failure", err.Error(), 0)
-		if err := xunit.CreateReport(ctx, originalTestName, []xunit.TestSuite{*s}); err != nil {
+		if err := xunit.CreateFailureReport(ctx, originalTestName, "BuildTestDependencies", testName, "dependencies build failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
