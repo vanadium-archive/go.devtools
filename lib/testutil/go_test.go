@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 func init() {
@@ -23,7 +24,7 @@ func init() {
 
 // caseMatch checks whether the given test cases match modulo their
 // execution time.
-func caseMatch(c1, c2 testCase) bool {
+func caseMatch(c1, c2 xunit.TestCase) bool {
 
 	// Test names can have a CPU count appended to them (e.g. TestFoo-12)
 	// so we take care to strip that out when comparing with
@@ -72,7 +73,7 @@ func coverageMatch(c1, c2 testCoverage) bool {
 
 // suiteMatch checks whether the given test suites match modulo their
 // execution time.
-func suiteMatch(s1, s2 testSuite) bool {
+func suiteMatch(s1, s2 xunit.TestSuite) bool {
 	if s1.Name != s2.Name {
 		return false
 	}
@@ -108,7 +109,7 @@ func suiteMatch(s1, s2 testSuite) bool {
 
 // suitesMatch checks whether the given test suites match modulo their
 // execution time.
-func suitesMatch(ss1, ss2 testSuites) bool {
+func suitesMatch(ss1, ss2 xunit.TestSuites) bool {
 	if len(ss1.Suites) != len(ss2.Suites) {
 		return false
 	}
@@ -140,12 +141,12 @@ func setupTempHome(t *testing.T, ctx *util.Context) func() {
 }
 
 var (
-	wantBuild = testSuites{
-		Suites: []testSuite{
-			testSuite{
+	wantBuild = xunit.TestSuites{
+		Suites: []xunit.TestSuite{
+			xunit.TestSuite{
 				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
-				Cases: []testCase{
-					testCase{
+				Cases: []xunit.TestCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Build",
 					},
@@ -154,28 +155,28 @@ var (
 			},
 		},
 	}
-	wantTest = testSuites{
-		Suites: []testSuite{
-			testSuite{
+	wantTest = xunit.TestSuites{
+		Suites: []xunit.TestSuite{
+			xunit.TestSuite{
 				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
-				Cases: []testCase{
-					testCase{
+				Cases: []xunit.TestCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test1",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test2",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test3",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestHelperProcess",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
@@ -185,12 +186,12 @@ var (
 			},
 		},
 	}
-	wantV23Test = testSuites{
-		Suites: []testSuite{
-			testSuite{
+	wantV23Test = xunit.TestSuites{
+		Suites: []xunit.TestSuite{
+			xunit.TestSuite{
 				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
-				Cases: []testCase{
-					testCase{
+				Cases: []xunit.TestCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
@@ -200,28 +201,28 @@ var (
 			},
 		},
 	}
-	wantTestWithSuffix = testSuites{
-		Suites: []testSuite{
-			testSuite{
+	wantTestWithSuffix = xunit.TestSuites{
+		Suites: []xunit.TestSuite{
+			xunit.TestSuite{
 				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
-				Cases: []testCase{
-					testCase{
+				Cases: []xunit.TestCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test1 [Suffix]",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test2 [Suffix]",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test3 [Suffix]",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestHelperProcess [Suffix]",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23 [Suffix]",
 					},
@@ -231,16 +232,16 @@ var (
 			},
 		},
 	}
-	wantTestWithExcludedTests = testSuites{
-		Suites: []testSuite{
-			testSuite{
+	wantTestWithExcludedTests = xunit.TestSuites{
+		Suites: []xunit.TestSuite{
+			xunit.TestSuite{
 				Name: "v_io.x/devtools/lib/testutil/testdata/foo",
-				Cases: []testCase{
-					testCase{
+				Cases: []xunit.TestCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "Test1",
 					},
-					testCase{
+					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
@@ -250,8 +251,8 @@ var (
 			},
 		},
 	}
-	wantExcludedPackage = testSuites{
-		Suites: []testSuite{},
+	wantExcludedPackage = xunit.TestSuites{
+		Suites: []xunit.TestSuite{},
 	}
 	wantCoverage = testCoverage{
 		LineRate:   0,
@@ -304,13 +305,13 @@ func TestGoBuild(t *testing.T) {
 	}
 
 	// Check the xUnit report.
-	xUnitFile := XUnitReportPath(testName)
+	xUnitFile := xunit.ReportPath(testName)
 	data, err := ioutil.ReadFile(xUnitFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
 	}
 	defer os.RemoveAll(xUnitFile)
-	var gotBuild testSuites
+	var gotBuild xunit.TestSuites
 	if err := xml.Unmarshal(data, &gotBuild); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
 	}
@@ -334,13 +335,13 @@ func TestGoCoverage(t *testing.T) {
 	}
 
 	// Check the xUnit report.
-	xUnitFile := XUnitReportPath(testName)
+	xUnitFile := xunit.ReportPath(testName)
 	data, err := ioutil.ReadFile(xUnitFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
 	}
 	defer os.RemoveAll(xUnitFile)
-	var gotTest testSuites
+	var gotTest xunit.TestSuites
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
 	}
@@ -415,7 +416,7 @@ func TestGoTestV23(t *testing.T) {
 	runGoTest(t, "", nil, wantV23Test, argsOpt{"--run=TestV23"}, nonTestArgsOpt([]string{"--v23.tests"}))
 }
 
-func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite testSuites, testOpts ...goTestOpt) {
+func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSuite xunit.TestSuites, testOpts ...goTestOpt) {
 	ctx := util.DefaultContext()
 
 	defer setupTempHome(t, ctx)()
@@ -436,13 +437,13 @@ func runGoTest(t *testing.T, suffix string, excludedTests []test, expectedTestSu
 	}
 
 	// Check the xUnit report.
-	xUnitFile := XUnitReportPath(testName)
+	xUnitFile := xunit.ReportPath(testName)
 	data, err := ioutil.ReadFile(xUnitFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
 	}
 	defer os.RemoveAll(xUnitFile)
-	var gotTest testSuites
+	var gotTest xunit.TestSuites
 	fmt.Fprintf(os.Stderr, "XML: %s\n", data)
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))

@@ -17,6 +17,7 @@ import (
 
 	"v.io/x/devtools/lib/runutil"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 type TestStatus int
@@ -317,7 +318,7 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult,
 // these is not true, the function generates a dummy test report file that
 // meets these requirements.
 func checkTestReportFile(ctx *util.Context, testName string) error {
-	xUnitReportFile := XUnitReportPath(testName)
+	xUnitReportFile := xunit.ReportPath(testName)
 	if _, err := os.Stat(xUnitReportFile); err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -335,12 +336,12 @@ func checkTestReportFile(ctx *util.Context, testName string) error {
 	if err != nil {
 		return fmt.Errorf("ReadFile(%s) failed: %v", xUnitReportFile, err)
 	}
-	var suites testSuites
+	var suites xunit.TestSuites
 	if err := xml.Unmarshal(bytes, &suites); err != nil {
 		ctx.Run().RemoveAll(xUnitReportFile)
-		s := createTestSuiteWithFailure(testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error(), 0)
-		suites := []testSuite{*s}
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
+		s := xunit.CreateTestSuiteWithFailure(testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error(), 0)
+		suites := []xunit.TestSuite{*s}
+		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 			return err
 		}
 		return nil
@@ -353,9 +354,9 @@ func checkTestReportFile(ctx *util.Context, testName string) error {
 	}
 	if numTestCases == 0 {
 		ctx.Run().RemoveAll(xUnitReportFile)
-		s := createTestSuiteWithFailure(testName, "No Test Cases", "No Test Cases", "", 0)
-		suites := []testSuite{*s}
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
+		s := xunit.CreateTestSuiteWithFailure(testName, "No Test Cases", "No Test Cases", "", 0)
+		suites := []xunit.TestSuite{*s}
+		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 			return err
 		}
 		return nil
@@ -411,7 +412,7 @@ func persistTestData(ctx *util.Context, result *TestResult, output *bytes.Buffer
 		}
 	}
 	{
-		xUnitFile := XUnitReportPath(test)
+		xUnitFile := xunit.ReportPath(test)
 		if _, err := os.Stat(xUnitFile); err == nil {
 			args := []string{"-q", "cp", xUnitFile, path + "/" + test + "/" + "xunit.xml"}
 			if err := ctx.Run().Command("gsutil", args...); err != nil {
@@ -429,7 +430,7 @@ func persistTestData(ctx *util.Context, result *TestResult, output *bytes.Buffer
 // generateXUnitReportForError generates an xUnit test report for the
 // given (internal) error.
 func generateXUnitReportForError(ctx *util.Context, test string, err error, output string) (*TestResult, error) {
-	xUnitFilePath := XUnitReportPath(test)
+	xUnitFilePath := xunit.ReportPath(test)
 
 	// Only create the report when the xUnit file doesn't exist, is
 	// invalid, or exist but doesn't have failed test cases.
@@ -445,7 +446,7 @@ func generateXUnitReportForError(ctx *util.Context, test string, err error, outp
 		if err != nil {
 			return nil, fmt.Errorf("ReadFile(%s) failed: %v", xUnitFilePath, err)
 		}
-		var existingSuites testSuites
+		var existingSuites xunit.TestSuites
 		if err := xml.Unmarshal(bytes, &existingSuites); err != nil {
 			createXUnitFile = true
 		} else {
@@ -471,10 +472,10 @@ func generateXUnitReportForError(ctx *util.Context, test string, err error, outp
 		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
 		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
 		errMsg := fmt.Sprintf("Error message:\n%s:\n%s\n\n\nConsole output:\n%s\n", errType, err.Error(), consoleOutput)
-		s := createTestSuiteWithFailure(test, errType, errType, errMsg, 0)
-		suites := []testSuite{*s}
+		s := xunit.CreateTestSuiteWithFailure(test, errType, errType, errMsg, 0)
+		suites := []xunit.TestSuite{*s}
 
-		if err := createXUnitReport(ctx, test, suites); err != nil {
+		if err := xunit.CreateReport(ctx, test, suites); err != nil {
 			return nil, err
 		}
 

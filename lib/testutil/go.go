@@ -24,6 +24,7 @@ import (
 	"v.io/x/devtools/lib/envutil"
 	"v.io/x/devtools/lib/goutil"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 type taskStatus int
@@ -130,18 +131,18 @@ func goBuild(ctx *util.Context, testName string, opts ...goBuildOpt) (_ *TestRes
 	close(tasks)
 
 	// Collect the results.
-	allPassed, suites := true, []testSuite{}
+	allPassed, suites := true, []xunit.TestSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
-		s := testSuite{Name: result.pkg}
-		c := testCase{
+		s := xunit.TestSuite{Name: result.pkg}
+		c := xunit.TestCase{
 			Classname: result.pkg,
 			Name:      "Build",
 			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
 		}
 		if result.status != buildPassed {
 			Fail(ctx, "%s\n%v\n", result.pkg, result.output)
-			f := testFailure{
+			f := xunit.Failure{
 				Message: "build",
 				Data:    result.output,
 			}
@@ -158,7 +159,7 @@ func goBuild(ctx *util.Context, testName string, opts ...goBuildOpt) (_ *TestRes
 	close(taskResults)
 
 	// Create the xUnit report.
-	if err := createXUnitReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	if !allPassed {
@@ -242,8 +243,8 @@ func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *T
 
 	// Pre-build non-test packages.
 	if err := buildTestDeps(ctx, pkgs); err != nil {
-		s := createTestSuiteWithFailure("BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error(), 0)
-		if err := createXUnitReport(ctx, testName, []testSuite{*s}); err != nil {
+		s := xunit.CreateTestSuiteWithFailure("BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error(), 0)
+		if err := xunit.CreateReport(ctx, testName, []xunit.TestSuite{*s}); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
@@ -275,13 +276,13 @@ func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *T
 	// data structure as opposed to a buffer.
 	var coverageData bytes.Buffer
 	fmt.Fprintf(&coverageData, "mode: set\n")
-	allPassed, suites := true, []testSuite{}
+	allPassed, suites := true, []xunit.TestSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
-		var s *testSuite
+		var s *xunit.TestSuite
 		switch result.status {
 		case buildFailed:
-			s = createTestSuiteWithFailure(result.pkg, "TestCoverage", "build failure", result.output, result.time)
+			s = xunit.CreateTestSuiteWithFailure(result.pkg, "TestCoverage", "build failure", result.output, result.time)
 		case testPassed:
 			data, err := ioutil.ReadAll(result.coverage)
 			if err != nil {
@@ -296,13 +297,13 @@ func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *T
 			fallthrough
 		case testFailed:
 			if strings.Index(result.output, "no test files") == -1 {
-				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
+				ss, err := xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
 				if err != nil {
 					// Token too long error.
 					if !strings.HasSuffix(err.Error(), "token too long") {
 						return nil, err
 					}
-					ss = createTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
+					ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 				}
 				s = ss
 			}
@@ -326,7 +327,7 @@ func goCoverage(ctx *util.Context, testName string, opts ...goCoverageOpt) (_ *T
 	close(taskResults)
 
 	// Create the xUnit and cobertura reports.
-	if err := createXUnitReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	coverage, err := coverageFromGoTestOutput(ctx, &coverageData)
@@ -559,8 +560,8 @@ func goTest(ctx *util.Context, testName string, opts ...goTestOpt) (_ *TestResul
 		if len(suffix) != 0 {
 			testName += " " + suffix
 		}
-		s := createTestSuiteWithFailure("BuildTestDependencies", testName, "dependencies build failure", err.Error(), 0)
-		if err := createXUnitReport(ctx, originalTestName, []testSuite{*s}); err != nil {
+		s := xunit.CreateTestSuiteWithFailure("BuildTestDependencies", testName, "dependencies build failure", err.Error(), 0)
+		if err := xunit.CreateReport(ctx, originalTestName, []xunit.TestSuite{*s}); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil
@@ -603,23 +604,23 @@ func goTest(ctx *util.Context, testName string, opts ...goTestOpt) (_ *TestResul
 	// skippedTests are a result of testing.Skip calls in the actual
 	// tests.
 	skippedTests := map[string][]string{}
-	allPassed, suites := true, []testSuite{}
+	allPassed, suites := true, []xunit.TestSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
-		var s *testSuite
+		var s *xunit.TestSuite
 		switch result.status {
 		case buildFailed:
-			s = createTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time)
+			s = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time)
 		case testFailed, testPassed:
 			if strings.Index(result.output, "no test files") == -1 &&
 				strings.Index(result.output, "package excluded") == -1 {
-				ss, err := testSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
+				ss, err := xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
 				if err != nil {
 					// Token too long error.
 					if !strings.HasSuffix(err.Error(), "token too long") {
 						return nil, err
 					}
-					ss = createTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
+					ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 				}
 				if ss.Skip > 0 {
 					for _, c := range ss.Cases {
@@ -645,7 +646,7 @@ func goTest(ctx *util.Context, testName string, opts ...goTestOpt) (_ *TestResul
 				Pass(ctx, "%s (skipped tests: %v)\n", result.pkg, skippedTests[result.pkg])
 			}
 
-			newCases := []testCase{}
+			newCases := []xunit.TestCase{}
 			for _, c := range s.Cases {
 				if len(suffix) != 0 {
 					c.Name += " " + suffix
@@ -662,7 +663,7 @@ func goTest(ctx *util.Context, testName string, opts ...goTestOpt) (_ *TestResul
 	close(taskResults)
 
 	// Create the xUnit report.
-	if err := createXUnitReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 		return nil, err
 	}
 	testResult := &TestResult{
@@ -1228,12 +1229,12 @@ func vanadiumGoGenerate(ctx *util.Context, testName string, opts ...TestOpt) (_ 
 		output := strings.Join(dirtyFiles, "\n")
 		fmt.Fprintf(ctx.Stdout(), "The following go generated files are not up-to-date:\n%v\n", output)
 		// Generate xUnit report.
-		suites := []testSuite{}
+		suites := []xunit.TestSuite{}
 		for _, dirtyFile := range dirtyFiles {
-			s := createTestSuiteWithFailure("GoGenerate", dirtyFile, "go generate failure", "Outdated file:\n"+dirtyFile, 0)
+			s := xunit.CreateTestSuiteWithFailure("GoGenerate", dirtyFile, "go generate failure", "Outdated file:\n"+dirtyFile, 0)
 			suites = append(suites, *s)
 		}
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil

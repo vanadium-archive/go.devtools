@@ -10,6 +10,7 @@ import (
 
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 const (
@@ -55,10 +56,10 @@ func vanadiumBootstrap(ctx *util.Context, testName string, _ ...TestOpt) (_ *Tes
 	}
 	if err != nil {
 		// Create xUnit report.
-		suites := []testSuite{}
-		s := createTestSuiteWithFailure("VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String(), 0)
+		suites := []xunit.TestSuite{}
+		s := xunit.CreateTestSuiteWithFailure("VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String(), 0)
 		suites = append(suites, *s)
-		if err := createXUnitReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
 			return nil, err
 		}
 		return &TestResult{Status: TestFailed}, nil

@@ -7,6 +7,7 @@ import (
 	"v.io/x/devtools/lib/collect"
 	"v.io/x/devtools/lib/runutil"
 	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/lib/xunit"
 )
 
 const (
@@ -104,7 +105,7 @@ func vanadiumJSBrowserIntegration(ctx *util.Context, testName string, _ ...TestO
 	target := "test-integration-browser"
 	env := map[string]string{}
 	setCommonJSEnv(env)
-	env["BROWSER_OUTPUT"] = XUnitReportPath(testName)
+	env["BROWSER_OUTPUT"] = xunit.ReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
@@ -118,7 +119,7 @@ func vanadiumJSNodeIntegration(ctx *util.Context, testName string, _ ...TestOpt)
 	target := "test-integration-node"
 	env := map[string]string{}
 	setCommonJSEnv(env)
-	env["NODE_OUTPUT"] = XUnitReportPath(testName)
+	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
@@ -132,7 +133,7 @@ func vanadiumJSUnit(ctx *util.Context, testName string, _ ...TestOpt) (*TestResu
 	target := "test-unit"
 	env := map[string]string{}
 	setCommonJSEnv(env)
-	env["NODE_OUTPUT"] = XUnitReportPath(testName)
+	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
@@ -146,7 +147,7 @@ func vanadiumJSVdl(ctx *util.Context, testName string, _ ...TestOpt) (*TestResul
 	target := "test-vdl"
 	env := map[string]string{}
 	setCommonJSEnv(env)
-	env["NODE_OUTPUT"] = XUnitReportPath(testName)
+	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
@@ -160,7 +161,7 @@ func vanadiumJSVom(ctx *util.Context, testName string, _ ...TestOpt) (*TestResul
 	target := "test-vom"
 	env := map[string]string{}
 	setCommonJSEnv(env)
-	env["NODE_OUTPUT"] = XUnitReportPath(testName)
+	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
 	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
