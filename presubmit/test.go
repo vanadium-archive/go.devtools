@@ -19,6 +19,19 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
+var (
+	reviewTargetRefsFlag string
+	testFlag             string
+)
+
+func init() {
+	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
+	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
+	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
+	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
+	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
+}
+
 // cmdTest represents the 'test' command of the presubmit tool.
 var cmdTest = &cmdline.Command{
 	Name:  "test",

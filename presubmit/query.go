@@ -19,6 +19,17 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
+var (
+	queryStringFlag string
+	logFilePathFlag string
+)
+
+func init() {
+	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
+	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
+	cmdQuery.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
+}
+
 type clList []gerrit.Change
 
 // clRefMap indexes cls by their ref strings.

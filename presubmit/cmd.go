@@ -30,48 +30,32 @@ type credential struct {
 }
 
 var (
-	// flags
 	dryRunFlag             bool
 	gerritBaseUrlFlag      string
-	jenkinsBuildNumberFlag int
 	jenkinsHostFlag        string
-	logFilePathFlag        string
+	jenkinsBuildNumberFlag int
 	manifestFlag           string
 	netRcFilePathFlag      string
 	noColorFlag            bool
 	presubmitTestJobFlag   string
-	queryStringFlag        string
-	projectsFlag           string
-	reviewMessageFlag      string
-	reviewTargetRefsFlag   string
-	testFlag               string
 	verboseFlag            bool
+)
 
+func init() {
+	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
+	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
+	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
+	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
+	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
+	cmdRoot.Flags.StringVar(&presubmitTestJobFlag, "job", defaultPresubmitTestJob, "The name of the Jenkins job to add presubmit-test builds to.")
+	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+}
+
+var (
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
 	reNotIdentifierChars *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
 	vroot                string
 )
-
-func init() {
-	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
-	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.StringVar(&presubmitTestJobFlag, "job", defaultPresubmitTestJob, "The name of the Jenkins job to add presubmit-test builds to.")
-	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
-	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
-	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
-	cmdQuery.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
-	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
-	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
-	cmdResult.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
-	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
-	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
-	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
-	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
-	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
-}
 
 // printf outputs the given message prefixed by outputPrefix, adding a
 // blank line before any messages that start with "###".
