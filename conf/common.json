@@ -143,5 +143,11 @@
       "third_party-go-test",
       "third_party-go-race"
     ]
+  },
+  "test-parts": {
+    "vanadium-go-race": [
+      "v.io/core/veyron/services/...",
+      "v.io/core/veyron/runtimes/..."
+    ]
   }
 }

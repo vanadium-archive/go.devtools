@@ -22,6 +22,9 @@ var (
 	testGroups = map[string][]string{
 		"test-test-group": []string{"test-test-B", "test-test-C"},
 	}
+	testParts = map[string][]string{
+		"test-test-A": []string{"p1", "p2"},
+	}
 	vdlWorkspaces = []string{"test-vdl-workspace"}
 )
 
@@ -50,6 +53,9 @@ func testConfigAPI(t *testing.T, c *Config) {
 	if got, want := c.TestDependencies("test-test-B"), []string{"test-test-C"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected result: got %v, want %v", got, want)
 	}
+	if got, want := c.TestParts("test-test-A"), []string{"p1", "p2"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected result: got %v, want %v", got, want)
+	}
 	if got, want := c.VDLWorkspaces(), vdlWorkspaces; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected result: got %v, want %v", got, want)
 	}
@@ -62,6 +68,7 @@ func TestConfig(t *testing.T) {
 		SnapshotLabelTestsOpt(snapshotLabelTests),
 		TestDependenciesOpt(testDependencies),
 		TestGroupsOpt(testGroups),
+		TestPartsOpt(testParts),
 		VDLWorkspacesOpt(vdlWorkspaces),
 	)
 
@@ -75,6 +82,7 @@ func TestConfigMarshal(t *testing.T) {
 		SnapshotLabelTestsOpt(snapshotLabelTests),
 		TestDependenciesOpt(testDependencies),
 		TestGroupsOpt(testGroups),
+		TestPartsOpt(testParts),
 		VDLWorkspacesOpt(vdlWorkspaces),
 	)
 

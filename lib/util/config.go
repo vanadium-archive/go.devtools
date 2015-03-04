@@ -22,6 +22,11 @@ type Config struct {
 	// testGroups maps test group labels to sets of tests that the label
 	// identifies.
 	testGroups map[string][]string
+	// testParts maps test names to lists of strings that identify
+	// different parts of a test. If a list L has n elements, then the
+	// corresponding test has n+1 parts: the first n parts are identified
+	// by L[0] to L[n-1]. The last part is whatever is left.
+	testParts map[string][]string
 	// vdlWorkspaces identifies VANADIUM_ROOT subdirectories that contain
 	// a VDL workspace.
 	vdlWorkspaces []string
@@ -62,6 +67,12 @@ type TestGroupsOpt map[string][]string
 
 func (TestGroupsOpt) configOpt() {}
 
+// TestPartsOpt is the type that can be used to pass the Config
+// factory a test parts option.
+type TestPartsOpt map[string][]string
+
+func (TestPartsOpt) configOpt() {}
+
 // VDLWorkspacesOpt is the type that can be used to pass the Config
 // factory a VDL workspace option.
 type VDLWorkspacesOpt []string
@@ -83,6 +94,8 @@ func NewConfig(opts ...ConfigOpt) *Config {
 			c.testDependencies = map[string][]string(typedOpt)
 		case TestGroupsOpt:
 			c.testGroups = map[string][]string(typedOpt)
+		case TestPartsOpt:
+			c.testParts = map[string][]string(typedOpt)
 		case VDLWorkspacesOpt:
 			c.vdlWorkspaces = []string(typedOpt)
 		}
@@ -158,6 +171,11 @@ func (c Config) TestDependencies(test string) []string {
 	return c.testDependencies[test]
 }
 
+// TestParts returns a list of strings that identify different test parts.
+func (c Config) TestParts(test string) []string {
+	return c.testParts[test]
+}
+
 // VDLWorkspaces returns the VDL workspaces included in the config.
 func (c Config) VDLWorkspaces() []string {
 	return c.vdlWorkspaces
@@ -169,6 +187,7 @@ type config struct {
 	SnapshotLabelTests map[string][]string `json:"snapshot-label-tests"`
 	TestDependencies   map[string][]string `json:"test-dependencies"`
 	TestGroups         map[string][]string `json:"test-groups"`
+	TestParts          map[string][]string `json:"test-parts"`
 	VDLWorkspaces      []string            `json:"vdl-workspaces"`
 }
 
@@ -181,6 +200,7 @@ func (c Config) MarshalJSON() ([]byte, error) {
 		SnapshotLabelTests: c.snapshotLabelTests,
 		TestDependencies:   c.testDependencies,
 		TestGroups:         c.testGroups,
+		TestParts:          c.testParts,
 		VDLWorkspaces:      c.vdlWorkspaces,
 	})
 }
@@ -197,6 +217,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	c.snapshotLabelTests = conf.SnapshotLabelTests
 	c.testDependencies = conf.TestDependencies
 	c.testGroups = conf.TestGroups
+	c.testParts = conf.TestParts
 	c.vdlWorkspaces = conf.VDLWorkspaces
 	return nil
 }
