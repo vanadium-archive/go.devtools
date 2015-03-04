@@ -11,6 +11,7 @@ import (
 
 var (
 	interfacesFlag string
+	progressFlag   bool
 	verboseFlag    bool
 	gofmtFlag      bool
 	dryRunFlag     bool
@@ -24,6 +25,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
+	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 }
 
 // root returns a command that represents the root of the vloggy tool.

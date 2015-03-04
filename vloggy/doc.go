@@ -29,6 +29,8 @@ The vloggy flags are:
    Show what commands will run but do not execute them.
  -nocolor=false
    Do not use color to format output.
+ -progress=false
+   Print verbose progress information.
  -v=false
    Print verbose output.
 

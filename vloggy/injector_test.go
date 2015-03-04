@@ -5,6 +5,8 @@ import (
 	"path"
 	"strconv"
 	"testing"
+
+	"v.io/x/devtools/lib/util"
 )
 
 const (
@@ -32,24 +34,37 @@ func TestInvalidPackages(t *testing.T) {
 }
 
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
+	if _, err := configureDefaultBuildConfig([]string{"testpackage"}); err != nil {
+		t.Fatal(err)
+	}
 	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
+	ctx := util.DefaultContext()
 
-	prog, err := load(interfaceList, packages, []string{"testpackage"})
+	ifcs, impls, err := importPkgs(ctx, interfaceList, packages)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	interfacePackages, implementationPackages := findPackages(prog, interfaceList, packages)
+	if got, want := len(impls), 1; got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
 
-	interfaces := findPublicInterfaces(interfacePackages)
+	fset := token.NewFileSet() // positions are relative to fset
+
+	impl := impls[0]
+	asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, impl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	interfaces := findPublicInterfaces(ctx, ifcs, tpkg)
 	if len(interfaces) == 0 {
-		t.Fatalf("Log injector did not find any interfaces in %v", interfacePackages)
+		t.Fatalf("Log injector did not find any interfaces in %s for %s", interfaceList, tpkg.Path())
 	}
-
-	methods := findMethodsImplementing(implementationPackages, interfaces)
+	methods := findMethodsImplementing(ctx, fset, tpkg, interfaces)
 	if len(methods) == 0 {
-		t.Fatalf("Log injector could not find any methods implementing the test interfaces in %v", implementationPackages)
+		t.Fatalf("Log injector could not find any methods implementing the test interfaces in %v", impls)
 	}
-
-	return prog.Fset, checkMethods(methods)
+	methodPositions := functionDeclarationsAtPositions(asts, methods)
+	return fset, checkMethods(methodPositions)
 }

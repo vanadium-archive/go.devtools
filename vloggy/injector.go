@@ -6,16 +6,19 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
-	"v.io/x/devtools/lib/util"
-
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/gcimporter"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
+
+	"v.io/x/devtools/lib/goutil"
+	"v.io/x/devtools/lib/util"
 )
 
 const (
@@ -32,35 +35,93 @@ const (
 	nologComment = "nologcall"
 )
 
-// TODO(jsimsa): expand "..." in package names in command line
-func load(interfaces, implementations, tags []string) (prog *loader.Program, err error) {
-	buildContext := build.Default
-	buildContext.BuildTags = tags
-	conf := loader.Config{ImportFromBinary: false, Build: &buildContext}
-	allPackages := append(append([]string{}, interfaces...), implementations...)
-	conf.FromArgs(allPackages, false)
-	conf.ParserMode |= parser.ParseComments
-	return conf.Load()
+// gcOrSourceImportert will use gcimporter to attempt to import from
+// a .a file, but if one doesn't exist it will import from source code.
+func gcOrSourceImporter(ctx *util.Context, fset *token.FileSet, imports map[string]*types.Package, path string) (*types.Package, error) {
+	if p, err := gcimporter.Import(imports, path); err == nil {
+		return p, err
+	}
+	if progressFlag {
+		fmt.Fprintf(ctx.Stdout(), "importing from source: %s\n", path)
+	}
+	bpkg, err := build.Default.Import(path, ".", build.ImportMode(build.ImportComment))
+	_, pkg, err := parseAndTypeCheckPackage(ctx, fset, bpkg)
+	if err != nil {
+		return nil, err
+	}
+	return pkg, err
 }
 
-func findPackages(prog *loader.Program, interfaces, implementations []string) (interfacePackages, implementationPackages []*loader.PackageInfo) {
-	iSet := newStringSet(interfaces)
-	mSet := newStringSet(implementations)
+// importPkgs will expand the supplied list of interface and implementation
+// packages using go list (so v.io/v23/... can be used as an interface package
+// spec for example) and then import those packages.
+func importPkgs(ctx *util.Context, interfaces, implementations []string) (ifcs, impls []*build.Package, err error) {
 
-	iPackages := []*loader.PackageInfo{}
-	mPackages := []*loader.PackageInfo{}
-
-	for _, pkg := range prog.InitialPackages() {
-		path := pkg.Pkg.Path()
-		if _, ok := iSet[path]; ok {
-			iPackages = append(iPackages, pkg)
-		}
-		if _, ok := mSet[path]; ok {
-			mPackages = append(mPackages, pkg)
-		}
+	ifcPkgs, err := goutil.List(ctx, interfaces)
+	if err != nil {
+		return nil, nil, err
+	}
+	implPkgs, err := goutil.List(ctx, implementations)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return iPackages, mPackages
+	importer := func(pkgs []string) ([]*build.Package, error) {
+		pkgInfos := []*build.Package{}
+		for _, pkg := range pkgs {
+			pkgInfo, err := build.Default.Import(pkg, ".", build.ImportMode(build.ImportComment))
+			if err != nil {
+				return nil, err
+			}
+			pkgInfos = append(pkgInfos, pkgInfo)
+		}
+		return pkgInfos, nil
+	}
+
+	ifcs, err = importer(ifcPkgs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error importing interface packages: %v", err)
+	}
+
+	impls, err = importer(implPkgs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error importing implementation packages: %v", err)
+	}
+	return ifcs, impls, nil
+}
+
+// parseAndTypeCheckPackage will parse and type check a given package.
+func parseAndTypeCheckPackage(ctx *util.Context, fset *token.FileSet, bpkg *build.Package) ([]*ast.File, *types.Package, error) {
+
+	config := &types.Config{}
+	config.Import = func(imports map[string]*types.Package, path string) (*types.Package, error) {
+		return gcOrSourceImporter(ctx, fset, imports, path)
+	}
+	config.IgnoreFuncBodies = true
+	tpkg := types.NewPackage(bpkg.ImportPath, bpkg.Name)
+	checker := types.NewChecker(config, fset, tpkg, nil)
+
+	// Parse the files in this package.
+	asts := []*ast.File{}
+	dir := bpkg.Dir
+	for _, fileInPkg := range bpkg.GoFiles {
+		file := filepath.Join(dir, fileInPkg)
+		a, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
+		if err != nil {
+			return nil, nil, err
+		}
+		asts = append(asts, a)
+	}
+	if err := checker.Files(asts); err != nil {
+		return nil, nil, err
+	}
+
+	// make sure that type checking is complete at this stage. It should
+	// always be so, so this is really an 'assertion' that it is.
+	if !tpkg.Complete() {
+		return nil, nil, fmt.Errorf("checked %q is not completely parsed+checked", bpkg.Name)
+	}
+	return asts, tpkg, nil
 }
 
 // exists is used as the value to indicate existence for maps that
@@ -76,28 +137,78 @@ func newStringSet(values []string) map[string]struct{} {
 	return set
 }
 
+func configureDefaultBuildConfig(tags []string) (cleanup func(), err error) {
+	env, err := util.VanadiumEnvironment(util.HostPlatform())
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
+	}
+	prevGOPATH := build.Default.GOPATH
+	prevBuildTags := build.Default.BuildTags
+	cleanup = func() {
+		build.Default.GOPATH = prevGOPATH
+		build.Default.BuildTags = prevBuildTags
+	}
+	build.Default.GOPATH = env.Get("GOPATH")
+	build.Default.BuildTags = tags
+	return cleanup, nil
+}
+
 // run runs the log injector.
 func run(ctx *util.Context, interfaceList, implementationList []string, checkOnly bool) error {
-	prog, err := load(interfaceList, implementationList, nil)
+	// use 'go list' and the builder to import all of the packages
+	// specified as interfaces and implementations.
+	ifcs, impls, err := importPkgs(ctx, interfaceList, implementationList)
 	if err != nil {
 		return err
 	}
 
-	interfacePackages, implementationPackages := findPackages(prog, interfaceList, implementationList)
-
-	interfaces := findPublicInterfaces(interfacePackages)
-	methods := findMethodsImplementing(implementationPackages, interfaces)
-	needsInjection := checkMethods(methods)
-
-	if checkOnly {
-		reportResults(ctx, prog.Fset, needsInjection)
-		if len(needsInjection) > 0 {
-			os.Exit(1)
-		}
-		return nil
+	if progressFlag {
+		printHeader(ctx.Stdout(), "Package Summary")
+		fmt.Fprintf(ctx.Stdout(), "%v expands to %d interface packages\n", interfaceList, len(ifcs))
+		fmt.Fprintf(ctx.Stdout(), "%v expands to %d implementation packages\n", implementationList, len(impls))
 	}
 
-	return inject(ctx, prog.Fset, needsInjection)
+	// positions are relative to fset
+	fset := token.NewFileSet()
+	checkFailed := []string{}
+	for _, impl := range impls {
+		asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, impl)
+		if err != nil {
+			return fmt.Errorf("failed to parse+type check: %s: %s", impl.ImportPath, err)
+		}
+		// We've parsed and type checked this implementation package.
+		// The next step is to find the public interfaces imported by it
+		// that occur in the interface packages above.
+		publicInterfaces := findPublicInterfaces(ctx, ifcs, tpkg)
+
+		// Now find the methods that implement those public interfaces.
+		methods := findMethodsImplementing(ctx, fset, tpkg, publicInterfaces)
+		// and their positions in the files.
+		methodPositions := functionDeclarationsAtPositions(asts, methods)
+		// then check to see if those methods already have logging statements.
+		needsInjection := checkMethods(methodPositions)
+
+		if checkOnly {
+			if len(needsInjection) > 0 {
+				printHeader(ctx.Stdout(), "Check Results")
+				reportResults(ctx, fset, needsInjection)
+				checkFailed = append(checkFailed, impl.ImportPath)
+			}
+		} else {
+			if err := inject(ctx, fset, needsInjection); err != nil {
+				return fmt.Errorf("injection failed for: %s: %s", impl.ImportPath, err)
+			}
+		}
+	}
+
+	if checkOnly && len(checkFailed) > 0 {
+		for _, p := range checkFailed {
+			fmt.Fprintf(ctx.Stdout(), "check failed for: %s\n", p)
+		}
+		os.Exit(1)
+	}
+
+	return nil
 }
 
 // funcDeclRef stores a reference to a function declaration, paired
@@ -112,12 +223,12 @@ type funcDeclRef struct {
 // names declared by interfaces.
 func methodSetVisibleThroughInterfaces(t types.Type, interfaces []*types.Interface) map[string]struct{} {
 	set := map[string]struct{}{}
-	for _, iface := range interfaces {
-		if types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface) {
-			// t implements iface, so add all the public
-			// method names of iface to set.
-			for i := 0; i < iface.NumMethods(); i++ {
-				if name := iface.Method(i).Name(); ast.IsExported(name) {
+	for _, ifc := range interfaces {
+		if types.Implements(t, ifc) || types.Implements(types.NewPointer(t), ifc) {
+			// t implements ifc, so add all the public
+			// method names of ifc to set.
+			for i := 0; i < ifc.NumMethods(); i++ {
+				if name := ifc.Method(i).Name(); ast.IsExported(name) {
 					set[name] = exists
 				}
 			}
@@ -129,21 +240,19 @@ func methodSetVisibleThroughInterfaces(t types.Type, interfaces []*types.Interfa
 // functionDeclarationsAtPositions returns references to function
 // declarations in packages where the position of the identifier token
 // representing the name of the function is in positions.
-func functionDeclarationsAtPositions(packages []*loader.PackageInfo, positions map[token.Pos]struct{}) []funcDeclRef {
+func functionDeclarationsAtPositions(files []*ast.File, positions map[token.Pos]struct{}) []funcDeclRef {
 	result := []funcDeclRef{}
-	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				if decl, ok := decl.(*ast.FuncDecl); ok {
-					// for each function declaration in packages:
-					//
-					// it's important not to use decl.Pos() here
-					// as it gives us the position of the "func"
-					// token, whereas positions has collected
-					// the locations of method name tokens:
-					if _, ok := positions[decl.Name.Pos()]; ok {
-						result = append(result, funcDeclRef{decl, file})
-					}
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok {
+				// for each function declaration in packages:
+				//
+				// it's important not to use decl.Pos() here
+				// as it gives us the position of the "func"
+				// token, whereas positions has collected
+				// the locations of method name tokens:
+				if _, ok := positions[decl.Name.Pos()]; ok {
+					result = append(result, funcDeclRef{decl, file})
 				}
 			}
 		}
@@ -151,16 +260,10 @@ func functionDeclarationsAtPositions(packages []*loader.PackageInfo, positions m
 	return result
 }
 
-// isInterface returns true if t is an interface declaration.
-func isInterface(t types.Type) bool {
-	_, ok := t.Underlying().(*types.Interface)
-	return ok
-}
-
 // findMethodsImplementing searches the specified packages and returns
 // a list of function declarations that are implementations for
 // the specified interfaces.
-func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types.Interface) []funcDeclRef {
+func findMethodsImplementing(ctx *util.Context, fset *token.FileSet, tpkg *types.Package, interfaces []*types.Interface) map[token.Pos]struct{} {
 	// positions will hold the set of Pos values of methods
 	// that should be logged.  Each element will be the position of
 	// the identifier token representing the method name of such
@@ -170,39 +273,46 @@ func findMethodsImplementing(packages []*loader.PackageInfo, interfaces []*types
 	// declarations and find everything that has a matching position.
 	positions := map[token.Pos]struct{}{}
 
+	printHeader(ctx.Stdout(), "Methods Implementing Public Interfaces in %s", tpkg.Path())
+
 	// msetCache caches information for typeutil.IntuitiveMethodSet()
 	msetCache := types.MethodSetCache{}
-	for _, pkg := range packages {
-		for _, def := range pkg.Defs {
-			if def, ok := def.(*types.TypeName); ok {
-				t := def.Type()
-				// ignore interfaces as they have no method implementations
-				if isInterface(t) {
-					continue
-				}
+	scope := tpkg.Scope()
+	for _, child := range scope.Names() {
+		object := scope.Lookup(child)
+		typ := object.Type()
+		// ignore interfaces as they have no method implementations
+		if types.IsInterface(typ) {
+			continue
+		}
 
-				// for each non-interface type t declared in packages:
-				apiMethodSet := methodSetVisibleThroughInterfaces(t, interfaces)
+		// for each non-interface type t declared in packages:
+		apiMethodSet := methodSetVisibleThroughInterfaces(typ, interfaces)
 
-				// optimization: if t implements no non-empty interfaces that
-				// we care about, we can just ignore it.
-				if len(apiMethodSet) > 0 {
-					// find all the methods explicitly declared or implicitly
-					// inherited through embedding on type t or *t.
-					for _, method := range typeutil.IntuitiveMethodSet(t, &msetCache) {
-						fn := method.Obj().(*types.Func)
-						// t may have a method that is not declared in any of
-						// the interfaces we care about. No need to log that.
-						if _, ok := apiMethodSet[fn.Name()]; ok {
-							positions[fn.Pos()] = exists
-						}
+		// optimization: if t implements no non-empty interfaces that
+		// we care about, we can just ignore it.
+		if len(apiMethodSet) > 0 {
+			// find all the methods explicitly declared or implicitly
+			// inherited through embedding on type t or *t.
+			for _, method := range typeutil.IntuitiveMethodSet(typ, &msetCache) {
+				fn := method.Obj().(*types.Func)
+				// t may have a method that is not declared in any of
+				// the interfaces we care about. No need to log that.
+				if _, ok := apiMethodSet[fn.Name()]; ok {
+					if fn.Pos() == 0 {
+						// TODO(cnicolaou): figure out where these functions
+						// with no pos information come from.
+						continue
 					}
+					if progressFlag {
+						fmt.Printf("%s.%s: %s\n", tpkg.Path(), fn.Name(), fset.Position(fn.Pos()))
+					}
+					positions[fn.Pos()] = exists
 				}
 			}
 		}
 	}
-
-	return functionDeclarationsAtPositions(packages, positions)
+	return positions
 }
 
 type patch struct {
@@ -326,7 +436,7 @@ func checkMethod(method funcDeclRef) error {
 
 // gofmt runs "gofmt -w files...".
 func gofmt(ctx *util.Context, files []string) error {
-	if !gofmtFlag {
+	if len(files) == 0 || !gofmtFlag {
 		return nil
 	}
 	return ctx.Run().Command("gofmt", append([]string{"-w"}, files...)...)
@@ -455,21 +565,43 @@ func isAddressOfExpression(expr ast.Expr) (isAddrExpr bool) {
 	return ok && unaryExpr.Op == token.AND
 }
 
-// findPublicInterfaces returns all the public interfaces defined in
-// packages
-func findPublicInterfaces(packages []*loader.PackageInfo) (interfaces []*types.Interface) {
-	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.TYPE && len(decl.Specs) > 0 {
-					if typeSpec, ok := decl.Specs[0].(*ast.TypeSpec); ok && ast.IsExported(typeSpec.Name.Name) {
-						if ifaceType, ok := typeSpec.Type.(*ast.InterfaceType); ok {
-							iface := pkg.TypeOf(ifaceType).(*types.Interface)
-							if !iface.Empty() {
-								interfaces = append(interfaces, pkg.TypeOf(ifaceType).(*types.Interface))
-							}
-						}
+func printHeader(out io.Writer, format string, args ...interface{}) {
+	if progressFlag {
+		s := fmt.Sprintf(format, args...)
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, s)
+		fmt.Fprintln(out, strings.Repeat("=", len(s)))
+	}
+}
+
+// findPublicInterfaces returns all the public interfaces defined in this
+// packages imports.
+func findPublicInterfaces(ctx *util.Context, ifcs []*build.Package, tpkg *types.Package) (interfaces []*types.Interface) {
+	isInterfacePackage := func(t *types.Package) bool {
+		for _, b := range ifcs {
+			if t.Name() == b.Name && t.Path() == b.ImportPath {
+				return true
+			}
+		}
+		return false
+	}
+	printHeader(ctx.Stdout(), "Public Interfaces for %s", tpkg.Path())
+	tpkgs := append(tpkg.Imports(), tpkg)
+	for _, imported := range tpkgs {
+		if !isInterfacePackage(imported) {
+			continue
+		}
+		scope := imported.Scope()
+		for _, child := range scope.Names() {
+			object := scope.Lookup(child)
+			typ := object.Type()
+			if object.Exported() && types.IsInterface(typ) {
+				ifcType := typ.Underlying().(*types.Interface)
+				if !ifcType.Empty() {
+					if progressFlag {
+						fmt.Printf("%s.%s\n", imported.Path(), object.Name())
 					}
+					interfaces = append(interfaces, ifcType)
 				}
 			}
 		}
