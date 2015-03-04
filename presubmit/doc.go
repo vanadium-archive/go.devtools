@@ -44,7 +44,7 @@ Usage:
 The presubmit query flags are:
  -log_file=$HOME/tmp/presubmit_log
    The file that stores the refs from the previous Gerrit query.
- -manifest=default
+ -manifest=
    Name of the project manifest.
  -query=(status:open -project:experimental)
    The string used to query Gerrit for open CLs.
@@ -78,7 +78,7 @@ Usage:
 The presubmit test flags are:
  -build_number=-1
    The number of the Jenkins build.
- -manifest=default
+ -manifest=
    Name of the project manifest.
  -projects=
    The base names of the remote projects containing the CLs pointed by the refs,

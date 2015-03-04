@@ -56,15 +56,26 @@ func RemoteManifestFile(name string) (string, error) {
 	return filepath.Join(dir, name), nil
 }
 
-// ResolveManifestPath resolves the given path to an absolute path in
-// the local filesystem. If the input is already an absolute path,
-// this operation is a no-op. Otherwise, the relative path is rooted
-// in the local manifest directory.
-func ResolveManifestPath(path string) (string, error) {
-	if filepath.IsAbs(path) {
-		return path, nil
+// ResolveManifestPath resolves the given manifest name to an absolute
+// path in the local filesystem.
+func ResolveManifestPath(name string) (string, error) {
+	if name != "" {
+		if filepath.IsAbs(name) {
+			return name, nil
+		}
+		return RemoteManifestFile(name)
 	}
-	return RemoteManifestFile(path)
+	path, err := LocalManifestFile()
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return ResolveManifestPath("default")
+		}
+		return "", fmt.Errorf("Stat(%v) failed: %v", err)
+	}
+	return path, nil
 }
 
 // ConfigDir returns the local path to the directory storing config

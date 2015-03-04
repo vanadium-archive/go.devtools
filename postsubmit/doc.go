@@ -31,7 +31,7 @@ Usage:
    postsubmit poll [flags]
 
 The postsubmit poll flags are:
- -manifest=default
+ -manifest=
    Name of the project manifest.
 
 Postsubmit Version
