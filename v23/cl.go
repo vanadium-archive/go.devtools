@@ -13,7 +13,6 @@ import (
 	"v.io/x/devtools/lib/gerrit"
 	"v.io/x/devtools/lib/gitutil"
 	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/version"
 	"v.io/x/lib/cmdline"
 )
 
@@ -21,58 +20,43 @@ const commitMessageFile = ".gerrit_commit_message"
 
 var (
 	ccsFlag         string
-	currentFlag     bool
 	draftFlag       bool
-	dryRunFlag      bool
-	forceFlag       bool
 	depcopFlag      bool
 	gofmtFlag       bool
-	masterFlag      bool
-	noColorFlag     bool
 	presubmitFlag   string
 	reviewersFlag   string
-	verboseFlag     bool
 	uncommittedFlag bool
-	untrackedFlag   bool
 	editFlag        bool
+	forceFlag       bool
 )
 
 // init carries out the package initialization.
 func init() {
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
-	cmdCleanup.Flags.BoolVar(&forceFlag, "f", false, "Ignore unmerged changes.")
-	cmdReview.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
-	cmdReview.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
-	cmdReview.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
-	cmdReview.Flags.BoolVar(&uncommittedFlag, "check_uncommitted", true, "Check that no uncommitted changes exist.")
-	cmdReview.Flags.BoolVar(&depcopFlag, "check_depcop", true, "Check that no go-depcop violations exist.")
-	cmdReview.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
-	cmdReview.Flags.StringVar(&presubmitFlag, "presubmit", string(gerrit.PresubmitTestTypeAll),
+	cmdCLCleanup.Flags.BoolVar(&forceFlag, "f", false, "Ignore unmerged changes.")
+	cmdCLMail.Flags.BoolVar(&draftFlag, "d", false, "Send a draft changelist.")
+	cmdCLMail.Flags.StringVar(&reviewersFlag, "r", "", "Comma-seperated list of emails or LDAPs to request review.")
+	cmdCLMail.Flags.StringVar(&ccsFlag, "cc", "", "Comma-seperated list of emails or LDAPs to cc.")
+	cmdCLMail.Flags.BoolVar(&uncommittedFlag, "check_uncommitted", true, "Check that no uncommitted changes exist.")
+	cmdCLMail.Flags.BoolVar(&depcopFlag, "check_depcop", true, "Check that no go-depcop violations exist.")
+	cmdCLMail.Flags.BoolVar(&gofmtFlag, "check_gofmt", true, "Check that no go fmt violations exist.")
+	cmdCLMail.Flags.StringVar(&presubmitFlag, "presubmit", string(gerrit.PresubmitTestTypeAll),
 		fmt.Sprintf("The type of presubmit tests to run. Valid values: %s.", strings.Join(gerrit.PresubmitTestTypes(), ",")))
-	cmdReview.Flags.BoolVar(&editFlag, "edit", true, "Open an editor to edit the commit message.")
+	cmdCLMail.Flags.BoolVar(&editFlag, "edit", true, "Open an editor to edit the commit message.")
 }
 
-var cmdRoot = &cmdline.Command{
-	Name:  "git-v23",
-	Short: "Tool for Vanadium code reviews",
-	Long: `
-The git-v23 tool facilitates interaction with Vanadium code review
-system. In particular, it can be used to export changelists from a
-local branch to the Gerrit server.
-`,
-	Children: []*cmdline.Command{cmdCleanup, cmdReview, cmdVersion},
+// cmdCL represents the "v23 cl" command.
+var cmdCL = &cmdline.Command{
+	Name:     "cl",
+	Short:    "Manage vanadium changelists",
+	Long:     "Manage vanadium changelists.",
+	Children: []*cmdline.Command{cmdCLCleanup, cmdCLMail},
 }
 
-// root returns a command that represents the root of the git-v23 tool.
-func root() *cmdline.Command {
-	return cmdRoot
-}
-
-// cmmCleanup represents the "cleanup" command of the git-v23 tool.
-var cmdCleanup = &cmdline.Command{
-	Run:   runCleanup,
+// cmdCLCleanup represents the "v23 cl cleanup" command.
+//
+// TODO(jsimsa): Make this part of the "submit" command".
+var cmdCLCleanup = &cmdline.Command{
+	Run:   runCLCleanup,
 	Name:  "cleanup",
 	Short: "Clean up branches that have been merged",
 	Long: `
@@ -147,7 +131,7 @@ func cleanupBranch(ctx *util.Context, branch string) error {
 	return nil
 }
 
-func runCleanup(command *cmdline.Command, args []string) error {
+func runCLCleanup(command *cmdline.Command, args []string) error {
 	if len(args) == 0 {
 		return command.UsageErrorf("cleanup requires at least one argument")
 	}
@@ -155,14 +139,14 @@ func runCleanup(command *cmdline.Command, args []string) error {
 	return cleanup(ctx, args)
 }
 
-// cmdReview represents the "review" command of the git-v23 tool.
-var cmdReview = &cmdline.Command{
-	Run:   runReview,
-	Name:  "review",
-	Short: "Send a changelist from a local branch to Gerrit for review",
+// cmdCLMail represents the "v23 cl mail" command.
+var cmdCLMail = &cmdline.Command{
+	Run:   runCLMail,
+	Name:  "mail",
+	Short: "Mail a changelist based on the current branch to Gerrit for review",
 	Long: `
 Squashes all commits of a local branch into a single "changelist" and
-sends this changelist to Gerrit as a single commit. First time the
+mails this changelist to Gerrit as a single commit. First time the
 command is invoked, it generates a Change-Id for the changelist, which
 is appended to the commit message. Consecutive invocations of the
 command use the same Change-Id by default, informing Gerrit that the
@@ -244,8 +228,8 @@ var defaultMessageHeader = `
 #
 `
 
-// runReview is a wrapper that sets up and runs a review instance.
-func runReview(command *cmdline.Command, _ []string) error {
+// runCLMail is a wrapper that sets up and runs a review instance.
+func runCLMail(command *cmdline.Command, _ []string) error {
 	// Sanity checks for the presubmitFlag.
 	if !checkPresubmitFlag() {
 		return command.UsageErrorf("Invalid value for -presubmit flag. Valid values: %s.",
@@ -254,7 +238,7 @@ func runReview(command *cmdline.Command, _ []string) error {
 
 	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
 	repo := ""
-	review, err := NewReview(ctx, draftFlag, editFlag, repo, reviewersFlag, ccsFlag, gerrit.PresubmitTestType(presubmitFlag))
+	review, err := newReview(ctx, draftFlag, editFlag, repo, reviewersFlag, ccsFlag, gerrit.PresubmitTestType(presubmitFlag))
 	if err != nil {
 		return err
 	}
@@ -316,9 +300,10 @@ type review struct {
 	reviewers string
 }
 
-// NewReview is the review factory.
+// newReview is the review factory.
+//
 // TODO(jingjin): use optional arguments.
-func NewReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string, presubmit gerrit.PresubmitTestType) (*review, error) {
+func newReview(ctx *util.Context, draft, edit bool, repo, reviewers, ccs string, presubmit gerrit.PresubmitTestType) (*review, error) {
 	branch, err := ctx.Git().CurrentBranchName()
 	if err != nil {
 		return nil, err
@@ -511,8 +496,8 @@ func (r *review) ensureChangeID() error {
 	return nil
 }
 
-// processPresubmitLabel adds/removes the "PresubmitTest" label for the given
-// commit message.
+// processPresubmitLabel adds/removes the "PresubmitTest" label for
+// the given commit message.
 func (r *review) processPresubmitLabel(message string) string {
 	// Find the Change-ID line.
 	changeIDLine := changeIDRE.FindString(message)
@@ -533,7 +518,8 @@ func (r *review) processPresubmitLabel(message string) string {
 	return message
 }
 
-// run implements the end-to-end functionality of the review command.
+// run implements checks that the review passes all local checks and
+// then mails it to Gerrit.
 func (r *review) run() (e error) {
 	if uncommittedFlag {
 		changes, err := r.ctx.Git().FilesWithUncommittedChanges()
@@ -585,14 +571,13 @@ func (r *review) run() (e error) {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	// Add/remove presubmit label to/from the commit message before asking users
-	// to edit it.
-	// We do this only when this is not the initial commit where the message is
-	// empty.
+	// Add/remove presubmit label to/from the commit message before
+	// asking users to edit it. We do this only when this is not the
+	// initial commit where the message is empty.
 	//
-	// For the initial commit, the presubmit label will be processed after the
-	// message is edited by users, which happens in the updateReviewMessage
-	// method.
+	// For the initial commit, the presubmit label will be processed
+	// after the message is edited by users, which happens in the
+	// updateReviewMessage method.
 	if message != "" {
 		message = r.processPresubmitLabel(message)
 	}
@@ -608,7 +593,7 @@ func (r *review) run() (e error) {
 	return nil
 }
 
-// send sends the current branch out for review.
+// send mails the current branch out for review.
 func (r *review) send() error {
 	if !r.ctx.DryRun() {
 		if err := r.ensureChangeID(); err != nil {
@@ -632,11 +617,12 @@ func (r *review) updateReviewMessage(filename string) error {
 	if err != nil {
 		return err
 	}
-	// For the initial commit where the commit message file doesn't exist,
-	// add/remove presubmit label after users finish editing the commit message.
+	// For the initial commit where the commit message file doesn't
+	// exist, add/remove presubmit label after users finish editing the
+	// commit message.
 	//
-	// This behavior is consistent with how Change-ID is added for the initial
-	// commit so we don't confuse users.
+	// This behavior is consistent with how Change-ID is added for the
+	// initial commit so we don't confuse users.
 	if _, err := os.Stat(filename); err != nil {
 		if os.IsNotExist(err) {
 			newMessage = r.processPresubmitLabel(newMessage)
@@ -681,17 +667,4 @@ func (r *review) getCommitMessageFilename() (string, error) {
 		return "", err
 	}
 	return filepath.Join(topLevel, commitMessageFile), nil
-}
-
-// cmdVersion represents the "version" command of the git-v23 tool.
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version",
-	Long:  "Print version of the git-v23 tool.",
-}
-
-func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "git-v23 tool version %v\n", version.Version)
-	return nil
 }
