@@ -82,6 +82,12 @@ type Tools map[string]Tool
 type Tool struct {
 	// Exclude is flag used to exclude previously included projects.
 	Exclude bool `xml:"exclude,attr"`
+	// Data is a relative path to a directory for storing tool data
+	// (e.g. tool configuration files). The purpose of this field is to
+	// decouple the configuration of the data directory from the tool
+	// itself so that the location of the data directory can change
+	// without the need to change the tool.
+	Data string `xml:"data,attr"`
 	// Name is the name of the tool binary.
 	Name string `xml:"name,attr"`
 	// Package is the package path of the tool.
@@ -548,9 +554,13 @@ func readManifest(path string, projects Projects, tools Tools, stack map[string]
 			delete(tools, tool.Name)
 			continue
 		}
-		// Use the "release.go.tools" project as the default project.
+		// Use "release.go.x.devtools" as the default project.
 		if tool.Project == "" {
-			tool.Project = "https://vanadium.googlesource.com/release.go.tools"
+			tool.Project = "https://vanadium.googlesource.com/release.go.x.devtools"
+		}
+		// Use "data" as the default data.
+		if tool.Data == "" {
+			tool.Data = "data"
 		}
 		tools[tool.Name] = tool
 	}
