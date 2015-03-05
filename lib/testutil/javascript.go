@@ -77,21 +77,12 @@ func vanadiumJSDoc(ctx *util.Context, testName string, _ ...TestOpt) (*TestResul
 	}
 	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "docs"
-	webDir, jsDocDir := "/var/www/jsdoc", filepath.Join(testDir, "docs")
-	cleanFn := func() error {
-		if err := ctx.Run().RemoveAll(webDir); err != nil {
-			return err
-		}
-		return nil
-	}
-	result, err := runJSTest(ctx, testName, testDir, target, cleanFn, nil)
+
+	result, err := runJSTest(ctx, testName, testDir, target, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Move generated js documentation to the web server directory.
-	if err := ctx.Run().Rename(jsDocDir, webDir); err != nil {
-		return nil, err
-	}
+
 	return result, nil
 }
 
