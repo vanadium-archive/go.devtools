@@ -190,9 +190,7 @@ func setAndroidEnv(env *envutil.Snapshot, platform Platform) error {
 	env.Set("GOOS", platform.OS)
 	env.Set("GOARCH", platform.Arch)
 	env.Set("GOARM", strings.TrimPrefix(platform.SubArch, "v"))
-	if err := setJniCgoEnv(env, root, platform.OS); err != nil {
-		return err
-	}
+
 	// Add the paths to vanadium cross-compilation tools to the PATH.
 	path := env.GetTokens("PATH", ":")
 	path = append([]string{
@@ -278,27 +276,6 @@ func setBluetoothCgoEnv(env *envutil.Snapshot, root, arch string) error {
 			}
 			ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"), "-Wl,-rpath", filepath.Join(dir, "lib"))
 		}
-	}
-	env.SetTokens("CGO_CFLAGS", cflags, " ")
-	env.SetTokens("CGO_LDFLAGS", ldflags, " ")
-	return nil
-}
-
-// setJniCgoEnv sets the CGO_ENABLED variable and adds the JNI
-// third-party C libraries vanadium Go code depends on to the CGO_CFLAGS
-// and CGO_LDFLAGS variables.
-func setJniCgoEnv(env *envutil.Snapshot, root, arch string) error {
-	env.Set("CGO_ENABLED", "1")
-	cflags := env.GetTokens("CGO_CFLAGS", " ")
-	ldflags := env.GetTokens("CGO_LDFLAGS", " ")
-	dir := filepath.Join(root, "environment", "cout", "jni-wrapper-1.0", arch)
-	if _, err := os.Stat(dir); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("Stat(%v) failed: %v", dir, err)
-		}
-	} else {
-		cflags = append(cflags, filepath.Join("-I"+dir, "include"))
-		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"), "-Wl,-rpath", filepath.Join(dir, "lib"))
 	}
 	env.SetTokens("CGO_CFLAGS", cflags, " ")
 	env.SetTokens("CGO_LDFLAGS", ldflags, " ")
