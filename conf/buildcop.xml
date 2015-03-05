@@ -7,11 +7,6 @@
 -->
 <rotation>
   <shift>
-    <primary>jasoncampbell</primary>
-    <secondary>jhahn</secondary>
-    <startDate>Feb 25, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
     <primary>jhahn</primary>
     <secondary>jyh</secondary>
     <startDate>Mar 4, 2015 12:00:00 PM</startDate>
@@ -160,5 +155,10 @@
     <primary>hpucha</primary>
     <secondary>jasoncampbell</secondary>
     <startDate>Sep 23, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>jasoncampbell</primary>
+    <secondary>jhahn</secondary>
+    <startDate>Sep 30, 2015 12:00:00 PM</startDate>
   </shift>
 </rotation>
