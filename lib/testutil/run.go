@@ -446,6 +446,11 @@ func persistTestData(ctx *util.Context, result *TestResult, output *bytes.Buffer
 // generateXUnitReportForError generates an xUnit test report for the
 // given (internal) error.
 func generateXUnitReportForError(ctx *util.Context, test string, err error, output string) (*TestResult, error) {
+	// Skip the report generation for presubmit-test itself.
+	if test == "vanadium-presubmit-test" {
+		return &TestResult{Status: TestPassed}, nil
+	}
+
 	xUnitFilePath := xunit.ReportPath(test)
 
 	// Only create the report when the xUnit file doesn't exist, is
