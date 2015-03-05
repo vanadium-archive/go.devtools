@@ -146,8 +146,8 @@
   },
   "test-parts": {
     "vanadium-go-race": [
-      "v.io/core/veyron/services/...",
-      "v.io/core/veyron/runtimes/..."
+      "v.io/x/ref/services/...",
+      "v.io/x/ref/profiles/..."
     ]
   }
 }
