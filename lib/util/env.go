@@ -85,7 +85,7 @@ func ConfigDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "release", "go", "src", "v.io", "tools", "conf"), nil
+	return filepath.Join(root, "release", "go", "src", "v.io", "x", "devtools", "conf"), nil
 }
 
 // ConfigFile returns the local path to the config file identifed by
