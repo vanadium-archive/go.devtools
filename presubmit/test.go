@@ -27,7 +27,7 @@ var (
 func init() {
 	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
-	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
+	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
 }

@@ -406,7 +406,7 @@ func TestUpdateUniverse(t *testing.T) {
 	// Create a local manifest that imports the remote manifest
 	// and check that UpdateUniverse() has no effect.
 	createLocalManifestStub(t, ctx, localDir)
-	if err := UpdateUniverse(ctx, "unused", true); err != nil {
+	if err := UpdateUniverse(ctx, "", true); err != nil {
 		t.Fatalf("%v", err)
 	}
 	for i, _ := range remoteProjects {
@@ -418,7 +418,7 @@ func TestUpdateUniverse(t *testing.T) {
 	// check that UpdateUniverse() has no effect.
 	createLocalManifestCopy(t, ctx, localDir, remoteManifest)
 	createRemoteManifest(t, ctx, remoteManifest, remoteProjects)
-	if err := UpdateUniverse(ctx, "unused", true); err != nil {
+	if err := UpdateUniverse(ctx, "", true); err != nil {
 		t.Fatalf("%v", err)
 	}
 	for i, _ := range remoteProjects {

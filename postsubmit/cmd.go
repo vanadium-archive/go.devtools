@@ -44,7 +44,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
-	cmdPoll.Flags.StringVar(&manifestFlag, "manifest", "default", "Name of the project manifest.")
+	cmdPoll.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 }
 
 // root returns a command that represents the root of the postsubmit tool.

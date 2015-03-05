@@ -158,7 +158,7 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	if err != nil {
 		return nil, err
 	}
-	ops, err := computeOperations(localProjects, remoteProjects, manifest, false)
+	ops, err := computeOperations(localProjects, remoteProjects, false)
 	if err != nil {
 		return nil, err
 	}
@@ -202,8 +202,8 @@ func PollProjects(ctx *Context, manifest string, projectSet map[string]struct{})
 	return update, nil
 }
 
-// ReadManifest retrieves and parses the manifest(s) that determine
-// what projects and tools are to be updated.
+// ReadManifest retrieves and parses the manifest that determine what
+// projects and tools are to be updated.
 func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
 	// Update the manifest repository.
 	root, err := VanadiumRoot()
@@ -218,18 +218,9 @@ func ReadManifest(ctx *Context, manifest string) (Projects, Tools, error) {
 	if err := pullProject(ctx, project); err != nil {
 		return nil, nil, err
 	}
-	// Read either the local manifest, if it exists, or the remote
-	// manifest specified by the given name.
-	path, err := LocalManifestFile()
+	path, err := ResolveManifestPath(manifest)
 	if err != nil {
 		return nil, nil, err
-	}
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			path, err = ResolveManifestPath(manifest)
-		} else {
-			return nil, nil, fmt.Errorf("Stat(%v) failed: %v", err)
-		}
 	}
 	projects, tools, stack := Projects{}, Tools{}, map[string]struct{}{}
 	if err := readManifest(path, projects, tools, stack); err != nil {
@@ -248,7 +239,7 @@ func UpdateUniverse(ctx *Context, manifest string, gc bool) (e error) {
 		return err
 	}
 	// 1. Update all local projects to match their remote counterparts.
-	if err := updateProjects(ctx, remoteProjects, manifest, gc); err != nil {
+	if err := updateProjects(ctx, remoteProjects, gc); err != nil {
 		return err
 	}
 	// 2. Build all tools in a temporary directory.
@@ -637,12 +628,12 @@ func snapshotLocalProjects(ctx *Context) (*Manifest, error) {
 }
 
 // updateProjects updates all vanadium projects.
-func updateProjects(ctx *Context, remoteProjects Projects, manifest string, gc bool) error {
+func updateProjects(ctx *Context, remoteProjects Projects, gc bool) error {
 	localProjects, err := LocalProjects(ctx)
 	if err != nil {
 		return err
 	}
-	ops, err := computeOperations(localProjects, remoteProjects, manifest, gc)
+	ops, err := computeOperations(localProjects, remoteProjects, gc)
 	if err != nil {
 		return err
 	}
@@ -878,8 +869,6 @@ type deleteOperation struct {
 	// gc determines whether the operation should be executed or
 	// whether it should only print a notification.
 	gc bool
-	// manifest records the name of the current project manifest.
-	manifest string
 }
 
 func (op deleteOperation) Run(ctx *Context) error {
@@ -887,7 +876,7 @@ func (op deleteOperation) Run(ctx *Context) error {
 		return ctx.Run().RemoveAll(op.source)
 	}
 	lines := []string{
-		fmt.Sprintf("NOTE: this project was not found in the %q manifest", op.manifest),
+		fmt.Sprintf("NOTE: this project was not found in the project manifest"),
 		"it was not automatically removed to avoid deleting uncommitted work",
 		fmt.Sprintf(`if you no longer need it, invoke "rm -rf %v"`, op.source),
 		`or invoke "v23 update -gc" to remove all such local projects`,
@@ -1029,7 +1018,7 @@ func (ops operations) Swap(i, j int) {
 // system and manifest file respectively) and outputs a collection of
 // operations that describe the actions needed to update the target
 // projects.
-func computeOperations(localProjects, remoteProjects Projects, manifest string, gc bool) (operations, error) {
+func computeOperations(localProjects, remoteProjects Projects, gc bool) (operations, error) {
 	result := operations{}
 	allProjects := map[string]struct{}{}
 	for name, _ := range localProjects {
@@ -1059,7 +1048,7 @@ func computeOperations(localProjects, remoteProjects Projects, manifest string, 
 					destination: "",
 					project:     localProject,
 					source:      localProject.Path,
-				}, gc, manifest})
+				}, gc})
 			}
 		} else if remoteProject, ok := remoteProjects[name]; ok {
 			result = append(result, createOperation{commonOperation{
