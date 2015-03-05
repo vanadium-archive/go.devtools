@@ -126,6 +126,7 @@
     "javascript": [
       "vanadium-js-browser-integration",
       "vanadium-js-build-extension",
+      "vanadium-js-doc",
       "vanadium-js-node-integration",
       "vanadium-js-unit",
       "vanadium-js-vdl",
