@@ -332,5 +332,5 @@ func BuildCopRotationPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "release", "go", "src", "v.io", "tools", "conf", "buildcop.xml"), nil
+	return filepath.Join(root, "release", "go", "src", "v.io", "x", "devtools", "conf", "buildcop.xml"), nil
 }
