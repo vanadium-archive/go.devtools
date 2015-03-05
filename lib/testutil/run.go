@@ -292,7 +292,7 @@ func runTests(ctx *util.Context, tests []string, results map[string]*TestResult,
 
 		// Run the test and collect the test results.
 		result, err := testFn(newCtx, test, opts...)
-		if result.Status == TestTimedOut {
+		if result != nil && result.Status == TestTimedOut {
 			writeTimedOutTestReport(newCtx, test, *result)
 		}
 		if err == nil {
