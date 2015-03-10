@@ -387,6 +387,68 @@ func buildTools(ctx *Context, remoteTools Tools, outputDir string) error {
 	return nil
 }
 
+// CleanupProjects restores the given vanadium projects back to their master
+// branches and gets rid of all the local changes. If "cleanupBranches" is true,
+// it will also delete all the non-master branches.
+func CleanupProjects(ctx *Context, projects Projects, cleanupBranches bool) (e error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Getwd() failed: %v", err)
+	}
+	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
+	for _, project := range projects {
+		localProjectDir := project.Path
+		if err := ctx.Run().Chdir(localProjectDir); err != nil {
+			return err
+		}
+		if err := resetLocalProject(ctx, cleanupBranches); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resetLocalProject checks out the master branch, cleans up untracked files
+// and uncommitted changes, and optionally deletes all the other branches.
+func resetLocalProject(ctx *Context, cleanupBranches bool) error {
+	// Check out master and clean up changes.
+	curBranchName, err := ctx.Git().CurrentBranchName()
+	if err != nil {
+		return err
+	}
+	if curBranchName != "master" {
+		if err := ctx.Git().CheckoutBranch("master", gitutil.Force); err != nil {
+			return err
+		}
+	}
+	if err := ctx.Git().RemoveUntrackedFiles(); err != nil {
+		return err
+	}
+	// Discard any uncommitted changes.
+	if err := ctx.Git().Reset("origin/master"); err != nil {
+		return err
+	}
+
+	// Delete all the other branches.
+	// At this point we should be at the master branch.
+	branches, _, err := ctx.Git().GetBranches()
+	if err != nil {
+		return err
+	}
+	for _, branch := range branches {
+		if branch == "master" {
+			continue
+		}
+		if cleanupBranches {
+			if err := ctx.Git().DeleteBranch(branch, gitutil.Force); err != nil {
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
 // findLocalProjects implements LocalProjects.
 func findLocalProjects(ctx *Context, path string, projects Projects) (e error) {
 	cwd, err := os.Getwd()

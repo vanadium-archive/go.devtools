@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"v.io/x/devtools/lib/collect"
-	"v.io/x/devtools/lib/gitutil"
 	"v.io/x/devtools/lib/testutil"
 	"v.io/x/devtools/lib/util"
 	"v.io/x/devtools/lib/xunit"
@@ -305,64 +304,11 @@ func rebuildDeveloperTools(ctx *util.Context, projects util.Projects, tools util
 }
 
 // cleanupPresubmitTestBranch removes the presubmit test branch.
-func cleanupAllPresubmitTestBranches(ctx *util.Context, projects map[string]util.Project) (e error) {
+func cleanupAllPresubmitTestBranches(ctx *util.Context, projects util.Projects) (e error) {
 	printf(ctx.Stdout(), "### Cleaning up\n")
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
-	}
-	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
-	for _, project := range projects {
-		localProjectDir := project.Path
-		if err := ctx.Run().Chdir(localProjectDir); err != nil {
-			return fmt.Errorf("Chdir(%v) failed: %v", localProjectDir, err)
-		}
-		if err := resetLocalProject(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// resetLocalProject cleans up untracked files and uncommitted changes of the
-// current branch, checks out the master branch, and deletes all the
-// other branches.
-func resetLocalProject(ctx *util.Context) error {
-	// Clean up changes and check out master.
-	curBranchName, err := ctx.Git().CurrentBranchName()
-	if err != nil {
+	if err := util.CleanupProjects(ctx, projects, true); err != nil {
 		return err
 	}
-	if curBranchName != "master" {
-		if err := ctx.Git().CheckoutBranch("master", gitutil.Force); err != nil {
-			return err
-		}
-	}
-	if err := ctx.Git().RemoveUntrackedFiles(); err != nil {
-		return err
-	}
-	// Discard any uncommitted changes.
-	if err := ctx.Git().Reset("origin/master"); err != nil {
-		return err
-	}
-
-	// Delete all the other branches.
-	// At this point we should be at the master branch.
-	branches, _, err := ctx.Git().GetBranches()
-	if err != nil {
-		return err
-	}
-	for _, branch := range branches {
-		if branch == "master" {
-			continue
-		}
-		if strings.HasPrefix(branch, "presubmit_refs") {
-			if err := ctx.Git().DeleteBranch(branch, gitutil.Force); err != nil {
-				return nil
-			}
-		}
-	}
-
 	return nil
 }
 
