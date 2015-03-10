@@ -2,11 +2,12 @@ package testutil
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/xunit"
 )
 
 var (
@@ -15,6 +16,12 @@ var (
 	// test of this package from interfering with other concurrently
 	// running tests that might be sharing the same object files.
 	cleanGo = true
+
+	// Regexp to match javascript result files.
+	reJSResult = regexp.MustCompile(`.*_(integration|spec)\.out$`)
+
+	// Regexp to match common test result files.
+	reTestResult = regexp.MustCompile(`^((tests_.*\.xml)|(status_.*\.json))$`)
 )
 
 // internalTestError represents an internal test error.
@@ -95,14 +102,66 @@ func initTest(ctx *util.Context, testName string, profiles []string) (func() err
 		}
 	}
 
-	// Remove xUnit test report file.
-	if err := ctx.Run().RemoveAll(xunit.ReportPath(testName)); err != nil {
+	// Cleanup the test results possibly left behind by the
+	// previous test.
+	testResultFiles, err := findTestResultFiles(ctx, testName)
+	if err != nil {
 		return nil, err
+	}
+	for _, file := range testResultFiles {
+		if err := ctx.Run().RemoveAll(file); err != nil {
+			return nil, err
+		}
 	}
 
 	return func() error {
 		return ctx.Run().Chdir(cwd)
 	}, nil
+}
+
+// findTestResultFiles returns a slice of paths to test result related files.
+func findTestResultFiles(ctx *util.Context, testName string) ([]string, error) {
+	result := []string{}
+	root, err := util.VanadiumRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect javascript test results.
+	jsDir := filepath.Join(root, "release", "javascript", "core", "test_out")
+	if _, err := os.Stat(jsDir); err == nil {
+		fileInfoList, err := ioutil.ReadDir(jsDir)
+		if err != nil {
+			return nil, fmt.Errorf("ReadDir(%v) failed: %v", jsDir, err)
+		}
+		for _, fileInfo := range fileInfoList {
+			name := fileInfo.Name()
+			if reJSResult.MatchString(name) {
+				result = append(result, filepath.Join(jsDir, name))
+			}
+		}
+	} else {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+
+	// Collect xUnit xml files and test status json files.
+	workspaceDir := os.Getenv("WORKSPACE")
+	if workspaceDir == "" {
+		workspaceDir = filepath.Join(os.Getenv("HOME"), "tmp", testName)
+	}
+	fileInfoList, err := ioutil.ReadDir(workspaceDir)
+	if err != nil {
+		return nil, fmt.Errorf("ReadDir(%v) failed: %v", workspaceDir, err)
+	}
+	for _, fileInfo := range fileInfoList {
+		fileName := fileInfo.Name()
+		if reTestResult.MatchString(fileName) {
+			result = append(result, filepath.Join(workspaceDir, fileName))
+		}
+	}
+	return result, nil
 }
 
 func Pass(ctx *util.Context, format string, a ...interface{}) {
