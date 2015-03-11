@@ -53,6 +53,12 @@ type testResultInfo struct {
 	PostSubmitResult string
 }
 
+// key returns a unique key for the test wrapped in the given
+// testResultInfo object.
+func (ri testResultInfo) key() string {
+	return ri.TestName + "_" + ri.SlaveLabel
+}
+
 // runResult implements the 'result' subcommand.
 //
 // In the new presubmit "master" job, the collected results related files are
@@ -188,7 +194,7 @@ outer:
 				cases, _ = jenkinsObj.FailedTestCasesForBuildSpec(buildSpec)
 			}
 			testutil.Pass(ctx, "Got build status of build %d: %s\n", i, curBuildInfo.Result)
-			data[name] = &postSubmitBuildData{
+			data[resultInfo.key()] = &postSubmitBuildData{
 				result:          curBuildInfo.Result,
 				failedTestCases: cases,
 			}
@@ -237,7 +243,7 @@ func (r *testReporter) postReport(ctx *util.Context) (e error) {
 
 	r.reportBuildCop(ctx)
 
-	failedTestNames := []string{}
+	failedTestNames := map[string]struct{}{}
 	numNewFailures := 0
 	if failedTestNames = r.reportTestResultsSummary(ctx); len(failedTestNames) != 0 {
 		// Report failed test cases grouped by failure types.
@@ -310,9 +316,9 @@ func (r *testReporter) reportBuildCop(ctx *util.Context) {
 // reportTestResultsSummary populates the given buffer with a test
 // results summary (one transition for each test) and returns a list of
 // failed tests.
-func (r *testReporter) reportTestResultsSummary(ctx *util.Context) []string {
+func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]struct{} {
 	fmt.Fprintf(r.report, "Test results:\n")
-	failedTestNames := []string{}
+	failedTestNames := map[string]struct{}{}
 	for _, resultInfo := range r.testResults {
 		name := resultInfo.TestName
 		result := resultInfo.Result
@@ -324,7 +330,7 @@ func (r *testReporter) reportTestResultsSummary(ctx *util.Context) []string {
 
 		// Get the status of the last completed build for this Jenkins test.
 		lastStatus := unknownStatus
-		if data := r.postSubmitResults[name]; data != nil {
+		if data := r.postSubmitResults[resultInfo.key()]; data != nil {
 			lastStatus = data.result
 		}
 		lastStatusString := "✖"
@@ -339,7 +345,7 @@ func (r *testReporter) reportTestResultsSummary(ctx *util.Context) []string {
 		if result.Status == testutil.TestPassed {
 			curStatusString = "✔"
 		} else {
-			failedTestNames = append(failedTestNames, name)
+			failedTestNames[name] = struct{}{}
 			curStatusString = "✖"
 		}
 
@@ -509,7 +515,7 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *util.Context) (f
 		// Get the failed test cases from the corresponding postsubmit Jenkins job
 		// to compare with the presubmit failed tests.
 		postsubmitFailedTestCases := []jenkins.TestCase{}
-		if data := r.postSubmitResults[testName]; data != nil {
+		if data := r.postSubmitResults[testResult.key()]; data != nil {
 			postsubmitFailedTestCases = data.failedTestCases
 		}
 		curFailedTestCasesGroups, err := r.genFailedTestCasesGroupsForOneTest(ctx, testResult, bytes, seenTests, postsubmitFailedTestCases)
@@ -665,11 +671,15 @@ func safeTestName(name string) string {
 // - Current presubmit-test master status page.
 // - Retry failed tests only.
 // - Retry current build.
-func (r *testReporter) reportUsefulLinks(failedTestNames []string) {
+func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 	fmt.Fprintf(r.report, "\nMore details at:\n%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestJobFlag, jenkinsBuildNumberFlag)
 	if len(failedTestNames) > 0 {
 		// Generate link to retry failed tests only.
-		link := genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, strings.Join(failedTestNames, " "))
+		names := []string{}
+		for n := range failedTestNames {
+			names = append(names, n)
+		}
+		link := genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, strings.Join(names, " "))
 		fmt.Fprintf(r.report, "\nTo re-run FAILED TESTS ONLY without uploading a new patch set:\n(click Proceed button on the next screen)\n%s\n", link)
 
 		// Generate link to retry the whole presubmit test.
