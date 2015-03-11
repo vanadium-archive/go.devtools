@@ -174,14 +174,10 @@ var (
 					},
 					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
-						Name:      "TestHelperProcess",
-					},
-					xunit.TestCase{
-						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23",
 					},
 				},
-				Tests: 5,
+				Tests: 4,
 				Skip:  1,
 			},
 		},
@@ -220,14 +216,10 @@ var (
 					},
 					xunit.TestCase{
 						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
-						Name:      "TestHelperProcess [Suffix]",
-					},
-					xunit.TestCase{
-						Classname: "v_io.x/devtools/lib/testutil/testdata/foo",
 						Name:      "TestV23 [Suffix]",
 					},
 				},
-				Tests: 5,
+				Tests: 4,
 				Skip:  1,
 			},
 		},
@@ -381,7 +373,6 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 	tests := []exclusion{
 		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test2"}, true},
 		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test3"}, true},
-		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "TestHelperProcess"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
@@ -392,7 +383,7 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 
 func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 	tests := []exclusion{
-		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test[23]$|TestHelperProcess"}, true},
+		exclusion{test{pkg: "v.io/x/devtools/lib/testutil/testdata/foo", name: "Test[23]$"}, true},
 	}
 	exclusions, err := excludedTests(tests)
 	if err != nil {
