@@ -161,6 +161,11 @@ type TestOpt interface {
 	TestOpt()
 }
 
+// PartOpt is an option that specifies which part of the test to run.
+type PartOpt int
+
+func (PartOpt) TestOpt() {}
+
 // PrefixOpt is an option that specifies the location where to
 // store test results.
 type PrefixOpt string

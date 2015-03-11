@@ -93,9 +93,10 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 		},
 	}
 
+	reporter := testReporter{}
 	for _, curTest := range tests {
 		seenTests := map[string]int{}
-		gotGroups, err := genFailedTestCasesGroupsForOneTest(ctx, curTest.testResult, []byte(reportFileContent), seenTests, curTest.postsubmitFailedTestCases)
+		gotGroups, err := reporter.genFailedTestCasesGroupsForOneTest(ctx, curTest.testResult, []byte(reportFileContent), seenTests, curTest.postsubmitFailedTestCases)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}

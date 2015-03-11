@@ -147,7 +147,7 @@
   },
   "test-parts": {
     "vanadium-go-race": [
-      "v.io/x/ref/services/...",
+      "v.io/x/ref/services/mgmt/device/...",
       "v.io/x/ref/profiles/..."
     ]
   }

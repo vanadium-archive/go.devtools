@@ -1241,8 +1241,14 @@ func vanadiumGoGenerate(ctx *util.Context, testName string, opts ...TestOpt) (_ 
 }
 
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
+// TODO(jingjin): hide the paralellization from the consumers of the
+// test results data such as Jenkins and our dashboard server.
 func vanadiumGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
 	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	if err != nil {
+		return nil, err
+	}
+	partPkgs, err := identifyPackagesToTest(ctx, testName, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1252,7 +1258,77 @@ func vanadiumGoRace(ctx *util.Context, testName string, opts ...TestOpt) (*TestR
 	}
 	timeout := timeoutOpt("15m")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
-	return goTest(ctx, testName, args, timeout, suffix, pkgs)
+	return goTest(ctx, testName, args, timeout, suffix, partPkgs)
+}
+
+// identifyPackagesToTest returns a slice of packages to test using the
+// following algorithm:
+// - The part index is stored in the "P" environment variable. If it is not
+//   defined, return all packages.
+// - If the part index is found, return the corresponding packages read and
+//   processed from the config file. Note that for a test T with N parts, we
+//   only specify the packages for the first N-1 parts in the config file. The
+//   last part will automatically include all the packages that are not found
+//   in the first N-1 parts.
+func identifyPackagesToTest(ctx *util.Context, testName string, opts []TestOpt, allPkgs []string) (pkgsOpt, error) {
+	// Get part index from optionals.
+	index := -1
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case PartOpt:
+			index = int(v)
+		}
+	}
+	if index == -1 {
+		return pkgsOpt(allPkgs), nil
+	}
+
+	// Read config file to get the part.
+	var config util.Config
+	if err := util.LoadConfig("common", &config); err != nil {
+		return nil, err
+	}
+	parts := config.TestParts(testName)
+	if len(parts) == 0 {
+		return pkgsOpt(allPkgs), nil
+	}
+
+	if index == len(parts) {
+		// Special handling for getting the packages other than the packages
+		// specified in "test-parts".
+
+		// Get packages specified in test-parts.
+		existingPartsPkgs := map[string]struct{}{}
+		for _, pkg := range parts {
+			curPkgs, err := goutil.List(ctx, []string{pkg})
+			if err != nil {
+				return nil, err
+			}
+			for _, curPkg := range curPkgs {
+				existingPartsPkgs[curPkg] = struct{}{}
+			}
+		}
+
+		// Get the rest.
+		rest := []string{}
+		allPkgs, err := goutil.List(ctx, allPkgs)
+		if err != nil {
+			return nil, err
+		}
+		for _, pkg := range allPkgs {
+			if _, ok := existingPartsPkgs[pkg]; !ok {
+				rest = append(rest, pkg)
+			}
+		}
+		return pkgsOpt(rest), nil
+	} else if index < len(parts) {
+		pkgs, err := goutil.List(ctx, []string{parts[index]})
+		if err != nil {
+			return nil, err
+		}
+		return pkgsOpt(pkgs), nil
+	}
+	return nil, fmt.Errorf("invalid part index: %d/%d", index, len(parts)-1)
 }
 
 func vanadiumIntegrationTest(ctx *util.Context, testName string, opts ...TestOpt) (*TestResult, error) {
