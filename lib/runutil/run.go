@@ -285,6 +285,7 @@ func (r *Run) logLine(line string) {
 }
 
 func (r *Run) printf(stdout io.Writer, format string, args ...interface{}) {
-	args = append([]interface{}{strings.Repeat(prefix, r.indent)}, args...)
-	fmt.Fprintf(stdout, "%v "+format+"\n", args...)
+	timestamp := time.Now().Format("15:04:05.99")
+	args = append([]interface{}{timestamp, strings.Repeat(prefix, r.indent)}, args...)
+	fmt.Fprintf(stdout, "[%s] %v "+format+"\n", args...)
 }
