@@ -7,6 +7,5 @@ package main
 import "os"
 
 func main() {
-	substituteVarsInFlags()
 	os.Exit(root().Main())
 }

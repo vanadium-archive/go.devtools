@@ -22,7 +22,7 @@ The presubmit flags are:
    The name of the Jenkins job to add presubmit-test builds to.
  -n=false
    Show what commands will run but do not execute them.
- -netrc=$HOME/.netrc
+ -netrc=${HOME}/.netrc
    The path to the .netrc file that stores Gerrit's credentials.
  -nocolor=false
    Do not use color to format output.
@@ -42,7 +42,7 @@ Usage:
    presubmit query [flags]
 
 The presubmit query flags are:
- -log_file=$HOME/tmp/presubmit_log
+ -log_file=${HOME}/tmp/presubmit_log
    The file that stores the refs from the previous Gerrit query.
  -manifest=
    Name of the project manifest.

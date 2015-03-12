@@ -1,23 +1,19 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
-	"v.io/x/devtools/lib/util"
 	"v.io/x/devtools/lib/version"
 	"v.io/x/lib/cmdline"
 )
 
 const (
-	defaultConfigFile       = "$VANADIUM_ROOT/release/go/src/v.io/x/devtools/conf/presubmit"
 	defaultGerritBaseUrl    = "https://vanadium-review.googlesource.com"
-	defaultLogFilePath      = "$HOME/tmp/presubmit_log"
-	defaultNetRcFilePath    = "$HOME/.netrc"
+	defaultNetRcFilePath    = "${HOME}/.netrc"
 	defaultPresubmitTestJob = "vanadium-presubmit-test"
 	defaultQueryString      = "(status:open -project:experimental)"
 	jenkinsBaseJobUrl       = "https://veyron.corp.google.com/jenkins/job"
@@ -35,7 +31,7 @@ var (
 	jenkinsHostFlag        string
 	jenkinsBuildNumberFlag int
 	manifestFlag           string
-	netRcFilePathFlag      string
+	netRcFilePathFlag      flag.Getter // TODO(jsimsa): Move this flag to query.go.
 	noColorFlag            bool
 	presubmitTestJobFlag   string
 	verboseFlag            bool
@@ -45,7 +41,8 @@ func init() {
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.StringVar(&netRcFilePathFlag, "netrc", defaultNetRcFilePath, "The path to the .netrc file that stores Gerrit's credentials.")
+	netRcFilePathFlag = cmdline.EnvFlag(defaultNetRcFilePath)
+	cmdRoot.Flags.Var(netRcFilePathFlag, "netrc", "The path to the .netrc file that stores Gerrit's credentials.")
 	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
 	cmdRoot.Flags.StringVar(&presubmitTestJobFlag, "job", defaultPresubmitTestJob, "The name of the Jenkins job to add presubmit-test builds to.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
@@ -65,23 +62,6 @@ func printf(out io.Writer, format string, args ...interface{}) {
 	}
 	fmt.Fprintf(out, "%s ", outputPrefix)
 	fmt.Fprintf(out, format, args...)
-}
-
-// substituteVarsInFlags substitutes environment variables in default
-// values of relevant flags.
-func substituteVarsInFlags() {
-	var err error
-	vroot, err = util.VanadiumRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
-		os.Exit(1)
-	}
-	if logFilePathFlag == defaultLogFilePath {
-		logFilePathFlag = filepath.Join(os.Getenv("HOME"), "tmp", "presubmit_log")
-	}
-	if netRcFilePathFlag == defaultNetRcFilePath {
-		netRcFilePathFlag = filepath.Join(os.Getenv("HOME"), ".netrc")
-	}
 }
 
 // root returns a command that represents the root of the presubmit tool.

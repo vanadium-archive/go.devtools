@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,14 +20,19 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
+const (
+	defaultLogFilePath = "${HOME}/tmp/presubmit_log"
+)
+
 var (
 	queryStringFlag string
-	logFilePathFlag string
+	logFilePathFlag flag.Getter
 )
 
 func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
-	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", defaultLogFilePath, "The file that stores the refs from the previous Gerrit query.")
+	logFilePathFlag = cmdline.EnvFlag(defaultLogFilePath)
+	cmdQuery.Flags.Var(logFilePathFlag, "log_file", "The file that stores the refs from the previous Gerrit query.")
 	cmdQuery.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 }
 
@@ -214,9 +220,10 @@ func checkGerritBaseUrl() (string, error) {
 
 // gerritHostCredential returns credential for the given gerritHost.
 func gerritHostCredential(gerritHost string) (_ credential, e error) {
-	fdNetRc, err := os.Open(netRcFilePathFlag)
+	path := netRcFilePathFlag.Get().(string)
+	fdNetRc, err := os.Open(path)
 	if err != nil {
-		return credential{}, fmt.Errorf("Open(%q) failed: %v", netRcFilePathFlag, err)
+		return credential{}, fmt.Errorf("Open(%q) failed: %v", path, err)
 	}
 	defer collect.Error(func() error { return fdNetRc.Close() }, &e)
 	creds, err := parseNetRcFile(fdNetRc)
@@ -225,7 +232,7 @@ func gerritHostCredential(gerritHost string) (_ credential, e error) {
 	}
 	gerritCred, ok := creds[gerritHost]
 	if !ok {
-		return credential{}, fmt.Errorf("cannot find credential for %q in %q", gerritHost, netRcFilePathFlag)
+		return credential{}, fmt.Errorf("cannot find credential for %q in %q", gerritHost, path)
 	}
 	return gerritCred, nil
 }
@@ -255,12 +262,13 @@ func parseNetRcFile(reader io.Reader) (map[string]credential, error) {
 // readLog returns CLs indexed by thier refs stored in the log file.
 func readLog() (clRefMap, error) {
 	results := clRefMap{}
-	bytes, err := ioutil.ReadFile(logFilePathFlag)
+	path := logFilePathFlag.Get().(string)
+	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return results, nil
 		}
-		return nil, fmt.Errorf("ReadFile(%q) failed: %v", logFilePathFlag, err)
+		return nil, fmt.Errorf("ReadFile(%q) failed: %v", path, err)
 	}
 
 	if err := json.Unmarshal(bytes, &results); err != nil {
@@ -276,10 +284,10 @@ func writeLog(ctx *util.Context, cls clList) (e error) {
 	for _, cl := range cls {
 		results[cl.Reference()] = cl
 	}
-
-	fd, err := os.OpenFile(logFilePathFlag, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	path := logFilePathFlag.Get().(string)
+	fd, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
-		return fmt.Errorf("OpenFile(%q) failed: %v", logFilePathFlag, err)
+		return fmt.Errorf("OpenFile(%q) failed: %v", path, err)
 	}
 	defer collect.Error(func() error { return fd.Close() }, &e)
 
@@ -287,8 +295,8 @@ func writeLog(ctx *util.Context, cls clList) (e error) {
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", results, err)
 	}
-	if err := ctx.Run().WriteFile(logFilePathFlag, bytes, os.FileMode(0644)); err != nil {
-		return fmt.Errorf("WriteFile(%q) failed: %v", logFilePathFlag, err)
+	if err := ctx.Run().WriteFile(path, bytes, os.FileMode(0644)); err != nil {
+		return fmt.Errorf("WriteFile(%q) failed: %v", path, err)
 	}
 	return nil
 }
