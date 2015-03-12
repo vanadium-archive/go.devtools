@@ -91,27 +91,27 @@ func vanadiumProdServicesTest(ctx *util.Context, testName string, _ ...TestOpt) 
 		},
 		prodService{
 			name:       "application repository",
-			objectName: namespaceRoot + "/applicationd",
+			objectName: namespaceRoot + "/applications",
 			regexp:     regexp.MustCompile(`Application[[:space:]]+interface`),
 		},
 		prodService{
 			name:       "binary repository",
-			objectName: namespaceRoot + "/binaryd",
+			objectName: namespaceRoot + "/binaries",
 			regexp:     regexp.MustCompile(`Binary[[:space:]]+interface`),
 		},
 		prodService{
 			name:       "macaroon service",
-			objectName: namespaceRoot + "/identity/dev.v.io/macaroon",
+			objectName: namespaceRoot + "/identity/dev.v.io/root/identityd/macaroon",
 			regexp:     regexp.MustCompile(`MacaroonBlesser[[:space:]]+interface`),
 		},
 		prodService{
 			name:       "google identity service",
-			objectName: namespaceRoot + "/identity/dev.v.io/google",
+			objectName: namespaceRoot + "/identity/dev.v.io/root/identityd/google",
 			regexp:     regexp.MustCompile(`OAuthBlesser[[:space:]]+interface`),
 		},
 		prodService{
 			name:       "binary discharger",
-			objectName: namespaceRoot + "/identity/dev.v.io/discharger",
+			objectName: namespaceRoot + "/identity/dev.v.io/root/identityd/discharger",
 			regexp:     regexp.MustCompile(`Discharger[[:space:]]+interface`),
 		},
 	}
