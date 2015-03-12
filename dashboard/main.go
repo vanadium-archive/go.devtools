@@ -1,5 +1,5 @@
-// Package build is an implementation of a web server for displaying
-// test results.
+// Package dashboard is an implementation of a Vanadium dashboard web
+// server.
 package main
 
 // TODO(jsimsa): Move style formatting to a .css file.
