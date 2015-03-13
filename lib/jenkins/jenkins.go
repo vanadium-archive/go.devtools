@@ -360,7 +360,7 @@ func (j *Jenkins) AddNodeToJenkins(name, host, description, credentialsId string
 		Description:       description,
 		NumExecutors:      1,
 		RemoteFS:          "/home/veyron/jenkins",
-		Labels:            fmt.Sprintf("%s linux-slave", name),
+		Labels:            fmt.Sprintf("%s linux", name),
 		Mode:              "EXCLUSIVE",
 		Type:              "hudson.slaves.DumbSlave$DescriptorImpl",
 		RetentionStrategy: map[string]string{"stapler-class": "hudson.slaves.RetentionStrategy$Always"},

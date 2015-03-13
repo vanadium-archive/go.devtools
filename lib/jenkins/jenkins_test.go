@@ -132,7 +132,7 @@ func TestOngoingBuilds(t *testing.T) {
 				},
 				{
 					"currentExecutable": {
-						"url": "https://dev.v.io/jenkins/job/vanadium-presubmit-test/L=linux-slave,TEST=vanadium-go-race/1234/"
+						"url": "https://dev.v.io/jenkins/job/vanadium-presubmit-test/OS=linux,TEST=vanadium-go-race/1234/"
 					}
 				}
 			],

@@ -329,10 +329,13 @@ func writeTestStatusFile(ctx *util.Context, result testutil.TestResult, curTimes
 
 	// Write to file.
 	r := testResultInfo{
-		Result:     result,
-		TestName:   testFlag,
-		SlaveLabel: os.Getenv("L"), // Slave label is stored in environment variable "L"
-		Timestamp:  curTimestamp,
+		Result:    result,
+		TestName:  testFlag,
+		Timestamp: curTimestamp,
+		AxisValues: axisValuesInfo{
+			Arch: os.Getenv("ARCH"), // Architecture is stored in environment variable "ARCH"
+			OS:   os.Getenv("OS"),   // OS is stored in environment variable "OS"
+		},
 	}
 	bytes, err := json.Marshal(r)
 	if err != nil {

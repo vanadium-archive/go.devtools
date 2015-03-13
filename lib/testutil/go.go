@@ -1344,17 +1344,15 @@ func vanadiumIntegrationTest(ctx *util.Context, testName string, opts ...TestOpt
 }
 
 func genTestNameSuffix(baseSuffix string) string {
-	extraSuffix := runtime.GOOS
-	switch extraSuffix {
-	case "darwin":
-		extraSuffix = "mac"
-	case "windows":
-		extraSuffix = "win"
-	}
+	suffixParts := []string{}
+	suffixParts = append(suffixParts, runtime.GOOS)
+	suffixParts = append(suffixParts, os.Getenv("GOARCH"))
+	suffix := strings.Join(suffixParts, ",")
+
 	if baseSuffix == "" {
-		return fmt.Sprintf("[%s]", extraSuffix)
+		return fmt.Sprintf("[%s]", suffix)
 	}
-	return fmt.Sprintf("[%s - %s]", baseSuffix, extraSuffix)
+	return fmt.Sprintf("[%s - %s]", baseSuffix, suffix)
 }
 
 // vanadiumGoTest runs Go tests for vanadium projects.

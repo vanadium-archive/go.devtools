@@ -45,18 +45,88 @@ summary back to the corresponding Gerrit review thread.
 	Run: runResult,
 }
 
+// multiConfigurationJobs is a map from Jenkins job names to their axis infos.
+var multiConfigurationJobs = map[string]*axisInfo{
+	"third_party-go-build":      &axisInfo{true, false},
+	"third_party-go-test":       &axisInfo{true, false},
+	"vanadium-go-build":         &axisInfo{true, true},
+	"vanadium-go-test":          &axisInfo{true, false},
+	"vanadium-integration-test": &axisInfo{true, false},
+}
+
+// axisInfo stores which axes a Jenkins job has configured.
+type axisInfo struct {
+	hasArch bool
+	hasOS   bool
+}
+
 type testResultInfo struct {
 	Result           testutil.TestResult
 	TestName         string
-	SlaveLabel       string
 	Timestamp        int64
 	PostSubmitResult string
+	AxisValues       axisValuesInfo
+}
+
+type axisValuesInfo struct {
+	Arch string
+	OS   string
+}
+
+// genBuildSpec returns a spec string for the given Jenkins build.
+//
+// If the main job is a multi-configuration job, the spec is in the form of:
+// <jobName>/axis1Label=axis1Value,axis2Label=axis2Value,.../<suffix>
+// The axis values are taken from the given axisValuesInfo object, and only
+// the axes set in the job's axisInfo object will appear in the spec.
+//
+// If the main job is not a multi-configuration job, the spec will be:
+// <jobName>/<suffix>.
+func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string) string {
+	axis := multiConfigurationJobs[jobName]
+
+	// Not a multi-configuration job.
+	if axis == nil {
+		return fmt.Sprintf("%s/%s", jobName, suffix)
+	}
+
+	// Multi-configuration job.
+	// The axis order doesn't matter.
+	parts := []string{}
+	if axis.hasArch {
+		parts = append(parts, fmt.Sprintf("ARCH=%s", axisValues.Arch))
+	}
+	if axis.hasOS {
+		parts = append(parts, fmt.Sprintf("OS=%s", axisValues.OS))
+	}
+	return fmt.Sprintf("%s/%s/%s", jobName, strings.Join(parts, ","), suffix)
+}
+
+// genSubJobLabel returns a descriptive label for given Jenkins job's sub-job.
+// For more info, please see comments of the subJobSpec method above.
+func genSubJobLabel(jobName string, axisValues axisValuesInfo) string {
+	axis := multiConfigurationJobs[jobName]
+
+	// Not a multi-configuration job.
+	if axis == nil {
+		return ""
+	}
+
+	// Multi-configuration job.
+	parts := []string{}
+	if axis.hasOS {
+		parts = append(parts, axisValues.OS)
+	}
+	if axis.hasArch {
+		parts = append(parts, axisValues.Arch)
+	}
+	return strings.Join(parts, ",")
 }
 
 // key returns a unique key for the test wrapped in the given
 // testResultInfo object.
 func (ri testResultInfo) key() string {
-	return ri.TestName + "_" + ri.SlaveLabel
+	return fmt.Sprintf("%s_%s_%s", ri.TestName, ri.AxisValues.OS, ri.AxisValues.Arch)
 }
 
 // runResult implements the 'result' subcommand.
@@ -68,13 +138,13 @@ func (ri testResultInfo) key() string {
 // ├── root
 // └── test_results
 //     ├── 45    (build number)
-//     │    ├── L=linux-slave,TEST=vanadium-go-build
+//     │    ├── ARCH=amd64,OS=linux,TEST=vanadium-go-build
 //     │    │   ├── status_vanadium_go_build.json
 //     │    │   └─- tests_vanadium_go_build.xml
-//     │    ├── L=linux-slave,TEST=vanadium-go-test
+//     │    ├── ARCH=amd64,OS=linux,TEST=vanadium-go-test
 //     │    │   ├── status_vanadium_go_test.json
 //     │    │   └─- tests_vanadium_go_test.xml
-//     │    ├── L=mac-slave,TEST=vanadium-go-build
+//     │    ├── ARCH=386,OS=mac,TEST=vanadium-go-build
 //     │    │   ├── status_vanadium_go_build.json
 //     │    │   └─- tests_vanadium_go_build.xml
 //     │    └── ...
@@ -144,11 +214,11 @@ func getPostSubmitBuildData(ctx *util.Context, testResults []testResultInfo) (ma
 outer:
 	for _, resultInfo := range testResults {
 		name := resultInfo.TestName
-		slaveLabel := resultInfo.SlaveLabel
 		timestamp := resultInfo.Timestamp
-		fmt.Fprintf(ctx.Stdout(), "Getting postsubmit build info for %s/%s before timestamp %d...\n", name, slaveLabel, timestamp)
+		axisValues := resultInfo.AxisValues
+		fmt.Fprintf(ctx.Stdout(), "Getting postsubmit build info for %q before timestamp %d...\n", resultInfo.key(), timestamp)
 
-		buildInfo, err := lastCompletedBuildStatus(ctx, name, slaveLabel)
+		buildInfo, err := lastCompletedBuildStatus(ctx, name, &axisValues)
 		if err != nil {
 			testutil.Fail(ctx, "%v\n", err)
 			continue
@@ -161,10 +231,7 @@ outer:
 		}
 		for i := curId; i >= 0; i-- {
 			fmt.Fprintf(ctx.Stdout(), "Checking build %d...\n", i)
-			buildSpec := fmt.Sprintf("%s/%d", name, i)
-			if isMultiConfigurationJob(name) {
-				buildSpec = fmt.Sprintf("%s/L=%s/%d", name, slaveLabel, i)
-			}
+			buildSpec := genBuildSpec(name, resultInfo.AxisValues, fmt.Sprintf("%d", i))
 			curBuildInfo, err := jenkinsObj.BuildInfoForSpec(buildSpec)
 			if err != nil {
 				testutil.Fail(ctx, "%v\n", err)
@@ -184,7 +251,7 @@ outer:
 				parts := config.TestParts(name)
 				// Get failed test cases from all the runs for different parts.
 				for part := 0; part < len(parts); part++ {
-					curBuildSpec := fmt.Sprintf("%s/L=linux-slave,P=%d/%d", name, part, i)
+					curBuildSpec := fmt.Sprintf("%s/OS=linux,P=%d/%d", name, part, i)
 					// "curCases" will be empty on error.
 					curCases, _ := jenkinsObj.FailedTestCasesForBuildSpec(curBuildSpec)
 					cases = append(cases, curCases...)
@@ -319,10 +386,11 @@ func (r *testReporter) reportBuildCop(ctx *util.Context) {
 func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]struct{} {
 	fmt.Fprintf(r.report, "Test results:\n")
 	failedTestNames := map[string]struct{}{}
+	summaryLines := []string{}
 	for _, resultInfo := range r.testResults {
+		var lineBuf bytes.Buffer
 		name := resultInfo.TestName
 		result := resultInfo.Result
-		slaveLabel := resultInfo.SlaveLabel
 		if result.Status == testutil.TestSkipped {
 			fmt.Fprintf(r.report, "skipped %v\n", name)
 			continue
@@ -350,53 +418,41 @@ func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]st
 		}
 
 		nameString := name
-		// Remove "-slave" from the label simplicity.
-		if isMultiConfigurationJob(name) {
-			slaveLabel = strings.Replace(slaveLabel, "-slave", "", -1)
-			nameString += fmt.Sprintf(" [%s]", slaveLabel)
+		subJobLabel := genSubJobLabel(name, resultInfo.AxisValues)
+		if subJobLabel != "" {
+			nameString += fmt.Sprintf(" [%s]", subJobLabel)
 		}
-		fmt.Fprintf(r.report, "%s ➔ %s: %s", lastStatusString, curStatusString, nameString)
+		fmt.Fprintf(&lineBuf, "%s ➔ %s: %s", lastStatusString, curStatusString, nameString)
 
 		if result.Status == testutil.TestTimedOut {
 			timeoutValue := testutil.DefaultTestTimeout
 			if result.TimeoutValue != 0 {
 				timeoutValue = result.TimeoutValue
 			}
-			fmt.Fprintf(r.report, " [TIMED OUT after %s]\n", timeoutValue)
+			fmt.Fprintf(&lineBuf, " [TIMED OUT after %s]\n", timeoutValue)
 		} else {
-			fmt.Fprintf(r.report, "\n")
+			fmt.Fprintf(&lineBuf, "\n")
 		}
+		summaryLines = append(summaryLines, lineBuf.String())
+	}
+
+	// Sort summary lines by contents and output them to the report.
+	sort.Strings(summaryLines)
+	for _, line := range summaryLines {
+		fmt.Fprintf(r.report, "%s", line)
 	}
 	return failedTestNames
 }
 
-// All the multi-configuration Jenkins jobs.
-var multiConfigurationJobs = map[string]struct{}{
-	"third_party-go-test":       struct{}{},
-	"vanadium-go-build":         struct{}{},
-	"vanadium-go-test":          struct{}{},
-	"vanadium-integration-test": struct{}{},
-}
-
-// isMultiConfigurationJobs checks whether the given job is a
-// multi-configuration job on Jenkins.
-func isMultiConfigurationJob(jobName string) bool {
-	_, ok := multiConfigurationJobs[jobName]
-	return ok
-}
-
 // lastCompletedBuildStatus gets the status of the last completed
-// build for a given jenkins test.
-func lastCompletedBuildStatus(ctx *util.Context, jobName string, slaveLabel string) (*jenkins.BuildInfo, error) {
+// build for a given Jenkins job.
+func lastCompletedBuildStatus(ctx *util.Context, jobName string, axisValues *axisValuesInfo) (*jenkins.BuildInfo, error) {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
 	}
 
-	buildSpec := fmt.Sprintf("%s/lastCompletedBuild", jobName)
-	if isMultiConfigurationJob(jobName) {
-		buildSpec = fmt.Sprintf("%s/L=%s/lastCompletedBuild", jobName, slaveLabel)
-	}
+	buildSpec := genBuildSpec(jobName, *axisValues, "lastCompletedBuild")
 	buildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
 	if err != nil {
 		return nil, err
@@ -451,7 +507,7 @@ func (r *testReporter) reportFailedTestCases(ctx *util.Context) (int, error) {
 		for _, testCase := range failedTestCaseInfos {
 			className := testCase.className
 			testCaseName := testCase.testCaseName
-			curLink := genTestResultLink(className, testCaseName, testCase.seenTestsCount, testCase.testName, testCase.slaveLabel)
+			curLink := genTestResultLink(className, testCaseName, testCase.seenTestsCount, testCase.testName, testCase.axisValues)
 			curLinks = append(curLinks, curLink)
 		}
 		fmt.Fprintf(r.report, "\n%s:\n%s\n\n", failureTypeStr, strings.Join(curLinks, "\n"))
@@ -465,7 +521,7 @@ type failedTestCaseInfo struct {
 	testCaseName   string
 	seenTestsCount int
 	testName       string
-	slaveLabel     string
+	axisValues     axisValuesInfo
 }
 
 type failedTestCasesGroups map[failureType][]failedTestCaseInfo
@@ -491,19 +547,19 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *util.Context) (f
 	seenTests := map[string]int{}
 	for _, testResult := range r.testResults {
 		testName := testResult.TestName
-		slaveLabel := testResult.SlaveLabel
+		axisValues := testResult.AxisValues
 		// For a given test script this-is-a-test.sh, its test
 		// report file is: tests_this_is_a_test.xml.
 		xUnitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
 		// The collected xUnit test report is located at:
-		// $WORKSPACE/test_results/$buildNumber/L=$slaveLabel,TEST=$testName/tests_xxx.xml
+		// $WORKSPACE/test_results/$buildNumber/ARCH=amd64,OS=$OS,TEST=$testName/tests_xxx.xml
 		//
 		// See more details in result.go.
 		xUnitReportFile := filepath.Join(
 			os.Getenv("WORKSPACE"),
 			"test_results",
 			fmt.Sprintf("%d", jenkinsBuildNumberFlag),
-			fmt.Sprintf("L=%s,TEST=%s", slaveLabel, testName),
+			fmt.Sprintf("ARCH=%s,OS=%s,TEST=%s", axisValues.Arch, axisValues.OS, testName),
 			xUnitReportFileName)
 		bytes, err := ioutil.ReadFile(xUnitReportFile)
 		if err != nil {
@@ -533,7 +589,6 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *util.Context) (f
 // genFailedTestCasesGroupsForOneTest generates groups for failed tests.
 // See comments of genFailedTestsGroupsForAllTests.
 func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
-	slaveLabel := testResult.SlaveLabel
 	testName := testResult.TestName
 
 	// Parse xUnit report of the presubmit test.
@@ -555,10 +610,7 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *util.Context, tes
 			curTestCase.Classname = html.UnescapeString(curTestCase.Classname)
 			curTestCase.Name = html.UnescapeString(curTestCase.Name)
 			testFullName := genTestFullName(curTestCase.Classname, curTestCase.Name)
-			testKey := testFullName
-			if slaveLabel != "" {
-				testKey = fmt.Sprintf("%s-%s", testFullName, slaveLabel)
-			}
+			testKey := fmt.Sprintf("%s_%s", testFullName, testResult.key())
 			seenTests[testKey]++
 			// A failed test.
 			if len(curTestCase.Failures) > 0 {
@@ -567,7 +619,7 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *util.Context, tes
 					testCaseName:   curTestCase.Name,
 					seenTestsCount: seenTests[testKey],
 					testName:       testName,
-					slaveLabel:     slaveLabel,
+					axisValues:     testResult.AxisValues,
 				}
 				// Determine whether the curTestCase is a new failure or not.
 				isNewFailure := true
@@ -609,7 +661,7 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *util.Context, tes
 }
 
 // genTestResultLink generates a link failed test case's report page on Jenkins.
-func genTestResultLink(className, testCaseName string, suffix int, testName, slaveLabel string) string {
+func genTestResultLink(className, testCaseName string, suffix int, testName string, axisValues axisValuesInfo) string {
 	packageName := "(root)"
 	testFullName := genTestFullName(className, testCaseName)
 	// In JUnit:
@@ -626,8 +678,8 @@ func genTestResultLink(className, testCaseName string, suffix int, testName, sla
 	safeClassName := safePackageOrClassName(className)
 	safeTestCaseName := safeTestName(testCaseName)
 	link := ""
-	rawurl := fmt.Sprintf("http://goto.google.com/vpst/%d/L=%s,TEST=%s/testReport/%s/%s/%s",
-		jenkinsBuildNumberFlag, slaveLabel, testName, safePackageName, safeClassName, safeTestCaseName)
+	rawurl := fmt.Sprintf("http://goto.google.com/vpst/%d/ARCH=%s,OS=%s,TEST=%s/testReport/%s/%s/%s",
+		jenkinsBuildNumberFlag, axisValues.Arch, axisValues.OS, testName, safePackageName, safeClassName, safeTestCaseName)
 	testResultUrl, err := url.Parse(rawurl)
 	if err == nil {
 		link = fmt.Sprintf("- %s\n%s", testFullName, testResultUrl.String())
