@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	jenkinsHost = "http://localhost:8080/jenkins"
+	jenkinsHost = "http://localhost:8001/jenkins"
 	netrcFile   = filepath.Join(os.Getenv("HOME"), ".netrc")
 )
 
