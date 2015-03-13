@@ -397,6 +397,10 @@ func main() {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		helper(ctx, w, r)
 	}
+	health := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}
+	http.HandleFunc("/health", health)
 	http.HandleFunc("/", handler)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), nil); err != nil {
 		fmt.Fprintf(os.Stderr, "ListenAndServer() failed: %v", err)
