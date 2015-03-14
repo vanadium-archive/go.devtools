@@ -47,11 +47,11 @@ summary back to the corresponding Gerrit review thread.
 
 // multiConfigurationJobs is a map from Jenkins job names to their axis infos.
 var multiConfigurationJobs = map[string]*axisInfo{
-	"third_party-go-build":      &axisInfo{true, false},
-	"third_party-go-test":       &axisInfo{true, false},
+	"third_party-go-build":      &axisInfo{false, true},
+	"third_party-go-test":       &axisInfo{false, true},
 	"vanadium-go-build":         &axisInfo{true, true},
-	"vanadium-go-test":          &axisInfo{true, false},
-	"vanadium-integration-test": &axisInfo{true, false},
+	"vanadium-go-test":          &axisInfo{false, true},
+	"vanadium-integration-test": &axisInfo{false, true},
 }
 
 // axisInfo stores which axes a Jenkins job has configured.
