@@ -386,7 +386,8 @@ func (r *testReporter) reportBuildCop(ctx *util.Context) {
 func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]struct{} {
 	fmt.Fprintf(r.report, "Test results:\n")
 	failedTestNames := map[string]struct{}{}
-	summaryLines := []string{}
+	nameStrings := []string{}
+	nameStringToSummaryLine := map[string]string{}
 	for _, resultInfo := range r.testResults {
 		var lineBuf bytes.Buffer
 		name := resultInfo.TestName
@@ -433,13 +434,14 @@ func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]st
 		} else {
 			fmt.Fprintf(&lineBuf, "\n")
 		}
-		summaryLines = append(summaryLines, lineBuf.String())
+		nameStrings = append(nameStrings, nameString)
+		nameStringToSummaryLine[nameString] = lineBuf.String()
 	}
 
-	// Sort summary lines by contents and output them to the report.
-	sort.Strings(summaryLines)
-	for _, line := range summaryLines {
-		fmt.Fprintf(r.report, "%s", line)
+	// Sort summary lines by test name strings and output them to the report.
+	sort.Strings(nameStrings)
+	for _, n := range nameStrings {
+		fmt.Fprintf(r.report, "%s", nameStringToSummaryLine[n])
 	}
 	return failedTestNames
 }
