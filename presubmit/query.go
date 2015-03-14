@@ -132,7 +132,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 	}
 
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastBuildInfo, err := lastCompletedBuildStatus(ctx, presubmitTestJobFlag, "")
+	lastBuildInfo, err := lastCompletedBuildStatus(ctx, presubmitTestJobFlag, nil)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {

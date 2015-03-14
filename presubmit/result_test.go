@@ -53,9 +53,12 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 	tests := []test{
 		test{
 			testResult: testResultInfo{
-				Result:     testutil.TestResult{Status: testutil.TestFailed},
-				TestName:   "vanadium-go-test",
-				SlaveLabel: "linux-slave",
+				Result:   testutil.TestResult{Status: testutil.TestFailed},
+				TestName: "vanadium-go-test",
+				AxisValues: axisValuesInfo{
+					Arch: "amd64",
+					OS:   "linux",
+				},
 			},
 			postsubmitFailedTestCases: []jenkins.TestCase{},
 			expectedGroups: &failedTestCasesGroups{
@@ -65,30 +68,39 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 						testCaseName:   "n1",
 						seenTestsCount: 1,
 						testName:       "vanadium-go-test",
-						slaveLabel:     "linux-slave",
+						axisValues: axisValuesInfo{
+							Arch: "amd64",
+							OS:   "linux",
+						},
 					},
 					failedTestCaseInfo{
 						className:      "c2.n",
 						testCaseName:   "n2",
 						seenTestsCount: 1,
 						testName:       "vanadium-go-test",
-						slaveLabel:     "linux-slave",
+						axisValues: axisValuesInfo{
+							Arch: "amd64",
+							OS:   "linux",
+						},
 					},
 					failedTestCaseInfo{
 						className:      "go.vanadium.abc",
 						testCaseName:   "n5",
 						seenTestsCount: 1,
 						testName:       "vanadium-go-test",
-						slaveLabel:     "linux-slave",
+						axisValues: axisValuesInfo{
+							Arch: "amd64",
+							OS:   "linux",
+						},
 					},
 				},
 			},
 			expectedSeenTests: map[string]int{
-				"c1::n::n1-linux-slave":             1,
-				"c2::n::n2-linux-slave":             1,
-				"c3::n::n3-linux-slave":             2,
-				`ts1::"n9"-linux-slave`:             1,
-				"go::vanadium::abc::n5-linux-slave": 1,
+				"c1::n::n1_vanadium-go-test_linux_amd64":             1,
+				"c2::n::n2_vanadium-go-test_linux_amd64":             1,
+				"c3::n::n3_vanadium-go-test_linux_amd64":             2,
+				`ts1::"n9"_vanadium-go-test_linux_amd64`:             1,
+				"go::vanadium::abc::n5_vanadium-go-test_linux_amd64": 1,
 			},
 		},
 	}
@@ -115,7 +127,7 @@ func TestGenTestResultLink(t *testing.T) {
 		testCaseName string
 		suffix       int
 		testName     string
-		slaveLabel   string
+		axisValues   axisValuesInfo
 		expectedLink string
 	}
 
@@ -126,53 +138,71 @@ func TestGenTestResultLink(t *testing.T) {
 			testCaseName: "t",
 			suffix:       0,
 			testName:     "vanadium-go-test",
-			slaveLabel:   "linux-slave",
-			expectedLink: "- c::t\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/%28root%29/c/t",
+			axisValues: axisValuesInfo{
+				Arch: "amd64",
+				OS:   "linux",
+			},
+			expectedLink: "- c::t\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/%28root%29/c/t",
 		},
 		testCase{
 			className:    "c n",
 			testCaseName: "t",
 			suffix:       0,
 			testName:     "vanadium-go-test",
-			slaveLabel:   "linux-slave",
-			expectedLink: "- c n::t\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/%28root%29/c%20n/t",
+			axisValues: axisValuesInfo{
+				Arch: "amd64",
+				OS:   "linux",
+			},
+			expectedLink: "- c n::t\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/%28root%29/c%20n/t",
 		},
 		testCase{
 			className:    "c.n",
 			testCaseName: "t",
 			suffix:       0,
 			testName:     "vanadium-go-test",
-			slaveLabel:   "linux-slave",
-			expectedLink: "- c::n::t\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t",
+			axisValues: axisValuesInfo{
+				Arch: "amd64",
+				OS:   "linux",
+			},
+			expectedLink: "- c::n::t\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t",
 		},
 		testCase{
 			className:    "c.n",
 			testCaseName: "t.n",
 			suffix:       0,
 			testName:     "vanadium-go-test",
-			slaveLabel:   "linux-slave",
-			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t_n",
+			axisValues: axisValuesInfo{
+				Arch: "amd64",
+				OS:   "linux",
+			},
+			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t_n",
 		},
 		testCase{
 			className:    "c.n",
 			testCaseName: "t.n",
 			suffix:       1,
 			testName:     "vanadium-go-test",
-			slaveLabel:   "linux-slave",
-			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t_n",
+			axisValues: axisValuesInfo{
+				Arch: "amd64",
+				OS:   "linux",
+			},
+			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t_n",
 		},
 		testCase{
 			className:    "c.n",
 			testCaseName: "t.n",
 			suffix:       2,
 			testName:     "vanadium-go-test",
-			slaveLabel:   "linux-slave",
-			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/L=linux-slave,TEST=vanadium-go-test/testReport/c/n/t_n_2",
+			axisValues: axisValuesInfo{
+				Arch: "amd64",
+				OS:   "linux",
+			},
+			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t_n_2",
 		},
 	}
 
 	for _, test := range testCases {
-		if got, expected := genTestResultLink(test.className, test.testCaseName, test.suffix, test.testName, test.slaveLabel), test.expectedLink; got != expected {
+		if got, expected := genTestResultLink(test.className, test.testCaseName, test.suffix, test.testName, test.axisValues), test.expectedLink; got != expected {
 			t.Fatalf("want:\n%v, got:\n%v", expected, got)
 		}
 	}
