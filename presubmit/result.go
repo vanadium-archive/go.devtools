@@ -218,7 +218,7 @@ outer:
 		axisValues := resultInfo.AxisValues
 		fmt.Fprintf(ctx.Stdout(), "Getting postsubmit build info for %q before timestamp %d...\n", resultInfo.key(), timestamp)
 
-		buildInfo, err := lastCompletedBuildStatus(ctx, name, &axisValues)
+		buildInfo, err := lastCompletedBuildStatus(ctx, name, axisValues)
 		if err != nil {
 			testutil.Fail(ctx, "%v\n", err)
 			continue
@@ -448,13 +448,13 @@ func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]st
 
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given Jenkins job.
-func lastCompletedBuildStatus(ctx *util.Context, jobName string, axisValues *axisValuesInfo) (*jenkins.BuildInfo, error) {
+func lastCompletedBuildStatus(ctx *util.Context, jobName string, axisValues axisValuesInfo) (*jenkins.BuildInfo, error) {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
 	}
 
-	buildSpec := genBuildSpec(jobName, *axisValues, "lastCompletedBuild")
+	buildSpec := genBuildSpec(jobName, axisValues, "lastCompletedBuild")
 	buildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
 	if err != nil {
 		return nil, err
