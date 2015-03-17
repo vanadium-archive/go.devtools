@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/version"
+	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 
@@ -15,7 +14,7 @@ var (
 	verboseFlag    bool
 	gofmtFlag      bool
 	dryRunFlag     bool
-	noColorFlag    bool
+	colorFlag      bool
 )
 
 func init() {
@@ -24,7 +23,7 @@ func init() {
 	cmdInject.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
+	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 }
 
@@ -93,7 +92,11 @@ func runCheck(command *cmdline.Command, args []string) error {
 	if len(implementationPackageList) == 0 {
 		return command.UsageErrorf("no implementation package listed")
 	}
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:   &colorFlag,
+		DryRun:  &dryRunFlag,
+		Verbose: &verboseFlag,
+	})
 	return executeInjector(ctx, interfacePackageList, implementationPackageList, true)
 }
 
@@ -114,7 +117,11 @@ you can see the diff or revert the changes.
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
 func runInject(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:   &colorFlag,
+		DryRun:  &dryRunFlag,
+		Verbose: &verboseFlag,
+	})
 	return executeInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 
@@ -127,11 +134,11 @@ var cmdVersion = &cmdline.Command{
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "vloggy tool version %v\n", version.Version)
+	fmt.Fprintf(command.Stdout(), "vloggy tool version %v\n", tool.Version)
 	return nil
 }
 
 // executeInjector creates a new LogInjector instance and runs it.
-func executeInjector(ctx *util.Context, interfacePackageList, implementationPackageList []string, checkOnly bool) error {
+func executeInjector(ctx *tool.Context, interfacePackageList, implementationPackageList []string, checkOnly bool) error {
 	return run(ctx, interfacePackageList, implementationPackageList, checkOnly)
 }

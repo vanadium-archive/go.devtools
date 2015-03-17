@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/x/devtools/lib/testutil"
-	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/version"
+	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -19,7 +19,7 @@ var (
 	dryRunFlag      bool
 	jenkinsHostFlag string
 	manifestFlag    string
-	noColorFlag     bool
+	colorFlag       bool
 	verboseFlag     bool
 
 	// A root test watches changes and triggers other Jenkins targets.
@@ -43,7 +43,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
+	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdPoll.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 }
 
@@ -69,7 +69,12 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(command *cmdline.Command, _ []string) error {
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:    &colorFlag,
+		DryRun:   &dryRunFlag,
+		Manifest: &manifestFlag,
+		Verbose:  &verboseFlag,
+	})
 	root, err := util.VanadiumRoot()
 	if err != nil {
 		return err
@@ -102,7 +107,7 @@ func runPoll(command *cmdline.Command, _ []string) error {
 	fmt.Fprintf(ctx.Stdout(), "Projects with new changes:\n%s\n", strings.Join(projects, "\n"))
 
 	// Identify the Jenkins tests that should be started.
-	jenkinsTests, err := jenkinsTestsToStart(projects)
+	jenkinsTests, err := jenkinsTestsToStart(ctx, projects)
 	if err != nil {
 		return err
 	}
@@ -120,7 +125,7 @@ func runPoll(command *cmdline.Command, _ []string) error {
 // getChangedProjectsFromSnapshot returns a slice of projects that
 // have changes by comparing the revisions in the given snapshot with
 // master branches.
-func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotContent []byte) ([]string, error) {
+func getChangedProjectsFromSnapshot(ctx *tool.Context, vroot string, snapshotContent []byte) ([]string, error) {
 	// Parse snapshot.
 	snapshot := util.Manifest{}
 	if err := xml.Unmarshal(snapshotContent, &snapshot); err != nil {
@@ -134,7 +139,7 @@ func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotCon
 	for _, project := range snapshot.Projects {
 		switch project.Protocol {
 		case "git":
-			git := ctx.Git(util.RootDirOpt(filepath.Join(vroot, project.Path)))
+			git := ctx.Git(tool.RootDirOpt(filepath.Join(vroot, project.Path)))
 			commits, err := git.Log("master", project.Revision, "")
 			if err != nil {
 				return nil, err
@@ -149,10 +154,10 @@ func getChangedProjectsFromSnapshot(ctx *util.Context, vroot string, snapshotCon
 
 // jenkinsTestsToStart returns a list of jenkins tests that need to be
 // started based on the given projects.
-func jenkinsTestsToStart(projects []string) ([]string, error) {
+func jenkinsTestsToStart(ctx *tool.Context, projects []string) ([]string, error) {
 	// Parse tools config to get project-tests map.
-	var config util.Config
-	if err := util.LoadConfig("common", &config); err != nil {
+	config, err := util.LoadConfig(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -188,15 +193,15 @@ func jenkinsTestsToStart(projects []string) ([]string, error) {
 
 // startJenkinsTests uses Jenkins API to start a build to each of the
 // given Jenkins tests.
-func startJenkinsTests(ctx *util.Context, tests []string) error {
+func startJenkinsTests(ctx *tool.Context, tests []string) error {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
 	}
 
-	for _, test := range tests {
-		msg := fmt.Sprintf("add build to %q\n", test)
-		if err := jenkins.AddBuild(test); err == nil {
+	for _, t := range tests {
+		msg := fmt.Sprintf("add build to %q\n", t)
+		if err := jenkins.AddBuild(t); err == nil {
 			testutil.Pass(ctx, "%s", msg)
 		} else {
 			testutil.Fail(ctx, "%s", msg)
@@ -215,6 +220,6 @@ var cmdVersion = &cmdline.Command{
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "postsubmit tool version %v\n", version.Version)
+	fmt.Fprintf(command.Stdout(), "postsubmit tool version %v\n", tool.Version)
 	return nil
 }

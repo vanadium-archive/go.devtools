@@ -16,6 +16,8 @@ The presubmit commands are:
 Run "presubmit help [command]" for command usage.
 
 The presubmit flags are:
+ -color=true
+   Use color to format output.
  -host=
    The Jenkins host. Presubmit will not send any CLs to an empty host.
  -job=vanadium-presubmit-test
@@ -24,8 +26,6 @@ The presubmit flags are:
    Show what commands will run but do not execute them.
  -netrc=${HOME}/.netrc
    The path to the .netrc file that stores Gerrit's credentials.
- -nocolor=false
-   Do not use color to format output.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/build"
 
-	"v.io/x/devtools/lib/version"
+	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 
@@ -180,6 +180,6 @@ var cmdVersion = &cmdline.Command{
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "go-depcop tool version %v\n", version.Version)
+	fmt.Fprintf(command.Stdout(), "go-depcop tool version %v\n", tool.Version)
 	return nil
 }

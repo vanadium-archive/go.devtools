@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 
@@ -220,12 +220,16 @@ func addUser(user, suffix string) string {
 	return suffix
 }
 
-func newContext(cmd *cmdline.Command) *util.Context {
-	return util.NewContextFromCommand(cmd, *flagColor, *flagDryRun, *flagVerbose)
+func newContext(cmd *cmdline.Command) *tool.Context {
+	return tool.NewContextFromCommand(cmd, tool.ContextOpts{
+		Color:   flagColor,
+		DryRun:  flagDryRun,
+		Verbose: flagVerbose,
+	})
 }
 
 // StartShell starts a shell on node n.
-func (n nodeInfo) StartShell(ctx *util.Context) error {
+func (n nodeInfo) StartShell(ctx *tool.Context) error {
 	return ctx.Run().Command("gcloud",
 		"compute", "ssh",
 		addUser(*flagUser, n.Name),
@@ -236,7 +240,7 @@ func (n nodeInfo) StartShell(ctx *util.Context) error {
 
 // RunCopy runs the copy from srcs to dst on node x.  Assumes we've already
 // validated that either dst is remote and all srcs are local, or vice versa.
-func (n nodeInfo) RunCopy(ctx *util.Context, srcs []string, dst string, makeSubdir bool) runResult {
+func (n nodeInfo) RunCopy(ctx *tool.Context, srcs []string, dst string, makeSubdir bool) runResult {
 	if strings.HasPrefix(dst, ":") {
 		dst = addUser(*flagUser, n.Name+dst)
 	} else {
@@ -268,7 +272,7 @@ func (n nodeInfo) RunCopy(ctx *util.Context, srcs []string, dst string, makeSubd
 }
 
 // RunCommand runs cmdline on node n.
-func (n nodeInfo) RunCommand(ctx *util.Context, user string, cmdline []string) runResult {
+func (n nodeInfo) RunCommand(ctx *tool.Context, user string, cmdline []string) runResult {
 	var stdouterr bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdin = nil
@@ -417,7 +421,7 @@ func (x nodeInfos) run(w io.Writer, fn func(node nodeInfo) runResult) error {
 }
 
 // RunCopy runs the copy from srcs to dst on all nodes in x.
-func (x nodeInfos) RunCopy(ctx *util.Context, srcs []string, dst string) error {
+func (x nodeInfos) RunCopy(ctx *tool.Context, srcs []string, dst string) error {
 	makeSubdir := false
 	if len(x) > 1 && !strings.HasPrefix(dst, ":") {
 		// If we have more than one node and dst is local, it'd be pointless to copy
@@ -429,13 +433,13 @@ func (x nodeInfos) RunCopy(ctx *util.Context, srcs []string, dst string) error {
 }
 
 // RunCommand runs the cmdline on all nodes in x.
-func (x nodeInfos) RunCommand(ctx *util.Context, user string, cmdline []string) error {
+func (x nodeInfos) RunCommand(ctx *tool.Context, user string, cmdline []string) error {
 	fn := func(node nodeInfo) runResult { return node.RunCommand(ctx, user, cmdline) }
 	return x.run(ctx.Stdout(), fn)
 }
 
 // RunCopyAndRun implements the 'vcloud run' command.
-func (x nodeInfos) RunCopyAndRun(ctx *util.Context, user string, files, cmds []string, outdir string) error {
+func (x nodeInfos) RunCopyAndRun(ctx *tool.Context, user string, files, cmds []string, outdir string) error {
 	// 0) Pick a random number so that we use the same tmpdir on each node.
 	rand.Seed(time.Now().UnixNano())
 	tmpdir := fmt.Sprintf("./tmp_%X", rand.Int63())
@@ -561,7 +565,7 @@ func (x regexpList) AnyMatch(s string) bool {
 
 // listAll runs 'gcloud compute instances list' to list all nodes, and parses
 // the results into nodeInfos.  If dryrun is set, only prints the command.
-func listAll(ctx *util.Context, dryrun bool) (nodeInfos, error) {
+func listAll(ctx *tool.Context, dryrun bool) (nodeInfos, error) {
 	var stdout bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.DryRun = dryrun
@@ -602,7 +606,7 @@ ParseLineLoop:
 
 // listMatching runs listAll and matches the resulting nodes against exprlist, a
 // comma-separated list of regular expressions.
-func listMatching(ctx *util.Context, exprlist string) (nodeInfos, error) {
+func listMatching(ctx *tool.Context, exprlist string) (nodeInfos, error) {
 	all, err := listAll(ctx, false) // Never dry-run, even if -n is set.
 	if err != nil {
 		return nil, err

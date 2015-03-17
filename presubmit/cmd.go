@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/version"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -34,7 +34,7 @@ var (
 	jenkinsBuildNumberFlag int
 	manifestFlag           string
 	netRcFilePathFlag      flag.Getter // TODO(jsimsa): Move this flag to query.go.
-	noColorFlag            bool
+	colorFlag              bool
 	presubmitTestJobFlag   string
 	verboseFlag            bool
 )
@@ -45,7 +45,7 @@ func init() {
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
 	netRcFilePathFlag = cmdline.EnvFlag(defaultNetRcFilePath)
 	cmdRoot.Flags.Var(netRcFilePathFlag, "netrc", "The path to the .netrc file that stores Gerrit's credentials.")
-	cmdRoot.Flags.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
+	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.StringVar(&presubmitTestJobFlag, "job", defaultPresubmitTestJob, "The name of the Jenkins job to add presubmit-test builds to.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 }
@@ -94,6 +94,6 @@ var cmdVersion = &cmdline.Command{
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	printf(command.Stdout(), "presubmit tool version %v\n", version.Version)
+	printf(command.Stdout(), "presubmit tool version %v\n", tool.Version)
 	return nil
 }

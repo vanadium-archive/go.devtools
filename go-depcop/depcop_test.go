@@ -123,7 +123,7 @@ func TestComputeIncomingDependency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
-	this, that := "v.io/x/devtools/lib/version", "v.io/x/devtools/go-depcop"
+	this, that := "v.io/x/devtools/internal/tool", "v.io/x/devtools/go-depcop"
 	if deps, ok := allDeps[this]; !ok {
 		t.Fatalf("no incoming dependencies for %v", this)
 	} else {

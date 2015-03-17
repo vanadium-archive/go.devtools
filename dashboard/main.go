@@ -18,10 +18,10 @@ import (
 	"strings"
 	"text/template"
 
-	"v.io/x/devtools/lib/collect"
-	"v.io/x/devtools/lib/testutil"
-	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/xunit"
+	"v.io/x/devtools/internal/collect"
+	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/xunit"
 )
 
 const (
@@ -32,7 +32,7 @@ var (
 	bucketFlag  string
 	cacheFlag   string
 	dryRunFlag  bool
-	noColorFlag bool
+	colorFlag   bool
 	portFlag    int
 	verboseFlag bool
 )
@@ -41,7 +41,7 @@ func init() {
 	flag.StringVar(&bucketFlag, "bucket", defaultBucket, "Google Storage bucket to use for fetching files.")
 	flag.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
 	flag.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	flag.BoolVar(&noColorFlag, "nocolor", false, "Do not use color to format output.")
+	flag.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	flag.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	flag.IntVar(&portFlag, "port", 8000, "Port for the server.")
 	flag.Parse()
@@ -179,7 +179,7 @@ func ansiColorsToHTML(text string) (string, error) {
 	return text, nil
 }
 
-func displayPresubmitPage(ctx *util.Context, w http.ResponseWriter, r *http.Request) (e error) {
+func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Request) (e error) {
 	// Set up the root directory.
 	root := cacheFlag
 	if root == "" {
@@ -245,7 +245,7 @@ func displayPresubmitPage(ctx *util.Context, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func generateSummaryData(ctx *util.Context, n, path string) (*summaryData, error) {
+func generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error) {
 	data := summaryData{n, []label{}}
 	fileInfos, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -282,7 +282,7 @@ func generateSummaryData(ctx *util.Context, n, path string) (*summaryData, error
 	return &data, nil
 }
 
-func generateJobData(ctx *util.Context, n, label, job, path string) (*jobData, error) {
+func generateJobData(ctx *tool.Context, n, label, job, path string) (*jobData, error) {
 	outputBytes, err := ctx.Run().ReadFile(filepath.Join(path, "output"))
 	if err != nil {
 		return nil, err
@@ -305,7 +305,7 @@ func generateJobData(ctx *util.Context, n, label, job, path string) (*jobData, e
 	return &data, nil
 }
 
-func generateTestData(ctx *util.Context, n, label, job, testSuite, testCase, path string) (*testData, error) {
+func generateTestData(ctx *tool.Context, n, label, job, testSuite, testCase, path string) (*testData, error) {
 	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(path, "xunit.xml"))
 	if err != nil {
 		return nil, err
@@ -369,7 +369,7 @@ func validateValues(values url.Values) error {
 	return nil
 }
 
-func helper(ctx *util.Context, w http.ResponseWriter, r *http.Request) {
+func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if err := validateValues(r.Form); err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v", err)
@@ -393,7 +393,11 @@ func helper(ctx *util.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	ctx := util.NewContext(nil, os.Stdin, os.Stdout, os.Stderr, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContext(tool.ContextOpts{
+		Color:   &colorFlag,
+		DryRun:  &dryRunFlag,
+		Verbose: &verboseFlag,
+	})
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		helper(ctx, w, r)
 	}

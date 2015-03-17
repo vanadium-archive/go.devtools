@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 
@@ -82,12 +82,16 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "vanadium-internal", "GCE project of the machine.")
 }
 
-func newContext(cmd *cmdline.Command) *util.Context {
-	return util.NewContextFromCommand(cmd, *flagColor, *flagDryRun, *flagVerbose)
+func newContext(cmd *cmdline.Command) *tool.Context {
+	return tool.NewContextFromCommand(cmd, tool.ContextOpts{
+		Color:   flagColor,
+		DryRun:  flagDryRun,
+		Verbose: flagVerbose,
+	})
 }
 
 // lookupIPAddress looks up the IP address for the given GCE node.
-func lookupIPAddress(ctx *util.Context, node string) (string, error) {
+func lookupIPAddress(ctx *tool.Context, node string) (string, error) {
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out

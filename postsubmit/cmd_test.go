@@ -2,71 +2,67 @@ package main
 
 import (
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {
-	// Setup a fake VANADIUM_ROOT.
-	ctx := util.DefaultContext()
-	tmpDir, err := ctx.Run().TempDir("", "")
+	ctx := tool.NewDefaultContext()
+	root, err := util.NewFakeVanadiumRoot(ctx)
 	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
+		t.Fatalf("%v", err)
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer func() {
+		if err := root.Cleanup(ctx); err != nil {
+			t.Fatalf("%v", err)
+		}
+	}()
+	config := util.NewConfig(
+		util.ProjectTestsOpt(map[string][]string{
+			"release.go.core": []string{"go", "javascript"},
+			"release.js.core": []string{"javascript"},
+		}),
+		util.TestGroupsOpt(map[string][]string{
+			"go":         []string{"vanadium-go-build", "vanadium-go-test", "vanadium-go-race"},
+			"javascript": []string{"vanadium-js-integration", "vanadium-js-unit"},
+		}),
+	)
+	if err := root.WriteLocalToolsConfig(ctx, config); err != nil {
+		t.Fatalf("%v", err)
+	}
+
 	oldRoot, err := util.VanadiumRoot()
-	if err := os.Setenv("VANADIUM_ROOT", tmpDir); err != nil {
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := os.Setenv("VANADIUM_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer os.Setenv("VANADIUM_ROOT", oldRoot)
-
-	// Create a test config file.
-	configFile, err := util.ConfigFile("common")
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := ctx.Run().MkdirAll(filepath.Dir(configFile), os.FileMode(0755)); err != nil {
-		t.Fatalf("%v", err)
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := ctx.Run().Symlink(filepath.Join(cwd, "testdata", "common.json"), configFile); err != nil {
-		t.Fatalf("%v", err)
-	}
 
 	testCases := []struct {
 		projects            []string
 		expectedJenkinsTest []string
 	}{
 		{
-			projects: []string{"release.js.core"},
-			expectedJenkinsTest: []string{
-				"vanadium-js-browser-integration",
-				"vanadium-js-build-extension",
-				"vanadium-js-node-integration",
-				"vanadium-js-unit",
-				"vanadium-js-vdl",
-				"vanadium-js-vom",
-				"vanadium-namespace-browser-test",
-			},
-		},
-		{
 			projects: []string{"release.go.core"},
 			expectedJenkinsTest: []string{
 				"vanadium-go-build",
-				"vanadium-namespace-browser-test",
-				"vanadium-www-tutorials",
+			},
+		},
+		{
+			projects: []string{"release.js.core"},
+			expectedJenkinsTest: []string{
+				"vanadium-js-unit",
 			},
 		},
 	}
 
 	for _, test := range testCases {
-		got, err := jenkinsTestsToStart(test.projects)
+		got, err := jenkinsTestsToStart(ctx, test.projects)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}

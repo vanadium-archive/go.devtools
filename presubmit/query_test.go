@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
 
-	"v.io/x/devtools/lib/gerrit"
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/gerrit"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 )
 
 func TestMultiPartCLSet(t *testing.T) {
@@ -148,7 +148,7 @@ machine vanadium-review.googlesource.com login git-jingjin.google.com password 5
 }
 
 func TestNewOpenCLs(t *testing.T) {
-	ctx := util.DefaultContext()
+	ctx := tool.NewDefaultContext()
 	nonMultiPartCLs := clList{
 		genCL(1010, 1, "release.go.core"),
 		genCL(1020, 2, "release.go.tools"),
@@ -293,7 +293,10 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	ctx := util.NewContext(nil, os.Stdin, &buf, &buf, false, false, false)
+	ctx := tool.NewContext(tool.ContextOpts{
+		Stdout: &buf,
+		Stderr: &buf,
+	})
 	sender := clsSender{
 		clLists: clLists,
 		projects: map[string]util.Project{
@@ -302,11 +305,11 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 
 		// Mock out the removeOutdatedBuilds function.
-		removeOutdatedFn: func(ctx *util.Context, cls clNumberToPatchsetMap) []error { return nil },
+		removeOutdatedFn: func(ctx *tool.Context, cls clNumberToPatchsetMap) []error { return nil },
 
 		// Mock out the addPresubmitTestBuild function.
 		// It will return error for the first clList.
-		addPresubmitFn: func(ctx *util.Context, cls clList, tests []string) error {
+		addPresubmitFn: func(ctx *tool.Context, cls clList, tests []string) error {
 			if reflect.DeepEqual(cls, clLists[0]) {
 				return fmt.Errorf("err")
 			} else {
@@ -315,7 +318,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 
 		// Mock out postMessage function.
-		postMessageFn: func(ctx *util.Context, message string, refs []string, success bool) error { return nil },
+		postMessageFn: func(ctx *tool.Context, message string, refs []string, success bool) error { return nil },
 	}
 	if err := sender.sendCLListsToPresubmitTest(ctx); err != nil {
 		t.Fatalf("want no error, got: %v", err)
