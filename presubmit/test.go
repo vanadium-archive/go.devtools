@@ -147,7 +147,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
-	prefix := fmt.Sprintf("presubmit/%d/%s", jenkinsBuildNumberFlag, os.Getenv("L"))
+	prefix := fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("OS"), os.Getenv("ARCH"))
 	opts := []testutil.TestOpt{testutil.ShortOpt(true), testutil.PrefixOpt(prefix)}
 	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, opts...); err == nil {
 		result, ok := results[testFlag]
