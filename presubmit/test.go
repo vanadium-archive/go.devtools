@@ -11,10 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/x/devtools/lib/collect"
-	"v.io/x/devtools/lib/testutil"
-	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/xunit"
+	"v.io/x/devtools/internal/collect"
+	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
+	"v.io/x/devtools/internal/xunit"
 	"v.io/x/lib/cmdline"
 )
 
@@ -24,10 +25,10 @@ var (
 )
 
 func init() {
+	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
+	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
-	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
-	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
 	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
 }
 
@@ -63,7 +64,12 @@ func (c cl) String() string {
 
 // runTest implements the 'test' subcommand.
 func runTest(command *cmdline.Command, args []string) (e error) {
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:    &colorFlag,
+		DryRun:   &dryRunFlag,
+		Manifest: &manifestFlag,
+		Verbose:  &verboseFlag,
+	})
 
 	// Basic sanity checks.
 	if err := sanityChecks(command); err != nil {
@@ -80,7 +86,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		return err
 	}
 
-	projects, tools, err := util.ReadManifest(ctx, manifestFlag)
+	projects, tools, err := util.ReadManifest(ctx)
 	if err != nil {
 		return err
 	}
@@ -162,7 +168,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 
 // sanityChecks performs basic sanity checks for various flags.
 func sanityChecks(command *cmdline.Command) error {
-	manifestFilePath, err := util.RemoteManifestFile(manifestFlag)
+	manifestFilePath, err := util.ManifestFile(manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -211,7 +217,7 @@ func presubmitTestBranchName(ref string) string {
 
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
-func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string]util.Project) (_ *cl, e error) {
+func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string]util.Project) (_ *cl, e error) {
 	strCLs := []string{}
 	for _, cl := range cls {
 		strCLs = append(strCLs, cl.String())
@@ -256,7 +262,7 @@ func preparePresubmitTestBranch(ctx *util.Context, cls []cl, projects map[string
 
 // recordMergeConflict records possible merge conflict in the test status file
 // and xUnit report.
-func recordMergeConflict(ctx *util.Context, failedCL *cl) error {
+func recordMergeConflict(ctx *tool.Context, failedCL *cl) error {
 	message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
 	if err := xunit.CreateFailureReport(ctx, testFlag, testFlag, "MergeConflict", message, message); err != nil {
 		return nil
@@ -275,7 +281,7 @@ func recordMergeConflict(ctx *util.Context, failedCL *cl) error {
 
 // rebuildDeveloperTools rebuilds developer tools (e.g. v23, vdl..) in a
 // temporary directory, which is used to replace VANADIUM_ROOT/bin in the PATH.
-func rebuildDeveloperTools(ctx *util.Context, projects util.Projects, tools util.Tools, tmpBinDir string) (map[string]string, []error) {
+func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util.Tools, tmpBinDir string) (map[string]string, []error) {
 	errs := []error{}
 	toolsProject, ok := projects["release.go.tools"]
 	env := map[string]string{}
@@ -304,7 +310,7 @@ func rebuildDeveloperTools(ctx *util.Context, projects util.Projects, tools util
 }
 
 // cleanupPresubmitTestBranch removes the presubmit test branch.
-func cleanupAllPresubmitTestBranches(ctx *util.Context, projects util.Projects) (e error) {
+func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects util.Projects) (e error) {
 	printf(ctx.Stdout(), "### Cleaning up\n")
 	if err := util.CleanupProjects(ctx, projects, true); err != nil {
 		return err
@@ -317,7 +323,7 @@ func cleanupAllPresubmitTestBranches(ctx *util.Context, projects util.Projects) 
 // "master" presubmit project for generating final test results message.
 //
 // For more details, see comments in result.go.
-func writeTestStatusFile(ctx *util.Context, result testutil.TestResult, curTimestamp int64) error {
+func writeTestStatusFile(ctx *tool.Context, result testutil.TestResult, curTimestamp int64) error {
 	// Get the file path.
 	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("status_%s.json", strings.Replace(testFlag, "-", "_", -1))
 	statusFilePath := ""

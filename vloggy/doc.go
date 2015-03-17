@@ -25,10 +25,10 @@ The vloggy commands are:
 Run "vloggy help [command]" for command usage.
 
 The vloggy flags are:
+ -color=true
+   Use color to format output.
  -n=false
    Show what commands will run but do not execute them.
- -nocolor=false
-   Do not use color to format output.
  -progress=false
    Print verbose progress information.
  -v=false

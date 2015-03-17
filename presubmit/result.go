@@ -15,10 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/lib/jenkins"
-	"v.io/x/devtools/lib/testutil"
-	"v.io/x/devtools/lib/util"
-	"v.io/x/devtools/lib/xunit"
+	"v.io/x/devtools/internal/jenkins"
+	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
+	"v.io/x/devtools/internal/xunit"
 	"v.io/x/lib/cmdline"
 )
 
@@ -151,14 +152,19 @@ func (ri testResultInfo) key() string {
 //     ├── 46
 //     ...
 //
-// The .json files record the test status (a testutil.TestResult object), and
+// The .json files record the test status (a test.TestResult object), and
 // the .xml files are xUnit reports.
 //
 // Each individual presubmit test will generate the .json file and the .xml file
 // at the end of their run, and the presubmit "master" job is configured to
 // collect all those files and store them in the above directory structure.
 func runResult(command *cmdline.Command, args []string) (e error) {
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:    &colorFlag,
+		DryRun:   &dryRunFlag,
+		Manifest: &manifestFlag,
+		Verbose:  &verboseFlag,
+	})
 
 	// Find all status files and store their paths in a slice.
 	workspaceDir := os.Getenv("WORKSPACE")
@@ -204,7 +210,7 @@ func runResult(command *cmdline.Command, args []string) (e error) {
 // getPostSubmitBuildData returns a map from job names to the data of the
 // corresponding postsubmit builds that ran before the recorded test result
 // timestamps.
-func getPostSubmitBuildData(ctx *util.Context, testResults []testResultInfo) (map[string]*postSubmitBuildData, error) {
+func getPostSubmitBuildData(ctx *tool.Context, testResults []testResultInfo) (map[string]*postSubmitBuildData, error) {
 	jenkinsObj, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
@@ -244,8 +250,8 @@ outer:
 			// TODO(jingjin): clean this up after the transition is done.
 			cases := []jenkins.TestCase{}
 			if name == "vanadium-go-race" {
-				config := util.Config{}
-				if err := util.LoadConfig("common", &config); err != nil {
+				config, err := util.LoadConfig(ctx)
+				if err != nil {
 					continue outer
 				}
 				parts := config.TestParts(name)
@@ -289,7 +295,7 @@ type postSubmitBuildData struct {
 }
 
 // postReport generates a test report and posts it to Gerrit.
-func (r *testReporter) postReport(ctx *util.Context) (e error) {
+func (r *testReporter) postReport(ctx *tool.Context) (e error) {
 	// Do not post a test report if no tests were run.
 	if len(r.testResults) == 0 {
 		return nil
@@ -336,7 +342,7 @@ func (r *testReporter) postReport(ctx *util.Context) (e error) {
 // In theory, a failed presubmit master build won't even execute the
 // result reporting step (the cmdResult command implemented in this file),
 // but just in case.
-func (r *testReporter) reportFailedPresubmitBuild(ctx *util.Context) bool {
+func (r *testReporter) reportFailedPresubmitBuild(ctx *tool.Context) bool {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -357,7 +363,7 @@ func (r *testReporter) reportFailedPresubmitBuild(ctx *util.Context) bool {
 
 // reportMergeConflicts posts a review about possible merge conflicts.
 // It returns whether any merge conflicts are found in the given testResults.
-func (r *testReporter) reportMergeConflicts(ctx *util.Context) bool {
+func (r *testReporter) reportMergeConflicts(ctx *tool.Context) bool {
 	for _, resultInfo := range r.testResults {
 		if resultInfo.Result.Status == testutil.TestFailedMergeConflict {
 			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.Result.MergeConflictCL)
@@ -371,7 +377,7 @@ func (r *testReporter) reportMergeConflicts(ctx *util.Context) bool {
 }
 
 // reportBuildCop reports current vanadium build cop.
-func (r *testReporter) reportBuildCop(ctx *util.Context) {
+func (r *testReporter) reportBuildCop(ctx *tool.Context) {
 	buildCop, err := util.BuildCop(ctx, time.Now())
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -383,7 +389,7 @@ func (r *testReporter) reportBuildCop(ctx *util.Context) {
 // reportTestResultsSummary populates the given buffer with a test
 // results summary (one transition for each test) and returns a list of
 // failed tests.
-func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]struct{} {
+func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]struct{} {
 	fmt.Fprintf(r.report, "Test results:\n")
 	failedTestNames := map[string]struct{}{}
 	nameStrings := []string{}
@@ -448,7 +454,7 @@ func (r *testReporter) reportTestResultsSummary(ctx *util.Context) map[string]st
 
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given Jenkins job.
-func lastCompletedBuildStatus(ctx *util.Context, jobName string, axisValues axisValuesInfo) (*jenkins.BuildInfo, error) {
+func lastCompletedBuildStatus(ctx *tool.Context, jobName string, axisValues axisValuesInfo) (*jenkins.BuildInfo, error) {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
@@ -488,7 +494,7 @@ type failedTestLinksMap map[failureType][]string
 
 // reportFailedTestCasesByFailureTypes reports failed test cases grouped by
 // failure types: new failures, known failures, and fixed failures.
-func (r *testReporter) reportFailedTestCases(ctx *util.Context) (int, error) {
+func (r *testReporter) reportFailedTestCases(ctx *tool.Context) (int, error) {
 	// Get groups.
 	groups, err := r.genFailedTestCasesGroupsForAllTests(ctx)
 	if err != nil {
@@ -534,7 +540,7 @@ type failedTestCasesGroups map[failureType][]failedTestCaseInfo
 // tests into three groups: new failures, known failures, and fixed failures.
 // Each group has a slice of failedTestLinkInfo which is used to generate links
 // to Jenkins report pages.
-func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *util.Context) (failedTestCasesGroups, error) {
+func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (failedTestCasesGroups, error) {
 	groups := failedTestCasesGroups{}
 
 	// seenTests maps the test full names to number of times they
@@ -590,7 +596,7 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *util.Context) (f
 
 // genFailedTestCasesGroupsForOneTest generates groups for failed tests.
 // See comments of genFailedTestsGroupsForAllTests.
-func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *util.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
+func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
 	testName := testResult.TestName
 
 	// Parse xUnit report of the presubmit test.
@@ -742,7 +748,7 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 	}
 }
 
-func getRefsUsingVerifiedLabel(ctx *util.Context, gerritCred credential) (map[string]struct{}, error) {
+func getRefsUsingVerifiedLabel(ctx *tool.Context, gerritCred credential) (map[string]struct{}, error) {
 	// Query all open CLs.
 	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
 	cls, err := gerrit.Query(defaultQueryString)

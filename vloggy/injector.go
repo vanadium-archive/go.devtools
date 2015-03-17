@@ -17,8 +17,8 @@ import (
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 
-	"v.io/x/devtools/lib/goutil"
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/goutil"
+	"v.io/x/devtools/internal/tool"
 )
 
 const (
@@ -37,7 +37,7 @@ const (
 
 // gcOrSourceImportert will use gcimporter to attempt to import from
 // a .a file, but if one doesn't exist it will import from source code.
-func gcOrSourceImporter(ctx *util.Context, fset *token.FileSet, imports map[string]*types.Package, path string) (*types.Package, error) {
+func gcOrSourceImporter(ctx *tool.Context, fset *token.FileSet, imports map[string]*types.Package, path string) (*types.Package, error) {
 	if p, err := gcimporter.Import(imports, path); err == nil {
 		return p, err
 	}
@@ -55,7 +55,7 @@ func gcOrSourceImporter(ctx *util.Context, fset *token.FileSet, imports map[stri
 // importPkgs will expand the supplied list of interface and implementation
 // packages using go list (so v.io/v23/... can be used as an interface package
 // spec for example) and then import those packages.
-func importPkgs(ctx *util.Context, interfaces, implementations []string) (ifcs, impls []*build.Package, err error) {
+func importPkgs(ctx *tool.Context, interfaces, implementations []string) (ifcs, impls []*build.Package, err error) {
 
 	ifcPkgs, err := goutil.List(ctx, interfaces)
 	if err != nil {
@@ -91,7 +91,7 @@ func importPkgs(ctx *util.Context, interfaces, implementations []string) (ifcs, 
 }
 
 // parseAndTypeCheckPackage will parse and type check a given package.
-func parseAndTypeCheckPackage(ctx *util.Context, fset *token.FileSet, bpkg *build.Package) ([]*ast.File, *types.Package, error) {
+func parseAndTypeCheckPackage(ctx *tool.Context, fset *token.FileSet, bpkg *build.Package) ([]*ast.File, *types.Package, error) {
 
 	config := &types.Config{}
 	config.Import = func(imports map[string]*types.Package, path string) (*types.Package, error) {
@@ -137,24 +137,8 @@ func newStringSet(values []string) map[string]struct{} {
 	return set
 }
 
-func configureDefaultBuildConfig(tags []string) (cleanup func(), err error) {
-	env, err := util.VanadiumEnvironment(util.HostPlatform())
-	if err != nil {
-		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
-	}
-	prevGOPATH := build.Default.GOPATH
-	prevBuildTags := build.Default.BuildTags
-	cleanup = func() {
-		build.Default.GOPATH = prevGOPATH
-		build.Default.BuildTags = prevBuildTags
-	}
-	build.Default.GOPATH = env.Get("GOPATH")
-	build.Default.BuildTags = tags
-	return cleanup, nil
-}
-
 // run runs the log injector.
-func run(ctx *util.Context, interfaceList, implementationList []string, checkOnly bool) error {
+func run(ctx *tool.Context, interfaceList, implementationList []string, checkOnly bool) error {
 	// use 'go list' and the builder to import all of the packages
 	// specified as interfaces and implementations.
 	ifcs, impls, err := importPkgs(ctx, interfaceList, implementationList)
@@ -263,7 +247,7 @@ func functionDeclarationsAtPositions(files []*ast.File, positions map[token.Pos]
 // findMethodsImplementing searches the specified packages and returns
 // a list of function declarations that are implementations for
 // the specified interfaces.
-func findMethodsImplementing(ctx *util.Context, fset *token.FileSet, tpkg *types.Package, interfaces []*types.Interface) map[token.Pos]struct{} {
+func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types.Package, interfaces []*types.Interface) map[token.Pos]struct{} {
 	// positions will hold the set of Pos values of methods
 	// that should be logged.  Each element will be the position of
 	// the identifier token representing the method name of such
@@ -435,7 +419,7 @@ func checkMethod(method funcDeclRef) error {
 }
 
 // gofmt runs "gofmt -w files...".
-func gofmt(ctx *util.Context, files []string) error {
+func gofmt(ctx *tool.Context, files []string) error {
 	if len(files) == 0 || !gofmtFlag {
 		return nil
 	}
@@ -443,7 +427,7 @@ func gofmt(ctx *util.Context, files []string) error {
 }
 
 // inject injects a log call at the beginning of each method in methods.
-func inject(ctx *util.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
+func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
 	// Warn the user for methods that already have something at
 	// their beginning that looks like a logging construct, but it
 	// is invalid for some reason.
@@ -494,7 +478,7 @@ func inject(ctx *util.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 
 // reportResults prints out the validation results from checkMethods
 // in a human-readable form.
-func reportResults(ctx *util.Context, fset *token.FileSet, methods map[funcDeclRef]error) {
+func reportResults(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) {
 	for m, err := range methods {
 		fmt.Fprintf(ctx.Stdout(), "%v: %s: %v\n", fset.Position(m.Decl.Pos()), m.Decl.Name.Name, err)
 	}
@@ -576,7 +560,7 @@ func printHeader(out io.Writer, format string, args ...interface{}) {
 
 // findPublicInterfaces returns all the public interfaces defined in this
 // packages imports.
-func findPublicInterfaces(ctx *util.Context, ifcs []*build.Package, tpkg *types.Package) (interfaces []*types.Interface) {
+func findPublicInterfaces(ctx *tool.Context, ifcs []*build.Package, tpkg *types.Package) (interfaces []*types.Interface) {
 	isInterfacePackage := func(t *types.Package) bool {
 		for _, b := range ifcs {
 			if t.Name() == b.Name && t.Path() == b.ImportPath {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"v.io/x/devtools/lib/testutil"
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/tool"
 )
 
 func genStartPresubmitBuildLink(strRefs, strProjects, strTests string) string {
@@ -18,7 +18,7 @@ func genStartPresubmitBuildLink(strRefs, strProjects, strTests string) string {
 }
 
 // postMessage posts the given message to Gerrit.
-func postMessage(ctx *util.Context, message string, refs []string, success bool) error {
+func postMessage(ctx *tool.Context, message string, refs []string, success bool) error {
 	// Basic sanity check for the Gerrit base URL.
 	gerritHost, err := checkGerritBaseUrl()
 	if err != nil {

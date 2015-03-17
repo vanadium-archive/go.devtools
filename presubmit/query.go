@@ -14,9 +14,10 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/x/devtools/lib/collect"
-	"v.io/x/devtools/lib/gerrit"
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/collect"
+	"v.io/x/devtools/internal/gerrit"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -119,7 +120,12 @@ review with test results.
 
 // runQuery implements the "query" subcommand.
 func runQuery(command *cmdline.Command, args []string) error {
-	ctx := util.NewContextFromCommand(command, !noColorFlag, dryRunFlag, verboseFlag)
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:    &colorFlag,
+		DryRun:   &dryRunFlag,
+		Manifest: &manifestFlag,
+		Verbose:  &verboseFlag,
+	})
 	numSentCLs := 0
 	defer func() {
 		printf(ctx.Stdout(), "%d sent.\n", numSentCLs)
@@ -184,7 +190,7 @@ func runQuery(command *cmdline.Command, args []string) error {
 
 	// Send the new open CLs one by one to the given Jenkins
 	// project to run presubmit-test builds.
-	projects, _, err := util.ReadManifest(ctx, manifestFlag)
+	projects, _, err := util.ReadManifest(ctx)
 	if err != nil {
 		return err
 	}
@@ -278,7 +284,7 @@ func readLog() (clRefMap, error) {
 }
 
 // writeLog writes the refs of the given CLs to the log file.
-func writeLog(ctx *util.Context, cls clList) (e error) {
+func writeLog(ctx *tool.Context, cls clList) (e error) {
 	// Index CLs with their refs.
 	results := clRefMap{}
 	for _, cl := range cls {
@@ -321,7 +327,7 @@ func writeLog(ctx *util.Context, cls clList) (e error) {
 //   a clList [3001/1 3002/1] will be returned. Then suppose in the next query,
 //   we got cl 3002/2 which is newer then 3002/1. In this case, a clList
 //   [3001/1 3002/2] will be returned.
-func newOpenCLs(ctx *util.Context, prevCLsMap clRefMap, curCLs clList) []clList {
+func newOpenCLs(ctx *tool.Context, prevCLsMap clRefMap, curCLs clList) []clList {
 	newCLs := []clList{}
 	topicsInNewCLs := map[string]struct{}{}
 	multiPartCLs := clList{}
@@ -380,15 +386,15 @@ type clsSender struct {
 	clLists          []clList
 	projects         map[string]util.Project
 	clsSent          int
-	removeOutdatedFn func(*util.Context, clNumberToPatchsetMap) []error
-	addPresubmitFn   func(*util.Context, clList, []string) error
-	postMessageFn    func(*util.Context, string, []string, bool) error
+	removeOutdatedFn func(*tool.Context, clNumberToPatchsetMap) []error
+	addPresubmitFn   func(*tool.Context, clList, []string) error
+	postMessageFn    func(*tool.Context, string, []string, bool) error
 }
 
 // sendCLListsToPresubmitTest sends the given clLists to presubmit-test Jenkins
 // job one by one to run presubmit-test builds. It returns how many CLs have
 // been sent successfully.
-func (s *clsSender) sendCLListsToPresubmitTest(ctx *util.Context) error {
+func (s *clsSender) sendCLListsToPresubmitTest(ctx *tool.Context) error {
 	for _, curCLList := range s.clLists {
 		clListInfo := s.processCLList(ctx, curCLList)
 		curCLList = clListInfo.filteredCLList
@@ -409,7 +415,7 @@ func (s *clsSender) sendCLListsToPresubmitTest(ctx *util.Context) error {
 		}
 
 		// Skip if there is no tests to run.
-		tests, err := s.getTestsToRun(clListInfo.projects)
+		tests, err := s.getTestsToRun(ctx, clListInfo.projects)
 		if err != nil {
 			return err
 		}
@@ -464,7 +470,7 @@ type clListInfo struct {
 	filteredCLList    clList
 }
 
-func (s *clsSender) processCLList(ctx *util.Context, curCLList clList) *clListInfo {
+func (s *clsSender) processCLList(ctx *tool.Context, curCLList clList) *clListInfo {
 	curCLMap := clNumberToPatchsetMap{}
 	clStrings := []string{}
 	skipPresubmitTest := false
@@ -510,16 +516,16 @@ func (s *clsSender) processCLList(ctx *util.Context, curCLList clList) *clListIn
 	}
 }
 
-func (s *clsSender) getTestsToRun(projects []string) ([]string, error) {
-	var config util.Config
-	if err := util.LoadConfig("common", &config); err != nil {
+func (s *clsSender) getTestsToRun(ctx *tool.Context, projects []string) ([]string, error) {
+	config, err := util.LoadConfig(ctx)
+	if err != nil {
 		return nil, err
 	}
 	tests := config.ProjectTests(projects)
 	return tests, nil
 }
 
-func (s *clsSender) handleNonGoogleOwner(ctx *util.Context, refs, projects, tests []string) error {
+func (s *clsSender) handleNonGoogleOwner(ctx *tool.Context, refs, projects, tests []string) error {
 	link := genStartPresubmitBuildLink(strings.Join(refs, ":"), strings.Join(projects, ":"), strings.Join(tests, " "))
 	message := fmt.Sprintf("A Vanadium team member will manually trigger presubmit tests for this change:\n%s\n", link)
 	if err := s.postMessageFn(ctx, message, refs, false); err != nil {
@@ -530,7 +536,7 @@ func (s *clsSender) handleNonGoogleOwner(ctx *util.Context, refs, projects, test
 
 // isKnownProject checks whether the given cl's project is in the
 // given set of projects.
-func isKnowProject(ctx *util.Context, cl gerrit.Change, projects map[string]util.Project) bool {
+func isKnowProject(ctx *tool.Context, cl gerrit.Change, projects map[string]util.Project) bool {
 	if _, ok := projects[cl.Project]; !ok {
 		printf(ctx.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
 		return false
@@ -544,13 +550,13 @@ func isKnowProject(ctx *util.Context, cl gerrit.Change, projects map[string]util
 //
 // Since this is not a critical operation, we simply print out the
 // errors if we see any.
-func removeOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) (errs []error) {
+func removeOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) (errs []error) {
 	collect.Errors(func() error { return removeQueuedOutdatedBuilds(ctx, cls) }, &errs)
 	collect.Errors(func() error { return removeOngoingOutdatedBuilds(ctx, cls) }, &errs)
 	return
 }
 
-func removeQueuedOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) error {
+func removeQueuedOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) error {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
@@ -581,7 +587,7 @@ func removeQueuedOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) er
 	return nil
 }
 
-func removeOngoingOutdatedBuilds(ctx *util.Context, cls clNumberToPatchsetMap) error {
+func removeOngoingOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) error {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
@@ -686,7 +692,7 @@ func parseRefString(ref string) (int, int, error) {
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
 // a set of open CLs to run presubmit tests.
-func addPresubmitTestBuild(ctx *util.Context, cls clList, tests []string) error {
+func addPresubmitTestBuild(ctx *tool.Context, cls clList, tests []string) error {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err

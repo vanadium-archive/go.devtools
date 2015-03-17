@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/x/devtools/lib/jenkins"
-	"v.io/x/devtools/lib/testutil"
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/jenkins"
+	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/tool"
 )
 
 func TestGenFailedTestCasesGroupsForOneTest(t *testing.T) {
@@ -42,7 +42,7 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 </testsuites>
 	`
 	jenkinsBuildNumberFlag = 10
-	ctx := util.DefaultContext()
+	ctx := tool.NewDefaultContext()
 	type test struct {
 		testResult                testResultInfo
 		postsubmitFailedTestCases []jenkins.TestCase

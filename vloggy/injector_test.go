@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"go/build"
 	"go/token"
 	"path"
 	"strconv"
 	"testing"
 
-	"v.io/x/devtools/lib/util"
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 )
 
 const (
@@ -33,12 +36,28 @@ func TestInvalidPackages(t *testing.T) {
 	}
 }
 
+func configureDefaultBuildConfig(ctx *tool.Context, tags []string) (cleanup func(), err error) {
+	env, err := util.VanadiumEnvironment(ctx, util.HostPlatform())
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
+	}
+	prevGOPATH := build.Default.GOPATH
+	prevBuildTags := build.Default.BuildTags
+	cleanup = func() {
+		build.Default.GOPATH = prevGOPATH
+		build.Default.BuildTags = prevBuildTags
+	}
+	build.Default.GOPATH = env.Get("GOPATH")
+	build.Default.BuildTags = tags
+	return cleanup, nil
+}
+
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
-	if _, err := configureDefaultBuildConfig([]string{"testpackage"}); err != nil {
+	ctx := tool.NewDefaultContext()
+	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
 	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
-	ctx := util.DefaultContext()
 
 	ifcs, impls, err := importPkgs(ctx, interfaceList, packages)
 	if err != nil {

@@ -14,12 +14,12 @@ The postsubmit commands are:
 Run "postsubmit help [command]" for command usage.
 
 The postsubmit flags are:
+ -color=true
+   Use color to format output.
  -host=
    The Jenkins host. Presubmit will not send any CLs to an empty host.
  -n=false
    Show what commands will run but do not execute them.
- -nocolor=false
-   Do not use color to format output.
  -v=false
    Print verbose output.
 
