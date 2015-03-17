@@ -50,7 +50,7 @@ var multiConfigurationJobs = map[string]*axisInfo{
 	"third_party-go-build":      &axisInfo{false, true},
 	"third_party-go-test":       &axisInfo{false, true},
 	"vanadium-go-build":         &axisInfo{true, true},
-	"vanadium-go-test":          &axisInfo{false, true},
+	"vanadium-go-test":          &axisInfo{true, true},
 	"vanadium-integration-test": &axisInfo{false, true},
 }
 
