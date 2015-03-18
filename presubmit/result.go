@@ -252,6 +252,7 @@ outer:
 			if name == "vanadium-go-race" {
 				config, err := util.LoadConfig(ctx)
 				if err != nil {
+					testutil.Fail(ctx, "%v\n", err)
 					continue outer
 				}
 				parts := config.TestParts(name)
