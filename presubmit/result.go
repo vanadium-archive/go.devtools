@@ -29,6 +29,7 @@ var (
 )
 
 func init() {
+	cmdResult.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdResult.Flags.IntVar(&jenkinsBuildNumberFlag, "build_number", -1, "The number of the Jenkins build.")
