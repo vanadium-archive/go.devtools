@@ -61,6 +61,8 @@ Usage:
 The presubmit result flags are:
  -build_number=-1
    The number of the Jenkins build.
+ -manifest=
+   Name of the project manifest.
  -projects=
    The base names of the remote projects containing the CLs pointed by the refs,
    separated by ':'.
