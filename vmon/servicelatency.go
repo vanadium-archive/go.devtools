@@ -16,39 +16,13 @@ import (
 )
 
 var (
-	timeout = 5 * time.Second
+	timeout  = 5 * time.Second
+	services []prodService
 )
 
 type prodService struct {
 	name       string
 	objectName string
-}
-
-var services = []prodService{
-	prodService{
-		name:       "mounttable",
-		objectName: namespaceRootFlag,
-	},
-	prodService{
-		name:       "application repository",
-		objectName: namespaceRootFlag + "/applications",
-	},
-	prodService{
-		name:       "binary repository",
-		objectName: namespaceRootFlag + "/binaries",
-	},
-	prodService{
-		name:       "macaroon service",
-		objectName: namespaceRootFlag + "/identity/dev.v.io/root/macaroon",
-	},
-	prodService{
-		name:       "google identity service",
-		objectName: namespaceRootFlag + "/identity/dev.v.io/root/google",
-	},
-	prodService{
-		name:       "binary discharger",
-		objectName: namespaceRootFlag + "/identity/dev.v.io/root/discharger",
-	},
 }
 
 // checkServiceLatency checks all services and adds their check latency to GCM.

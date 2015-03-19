@@ -96,6 +96,8 @@ The vmon check flags are:
    The path where all binaries are downloaded.
  -ns=/ns.dev.v.io:8101
    The namespace root.
+ -root=dev.v.io
+   The blessings root.
 
 Vmon Check List
 
