@@ -1,0 +1,82 @@
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+pre {
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.job-list {
+  list-style-type: none;
+  margin-left: -16px;
+}
+
+.job-list>li {
+  line-height: 18px;
+}
+
+.label-arch {
+  color: #777;
+  font-size: small;
+}
+
+.label-fail {
+  color: #AA0000;
+  display: inline-block;
+  font-weight: bold;
+  font-size: 13px;
+  width: 50px;
+}
+
+.label-fail-large {
+  color: #AA0000;
+}
+
+.label-pass {
+  color: #00AA00;
+  display: inline-block;
+  font-weight: bold;
+  font-size: 13px;
+  width: 50px;
+}
+
+.label-pass-large {
+  color: #00AA00;
+}
+
+.os-label {
+  color: #666;
+}
+
+.param-table {
+  font-size: 14px;
+}
+
+.param-table tr td:first-child {
+  font-weight: bold;
+}
+
+.param-table-name-col {
+  width: 50px;
+}
+
+.test-list {
+  font-size: small;
+  margin-bottom: 6px;
+  margin-left: 31px;
+}
+
+.test-list2 {
+  font-size: small;
+  margin-bottom: 6px;
+}

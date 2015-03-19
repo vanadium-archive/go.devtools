@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -29,12 +30,13 @@ const (
 )
 
 var (
-	bucketFlag  string
-	cacheFlag   string
-	dryRunFlag  bool
-	colorFlag   bool
-	portFlag    int
-	verboseFlag bool
+	bucketFlag    string
+	cacheFlag     string
+	dryRunFlag    bool
+	colorFlag     bool
+	portFlag      int
+	staticDirFlag string
+	verboseFlag   bool
 )
 
 func init() {
@@ -42,6 +44,7 @@ func init() {
 	flag.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
 	flag.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	flag.BoolVar(&colorFlag, "color", true, "Use color to format output.")
+	flag.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
 	flag.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	flag.IntVar(&portFlag, "port", 8000, "Port for the server.")
 	flag.Parse()
@@ -49,61 +52,116 @@ func init() {
 
 type summaryData struct {
 	Number string
-	Labels []label
+	OSJobs []osJobs
 }
 
-type label struct {
-	Jobs []job
-	Name string
+type osJobs struct {
+	Jobs   []job
+	OSName string
 }
 
 type job struct {
-	Name   string
-	Result bool
+	Name           string
+	Arch           string
+	HasGo32BitTest bool
+	Result         bool
+	FailedTests    []failedTest
+}
+
+type failedTest struct {
+	Suite     string
+	ClassName string
+	TestCase  string
+}
+
+var go32BitTests = map[string]struct{}{
+	"vanadium-go-build": struct{}{},
+	"vanadium-go-test":  struct{}{},
 }
 
 var summaryTemplate = template.Must(template.New("summary").Parse(`
 {{ $n := .Number }}
+<!DOCTYPE html>
 <html>
-<head><title>Presubmit #{{ $n }} Summary</title></head>
+<head>
+	<title>Presubmit #{{ $n }} Summary</title>
+	<link rel="stylesheet" href="/static/dashboard.css">
+</head>
 <body>
-<h1>Presubmit #{{ $n }}</h1>
+<h1>Presubmit #{{ $n }} Summary</h1>
 <ul>
-{{ range $label := .Labels }}
-<h2>{{ $label.Name }}</h2>
-<ul>
-{{ range $job := .Jobs }}
-<li>
-{{ if $job.Result }}
-<font color="green">PASS</font>
-{{ else }}
-<font color="red">FAIL</font>
-{{ end }}
-<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&label={{ $label.Name }}&job={{ $job.Name }}">{{ $job.Name }}</a>
+{{ range $osJobs := .OSJobs }}
+	<h2 class="os-label">{{ $osJobs.OSName }}</h2>
+	<ul class="job-list">
+	{{ range $job := .Jobs }}
+		<li>
+		{{ if $job.Result }}
+			<span class="label-pass">PASS</span>
+		{{ else }}
+			<span class="label-fail">FAIL</span>
+		{{ end }}
+		<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $job.Arch }}&os={{ $osJobs.OSName }}&job={{ $job.Name }}">{{ $job.Name }}</a>
+		{{ if $job.HasGo32BitTest }}
+		<span class="label-arch">{{ $job.Arch }}</span>
+		{{ end }}
+		{{ if gt (len $job.FailedTests) 0 }}
+			<ol class="test-list">
+			{{ range $failedTest := $job.FailedTests }}
+				<li>
+					<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $job.Arch }}&os={{ $osJobs.OSName }}&job={{ $job.Name }}&suite={{ $failedTest.Suite }}&class={{ $failedTest.ClassName }}&test={{ $failedTest.TestCase }}">{{ $failedTest.ClassName }}/{{ $failedTest.TestCase }}</a>
+				</li>
+			{{ end }}
+			</ol>
+		{{ end }}
+		</li>
+	{{ end }}
+	</ul>
 {{ end }}
 </ul>
-{{ end }}
 </body>
 </html>
 `))
 
 type jobData struct {
-	Job    string
-	Label  string
-	Number string
-	Output string
-	Result bool
+	Job         string
+	OSName      string
+	Arch        string
+	Number      string
+	Output      string
+	Result      bool
+	FailedTests []failedTest
 }
 
 var jobTemplate = template.Must(template.New("job").Funcs(templateFuncMap).Parse(`
+{{ $n := .Number }}
+{{ $osName := .OSName }}
+{{ $arch := .Arch }}
+{{ $jobName := .Job }}
+<!DOCTYPE html>
 <html>
-<head><title>Presubmit #{{ .Number }} Job Details</title></head>
+<head>
+	<title>Presubmit #{{ $n }} Job Details</title>
+	<link rel="stylesheet" href="/static/dashboard.css">
+</head>
 <body>
-<h1>Presubmit #{{ .Number }} (label={{ .Label }}, job={{ .Job }})</h1>
+<h1>Presubmit #{{ $n }} Job Details</h1>
+<table class="param-table">
+	<tr><th class="param-table-name-col"></th><th></th></tr>
+	<tr><td>OS</td><td>{{ $osName }}</td></tr>
+	<tr><td>Arch</td><td>{{ $arch }}</td></tr>
+	<tr><td>Job</td><td>{{ $jobName }}</td></tr>
+</table>
 {{ if .Result }}
-<h2 style="color:green">PASS</h2>
+<h2 class="label-pass-large">PASS</h2>
 {{ else }}
-<h2 style="color:red">FAIL</h2>
+<h2 class="label-fail-large">FAIL</h2>
+<ol class="test-list2">
+{{ range $failedTest := .FailedTests }}
+	<li>
+		<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $arch }}&os={{ $osName }}&job={{ $jobName }}&suite={{ $failedTest.Suite }}&class={{ $failedTest.ClassName }}&test={{ $failedTest.TestCase }}">{{ $failedTest.ClassName }}/{{ $failedTest.TestCase }}</a>
+	</li>
+{{ end }}
+</ol>
 {{ end }}
 <h2>Console Output:</h2>
 <pre>{{ colors .Output }}</pre>
@@ -113,26 +171,42 @@ var jobTemplate = template.Must(template.New("job").Funcs(templateFuncMap).Parse
 
 type testData struct {
 	Job      string
-	Label    string
+	OSName   string
+	Arch     string
 	Number   string
 	TestCase xunit.TestCase
 }
 
 var testTemplate = template.Must(template.New("test").Funcs(templateFuncMap).Parse(`
+<!DOCTYPE html>
 <html>
-<head><title>Presubmit #{{ .Number }} Test Details</title></head>
+<head>
+	<title>Presubmit #{{ .Number }} Test Details</title>
+	<link rel="stylesheet" href="/static/dashboard.css">
+</head>
 <body>
-<h1>Presubmit #{{ .Number }} (label={{ .Label }}, job={{ .Job }}, suite={{ .TestCase.Classname }}, test={{ .TestCase.Name }})</h1>
+<h1>Presubmit #{{ .Number }} Test Details</h1>
+<table class="param-table">
+	<tr><th class="param-table-name-col"></th><th></th></tr>
+	<tr><td>OS</td><td>{{ .OSName }}</td></tr>
+	<tr><td>Arch</td><td>{{ .Arch }}</td></tr>
+	<tr><td>Job</td><td>{{ .Job }}</td></tr>
+	<tr><td>Suite</td><td>{{ .TestCase.Classname }}</td></tr>
+	<tr><td>Test</td><td>{{ .TestCase.Name }}</td></tr>
+</table>
 {{ if eq (len .TestCase.Failures) 0 }}
-<h2 style="color:green">PASS</h2>
+<h2 class="label-pass-large">PASS</h2>
 {{ else }}
-<h2 style="color:red">FAIL</h2>
+<h2 class="label-fail-large">FAIL</h2>
+<a target="_blank" href="index.html?type=presubmit&n={{ .Number}}&arch={{ .Arch }}&os={{ .OSName }}&job={{ .Job }}">Console Log</a>
 <h2>Failures:</h2>
 <ul>
-{{ range $failure := .TestCase.Failures }}
-<li> {{ $failure.Message }}: <br/> <pre>{{ colors $failure.Data }}</pre>
-{{ end }}
-<ul>
+	{{ range $failure := .TestCase.Failures }}
+	<li> {{ $failure.Message }}: <br/>
+  	<pre>{{ colors $failure.Data }}</pre>
+	</li>
+	{{ end }}
+</ul>
 {{ end }}
 </body>
 </html>
@@ -145,6 +219,15 @@ var templateFuncMap = template.FuncMap{
 type ansiColor struct {
 	code  string
 	style string
+}
+
+type params struct {
+	arch      string
+	job       string
+	testCase  string
+	testClass string
+	testSuite string
+	osName    string
 }
 
 var (
@@ -192,6 +275,8 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	// Fetch the presubmit test results.
+	// The dir structure is:
+	// <root>/presubmit/<n>/<os>/<arch>/<job>/...
 	if err := ctx.Run().MkdirAll(filepath.Join(root, "presubmit"), os.FileMode(0700)); err != nil {
 		return err
 	}
@@ -206,9 +291,9 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	label, job, testSuite, testCase := r.Form.Get("label"), r.Form.Get("job"), r.Form.Get("suite"), r.Form.Get("test")
+	params := extractParams(r)
 	switch {
-	case label == "" || job == "":
+	case params.arch == "" || params.osName == "" || params.job == "":
 		// Generate the summary page.
 		path := filepath.Join(root, "presubmit", n)
 		data, err := generateSummaryData(ctx, n, path)
@@ -219,20 +304,20 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 			return fmt.Errorf("Execute() failed: %v", err)
 		}
 		return nil
-	case testSuite == "":
+	case params.testSuite == "":
 		// Generate the job detail page.
-		path := filepath.Join(root, "presubmit", n, label, job)
-		data, err := generateJobData(ctx, n, label, job, path)
+		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job)
+		data, err := generateJobData(ctx, n, params.osName, params.arch, params.job, path)
 		if err != nil {
 			return err
 		}
 		if err := jobTemplate.Execute(w, data); err != nil {
 			return fmt.Errorf("Execute() failed: %v", err)
 		}
-	case testSuite != "" && testCase != "":
+	case params.testClass != "" && params.testSuite != "" && params.testCase != "":
 		// Generate the test detail page.
-		path := filepath.Join(root, "presubmit", n, label, job)
-		data, err := generateTestData(ctx, n, label, job, testSuite, testCase, path)
+		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job)
+		data, err := generateTestData(ctx, n, params.osName, params.arch, params.job, params.testSuite, params.testClass, params.testCase, path)
 		if err != nil {
 			return err
 		}
@@ -245,44 +330,85 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+func extractParams(r *http.Request) params {
+	return params{
+		arch:      r.Form.Get("arch"),
+		job:       r.Form.Get("job"),
+		testCase:  r.Form.Get("test"),
+		testClass: r.Form.Get("class"),
+		testSuite: r.Form.Get("suite"),
+		osName:    r.Form.Get("os"),
+	}
+}
+
 func generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error) {
-	data := summaryData{n, []label{}}
-	fileInfos, err := ioutil.ReadDir(path)
+	data := summaryData{n, []osJobs{}}
+	osFileInfos, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("ReadDir(%v) failed: %v", path, err)
 	}
-	for _, fileInfo := range fileInfos {
-		labelDir := filepath.Join(path, fileInfo.Name())
-		fileInfos, err := ioutil.ReadDir(labelDir)
+	for _, osFileInfo := range osFileInfos {
+		osName := osFileInfo.Name()
+		osDir := filepath.Join(path, osName)
+		archFileInfos, err := ioutil.ReadDir(osDir)
 		if err != nil {
-			return nil, fmt.Errorf("ReadDir(%v) failed: %v", path, err)
+			return nil, fmt.Errorf("ReadDir(%v) failed: %v", osDir, err)
 		}
-		l := label{
-			Jobs: []job{},
-			Name: fileInfo.Name(),
+		o := osJobs{
+			Jobs:   []job{},
+			OSName: osName,
 		}
-		for _, fileInfo := range fileInfos {
-			jobDir := filepath.Join(labelDir, fileInfo.Name())
-			bytes, err := ctx.Run().ReadFile(filepath.Join(jobDir, "result"))
+		jobsMap := map[string]job{}
+		jobKeys := []string{}
+		for _, archFileInfo := range archFileInfos {
+			arch := archFileInfo.Name()
+			archDir := filepath.Join(osDir, arch)
+			jobFileInfos, err := ioutil.ReadDir(archDir)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("ReadDir(%v) failed: %v", archDir, err)
 			}
-			var r testutil.TestResult
-			if err := json.Unmarshal(bytes, &r); err != nil {
-				return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(bytes), err)
+			for _, jobFileInfo := range jobFileInfos {
+				// Parse test result (pass/fail).
+				jobName := jobFileInfo.Name()
+				jobDir := filepath.Join(archDir, jobName)
+				bytes, err := ctx.Run().ReadFile(filepath.Join(jobDir, "result"))
+				if err != nil {
+					return nil, err
+				}
+				var r testutil.TestResult
+				if err := json.Unmarshal(bytes, &r); err != nil {
+					return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(bytes), err)
+				}
+				_, hasGo32BitTest := go32BitTests[jobName]
+				j := job{
+					Name:           jobName,
+					Arch:           arch,
+					HasGo32BitTest: hasGo32BitTest,
+					Result:         r.Status == testutil.TestPassed,
+					FailedTests:    []failedTest{},
+				}
+				jobKey := fmt.Sprintf("%s-%s", jobName, arch)
+				jobKeys = append(jobKeys, jobKey)
+
+				// Parse failed tests.
+				failedTests, err := parseFailedTests(ctx, jobDir)
+				if err != nil {
+					return nil, err
+				}
+				j.FailedTests = append(j.FailedTests, failedTests...)
+				jobsMap[jobKey] = j
 			}
-			j := job{
-				Name:   fileInfo.Name(),
-				Result: r.Status == testutil.TestPassed,
-			}
-			l.Jobs = append(l.Jobs, j)
 		}
-		data.Labels = append(data.Labels, l)
+		sort.Strings(jobKeys)
+		for _, jobKey := range jobKeys {
+			o.Jobs = append(o.Jobs, jobsMap[jobKey])
+		}
+		data.OSJobs = append(data.OSJobs, o)
 	}
 	return &data, nil
 }
 
-func generateJobData(ctx *tool.Context, n, label, job, path string) (*jobData, error) {
+func generateJobData(ctx *tool.Context, n, osName, arch, job, path string) (*jobData, error) {
 	outputBytes, err := ctx.Run().ReadFile(filepath.Join(path, "output"))
 	if err != nil {
 		return nil, err
@@ -295,17 +421,23 @@ func generateJobData(ctx *tool.Context, n, label, job, path string) (*jobData, e
 	if err := json.Unmarshal(resultBytes, &r); err != nil {
 		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(resultBytes), err)
 	}
+	failedTests, err := parseFailedTests(ctx, path)
+	if err != nil {
+		return nil, err
+	}
 	data := jobData{
-		Job:    job,
-		Label:  label,
-		Number: n,
-		Output: string(outputBytes),
-		Result: r.Status == testutil.TestPassed,
+		Job:         job,
+		OSName:      osName,
+		Arch:        arch,
+		Number:      n,
+		Output:      string(outputBytes),
+		Result:      r.Status == testutil.TestPassed,
+		FailedTests: failedTests,
 	}
 	return &data, nil
 }
 
-func generateTestData(ctx *tool.Context, n, label, job, testSuite, testCase, path string) (*testData, error) {
+func generateTestData(ctx *tool.Context, n, osName, arch, job, testSuite, testClass, testCase, path string) (*testData, error) {
 	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(path, "xunit.xml"))
 	if err != nil {
 		return nil, err
@@ -320,7 +452,7 @@ outer:
 	for _, ts := range s.Suites {
 		if ts.Name == testSuite {
 			for _, tc := range ts.Cases {
-				if tc.Name == testCase {
+				if tc.Name == testCase && tc.Classname == testClass {
 					test = tc
 					found = true
 					break outer
@@ -333,11 +465,40 @@ outer:
 	}
 	data := testData{
 		Job:      job,
-		Label:    label,
+		OSName:   osName,
+		Arch:     arch,
 		Number:   n,
 		TestCase: test,
 	}
 	return &data, nil
+}
+
+func parseFailedTests(ctx *tool.Context, jobDir string) ([]failedTest, error) {
+	failedTests := []failedTest{}
+	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(jobDir, "xunit.xml"))
+	if os.IsNotExist(err) {
+		return failedTests, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var s xunit.TestSuites
+	if err := xml.Unmarshal(suitesBytes, &s); err != nil {
+		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(suitesBytes), err)
+	}
+	for _, ts := range s.Suites {
+		for _, tc := range ts.Cases {
+			if len(tc.Failures) > 0 || len(tc.Errors) > 0 {
+				failedTests = append(failedTests, failedTest{
+					Suite:     ts.Name,
+					ClassName: tc.Classname,
+					TestCase:  tc.Name,
+				})
+			}
+		}
+	}
+	return failedTests, nil
 }
 
 func validateValues(values url.Values) error {
@@ -346,24 +507,24 @@ func validateValues(values url.Values) error {
 		return fmt.Errorf("required parameter 'type' not found")
 	}
 	if ty == "presubmit" {
+		paramsToCheck := []string{}
 		if n := values.Get("n"); n == "" {
 			return fmt.Errorf("required parameter 'n' not found")
 		} else {
-			if strings.Contains(n, "..") {
-				return fmt.Errorf("parameter 'n' is not allowed to contain '..'")
-			}
+			paramsToCheck = append(paramsToCheck, "n")
 		}
-		if job := values.Get("job"); job != "" && strings.Contains(job, "..") {
-			return fmt.Errorf("parameter 'job' is not allowed to contain '..'")
+		paramsToCheck = append(paramsToCheck, "job", "os", "arch", "suite", "test")
+		if err := checkPathTraversal(values, paramsToCheck); err != nil {
+			return err
 		}
-		if label := values.Get("label"); label != "" && strings.Contains(label, "..") {
-			return fmt.Errorf("parameter 'label' is not allowed to contain '..'")
-		}
-		if suite := values.Get("suite"); suite != "" && strings.Contains(suite, "..") {
-			return fmt.Errorf("parameter 'suite' is not allowed to contain '..'")
-		}
-		if test := values.Get("test"); test != "" && strings.Contains(test, "..") {
-			return fmt.Errorf("parameter 'test' is not allowed to contain '..'")
+	}
+	return nil
+}
+
+func checkPathTraversal(values url.Values, params []string) error {
+	for _, param := range params {
+		if value := values.Get(param); value != "" && strings.Contains(value, "..") {
+			return fmt.Errorf("parameter %q is not allowed to contain '..'", param)
 		}
 	}
 	return nil
@@ -372,7 +533,7 @@ func validateValues(values url.Values) error {
 func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if err := validateValues(r.Form); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v", err)
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 		http.Error(w, "500 internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -380,7 +541,7 @@ func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
 	switch r.Form.Get("type") {
 	case "presubmit":
 		if err := displayPresubmitPage(ctx, w, r); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v", err)
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			http.Error(w, "500 internal server error", http.StatusInternalServerError)
 		}
 		// The presubmit test results data never changes, cache it in
@@ -404,6 +565,8 @@ func main() {
 	health := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}
+	staticHandler := http.FileServer(http.Dir(staticDirFlag))
+	http.Handle("/static/", http.StripPrefix("/static/", staticHandler))
 	http.HandleFunc("/health", health)
 	http.HandleFunc("/", handler)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), nil); err != nil {
