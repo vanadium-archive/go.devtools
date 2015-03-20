@@ -1,6 +1,22 @@
 {
-  "go-workspaces" : [ "release", "roadmap", "third_party" ],
-  "vdl-workspaces" : [ "release", "roadmap" ],
+  "go-workspaces" : [
+      "release",
+      "roadmap",
+      "third_party"
+  ],
+  "go-workspaces-new" : [
+      "release/go",
+      "roadmap/go",
+      "third_party/go"
+  ],
+  "vdl-workspaces" : [
+      "release",
+      "roadmap"
+  ],
+  "vdl-workspaces-new" : [
+      "release/go",
+      "roadmap/go"
+  ],
   "project-tests": {
     "namespace_browser": [
       "vanadium-namespace-browser-test"
