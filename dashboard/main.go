@@ -281,13 +281,28 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 	n := r.Form.Get("n")
-	if _, err := os.Stat(filepath.Join(root, "presubmit", n)); err != nil {
+	targetDir := filepath.Join(root, "presubmit", n)
+	if _, err := os.Stat(targetDir); err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("Stat() failed: %v", err)
 		}
+		// To avoid interference between concurrent requests, download data to a
+		// tmp dir, and move it to the final location.
 		bucket := bucketFlag + "/v0/presubmit/" + n
-		if err := ctx.Run().Command("gsutil", "-m", "-q", "cp", "-r", bucket, filepath.Join(root, "presubmit")); err != nil {
+		tmpDir, err := ctx.Run().TempDir(root, "")
+		if err != nil {
 			return err
+		}
+		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
+		if err := ctx.Run().Command("gsutil", "-m", "-q", "cp", "-r", bucket, tmpDir); err != nil {
+			return err
+		}
+		if err := ctx.Run().Rename(filepath.Join(tmpDir, n), targetDir); err != nil {
+			// If the target directory already exists, it must have been created by
+			// a concurrent request.
+			if !strings.Contains(err.Error(), "directory not empty") {
+				return err
+			}
 		}
 	}
 
@@ -553,6 +568,13 @@ func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func loggingHandler(ctx *tool.Context, handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(ctx.Stdout(), "%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+		handler.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	ctx := tool.NewContext(tool.ContextOpts{
 		Color:   &colorFlag,
@@ -567,9 +589,10 @@ func main() {
 	}
 	staticHandler := http.FileServer(http.Dir(staticDirFlag))
 	http.Handle("/static/", http.StripPrefix("/static/", staticHandler))
+	http.Handle("/favicon.ico", staticHandler)
 	http.HandleFunc("/health", health)
 	http.HandleFunc("/", handler)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), loggingHandler(ctx, http.DefaultServeMux)); err != nil {
 		fmt.Fprintf(os.Stderr, "ListenAndServer() failed: %v", err)
 		os.Exit(1)
 	}
