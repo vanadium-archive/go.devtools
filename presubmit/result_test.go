@@ -64,30 +64,30 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 			expectedGroups: &failedTestCasesGroups{
 				newFailure: []failedTestCaseInfo{
 					failedTestCaseInfo{
-						className:      "c1.n",
-						testCaseName:   "n1",
-						seenTestsCount: 1,
-						testName:       "vanadium-go-test",
+						suiteName:    "ts1",
+						className:    "c1.n",
+						testCaseName: "n1",
+						testName:     "vanadium-go-test",
 						axisValues: axisValuesInfo{
 							Arch: "amd64",
 							OS:   "linux",
 						},
 					},
 					failedTestCaseInfo{
-						className:      "c2.n",
-						testCaseName:   "n2",
-						seenTestsCount: 1,
-						testName:       "vanadium-go-test",
+						suiteName:    "ts1",
+						className:    "c2.n",
+						testCaseName: "n2",
+						testName:     "vanadium-go-test",
 						axisValues: axisValuesInfo{
 							Arch: "amd64",
 							OS:   "linux",
 						},
 					},
 					failedTestCaseInfo{
-						className:      "go.vanadium.abc",
-						testCaseName:   "n5",
-						seenTestsCount: 1,
-						testName:       "vanadium-go-test",
+						suiteName:    "ts1",
+						className:    "go.vanadium.abc",
+						testCaseName: "n5",
+						testName:     "vanadium-go-test",
 						axisValues: axisValuesInfo{
 							Arch: "amd64",
 							OS:   "linux",
@@ -95,37 +95,26 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 					},
 				},
 			},
-			expectedSeenTests: map[string]int{
-				"c1::n::n1_vanadium-go-test_linux_amd64":             1,
-				"c2::n::n2_vanadium-go-test_linux_amd64":             1,
-				"c3::n::n3_vanadium-go-test_linux_amd64":             2,
-				`ts1::"n9"_vanadium-go-test_linux_amd64`:             1,
-				"go::vanadium::abc::n5_vanadium-go-test_linux_amd64": 1,
-			},
 		},
 	}
 
 	reporter := testReporter{}
 	for _, curTest := range tests {
-		seenTests := map[string]int{}
-		gotGroups, err := reporter.genFailedTestCasesGroupsForOneTest(ctx, curTest.testResult, []byte(reportFileContent), seenTests, curTest.postsubmitFailedTestCases)
+		gotGroups, err := reporter.genFailedTestCasesGroupsForOneTest(ctx, curTest.testResult, []byte(reportFileContent), curTest.postsubmitFailedTestCases)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}
 		if !reflect.DeepEqual(curTest.expectedGroups, gotGroups) {
 			t.Fatalf("want:\n%v, got\n%v", curTest.expectedGroups, gotGroups)
 		}
-		if !reflect.DeepEqual(curTest.expectedSeenTests, seenTests) {
-			t.Fatalf("want %v, got %v", curTest.expectedSeenTests, seenTests)
-		}
 	}
 }
 
 func TestGenTestResultLink(t *testing.T) {
 	type testCase struct {
+		suiteName    string
 		className    string
 		testCaseName string
-		suffix       int
 		testName     string
 		axisValues   axisValuesInfo
 		expectedLink string
@@ -134,105 +123,33 @@ func TestGenTestResultLink(t *testing.T) {
 	jenkinsBuildNumberFlag = 10
 	testCases := []testCase{
 		testCase{
+			suiteName:    "s",
 			className:    "c",
 			testCaseName: "t",
-			suffix:       0,
 			testName:     "vanadium-go-test",
 			axisValues: axisValuesInfo{
 				Arch: "amd64",
 				OS:   "linux",
 			},
-			expectedLink: "- c::t\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/%28root%29/c/t",
+			expectedLink: "- c::t\nhttps://staging.dashboard.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s&test=t&type=presubmit",
 		},
 		testCase{
-			className:    "c n",
+			suiteName:    "s/1&2",
+			className:    "c",
 			testCaseName: "t",
-			suffix:       0,
 			testName:     "vanadium-go-test",
 			axisValues: axisValuesInfo{
 				Arch: "amd64",
 				OS:   "linux",
 			},
-			expectedLink: "- c n::t\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/%28root%29/c%20n/t",
-		},
-		testCase{
-			className:    "c.n",
-			testCaseName: "t",
-			suffix:       0,
-			testName:     "vanadium-go-test",
-			axisValues: axisValuesInfo{
-				Arch: "amd64",
-				OS:   "linux",
-			},
-			expectedLink: "- c::n::t\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t",
-		},
-		testCase{
-			className:    "c.n",
-			testCaseName: "t.n",
-			suffix:       0,
-			testName:     "vanadium-go-test",
-			axisValues: axisValuesInfo{
-				Arch: "amd64",
-				OS:   "linux",
-			},
-			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t_n",
-		},
-		testCase{
-			className:    "c.n",
-			testCaseName: "t.n",
-			suffix:       1,
-			testName:     "vanadium-go-test",
-			axisValues: axisValuesInfo{
-				Arch: "amd64",
-				OS:   "linux",
-			},
-			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t_n",
-		},
-		testCase{
-			className:    "c.n",
-			testCaseName: "t.n",
-			suffix:       2,
-			testName:     "vanadium-go-test",
-			axisValues: axisValuesInfo{
-				Arch: "amd64",
-				OS:   "linux",
-			},
-			expectedLink: "- c::n::t::n\nhttp://goto.google.com/vpst/10/ARCH=amd64,OS=linux,TEST=vanadium-go-test/testReport/c/n/t_n_2",
+			expectedLink: "- c::t\nhttps://staging.dashboard.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s%2F1%262&test=t&type=presubmit",
 		},
 	}
 
 	for _, test := range testCases {
-		if got, expected := genTestResultLink(test.className, test.testCaseName, test.suffix, test.testName, test.axisValues), test.expectedLink; got != expected {
-			t.Fatalf("want:\n%v, got:\n%v", expected, got)
+		if got, expected := genTestResultLink(test.suiteName, test.className, test.testCaseName, test.testName, test.axisValues), test.expectedLink; got != expected {
+			t.Fatalf("want:\n%v,\ngot:\n%v", expected, got)
 		}
-	}
-}
-
-func TestSafePackageOrClassName(t *testing.T) {
-	name := "name"
-	expected := "name"
-	if got := safePackageOrClassName(name); expected != got {
-		t.Fatalf("want %q, got %q", expected, got)
-	}
-
-	name = "name\\0/a:b?c#d%e-f_g e"
-	expected = "name_0_a_b_c_d_e-f_g e"
-	if got := safePackageOrClassName(name); expected != got {
-		t.Fatalf("want %q, got %q", expected, got)
-	}
-}
-
-func TestSafeTestName(t *testing.T) {
-	name := "name"
-	expected := "name"
-	if got := safeTestName(name); expected != got {
-		t.Fatalf("want %q, got %q", expected, got)
-	}
-
-	name = "name-a b$c_d"
-	expected = "name_a_b$c_d"
-	if got := safeTestName(name); expected != got {
-		t.Fatalf("want %q, got %q", expected, got)
 	}
 }
 

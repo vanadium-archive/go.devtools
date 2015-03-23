@@ -24,11 +24,13 @@ import (
 )
 
 var (
+	dashboardHostFlag string
 	projectsFlag      string
 	reviewMessageFlag string
 )
 
 func init() {
+	cmdResult.Flags.StringVar(&dashboardHostFlag, "dashboard_host", "https://staging.dashboard.v.io", "The host of the dashboard server.")
 	cmdResult.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
@@ -515,9 +517,7 @@ func (r *testReporter) reportFailedTestCases(ctx *tool.Context) (int, error) {
 		}
 		curLinks := []string{}
 		for _, testCase := range failedTestCaseInfos {
-			className := testCase.className
-			testCaseName := testCase.testCaseName
-			curLink := genTestResultLink(className, testCaseName, testCase.seenTestsCount, testCase.testName, testCase.axisValues)
+			curLink := genTestResultLink(testCase.suiteName, testCase.className, testCase.testCaseName, testCase.testName, testCase.axisValues)
 			curLinks = append(curLinks, curLink)
 		}
 		fmt.Fprintf(r.report, "\n%s:\n%s\n\n", failureTypeStr, strings.Join(curLinks, "\n"))
@@ -527,11 +527,11 @@ func (r *testReporter) reportFailedTestCases(ctx *tool.Context) (int, error) {
 }
 
 type failedTestCaseInfo struct {
-	className      string
-	testCaseName   string
-	seenTestsCount int
-	testName       string
-	axisValues     axisValuesInfo
+	suiteName    string
+	className    string
+	testCaseName string
+	testName     string
+	axisValues   axisValuesInfo
 }
 
 type failedTestCasesGroups map[failureType][]failedTestCaseInfo
@@ -540,21 +540,11 @@ type failedTestCasesGroups map[failureType][]failedTestCaseInfo
 // testResults, compares the presubmit failed test cases (read from the given
 // xUnit report) with the postsubmit failed test cases, and groups the failed
 // tests into three groups: new failures, known failures, and fixed failures.
-// Each group has a slice of failedTestLinkInfo which is used to generate links
-// to Jenkins report pages.
+// Each group has a slice of failedTestLinkInfo which is used to generate
+// dashboard links.
 func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (failedTestCasesGroups, error) {
 	groups := failedTestCasesGroups{}
 
-	// seenTests maps the test full names to number of times they
-	// have been seen in the test reports. This will be used to
-	// properly generate links to failed tests.
-	//
-	// For example, if TestA is tested multiple times, then their
-	// links will look like:
-	//   http://.../TestA
-	//   http://.../TestA_2
-	//   http://.../TestA_3
-	seenTests := map[string]int{}
 	for _, testResult := range r.testResults {
 		testName := testResult.TestName
 		axisValues := testResult.AxisValues
@@ -584,7 +574,7 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (f
 		if data := r.postSubmitResults[testResult.key()]; data != nil {
 			postsubmitFailedTestCases = data.failedTestCases
 		}
-		curFailedTestCasesGroups, err := r.genFailedTestCasesGroupsForOneTest(ctx, testResult, bytes, seenTests, postsubmitFailedTestCases)
+		curFailedTestCasesGroups, err := r.genFailedTestCasesGroupsForOneTest(ctx, testResult, bytes, postsubmitFailedTestCases)
 		if err != nil {
 			printf(ctx.Stderr(), "%v\n", err)
 			continue
@@ -598,7 +588,7 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (f
 
 // genFailedTestCasesGroupsForOneTest generates groups for failed tests.
 // See comments of genFailedTestsGroupsForAllTests.
-func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, testResult testResultInfo, presubmitXUnitReport []byte, seenTests map[string]int, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
+func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, testResult testResultInfo, presubmitXUnitReport []byte, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
 	testName := testResult.TestName
 
 	// Parse xUnit report of the presubmit test.
@@ -619,17 +609,14 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, tes
 			// Unescape test name and class name.
 			curTestCase.Classname = html.UnescapeString(curTestCase.Classname)
 			curTestCase.Name = html.UnescapeString(curTestCase.Name)
-			testFullName := genTestFullName(curTestCase.Classname, curTestCase.Name)
-			testKey := fmt.Sprintf("%s_%s", testFullName, testResult.key())
-			seenTests[testKey]++
 			// A failed test.
 			if len(curTestCase.Failures) > 0 {
 				linkInfo := failedTestCaseInfo{
-					className:      curTestCase.Classname,
-					testCaseName:   curTestCase.Name,
-					seenTestsCount: seenTests[testKey],
-					testName:       testName,
-					axisValues:     testResult.AxisValues,
+					suiteName:    curTestSuite.Name,
+					className:    curTestCase.Classname,
+					testCaseName: curTestCase.Name,
+					testName:     testName,
+					axisValues:   testResult.AxisValues,
 				}
 				// Determine whether the curTestCase is a new failure or not.
 				isNewFailure := true
@@ -670,36 +657,24 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, tes
 	return &groups, nil
 }
 
-// genTestResultLink generates a link failed test case's report page on Jenkins.
-func genTestResultLink(className, testCaseName string, suffix int, testName string, axisValues axisValuesInfo) string {
-	packageName := "(root)"
+// genTestResultLink generates a link to a dashboard page for the given failed test case.
+func genTestResultLink(suiteName, className, testCaseName string, testName string, axisValues axisValuesInfo) string {
 	testFullName := genTestFullName(className, testCaseName)
-	// In JUnit:
-	// - If className contains ".", the part before the last "." becomes
-	//   the package name, and the part after it becomes the class name.
-	// - If className doesn't contain ".", the package name will be
-	//   "(root)".
-	if strings.Contains(className, ".") {
-		lastDotIndex := strings.LastIndex(className, ".")
-		packageName = className[0:lastDotIndex]
-		className = className[lastDotIndex+1:]
+	u, err := url.Parse(dashboardHostFlag + "/")
+	if err != nil {
+		return fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
 	}
-	safePackageName := safePackageOrClassName(packageName)
-	safeClassName := safePackageOrClassName(className)
-	safeTestCaseName := safeTestName(testCaseName)
-	link := ""
-	rawurl := fmt.Sprintf("http://goto.google.com/vpst/%d/ARCH=%s,OS=%s,TEST=%s/testReport/%s/%s/%s",
-		jenkinsBuildNumberFlag, axisValues.Arch, axisValues.OS, testName, safePackageName, safeClassName, safeTestCaseName)
-	testResultUrl, err := url.Parse(rawurl)
-	if err == nil {
-		link = fmt.Sprintf("- %s\n%s", testFullName, testResultUrl.String())
-		if suffix > 1 {
-			link = fmt.Sprintf("%s_%d", link, suffix)
-		}
-	} else {
-		link = fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
-	}
-	return link
+	q := u.Query()
+	q.Set("type", "presubmit")
+	q.Set("n", fmt.Sprintf("%d", jenkinsBuildNumberFlag))
+	q.Set("arch", axisValues.Arch)
+	q.Set("os", axisValues.OS)
+	q.Set("job", testName)
+	q.Set("suite", suiteName)
+	q.Set("class", className)
+	q.Set("test", testCaseName)
+	u.RawQuery = q.Encode()
+	return fmt.Sprintf("- %s\n%s", testFullName, u.String())
 }
 
 func genTestFullName(className, testName string) string {
@@ -710,31 +685,12 @@ func genTestFullName(className, testName string) string {
 	return strings.Replace(testFullName, ".", "::", -1)
 }
 
-// safePackageOrClassName gets the safe name of the package or class
-// name which will be used to construct the URL to a test case.
-//
-// The original implementation in junit jenkins plugin can be found
-// here: http://git.io/iVD0yw
-func safePackageOrClassName(name string) string {
-	return reURLUnsafeChars.ReplaceAllString(name, "_")
-}
-
-// safeTestName gets the safe name of the test name which will be used
-// to construct the URL to a test case. Note that this is different
-// from getting the safe name for package or class.
-//
-// The original implementation in junit jenkins plugin can be found
-// here: http://git.io/8X9o7Q
-func safeTestName(name string) string {
-	return reNotIdentifierChars.ReplaceAllString(name, "_")
-}
-
 // reportUsefulLinks reports useful links:
 // - Current presubmit-test master status page.
 // - Retry failed tests only.
 // - Retry current build.
 func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
-	fmt.Fprintf(r.report, "\nMore details at:\n%s/%s/%d/\n", jenkinsBaseJobUrl, presubmitTestJobFlag, jenkinsBuildNumberFlag)
+	fmt.Fprintf(r.report, "\nMore details at:\n%s/?type=presubmit&n=%d\n", dashboardHostFlag, jenkinsBuildNumberFlag)
 	if len(failedTestNames) > 0 {
 		// Generate link to retry failed tests only.
 		names := []string{}
