@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"html"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -151,6 +152,8 @@ var jobTemplate = template.Must(template.New("job").Funcs(templateFuncMap).Parse
 	<tr><td>Arch</td><td>{{ $arch }}</td></tr>
 	<tr><td>Job</td><td>{{ $jobName }}</td></tr>
 </table>
+<br>
+<a href="index.html?type=presubmit&n={{ $n }}">Back to Summary</a>
 {{ if .Result }}
 <h2 class="label-pass-large">PASS</h2>
 {{ else }}
@@ -178,14 +181,15 @@ type testData struct {
 }
 
 var testTemplate = template.Must(template.New("test").Funcs(templateFuncMap).Parse(`
+{{ $n := .Number }}
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Presubmit #{{ .Number }} Test Details</title>
+	<title>Presubmit #{{ $n }} Test Details</title>
 	<link rel="stylesheet" href="/static/dashboard.css">
 </head>
 <body>
-<h1>Presubmit #{{ .Number }} Test Details</h1>
+<h1>Presubmit #{{ $n }} Test Details</h1>
 <table class="param-table">
 	<tr><th class="param-table-name-col"></th><th></th></tr>
 	<tr><td>OS</td><td>{{ .OSName }}</td></tr>
@@ -194,11 +198,14 @@ var testTemplate = template.Must(template.New("test").Funcs(templateFuncMap).Par
 	<tr><td>Suite</td><td>{{ .TestCase.Classname }}</td></tr>
 	<tr><td>Test</td><td>{{ .TestCase.Name }}</td></tr>
 </table>
+<br>
+<a href="index.html?type=presubmit&n={{ $n }}">Back to Summary</a>
+<br>
+<a target="_blank" href="index.html?type=presubmit&n={{ .Number}}&arch={{ .Arch }}&os={{ .OSName }}&job={{ .Job }}">Console Log</a>
 {{ if eq (len .TestCase.Failures) 0 }}
 <h2 class="label-pass-large">PASS</h2>
 {{ else }}
 <h2 class="label-fail-large">FAIL</h2>
-<a target="_blank" href="index.html?type=presubmit&n={{ .Number}}&arch={{ .Arch }}&os={{ .OSName }}&job={{ .Job }}">Console Log</a>
 <h2>Failures:</h2>
 <ul>
 	{{ range $failure := .TestCase.Failures }}
@@ -252,14 +259,15 @@ var (
 )
 
 func ansiColorsToHTML(text string) (string, error) {
+	escapedText := html.EscapeString(text)
 	for _, ansi := range ansiColors {
 		re, err := regexp.Compile(fmt.Sprintf(`\[0;%sm(.*)\[0m`, ansi.code))
 		if err != nil {
 			return "", err
 		}
-		text = re.ReplaceAllString(text, fmt.Sprintf(`<font style="%s">$1</font>`, ansi.style))
+		escapedText = re.ReplaceAllString(escapedText, fmt.Sprintf(`<font style="%s">$1</font>`, ansi.style))
 	}
-	return text, nil
+	return escapedText, nil
 }
 
 func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Request) (e error) {
