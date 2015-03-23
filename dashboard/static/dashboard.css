@@ -11,6 +11,10 @@ body {
   font-size: 14px;
 }
 
+h1 {
+  color: #0097A7;
+}
+
 pre {
   font-size: 12px;
   white-space: pre-wrap;
