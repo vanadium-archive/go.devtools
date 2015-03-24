@@ -61,6 +61,8 @@ Usage:
 The presubmit result flags are:
  -build_number=-1
    The number of the Jenkins build.
+ -dashboard_host=https://staging.dashboard.v.io
+   The host of the dashboard server.
  -manifest=
    Name of the project manifest.
  -projects=
