@@ -283,7 +283,7 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl) error {
 // temporary directory, which is used to replace VANADIUM_ROOT/bin in the PATH.
 func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util.Tools, tmpBinDir string) (map[string]string, []error) {
 	errs := []error{}
-	toolsProject, ok := projects["release.go.tools"]
+	toolsProject, ok := projects["release.go.x.devtools"]
 	env := map[string]string{}
 	if !ok {
 		errs = append(errs, fmt.Errorf("tools project not found, not rebuilding tools."))
