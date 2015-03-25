@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
 
@@ -61,7 +65,7 @@ Usage:
 The presubmit result flags are:
  -build_number=-1
    The number of the Jenkins build.
- -dashboard_host=https://staging.dashboard.v.io
+ -dashboard_host=https://dashboard.staging.v.io
    The host of the dashboard server.
  -manifest=
    Name of the project manifest.
