@@ -130,11 +130,16 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 			if failedCL != nil {
 				fmt.Fprintf(ctx.Stderr(), "%s: %v\n", failedCL.String(), err)
 			}
-			if strings.Contains(err.Error(), "unable to access") {
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "unable to access") {
 				// Cannot access googlesource.com, try again.
 				continue
 			}
-			if strings.Contains(err.Error(), "git pull") {
+			if strings.Contains(errMsg, "hung up") {
+				// The remote end hung up unexpectedly, try again.
+				continue
+			}
+			if strings.Contains(errMsg, "git pull") {
 				// Possible merge conflict.
 				if err := recordMergeConflict(ctx, failedCL); err != nil {
 					return err
