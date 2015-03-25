@@ -131,7 +131,7 @@ func TestGenTestResultLink(t *testing.T) {
 				Arch: "amd64",
 				OS:   "linux",
 			},
-			expectedLink: "- c::t\nhttps://staging.dashboard.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s&test=t&type=presubmit",
+			expectedLink: "- c::t\nhttps://dashboard.staging.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s&test=t&type=presubmit",
 		},
 		testCase{
 			suiteName:    "s/1&2",
@@ -142,7 +142,7 @@ func TestGenTestResultLink(t *testing.T) {
 				Arch: "amd64",
 				OS:   "linux",
 			},
-			expectedLink: "- c::t\nhttps://staging.dashboard.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s%2F1%262&test=t&type=presubmit",
+			expectedLink: "- c::t\nhttps://dashboard.staging.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s%2F1%262&test=t&type=presubmit",
 		},
 	}
 

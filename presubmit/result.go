@@ -30,7 +30,7 @@ var (
 )
 
 func init() {
-	cmdResult.Flags.StringVar(&dashboardHostFlag, "dashboard_host", "https://staging.dashboard.v.io", "The host of the dashboard server.")
+	cmdResult.Flags.StringVar(&dashboardHostFlag, "dashboard_host", "https://dashboard.staging.v.io", "The host of the dashboard server.")
 	cmdResult.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
