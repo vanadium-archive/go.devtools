@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // test6 fails the log check, because it incorrectly
 // uses LogCall thinking it is LogCallf, which is
 // caught as a result of the first argument to
