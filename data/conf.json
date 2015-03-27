@@ -18,9 +18,6 @@
       "roadmap/go"
   ],
   "project-tests": {
-    "namespace_browser": [
-      "vanadium-namespace-browser-test"
-    ],
     "release.go.jni": [
       "go"
     ],
@@ -52,6 +49,9 @@
     "release.js.core": [
       "javascript",
       "projects"
+    ],
+    "release.projects.browser": [
+      "vanadium-browser-test"
     ],
     "release.projects.chat": [
       "vanadium-chat-shell-test",
@@ -101,7 +101,7 @@
     "vanadium-android-test": [
       "vanadium-android-build"
     ],
-    "vanadium-namespace-browser-test": [
+    "vanadium-browser-test": [
       "vanadium-go-build",
       "vanadium-js-browser-integration",
       "vanadium-js-node-integration"
@@ -151,7 +151,7 @@
     "projects": [
       "vanadium-chat-shell-test",
       "vanadium-chat-web-test",
-      "vanadium-namespace-browser-test",
+      "vanadium-browser-test",
       "vanadium-pipe2browser-test",
       "vanadium-playground-test"
     ],
