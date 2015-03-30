@@ -60,8 +60,9 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 				Result:   testutil.TestResult{Status: testutil.TestFailed},
 				TestName: "vanadium-go-test",
 				AxisValues: axisValuesInfo{
-					Arch: "amd64",
-					OS:   "linux",
+					Arch:      "amd64",
+					OS:        "linux",
+					PartIndex: 0,
 				},
 			},
 			postsubmitFailedTestCases: []jenkins.TestCase{},
@@ -73,8 +74,9 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 						testCaseName: "n1",
 						testName:     "vanadium-go-test",
 						axisValues: axisValuesInfo{
-							Arch: "amd64",
-							OS:   "linux",
+							Arch:      "amd64",
+							OS:        "linux",
+							PartIndex: 0,
 						},
 					},
 					failedTestCaseInfo{
@@ -83,8 +85,9 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 						testCaseName: "n2",
 						testName:     "vanadium-go-test",
 						axisValues: axisValuesInfo{
-							Arch: "amd64",
-							OS:   "linux",
+							Arch:      "amd64",
+							OS:        "linux",
+							PartIndex: 0,
 						},
 					},
 					failedTestCaseInfo{
@@ -93,8 +96,9 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 						testCaseName: "n5",
 						testName:     "vanadium-go-test",
 						axisValues: axisValuesInfo{
-							Arch: "amd64",
-							OS:   "linux",
+							Arch:      "amd64",
+							OS:        "linux",
+							PartIndex: 0,
 						},
 					},
 				},
@@ -132,10 +136,11 @@ func TestGenTestResultLink(t *testing.T) {
 			testCaseName: "t",
 			testName:     "vanadium-go-test",
 			axisValues: axisValuesInfo{
-				Arch: "amd64",
-				OS:   "linux",
+				Arch:      "amd64",
+				OS:        "linux",
+				PartIndex: 0,
 			},
-			expectedLink: "- c::t\nhttps://dashboard.staging.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s&test=t&type=presubmit",
+			expectedLink: "- c::t\nhttps://dashboard.staging.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&part=0&suite=s&test=t&type=presubmit",
 		},
 		testCase{
 			suiteName:    "s/1&2",
@@ -143,10 +148,11 @@ func TestGenTestResultLink(t *testing.T) {
 			testCaseName: "t",
 			testName:     "vanadium-go-test",
 			axisValues: axisValuesInfo{
-				Arch: "amd64",
-				OS:   "linux",
+				Arch:      "amd64",
+				OS:        "linux",
+				PartIndex: 0,
 			},
-			expectedLink: "- c::t\nhttps://dashboard.staging.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&suite=s%2F1%262&test=t&type=presubmit",
+			expectedLink: "- c::t\nhttps://dashboard.staging.v.io/?arch=amd64&class=c&job=vanadium-go-test&n=10&os=linux&part=0&suite=s%2F1%262&test=t&type=presubmit",
 		},
 	}
 

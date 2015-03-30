@@ -525,7 +525,19 @@ func (s *clsSender) getTestsToRun(ctx *tool.Context, projects []string) ([]strin
 	if err != nil {
 		return nil, err
 	}
-	tests := config.ProjectTests(projects)
+	tmpTests := config.ProjectTests(projects)
+	tests := []string{}
+	// Append the part suffix to tests that have multiple parts specified in the config file.
+	for _, test := range tmpTests {
+		if parts := config.TestParts(test); parts != nil {
+			for i := 0; i <= len(parts); i++ {
+				tests = append(tests, testNameWithPartSuffix(test, i))
+			}
+		} else {
+			tests = append(tests, test)
+		}
+	}
+	sort.Strings(tests)
 	return tests, nil
 }
 

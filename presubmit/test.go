@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -26,6 +28,7 @@ import (
 var (
 	reviewTargetRefsFlag string
 	testFlag             string
+	testPartRE           = regexp.MustCompile(`(.*)-part(\d)$`)
 )
 
 func init() {
@@ -52,7 +55,6 @@ const (
 	mergeConflictMessageTmpl  = "Possible merge conflict detected in %s.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted."
 	nanoToMiliSeconds         = 1000000
 	prepareTestBranchAttempts = 3
-	unknownStatus             = "UNKNOWN"
 )
 
 type cl struct {
@@ -121,6 +123,13 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		os.Exit(0)
 	}()
 
+	// Extract test name without part suffix and part index from the original
+	// test name (stored in testFlag).
+	testName, partIndex, err := processTestPartSuffix(testFlag)
+	if err != nil {
+		return err
+	}
+
 	// Prepare presubmit test branch.
 	for i := 1; i <= prepareTestBranchAttempts; i++ {
 		if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
@@ -141,7 +150,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 			}
 			if strings.Contains(errMsg, "git pull") {
 				// Possible merge conflict.
-				if err := recordMergeConflict(ctx, failedCL); err != nil {
+				if err := recordMergeConflict(ctx, failedCL, testName); err != nil {
 					return err
 				}
 				return nil
@@ -164,12 +173,17 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
 	prefix := fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("OS"), os.Getenv("ARCH"))
 	opts := []testutil.TestOpt{testutil.ShortOpt(true), testutil.PrefixOpt(prefix)}
-	if results, err := testutil.RunTests(ctx, env, []string{testFlag}, opts...); err == nil {
-		result, ok := results[testFlag]
+	// If part suffix exists, add partIndex to test opts.
+	if partIndex != -1 {
+		opts = append(opts, testutil.PartOpt(partIndex))
+	}
+
+	if results, err := testutil.RunTests(ctx, env, []string{testName}, opts...); err == nil {
+		result, ok := results[testName]
 		if !ok {
-			return fmt.Errorf("No test result found for %q", testFlag)
+			return fmt.Errorf("No test result found for %q", testName)
 		}
-		return writeTestStatusFile(ctx, *result, curTimestamp)
+		return writeTestStatusFile(ctx, *result, curTimestamp, testName, partIndex)
 	} else {
 		return err
 	}
@@ -271,9 +285,9 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 
 // recordMergeConflict records possible merge conflict in the test status file
 // and xUnit report.
-func recordMergeConflict(ctx *tool.Context, failedCL *cl) error {
+func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error {
 	message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
-	if err := xunit.CreateFailureReport(ctx, testFlag, testFlag, "MergeConflict", message, message); err != nil {
+	if err := xunit.CreateFailureReport(ctx, testName, testName, "MergeConflict", message, message); err != nil {
 		return nil
 	}
 	result := testutil.TestResult{
@@ -282,7 +296,7 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl) error {
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest
 	// build before the given timestamp terminates after the first iteration.
-	if err := writeTestStatusFile(ctx, result, math.MaxInt64); err != nil {
+	if err := writeTestStatusFile(ctx, result, math.MaxInt64, testName, 0); err != nil {
 		return err
 	}
 	return nil
@@ -318,6 +332,25 @@ func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util
 	return env, errs
 }
 
+// processTestPartSuffix extracts the test name without part suffix as well
+// as the part index from the given test name that might have part suffix
+// (vanadium-go-race_part0). If the given test name doesn't have part suffix,
+// the returned test name will be the same as the given test name, and the
+// returned part index will be -1.
+func processTestPartSuffix(testName string) (string, int, error) {
+	matches := testPartRE.FindStringSubmatch(testName)
+	partIndex := -1
+	if matches != nil {
+		testName = matches[1]
+		strPartIndex := matches[2]
+		var err error
+		if partIndex, err = strconv.Atoi(strPartIndex); err != nil {
+			return "", partIndex, err
+		}
+	}
+	return testName, partIndex, nil
+}
+
 // cleanupPresubmitTestBranch removes the presubmit test branch.
 func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects util.Projects) (e error) {
 	printf(ctx.Stdout(), "### Cleaning up\n")
@@ -332,9 +365,9 @@ func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects util.Projects) 
 // "master" presubmit project for generating final test results message.
 //
 // For more details, see comments in result.go.
-func writeTestStatusFile(ctx *tool.Context, result testutil.TestResult, curTimestamp int64) error {
+func writeTestStatusFile(ctx *tool.Context, result testutil.TestResult, curTimestamp int64, testName string, partIndex int) error {
 	// Get the file path.
-	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("status_%s.json", strings.Replace(testFlag, "-", "_", -1))
+	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("status_%s.json", strings.Replace(testName, "-", "_", -1))
 	statusFilePath := ""
 	if workspace == "" {
 		statusFilePath = filepath.Join(os.Getenv("HOME"), "tmp", testFlag, fileName)
@@ -345,11 +378,12 @@ func writeTestStatusFile(ctx *tool.Context, result testutil.TestResult, curTimes
 	// Write to file.
 	r := testResultInfo{
 		Result:    result,
-		TestName:  testFlag,
+		TestName:  testName,
 		Timestamp: curTimestamp,
 		AxisValues: axisValuesInfo{
-			Arch: os.Getenv("ARCH"), // Architecture is stored in environment variable "ARCH"
-			OS:   os.Getenv("OS"),   // OS is stored in environment variable "OS"
+			Arch:      os.Getenv("ARCH"), // Architecture is stored in environment variable "ARCH"
+			OS:        os.Getenv("OS"),   // OS is stored in environment variable "OS"
+			PartIndex: partIndex,
 		},
 	}
 	bytes, err := json.Marshal(r)

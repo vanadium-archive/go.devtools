@@ -17,3 +17,22 @@ func TestGenStartPresubmitBuildLink(t *testing.T) {
 		t.Fatalf("\nwant:\n%s\n\ngot:\n%s\n", want, got)
 	}
 }
+
+func TestTestNameWithPartSuffix(t *testing.T) {
+	testCases := []struct {
+		testName  string
+		partIndex int
+		expected  string
+	}{
+		{
+			testName:  "vanadium-go-race",
+			partIndex: 0,
+			expected:  "vanadium-go-race-part0",
+		},
+	}
+	for _, test := range testCases {
+		if got, want := testNameWithPartSuffix(test.testName, test.partIndex), test.expected; got != want {
+			t.Fatalf("want:%s, got:%s", want, got)
+		}
+	}
+}
