@@ -57,3 +57,11 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 	}
 	return nil
 }
+
+// testNameWithPartSuffix generates a new name from the given test name and part index.
+func testNameWithPartSuffix(testName string, partIndex int) string {
+	if partIndex < 0 {
+		return testName
+	}
+	return fmt.Sprintf("%s-part%d", testName, partIndex)
+}

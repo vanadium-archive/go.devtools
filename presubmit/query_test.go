@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -345,6 +346,59 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 	}
 	if expected := 3; expected != sender.clsSent {
 		t.Fatalf("numSentCLs: want %d, got %d", expected, sender.clsSent)
+	}
+}
+
+func TestGetTestsToRun(t *testing.T) {
+	ctx := tool.NewDefaultContext()
+	root, err := util.NewFakeVanadiumRoot(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer func() {
+		if err := root.Cleanup(ctx); err != nil {
+			t.Fatalf("%v", err)
+		}
+	}()
+	oldRoot, err := util.VanadiumRoot()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := os.Setenv("VANADIUM_ROOT", root.Dir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("VANADIUM_ROOT", oldRoot)
+
+	config := util.NewConfig(
+		util.ProjectTestsOpt(map[string][]string{
+			"release.go.core": []string{"go", "javascript"},
+		}),
+		util.TestGroupsOpt(map[string][]string{
+			"go": []string{"vanadium-go-build", "vanadium-go-test", "vanadium-go-race"},
+		}),
+		util.TestPartsOpt(map[string][]string{
+			"vanadium-go-race": []string{"v.io/x/ref/services/mgmt/device/...", "v.io/x/ref/profiles/..."},
+		}),
+	)
+	if err := root.WriteLocalToolsConfig(ctx, config); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	expected := []string{
+		"javascript",
+		"vanadium-go-build",
+		"vanadium-go-race-part0",
+		"vanadium-go-race-part1",
+		"vanadium-go-race-part2",
+		"vanadium-go-test",
+	}
+	sender := clsSender{}
+	got, err := sender.getTestsToRun(ctx, []string{"release.go.core"})
+	if err != nil {
+		t.Fatalf("want no errors, got: %v", err)
+	}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("want %v, got %v", expected, got)
 	}
 }
 

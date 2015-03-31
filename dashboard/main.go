@@ -6,8 +6,6 @@
 // server.
 package main
 
-// TODO(jsimsa): Move style formatting to a .css file.
-
 import (
 	"encoding/json"
 	"encoding/xml"
@@ -31,7 +29,13 @@ import (
 )
 
 const (
-	defaultBucket = "gs://vanadium-test-results"
+	defaultBucket       = "gs://vanadium-test-results"
+	multiPartOutputNote = `
+###################################################################################
+THIS TEST HAS BEEN DIVIDED INTO MULTIPLE PARTS THAT HAVE BEEN EXECUTED IN PARALLEL.
+THE OUTPUT BELOW IS THE CONCATENATION OF THOSE OUTPUTS.
+###################################################################################
+`
 )
 
 var (
@@ -68,6 +72,7 @@ type osJobs struct {
 type job struct {
 	Name           string
 	Arch           string
+	PartIndex      int
 	HasGo32BitTest bool
 	Result         bool
 	FailedTests    []failedTest
@@ -77,6 +82,13 @@ type failedTest struct {
 	Suite     string
 	ClassName string
 	TestCase  string
+	PartIndex int
+}
+
+type aggregatedPartsData struct {
+	result      bool
+	failedTests []failedTest
+	output      string
 }
 
 var go32BitTests = map[string]struct{}{
@@ -113,7 +125,7 @@ var summaryTemplate = template.Must(template.New("summary").Parse(`
 			<ol class="test-list">
 			{{ range $failedTest := $job.FailedTests }}
 				<li>
-					<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $job.Arch }}&os={{ $osJobs.OSName }}&job={{ $job.Name }}&suite={{ $failedTest.Suite }}&class={{ $failedTest.ClassName }}&test={{ $failedTest.TestCase }}">{{ $failedTest.ClassName }}/{{ $failedTest.TestCase }}</a>
+					<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $job.Arch }}&os={{ $osJobs.OSName }}&job={{ $job.Name }}&part={{ $failedTest.PartIndex }}&suite={{ $failedTest.Suite }}&class={{ $failedTest.ClassName }}&test={{ $failedTest.TestCase }}">{{ $failedTest.ClassName }}/{{ $failedTest.TestCase }}</a>
 				</li>
 			{{ end }}
 			</ol>
@@ -131,6 +143,7 @@ type jobData struct {
 	Job         string
 	OSName      string
 	Arch        string
+	PartIndex   string
 	Number      string
 	Output      string
 	Result      bool
@@ -165,7 +178,7 @@ var jobTemplate = template.Must(template.New("job").Funcs(templateFuncMap).Parse
 <ol class="test-list2">
 {{ range $failedTest := .FailedTests }}
 	<li>
-		<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $arch }}&os={{ $osName }}&job={{ $jobName }}&suite={{ $failedTest.Suite }}&class={{ $failedTest.ClassName }}&test={{ $failedTest.TestCase }}">{{ $failedTest.ClassName }}/{{ $failedTest.TestCase }}</a>
+		<a target="_blank" href="index.html?type=presubmit&n={{ $n }}&arch={{ $arch }}&os={{ $osName }}&job={{ $jobName }}&part={{ $failedTest.PartIndex }}&suite={{ $failedTest.Suite }}&class={{ $failedTest.ClassName }}&test={{ $failedTest.TestCase }}">{{ $failedTest.ClassName }}/{{ $failedTest.TestCase }}</a>
 	</li>
 {{ end }}
 </ol>
@@ -235,10 +248,11 @@ type ansiColor struct {
 type params struct {
 	arch      string
 	job       string
+	osName    string
+	partIndex string
 	testCase  string
 	testClass string
 	testSuite string
-	osName    string
 }
 
 var (
@@ -288,7 +302,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 
 	// Fetch the presubmit test results.
 	// The dir structure is:
-	// <root>/presubmit/<n>/<os>/<arch>/<job>/...
+	// <root>/presubmit/<n>/<os>/<arch>/<job>/<part>/...
 	if err := ctx.Run().MkdirAll(filepath.Join(root, "presubmit"), os.FileMode(0700)); err != nil {
 		return err
 	}
@@ -323,7 +337,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	case params.arch == "" || params.osName == "" || params.job == "":
 		// Generate the summary page.
 		path := filepath.Join(root, "presubmit", n)
-		data, err := generateSummaryData(ctx, n, path)
+		data, err := params.generateSummaryData(ctx, n, path)
 		if err != nil {
 			return err
 		}
@@ -334,7 +348,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	case params.testSuite == "":
 		// Generate the job detail page.
 		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job)
-		data, err := generateJobData(ctx, n, params.osName, params.arch, params.job, path)
+		data, err := params.generateJobData(ctx, n, path)
 		if err != nil {
 			return err
 		}
@@ -343,8 +357,8 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 		}
 	case params.testClass != "" && params.testSuite != "" && params.testCase != "":
 		// Generate the test detail page.
-		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job)
-		data, err := generateTestData(ctx, n, params.osName, params.arch, params.job, params.testSuite, params.testClass, params.testCase, path)
+		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job, params.partIndex)
+		data, err := params.generateTestData(ctx, n, path)
 		if err != nil {
 			return err
 		}
@@ -361,14 +375,15 @@ func extractParams(r *http.Request) params {
 	return params{
 		arch:      r.Form.Get("arch"),
 		job:       r.Form.Get("job"),
+		osName:    r.Form.Get("os"),
+		partIndex: r.Form.Get("part"),
 		testCase:  r.Form.Get("test"),
 		testClass: r.Form.Get("class"),
 		testSuite: r.Form.Get("suite"),
-		osName:    r.Form.Get("os"),
 	}
 }
 
-func generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error) {
+func (p params) generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error) {
 	data := summaryData{n, []osJobs{}}
 	osFileInfos, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -395,34 +410,26 @@ func generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error
 				return nil, fmt.Errorf("ReadDir(%v) failed: %v", archDir, err)
 			}
 			for _, jobFileInfo := range jobFileInfos {
-				// Parse test result (pass/fail).
 				jobName := jobFileInfo.Name()
 				jobDir := filepath.Join(archDir, jobName)
-				bytes, err := ctx.Run().ReadFile(filepath.Join(jobDir, "result"))
+
+				// Aggregate job data for all its parts.
+				data, err := aggregateTestParts(ctx, jobDir, false)
 				if err != nil {
 					return nil, err
 				}
-				var r testutil.TestResult
-				if err := json.Unmarshal(bytes, &r); err != nil {
-					return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(bytes), err)
-				}
-				_, hasGo32BitTest := go32BitTests[jobName]
 				j := job{
 					Name:           jobName,
 					Arch:           arch,
-					HasGo32BitTest: hasGo32BitTest,
-					Result:         r.Status == testutil.TestPassed,
-					FailedTests:    []failedTest{},
+					HasGo32BitTest: false,
+					Result:         data.result,
+					FailedTests:    data.failedTests,
+				}
+				if _, ok := go32BitTests[jobName]; ok {
+					j.HasGo32BitTest = true
 				}
 				jobKey := fmt.Sprintf("%s-%s", jobName, arch)
 				jobKeys = append(jobKeys, jobKey)
-
-				// Parse failed tests.
-				failedTests, err := parseFailedTests(ctx, jobDir)
-				if err != nil {
-					return nil, err
-				}
-				j.FailedTests = append(j.FailedTests, failedTests...)
 				jobsMap[jobKey] = j
 			}
 		}
@@ -435,36 +442,23 @@ func generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error
 	return &data, nil
 }
 
-func generateJobData(ctx *tool.Context, n, osName, arch, job, path string) (*jobData, error) {
-	outputBytes, err := ctx.Run().ReadFile(filepath.Join(path, "output"))
+func (p params) generateJobData(ctx *tool.Context, n, path string) (*jobData, error) {
+	data, err := aggregateTestParts(ctx, path, true)
 	if err != nil {
 		return nil, err
 	}
-	resultBytes, err := ctx.Run().ReadFile(filepath.Join(path, "result"))
-	if err != nil {
-		return nil, err
-	}
-	var r testutil.TestResult
-	if err := json.Unmarshal(resultBytes, &r); err != nil {
-		return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(resultBytes), err)
-	}
-	failedTests, err := parseFailedTests(ctx, path)
-	if err != nil {
-		return nil, err
-	}
-	data := jobData{
-		Job:         job,
-		OSName:      osName,
-		Arch:        arch,
+	return &jobData{
+		Job:         p.job,
+		OSName:      p.osName,
+		Arch:        p.arch,
 		Number:      n,
-		Output:      string(outputBytes),
-		Result:      r.Status == testutil.TestPassed,
-		FailedTests: failedTests,
-	}
-	return &data, nil
+		Result:      data.result,
+		FailedTests: data.failedTests,
+		Output:      data.output,
+	}, nil
 }
 
-func generateTestData(ctx *tool.Context, n, osName, arch, job, testSuite, testClass, testCase, path string) (*testData, error) {
+func (p params) generateTestData(ctx *tool.Context, n, path string) (*testData, error) {
 	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(path, "xunit.xml"))
 	if err != nil {
 		return nil, err
@@ -477,9 +471,9 @@ func generateTestData(ctx *tool.Context, n, osName, arch, job, testSuite, testCl
 	found := false
 outer:
 	for _, ts := range s.Suites {
-		if ts.Name == testSuite {
+		if ts.Name == p.testSuite {
 			for _, tc := range ts.Cases {
-				if tc.Name == testCase && tc.Classname == testClass {
+				if tc.Name == p.testCase && tc.Classname == p.testClass {
 					test = tc
 					found = true
 					break outer
@@ -488,19 +482,73 @@ outer:
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("failed to find the test %s in test suite %s", testCase, testSuite)
+		return nil, fmt.Errorf("failed to find the test %s in test suite %s", p.testCase, p.testSuite)
 	}
 	data := testData{
-		Job:      job,
-		OSName:   osName,
-		Arch:     arch,
+		Job:      p.job,
+		OSName:   p.osName,
+		Arch:     p.arch,
 		Number:   n,
 		TestCase: test,
 	}
 	return &data, nil
 }
 
-func parseFailedTests(ctx *tool.Context, jobDir string) ([]failedTest, error) {
+func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) (*aggregatedPartsData, error) {
+	// Read dirs for parts under the given job dir.
+	partFileInfos, err := ioutil.ReadDir(jobDir)
+	if err != nil {
+		return nil, fmt.Errorf("ReadDir(%v) failed: %v", jobDir, err)
+	}
+
+	// Aggregate results and failed tests.
+	data := &aggregatedPartsData{}
+	outputs := []string{}
+	for index, partFileInfo := range partFileInfos {
+		part := partFileInfo.Name()
+		partDir := filepath.Join(jobDir, part)
+
+		// Test result.
+		bytes, err := ctx.Run().ReadFile(filepath.Join(partDir, "result"))
+		if err != nil {
+			return nil, err
+		}
+		var r testutil.TestResult
+		if err := json.Unmarshal(bytes, &r); err != nil {
+			return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(bytes), err)
+		}
+		if r.Status != testutil.TestPassed {
+			data.result = false
+		}
+
+		// Failed tests.
+		failedTests, err := parseFailedTests(ctx, partDir, index)
+		if err != nil {
+			return nil, err
+		}
+		data.failedTests = append(data.failedTests, failedTests...)
+
+		// Console output.
+		if aggregateOutput {
+			outputBytes, err := ctx.Run().ReadFile(filepath.Join(partDir, "output"))
+			if err != nil {
+				return nil, err
+			}
+			if len(partFileInfos) > 1 {
+				outputs = append(outputs, fmt.Sprintf("#### Part %d ####\n%s", index, string(outputBytes)))
+			} else {
+				outputs = append(outputs, string(outputBytes))
+			}
+		}
+	}
+	data.output = strings.Join(outputs, "\n")
+	if len(partFileInfos) > 1 {
+		data.output = multiPartOutputNote + data.output
+	}
+	return data, nil
+}
+
+func parseFailedTests(ctx *tool.Context, jobDir string, partIndex int) ([]failedTest, error) {
 	failedTests := []failedTest{}
 	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(jobDir, "xunit.xml"))
 	if os.IsNotExist(err) {
@@ -521,6 +569,7 @@ func parseFailedTests(ctx *tool.Context, jobDir string) ([]failedTest, error) {
 					Suite:     ts.Name,
 					ClassName: tc.Classname,
 					TestCase:  tc.Name,
+					PartIndex: partIndex,
 				})
 			}
 		}

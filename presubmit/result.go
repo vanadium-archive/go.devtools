@@ -27,10 +27,52 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
+type testStatus int
+
+func (s testStatus) String() string {
+	switch s {
+	case statusUnknown:
+		return "?"
+	case statusSuccess:
+		return "✔"
+	default:
+		return "✖"
+	}
+}
+
+func stringToTestStatus(s string) testStatus {
+	switch s {
+	case unknownStatusString:
+		return statusUnknown
+	case successStatusString:
+		return statusSuccess
+	default:
+		return statusFail
+	}
+}
+
+// Constants used for aggregating test status for tests that have multiple parts.
+const (
+	statusUnknown testStatus = iota
+	statusSuccess
+	statusFail
+)
+
+// testResultSummary stores data for generating summary for a test.
+type testResultSummary struct {
+	testNameWithLabels string // labels include os and architecture.
+	lastStatus         testStatus
+	curStatus          testStatus
+	timeoutValue       time.Duration
+}
+
 var (
 	dashboardHostFlag string
 	projectsFlag      string
 	reviewMessageFlag string
+
+	unknownStatusString = "UNKNOWN"
+	successStatusString = "SUCCESS"
 )
 
 func init() {
@@ -55,30 +97,33 @@ summary back to the corresponding Gerrit review thread.
 
 // multiConfigurationJobs is a map from Jenkins job names to their axis infos.
 var multiConfigurationJobs = map[string]*axisInfo{
-	"third_party-go-build":      &axisInfo{false, true},
-	"third_party-go-test":       &axisInfo{false, true},
-	"vanadium-go-build":         &axisInfo{true, true},
-	"vanadium-go-test":          &axisInfo{true, true},
-	"vanadium-integration-test": &axisInfo{false, true},
+	"third_party-go-build":      &axisInfo{false, true, false},
+	"third_party-go-test":       &axisInfo{false, true, false},
+	"vanadium-go-build":         &axisInfo{true, true, false},
+	"vanadium-go-test":          &axisInfo{true, true, false},
+	"vanadium-go-race":          &axisInfo{false, true, true},
+	"vanadium-integration-test": &axisInfo{false, true, false},
 }
 
 // axisInfo stores which axes a Jenkins job has configured.
 type axisInfo struct {
-	hasArch bool
-	hasOS   bool
+	hasArch  bool
+	hasOS    bool
+	hasParts bool
 }
 
 type testResultInfo struct {
 	Result           testutil.TestResult
-	TestName         string
+	TestName         string // This is the test name without the part suffix (vanadium-go-race).
 	Timestamp        int64
 	PostSubmitResult string
 	AxisValues       axisValuesInfo
 }
 
 type axisValuesInfo struct {
-	Arch string
-	OS   string
+	Arch      string
+	OS        string
+	PartIndex int
 }
 
 // genBuildSpec returns a spec string for the given Jenkins build.
@@ -107,6 +152,9 @@ func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string) stri
 	if axis.hasOS {
 		parts = append(parts, fmt.Sprintf("OS=%s", axisValues.OS))
 	}
+	if axis.hasParts {
+		parts = append(parts, fmt.Sprintf("P=%d", axisValues.PartIndex))
+	}
 	return fmt.Sprintf("%s/%s/%s", jobName, strings.Join(parts, ","), suffix)
 }
 
@@ -128,13 +176,14 @@ func genSubJobLabel(jobName string, axisValues axisValuesInfo) string {
 	if axis.hasArch {
 		parts = append(parts, axisValues.Arch)
 	}
+	// Note that we omit the part index here to make parts transparent to users.
 	return strings.Join(parts, ",")
 }
 
 // key returns a unique key for the test wrapped in the given
 // testResultInfo object.
 func (ri testResultInfo) key() string {
-	return fmt.Sprintf("%s_%s_%s", ri.TestName, ri.AxisValues.OS, ri.AxisValues.Arch)
+	return fmt.Sprintf("%s_%s_%s_%d", ri.TestName, ri.AxisValues.OS, ri.AxisValues.Arch, ri.AxisValues.PartIndex)
 }
 
 // runResult implements the 'result' subcommand.
@@ -155,6 +204,9 @@ func (ri testResultInfo) key() string {
 //     │    ├── ARCH=386,OS=mac,TEST=vanadium-go-build
 //     │    │   ├── status_vanadium_go_build.json
 //     │    │   └─- tests_vanadium_go_build.xml
+//     │    ├── ARCH=amd64,OS=linux,TEST=vanadium-go-race_part0
+//     │    │   ├── status_vanadium_go_race.json
+//     │    │   └─- tests_vanadium_go_race.xml
 //     │    └── ...
 //     ├── 46
 //     ...
@@ -253,27 +305,8 @@ outer:
 			if curBuildInfo.Timestamp > timestamp {
 				continue
 			}
-			// This special-casing is only for the transition period.
-			// TODO(jingjin): clean this up after the transition is done.
-			cases := []jenkins.TestCase{}
-			if name == "vanadium-go-race" {
-				config, err := util.LoadConfig(ctx)
-				if err != nil {
-					testutil.Fail(ctx, "%v\n", err)
-					continue outer
-				}
-				parts := config.TestParts(name)
-				// Get failed test cases from all the runs for different parts.
-				for part := 0; part < len(parts); part++ {
-					curBuildSpec := fmt.Sprintf("%s/OS=linux,P=%d/%d", name, part, i)
-					// "curCases" will be empty on error.
-					curCases, _ := jenkinsObj.FailedTestCasesForBuildSpec(curBuildSpec)
-					cases = append(cases, curCases...)
-				}
-			} else {
-				// "cases" will be empty on error.
-				cases, _ = jenkinsObj.FailedTestCasesForBuildSpec(buildSpec)
-			}
+			// "cases" will be empty on error.
+			cases, _ := jenkinsObj.FailedTestCasesForBuildSpec(buildSpec)
 			testutil.Pass(ctx, "Got build status of build %d: %s\n", i, curBuildInfo.Result)
 			data[resultInfo.key()] = &postSubmitBuildData{
 				result:          curBuildInfo.Result,
@@ -399,11 +432,16 @@ func (r *testReporter) reportBuildCop(ctx *tool.Context) {
 // failed tests.
 func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]struct{} {
 	fmt.Fprintf(r.report, "Test results:\n")
-	failedTestNames := map[string]struct{}{}
-	nameStrings := []string{}
-	nameStringToSummaryLine := map[string]string{}
+	// This set will be used to generate the "retry failed tests only" link where
+	// we should use the names with the part suffix.
+	failedTests := map[string]struct{}{}
+
+	// The "test key" is testName+os+arch.
+	testResultSummaries := map[string]*testResultSummary{}
+	// For tests with multiple parts, we'd like to show a single summary line for
+	// all their parts. To do this, we aggregate test status/results data for all
+	// their parts first.
 	for _, resultInfo := range r.testResults {
-		var lineBuf bytes.Buffer
 		name := resultInfo.TestName
 		result := resultInfo.Result
 		if result.Status == testutil.TestSkipped {
@@ -411,40 +449,37 @@ func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]st
 			continue
 		}
 
-		// Get the status of the last completed build for this Jenkins test.
-		lastStatus := unknownStatus
-		if data := r.postSubmitResults[resultInfo.key()]; data != nil {
-			lastStatus = data.result
-		}
-		lastStatusString := "✖"
-		switch lastStatus {
-		case unknownStatus:
-			lastStatusString = "?"
-		case "SUCCESS":
-			lastStatusString = "✔"
-		}
-
-		var curStatusString string
-		if result.Status == testutil.TestPassed {
-			curStatusString = "✔"
-		} else {
-			failedTestNames[name] = struct{}{}
-			curStatusString = "✖"
-		}
-
-		nameString := name
-		subJobLabel := genSubJobLabel(name, resultInfo.AxisValues)
-		if subJobLabel != "" {
-			nameString += fmt.Sprintf(" [%s]", subJobLabel)
-		}
-		fmt.Fprintf(&lineBuf, "%s ➔ %s: %s", lastStatusString, curStatusString, nameString)
-
-		if result.Status == testutil.TestTimedOut {
-			timeoutValue := testutil.DefaultTestTimeout
-			if result.TimeoutValue != 0 {
-				timeoutValue = result.TimeoutValue
+		testKey := fmt.Sprintf("%s_%s_%s", name, resultInfo.AxisValues.OS, resultInfo.AxisValues.Arch)
+		summary := testResultSummaries[testKey]
+		if summary == nil {
+			// Generate test name with labels (os, architecture, etc).
+			// It is ok to initialize this string using any part of the multi-part
+			// tests as the part index is not used by the initialization.
+			nameString := name
+			subJobLabel := genSubJobLabel(name, resultInfo.AxisValues)
+			if subJobLabel != "" {
+				nameString += fmt.Sprintf(" [%s]", subJobLabel)
 			}
-			fmt.Fprintf(&lineBuf, " [TIMED OUT after %s]\n", timeoutValue)
+			summary = &testResultSummary{
+				testNameWithLabels: nameString,
+				timeoutValue:       -1,
+			}
+			testResultSummaries[testKey] = summary
+		}
+		if testFailed := r.mergeTestResults(resultInfo, summary); testFailed {
+			failedTests[testNameWithPartSuffix(name, resultInfo.AxisValues.PartIndex)] = struct{}{}
+		}
+	}
+
+	// Generate one summary line for each aggregated test.
+	nameStrings := []string{}
+	nameStringToSummaryLine := map[string]string{}
+	for _, summary := range testResultSummaries {
+		var lineBuf bytes.Buffer
+		nameString := summary.testNameWithLabels
+		fmt.Fprintf(&lineBuf, "%s ➔ %s: %s", summary.lastStatus.String(), summary.curStatus.String(), nameString)
+		if summary.timeoutValue > 0 {
+			fmt.Fprintf(&lineBuf, " [TIMED OUT after %s]\n", summary.timeoutValue)
 		} else {
 			fmt.Fprintf(&lineBuf, "\n")
 		}
@@ -457,7 +492,53 @@ func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]st
 	for _, n := range nameStrings {
 		fmt.Fprintf(r.report, "%s", nameStringToSummaryLine[n])
 	}
-	return failedTestNames
+	return failedTests
+}
+
+// mergeTestResults merges the given test result data to the given test summary.
+// It returns whether the given test fails.
+func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *testResultSummary) bool {
+	result := resultInfo.Result
+	testFailed := false
+
+	// Get the status of the corresponding postsubmit test.
+	lastStatus := statusUnknown
+	if data := r.postSubmitResults[resultInfo.key()]; data != nil {
+		lastStatus = stringToTestStatus(data.result)
+	}
+	// The aggregated test status is:
+	// - FAILED if any of the individual statuses is FAILED.
+	// - SUCCESS if none of the individual status is FAILED and any of the
+	//   individual status is SUCCESS.
+	// - UNKNOWN otherwise.
+	if lastStatus > summary.lastStatus {
+		summary.lastStatus = lastStatus
+	}
+
+	// Get the status of the current presubmit test.
+	curStatus := statusUnknown
+	if result.Status == testutil.TestPassed {
+		curStatus = statusSuccess
+	} else {
+		testFailed = true
+		curStatus = statusFail
+	}
+	if curStatus > summary.curStatus {
+		summary.curStatus = curStatus
+	}
+
+	// Timeout value.
+	if result.Status == testutil.TestTimedOut {
+		timeoutValue := testutil.DefaultTestTimeout
+		if result.TimeoutValue != 0 {
+			timeoutValue = result.TimeoutValue
+		}
+		if timeoutValue > summary.timeoutValue {
+			summary.timeoutValue = timeoutValue
+		}
+	}
+
+	return testFailed
 }
 
 // lastCompletedBuildStatus gets the status of the last completed
@@ -550,20 +631,19 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (f
 	groups := failedTestCasesGroups{}
 
 	for _, testResult := range r.testResults {
-		testName := testResult.TestName
 		axisValues := testResult.AxisValues
 		// For a given test script this-is-a-test.sh, its test
 		// report file is: tests_this_is_a_test.xml.
-		xUnitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testName, "-", "_", -1))
+		xUnitReportFileName := fmt.Sprintf("tests_%s.xml", strings.Replace(testResult.TestName, "-", "_", -1))
 		// The collected xUnit test report is located at:
-		// $WORKSPACE/test_results/$buildNumber/ARCH=amd64,OS=$OS,TEST=$testName/tests_xxx.xml
+		// $WORKSPACE/test_results/$buildNumber/ARCH=amd64,OS=$OS,TEST=$testNameWithPartSuffix/tests_xxx.xml
 		//
 		// See more details in result.go.
 		xUnitReportFile := filepath.Join(
 			os.Getenv("WORKSPACE"),
 			"test_results",
 			fmt.Sprintf("%d", jenkinsBuildNumberFlag),
-			fmt.Sprintf("ARCH=%s,OS=%s,TEST=%s", axisValues.Arch, axisValues.OS, testName),
+			fmt.Sprintf("ARCH=%s,OS=%s,TEST=%s", axisValues.Arch, axisValues.OS, testNameWithPartSuffix(testResult.TestName, testResult.AxisValues.PartIndex)),
 			xUnitReportFileName)
 		bytes, err := ioutil.ReadFile(xUnitReportFile)
 		if err != nil {
@@ -673,6 +753,7 @@ func genTestResultLink(suiteName, className, testCaseName string, testName strin
 	q.Set("n", fmt.Sprintf("%d", jenkinsBuildNumberFlag))
 	q.Set("arch", axisValues.Arch)
 	q.Set("os", axisValues.OS)
+	q.Set("part", fmt.Sprintf("%d", axisValues.PartIndex))
 	q.Set("job", testName)
 	q.Set("suite", suiteName)
 	q.Set("class", className)
