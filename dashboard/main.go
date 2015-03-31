@@ -502,7 +502,9 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 	}
 
 	// Aggregate results and failed tests.
-	data := &aggregatedPartsData{}
+	data := &aggregatedPartsData{
+		result: true,
+	}
 	outputs := []string{}
 	for index, partFileInfo := range partFileInfos {
 		part := partFileInfo.Name()
