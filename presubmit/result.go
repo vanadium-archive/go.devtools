@@ -97,12 +97,42 @@ summary back to the corresponding Gerrit review thread.
 
 // multiConfigurationJobs is a map from Jenkins job names to their axis infos.
 var multiConfigurationJobs = map[string]*axisInfo{
-	"third_party-go-build":      &axisInfo{false, true, false},
-	"third_party-go-test":       &axisInfo{false, true, false},
-	"vanadium-go-build":         &axisInfo{true, true, false},
-	"vanadium-go-test":          &axisInfo{true, true, false},
-	"vanadium-go-race":          &axisInfo{false, true, true},
-	"vanadium-integration-test": &axisInfo{false, true, false},
+	"third_party-go-build": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
+	"third_party-go-test": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
+	"vanadium-go-build": &axisInfo{
+		hasArch:  true,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
+	"vanadium-go-test": &axisInfo{
+		hasArch:  true,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
+	"vanadium-go-race": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: true,
+		showOS:   false,
+	},
+	"vanadium-integration-test": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
 }
 
 // axisInfo stores which axes a Jenkins job has configured.
@@ -110,6 +140,12 @@ type axisInfo struct {
 	hasArch  bool
 	hasOS    bool
 	hasParts bool
+
+	// Whether to show OS label in summary.
+	// It is possible that a job (e.g. vanadium-go-race) has an OS axis but
+	// the axis only has a single value in order to constrain where its
+	// sub-builds run.
+	showOS bool
 }
 
 type testResultInfo struct {
@@ -170,7 +206,7 @@ func genSubJobLabel(jobName string, axisValues axisValuesInfo) string {
 
 	// Multi-configuration job.
 	parts := []string{}
-	if axis.hasOS {
+	if axis.hasOS && axis.showOS {
 		parts = append(parts, axisValues.OS)
 	}
 	if axis.hasArch {
