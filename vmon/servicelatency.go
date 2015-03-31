@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	timeout  = 5 * time.Second
-	services []prodService
+	timeout = 5 * time.Second
 )
 
 type prodService struct {
@@ -31,6 +30,33 @@ type prodService struct {
 
 // checkServiceLatency checks all services and adds their check latency to GCM.
 func checkServiceLatency(ctx *tool.Context) error {
+	services := []prodService{
+		prodService{
+			name:       "mounttable",
+			objectName: namespaceRootFlag,
+		},
+		prodService{
+			name:       "application repository",
+			objectName: namespaceRootFlag + "/applications",
+		},
+		prodService{
+			name:       "binary repository",
+			objectName: namespaceRootFlag + "/binaries",
+		},
+		prodService{
+			name:       "macaroon service",
+			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/macaroon",
+		},
+		prodService{
+			name:       "google identity service",
+			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/google",
+		},
+		prodService{
+			name:       "binary discharger",
+			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/discharger",
+		},
+	}
+
 	hasError := false
 	for _, service := range services {
 		if lat, err := checkSingleService(ctx, service); err != nil {

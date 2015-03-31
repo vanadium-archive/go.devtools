@@ -30,33 +30,6 @@ func init() {
 	cmdCheck.Flags.StringVar(&binDirFlag, "bin_dir", "", "The path where all binaries are downloaded.")
 	cmdCheck.Flags.StringVar(&blessingsRootFlag, "root", "dev.v.io", "The blessings root.")
 	cmdCheck.Flags.StringVar(&namespaceRootFlag, "ns", "/ns.dev.v.io:8101", "The namespace root.")
-
-	services = []prodService{
-		prodService{
-			name:       "mounttable",
-			objectName: namespaceRootFlag,
-		},
-		prodService{
-			name:       "application repository",
-			objectName: namespaceRootFlag + "/applications",
-		},
-		prodService{
-			name:       "binary repository",
-			objectName: namespaceRootFlag + "/binaries",
-		},
-		prodService{
-			name:       "macaroon service",
-			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/macaroon",
-		},
-		prodService{
-			name:       "google identity service",
-			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/google",
-		},
-		prodService{
-			name:       "binary discharger",
-			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/discharger",
-		},
-	}
 }
 
 // root returns a command that represents the root of the vmon tool.
