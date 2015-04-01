@@ -736,7 +736,11 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, tes
 				// Determine whether the curTestCase is a new failure or not.
 				isNewFailure := true
 				for _, postsubmitFailedTestCase := range postsubmitFailedTestCases {
-					if curTestCase.Classname == postsubmitFailedTestCase.ClassName && curTestCase.Name == postsubmitFailedTestCase.Name {
+					curClassName := curTestCase.Classname
+					if curClassName == "" {
+						curClassName = curTestSuite.Name
+					}
+					if curClassName == postsubmitFailedTestCase.ClassName && curTestCase.Name == postsubmitFailedTestCase.Name {
 						isNewFailure = false
 						break
 					}
