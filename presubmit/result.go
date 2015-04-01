@@ -721,11 +721,6 @@ func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, tes
 	curFailedTestCases := []jenkins.TestCase{}
 	for _, curTestSuite := range suites.Suites {
 		for _, curTestCase := range curTestSuite.Cases {
-			// Use test suite's name as the test case's class name if the
-			// class name is empty.
-			if curTestCase.Classname == "" {
-				curTestCase.Classname = curTestSuite.Name
-			}
 			// Unescape test name and class name.
 			curTestCase.Classname = html.UnescapeString(curTestCase.Classname)
 			curTestCase.Name = html.UnescapeString(curTestCase.Name)

@@ -226,7 +226,11 @@ var testTemplate = template.Must(template.New("test").Funcs(templateFuncMap).Par
 <h2>Failures:</h2>
 <ul>
 	{{ range $failure := .TestCase.Failures }}
+	{{ if $failure.Message }}
 	<li> {{ $failure.Message }}: <br/>
+	{{ else }}
+	<li> Failure: <br/>
+	{{ end }}
   	<pre>{{ colors $failure.Data }}</pre>
 	</li>
 	{{ end }}
@@ -355,7 +359,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 		if err := jobTemplate.Execute(w, data); err != nil {
 			return fmt.Errorf("Execute() failed: %v", err)
 		}
-	case params.testClass != "" && params.testSuite != "" && params.testCase != "":
+	case (params.testClass != "" || params.testSuite != "") && params.testCase != "":
 		// Generate the test detail page.
 		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job, params.partIndex)
 		data, err := params.generateTestData(ctx, n, path)
@@ -475,6 +479,9 @@ outer:
 			for _, tc := range ts.Cases {
 				if tc.Name == p.testCase && tc.Classname == p.testClass {
 					test = tc
+					if test.Classname == "" {
+						test.Classname = ts.Name
+					}
 					found = true
 					break outer
 				}
