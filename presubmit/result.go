@@ -784,12 +784,17 @@ func genTestResultLink(suiteName, className, testCaseName string, testName strin
 	if err != nil {
 		return fmt.Sprintf("- %s\n  Result link not available (%v)", testFullName, err)
 	}
+	partIndex := axisValues.PartIndex
+	// For tests without multi-parts, set its partIndex to 0.
+	if partIndex < 0 {
+		partIndex = 0
+	}
 	q := u.Query()
 	q.Set("type", "presubmit")
 	q.Set("n", fmt.Sprintf("%d", jenkinsBuildNumberFlag))
 	q.Set("arch", axisValues.Arch)
 	q.Set("os", axisValues.OS)
-	q.Set("part", fmt.Sprintf("%d", axisValues.PartIndex))
+	q.Set("part", fmt.Sprintf("%d", partIndex))
 	q.Set("job", testName)
 	q.Set("suite", suiteName)
 	q.Set("class", className)

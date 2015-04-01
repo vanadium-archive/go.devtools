@@ -172,7 +172,11 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	// Run the tests.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
 	prefix := fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("OS"), os.Getenv("ARCH"))
-	opts := []testutil.TestOpt{testutil.ShortOpt(true), testutil.PrefixOpt(prefix), testutil.PartOpt(partIndex)}
+	opts := []testutil.TestOpt{testutil.ShortOpt(true), testutil.PrefixOpt(prefix)}
+	// If part suffix exists, add partIndex to test opts.
+	if partIndex != -1 {
+		opts = append(opts, testutil.PartOpt(partIndex))
+	}
 
 	if results, err := testutil.RunTests(ctx, env, []string{testName}, opts...); err == nil {
 		result, ok := results[testName]
@@ -332,10 +336,10 @@ func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util
 // as the part index from the given test name that might have part suffix
 // (vanadium-go-race_part0). If the given test name doesn't have part suffix,
 // the returned test name will be the same as the given test name, and the
-// returned part index will be 0.
+// returned part index will be -1.
 func processTestPartSuffix(testName string) (string, int, error) {
 	matches := testPartRE.FindStringSubmatch(testName)
-	partIndex := 0
+	partIndex := -1
 	if matches != nil {
 		testName = matches[1]
 		strPartIndex := matches[2]
