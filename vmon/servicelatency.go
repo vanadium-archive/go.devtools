@@ -82,7 +82,7 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 	opts.Stderr = &bufErr
 	latency := time.Duration(0)
 	start := time.Now()
-	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, vrpc, "signature", service.objectName); err != nil {
+	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, vrpc, "signature", "--insecure", service.objectName); err != nil {
 		// When the command times out, use the "timeout" value as the check latency
 		// without failing the check.
 		// The GCM will have its own alert policy to handle abnormal check laency.
