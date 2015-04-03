@@ -55,6 +55,10 @@ func checkServiceLatency(ctx *tool.Context) error {
 			name:       "binary discharger",
 			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/discharger",
 		},
+		prodService{
+			name:       "proxy service",
+			objectName: namespaceRootFlag + "/proxy-mon/_debug",
+		},
 	}
 
 	hasError := false
