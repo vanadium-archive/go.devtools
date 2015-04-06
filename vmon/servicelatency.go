@@ -45,15 +45,15 @@ func checkServiceLatency(ctx *tool.Context) error {
 		},
 		prodService{
 			name:       "macaroon service",
-			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/macaroon",
+			objectName: namespaceRootFlag + "/identity/dev.v.io/root/macaroon",
 		},
 		prodService{
 			name:       "google identity service",
-			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/google",
+			objectName: namespaceRootFlag + "/identity/dev.v.io/root/google",
 		},
 		prodService{
 			name:       "binary discharger",
-			objectName: namespaceRootFlag + "/identity/" + blessingsRootFlag + "/root/discharger",
+			objectName: namespaceRootFlag + "/identity/dev.v.io/root/discharger",
 		},
 		prodService{
 			name:       "proxy service",
