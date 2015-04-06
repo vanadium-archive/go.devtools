@@ -68,7 +68,11 @@ func checkServiceLatency(ctx *tool.Context) error {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
 		} else {
-			testutil.Pass(ctx, "%s: %s\n", service.name, lat)
+			if lat == timeout {
+				testutil.Warn(ctx, "%s: %s [TIMEOUT]\n", service.name, lat)
+			} else {
+				testutil.Pass(ctx, "%s: %s\n", service.name, lat)
+			}
 		}
 	}
 	if hasError {
@@ -91,7 +95,7 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 		// without failing the check.
 		// The GCM will have its own alert policy to handle abnormal check laency.
 		// For example, GCM might decide to only send out alerts when latency is
-		// over 500 ms for 10 minutes.
+		// over 1200 ms for 5 minutes.
 		if err == runutil.CommandTimedOutErr {
 			latency = timeout
 		} else {
