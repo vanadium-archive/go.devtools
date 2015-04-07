@@ -15,7 +15,7 @@ import (
 
 func TestJenkinsTestsToStart(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	root, err := util.NewFakeVanadiumRoot(ctx)
+	root, err := util.NewFakeV23Root(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -38,14 +38,14 @@ func TestJenkinsTestsToStart(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	oldRoot, err := util.VanadiumRoot()
+	oldRoot, err := util.V23Root()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := os.Setenv("VANADIUM_ROOT", root.Dir); err != nil {
+	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VANADIUM_ROOT", oldRoot)
+	defer os.Setenv("V23_ROOT", oldRoot)
 
 	testCases := []struct {
 		projects            []string

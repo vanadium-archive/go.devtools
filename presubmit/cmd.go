@@ -73,7 +73,7 @@ func printf(out io.Writer, format string, args ...interface{}) {
 // root returns a command that represents the root of the presubmit tool.
 func root() *cmdline.Command {
 	var err error
-	vroot, err = util.VanadiumRoot()
+	vroot, err = util.V23Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 		os.Exit(1)

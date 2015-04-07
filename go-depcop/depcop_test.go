@@ -114,9 +114,9 @@ func (policy *dependencyPolicy) ruleSet(outgoing bool) []dependencyRule {
 }
 
 func TestComputeIncomingDependency(t *testing.T) {
-	root := os.Getenv("VANADIUM_ROOT")
+	root := os.Getenv("V23_ROOT")
 	if root == "" {
-		t.Fatalf("VANADIUM_ROOT not set")
+		t.Fatalf("V23_ROOT not set")
 	}
 	oldPath := os.Getenv("GOPATH")
 	defer os.Setenv("GOPATH", oldPath)

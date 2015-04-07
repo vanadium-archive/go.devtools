@@ -79,12 +79,12 @@ func runPoll(command *cmdline.Command, _ []string) error {
 		Manifest: &manifestFlag,
 		Verbose:  &verboseFlag,
 	})
-	root, err := util.VanadiumRoot()
+	root, err := util.V23Root()
 	if err != nil {
 		return err
 	}
 
-	// Get the latest snapshot file from $VANADIUM_ROOT/.update_history directory.
+	// Get the latest snapshot file from $V23_ROOT/.update_history directory.
 	historyDir := filepath.Join(root, ".update_history")
 	var maxTime int64
 	latestSnapshotFile := ""

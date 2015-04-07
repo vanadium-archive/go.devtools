@@ -351,7 +351,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 func TestGetTestsToRun(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	root, err := util.NewFakeVanadiumRoot(ctx)
+	root, err := util.NewFakeV23Root(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -360,14 +360,14 @@ func TestGetTestsToRun(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 	}()
-	oldRoot, err := util.VanadiumRoot()
+	oldRoot, err := util.V23Root()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := os.Setenv("VANADIUM_ROOT", root.Dir); err != nil {
+	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("VANADIUM_ROOT", oldRoot)
+	defer os.Setenv("V23_ROOT", oldRoot)
 
 	config := util.NewConfig(
 		util.ProjectTestsOpt(map[string][]string{
