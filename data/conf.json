@@ -82,6 +82,7 @@
       "vanadium-go-build",
       "vanadium-go-test"
     ],
+    "release": [],
     "stable-go": [
       "vanadium-go-build",
       "vanadium-go-test",
