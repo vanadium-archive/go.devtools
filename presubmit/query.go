@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -31,13 +30,13 @@ const (
 
 var (
 	queryStringFlag string
-	logFilePathFlag flag.Getter
+	logFilePathFlag string
 )
 
 func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
-	logFilePathFlag = cmdline.EnvFlag(defaultLogFilePath)
-	cmdQuery.Flags.Var(logFilePathFlag, "log_file", "The file that stores the refs from the previous Gerrit query.")
+	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", os.ExpandEnv(defaultLogFilePath), "The file that stores the refs from the previous Gerrit query.")
+	cmdQuery.Flags.Lookup("log_file").DefValue = defaultLogFilePath
 	cmdQuery.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 }
 
@@ -230,7 +229,7 @@ func checkGerritBaseUrl() (string, error) {
 
 // gerritHostCredential returns credential for the given gerritHost.
 func gerritHostCredential(gerritHost string) (_ credential, e error) {
-	path := netRcFilePathFlag.Get().(string)
+	path := netRcFilePathFlag
 	fdNetRc, err := os.Open(path)
 	if err != nil {
 		return credential{}, fmt.Errorf("Open(%q) failed: %v", path, err)
@@ -272,7 +271,7 @@ func parseNetRcFile(reader io.Reader) (map[string]credential, error) {
 // readLog returns CLs indexed by thier refs stored in the log file.
 func readLog() (clRefMap, error) {
 	results := clRefMap{}
-	path := logFilePathFlag.Get().(string)
+	path := logFilePathFlag
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -294,7 +293,7 @@ func writeLog(ctx *tool.Context, cls clList) (e error) {
 	for _, cl := range cls {
 		results[cl.Reference()] = cl
 	}
-	path := logFilePathFlag.Get().(string)
+	path := logFilePathFlag
 	fd, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		return fmt.Errorf("OpenFile(%q) failed: %v", path, err)
