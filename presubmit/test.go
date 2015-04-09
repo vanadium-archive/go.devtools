@@ -160,7 +160,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		break
 	}
 
-	// Rebuild developer tools and override V23_ROOT/bin.
+	// Rebuild developer tools and override V23_ROOT/devtools/bin.
 	env, errs := rebuildDeveloperTools(ctx, projects, tools, tmpBinDir)
 	if len(errs) > 0 {
 		// Don't fail on errors.
@@ -302,8 +302,9 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error
 	return nil
 }
 
-// rebuildDeveloperTools rebuilds developer tools (e.g. v23, vdl..) in a
-// temporary directory, which is used to replace V23_ROOT/bin in the PATH.
+// rebuildDeveloperTools rebuilds developer tools (e.g. v23, vdl..) in
+// a temporary directory, which is used to replace
+// V23_ROOT/devtools/bin in the PATH.
 func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util.Tools, tmpBinDir string) (map[string]string, []error) {
 	errs := []error{}
 	toolsProject, ok := projects["release.go.x.devtools"]
@@ -324,10 +325,9 @@ func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util
 				errs = append(errs, err)
 			}
 		}
-		// Create a new PATH that replaces V23_ROOT/bin
-		// with the temporary directory in which the tools
-		// were rebuilt.
-		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "bin"), tmpBinDir, -1)
+		// Create a new PATH that replaces V23_ROOT/devtools/bin with the
+		// temporary directory in which the tools were rebuilt.
+		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "devtools", "bin"), tmpBinDir, -1)
 	}
 	return env, errs
 }
