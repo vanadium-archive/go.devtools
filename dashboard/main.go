@@ -21,6 +21,7 @@ import (
 	"strings"
 	"text/template"
 
+	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/testutil"
 	"v.io/x/devtools/internal/tool"
@@ -310,29 +311,9 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 	n := r.Form.Get("n")
-	targetDir := filepath.Join(root, "presubmit", n)
-	if _, err := os.Stat(targetDir); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("Stat() failed: %v", err)
-		}
-		// To avoid interference between concurrent requests, download data to a
-		// tmp dir, and move it to the final location.
-		bucket := bucketFlag + "/v0/presubmit/" + n
-		tmpDir, err := ctx.Run().TempDir(root, "")
-		if err != nil {
-			return err
-		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-		if err := ctx.Run().Command("gsutil", "-m", "-q", "cp", "-r", bucket, tmpDir); err != nil {
-			return err
-		}
-		if err := ctx.Run().Rename(filepath.Join(tmpDir, n), targetDir); err != nil {
-			// If the target directory already exists, it must have been created by
-			// a concurrent request.
-			if !strings.Contains(err.Error(), "directory not empty") {
-				return err
-			}
-		}
+	_, err := cache.StoreGoogleStorageFile(ctx, filepath.Join(root, "presubmit"), bucketFlag+"/v0/presubmit", n)
+	if err != nil {
+		return err
 	}
 
 	params := extractParams(r)
