@@ -6,11 +6,13 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vloggy tool can be used to:
+Command vloggy checks for and injects logging statements into Go source code.
 
-1) ensure that all implementations in <packages> of all exported interfaces
-declared in packages passed to the -interface flag have an appropriate logging
-construct, and 2) automatically inject such logging constructs.
+When checking, it ensures that all implementations in <packages> of all exported
+interfaces declared in packages passed to the -interface flag have an
+appropriate logging construct.
+
+When injecting, it modifies the source code to inject such logging constructs.
 
 LIMITATIONS:
 

@@ -37,20 +37,18 @@ func root() *cmdline.Command {
 
 var cmdRoot = &cmdline.Command{
 	Name:  "go-depcop",
-	Short: "Tool for checking Go dependencies",
+	Short: "checks Go package dependencies against constraints",
 	Long: `
-The go-depcop tool checks if a package imports respects outgoing and
-incoming dependency constraints described in the GO.PACKAGE files.
+Command go-depcop checks Go package dependencies against constraints described
+in GO.PACKAGE files.  Both incoming and outgoing dependencies may be configured,
+and Go "internal" package rules are enforced.
 
-go-depcop also enforces "internal" package rules.
+GO.PACKAGE files are traversed hierarchically, from the deepmost package to
+GOROOT, until a matching rule is found.  If no matching rule is found, the
+default behavior is to allow the dependency, to stay compatible with existing
+packages that do not include dependency rules.
 
-GO.PACKAGE files are traversed hierarchically, from the deepmost
-package to GOROOT, until a matching rule is found.  If no matching
-rule is found, the default behavior is to allow the dependency,
-to stay compatible with existing packages that do not include
-dependency rules.
-
-GO.PACKAGE is a JSON file with a structure along the lines of:
+GO.PACKAGE is a JSON file that looks like this:
    {
      "dependencies": {
        "outgoing": [

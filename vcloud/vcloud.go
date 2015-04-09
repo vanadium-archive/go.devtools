@@ -4,6 +4,7 @@
 
 // The following enables go generate to generate the doc.go file.
 //go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -33,10 +34,10 @@ func main() {
 
 var cmdVCloud = &cmdline.Command{
 	Name:  "vcloud",
-	Short: "Vanadium wrapper over gcloud, to manage GCE resources.",
+	Short: "wrapper over the Google Compute Engine gcloud tool",
 	Long: `
-The vcloud tool is a wrapper over the gcloud GCE resource management tool, to
-simplify common usage scenarios.
+Command vcloud is a wrapper over the Google Compute Engine gcloud tool.  It
+simplifies common usage scenarios and provides some Vanadium-specific support.
 `,
 	Children: []*cmdline.Command{cmdList, cmdCP, cmdNode, cmdCopyAndRun, cmdSH},
 }

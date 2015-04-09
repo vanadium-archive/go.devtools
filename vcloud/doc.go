@@ -6,8 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vcloud tool is a wrapper over the gcloud GCE resource management tool, to
-simplify common usage scenarios.
+Command vcloud is a wrapper over the Google Compute Engine gcloud tool.  It
+simplifies common usage scenarios and provides some Vanadium-specific support.
 
 Usage:
    vcloud <command>

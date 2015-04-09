@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package dashboard is an implementation of a Vanadium dashboard web
-// server.
+// Daemon dashboard implements the Vanadium dashboard web server.
 package main
 
 import (

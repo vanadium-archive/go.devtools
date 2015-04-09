@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The postsubmit tool performs various postsubmit related functions.
+Command postsubmit performs Vanadium postsubmit related functions.
 
 Usage:
    postsubmit [flags] <command>

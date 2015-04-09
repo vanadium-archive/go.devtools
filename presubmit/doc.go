@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The presubmit tool performs various presubmit related functions.
+Command presubmit performs Vanadium presubmit related functions.
 
 Usage:
    presubmit [flags] <command>

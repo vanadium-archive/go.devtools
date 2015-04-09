@@ -83,9 +83,11 @@ func root() *cmdline.Command {
 
 // cmdRoot represents the root of the presubmit tool.
 var cmdRoot = &cmdline.Command{
-	Name:     "presubmit",
-	Short:    "Tool for performing various presubmit related functions",
-	Long:     "The presubmit tool performs various presubmit related functions.",
+	Name:  "presubmit",
+	Short: "performs Vanadium presubmit related functions.",
+	Long: `
+Command presubmit performs Vanadium presubmit related functions.
+`,
 	Children: []*cmdline.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
 }
 

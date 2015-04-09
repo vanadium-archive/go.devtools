@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vmon tool performs various operatios using GCM APIs.
+Command vmon interacts with Google Cloud Monitoring.
 
 Usage:
    vmon [flags] <command>

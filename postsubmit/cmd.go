@@ -58,9 +58,11 @@ func root() *cmdline.Command {
 
 // cmdRoot represents the root of the postsubmit tool.
 var cmdRoot = &cmdline.Command{
-	Name:     "postsubmit",
-	Short:    "Tool for performing various postsubmit related functions",
-	Long:     "The postsubmit tool performs various postsubmit related functions.",
+	Name:  "postsubmit",
+	Short: "performs Vanadium postsubmit related functions",
+	Long: `
+Command postsubmit performs Vanadium postsubmit related functions.
+`,
 	Children: []*cmdline.Command{cmdPoll, cmdVersion},
 }
 
