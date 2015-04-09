@@ -4,6 +4,7 @@
 
 // The following enables go generate to generate the doc.go file.
 //go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -24,9 +25,9 @@ func main() {
 var cmdGoPkg = &cmdline.Command{
 	Run:   runGoPkg,
 	Name:  "gopkg",
-	Short: "Print information about go package(s)",
+	Short: "prints information about go packages",
 	Long: `
-Print information about go package(s).
+Command gopkg prints information about go packages.
 
 Example of printing all top-level information about the vdl package:
   v23 run gopkg v.io/v23/vdl

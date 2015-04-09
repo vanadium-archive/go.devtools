@@ -4,6 +4,7 @@
 
 // The following enables go generate to generate the doc.go file.
 //go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -28,9 +29,12 @@ func main() {
 }
 
 var cmdVJenkins = &cmdline.Command{
-	Name:     "vjenkins",
-	Short:    "Vanadium command-line utility for interacting with Jenkins",
-	Long:     "Vanadium command-line utility for interacting with Jenkins.",
+	Name:  "vjenkins",
+	Short: "Vanadium-specific utilities for interacting with Jenkins",
+	Long: `
+Command vjenkins implements Vanadium-specific utilities for interacting with
+Jenkins.
+`,
 	Children: []*cmdline.Command{cmdNode},
 }
 

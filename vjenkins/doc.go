@@ -6,7 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Vanadium command-line utility for interacting with Jenkins.
+Command vjenkins implements Vanadium-specific utilities for interacting with
+Jenkins.
 
 Usage:
    vjenkins [flags] <command>

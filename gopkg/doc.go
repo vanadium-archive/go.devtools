@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Print information about go package(s).
+Command gopkg prints information about go packages.
 
 Example of printing all top-level information about the vdl package:
   v23 run gopkg v.io/v23/vdl

@@ -6,17 +6,16 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The go-depcop tool checks if a package imports respects outgoing and incoming
-dependency constraints described in the GO.PACKAGE files.
-
-go-depcop also enforces "internal" package rules.
+Command go-depcop checks Go package dependencies against constraints described
+in GO.PACKAGE files.  Both incoming and outgoing dependencies may be configured,
+and Go "internal" package rules are enforced.
 
 GO.PACKAGE files are traversed hierarchically, from the deepmost package to
 GOROOT, until a matching rule is found.  If no matching rule is found, the
 default behavior is to allow the dependency, to stay compatible with existing
 packages that do not include dependency rules.
 
-GO.PACKAGE is a JSON file with a structure along the lines of:
+GO.PACKAGE is a JSON file that looks like this:
    {
      "dependencies": {
        "outgoing": [

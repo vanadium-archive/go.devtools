@@ -40,8 +40,10 @@ func root() *cmdline.Command {
 // cmdRoot represents the root of the vmon tool.
 var cmdRoot = &cmdline.Command{
 	Name:  "vmon",
-	Short: "Tool for interacting with Google Cloud Monitoring (GCM)",
-	Long:  "The vmon tool performs various operatios using GCM APIs.",
+	Short: "interacts with Google Cloud Monitoring",
+	Long: `
+Command vmon interacts with Google Cloud Monitoring.
+`,
 	Children: []*cmdline.Command{
 		cmdMetricDescriptor,
 		cmdCheck,
