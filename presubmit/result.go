@@ -109,6 +109,12 @@ var multiConfigurationJobs = map[string]*axisInfo{
 		hasParts: false,
 		showOS:   true,
 	},
+	"vanadium-bootstrap": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   false,
+	},
 	"vanadium-go-build": &axisInfo{
 		hasArch:  true,
 		hasOS:    true,
