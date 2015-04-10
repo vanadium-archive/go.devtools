@@ -141,13 +141,13 @@ Usage:
 <names> is a list of names identifying nodes to be created.
 
 The vcloud node create flags are:
- -boot_disk_size=500GB
+ -boot-disk-size=500GB
    Size of the machine boot disk.
  -image=ubuntu-14-04
    Image to create the machine from.
- -machine_type=n1-standard-8
+ -machine-type=n1-standard-8
    Machine type to create.
- -setup_script=
+ -setup-script=
    Script to set up the machine.
  -zone=us-central1-f
    Zone to create the machine in.

@@ -96,7 +96,7 @@ The vmon check commands are:
    run         Run the given checks
 
 The vmon check flags are:
- -bin_dir=
+ -bin-dir=
    The path where all binaries are downloaded.
  -ns=/ns.dev.v.io:8101
    The namespace root.

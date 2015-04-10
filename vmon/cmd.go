@@ -27,7 +27,7 @@ func init() {
 	cmdRoot.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
 	cmdRoot.Flags.StringVar(&serviceAccountFlag, "account", "", "The service account used to communicate with GCM.")
 	cmdMetricDescriptorQuery.Flags.StringVar(&queryFilterFlag, "filter", defaultQueryFilter, "The filter used for query. Default to only query custom metrics.")
-	cmdCheck.Flags.StringVar(&binDirFlag, "bin_dir", "", "The path where all binaries are downloaded.")
+	cmdCheck.Flags.StringVar(&binDirFlag, "bin-dir", "", "The path where all binaries are downloaded.")
 	cmdCheck.Flags.StringVar(&blessingsRootFlag, "root", "dev.v.io", "The blessings root.")
 	cmdCheck.Flags.StringVar(&namespaceRootFlag, "ns", "/ns.dev.v.io:8101", "The namespace root.")
 }

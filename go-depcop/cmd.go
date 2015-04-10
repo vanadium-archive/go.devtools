@@ -23,10 +23,10 @@ var (
 
 func init() {
 	cmdCheck.Flags.BoolVar(&recursiveFlag, "r", false, "Check dependencies recursively.")
-	cmdList.Flags.BoolVar(&gorootFlag, "show_goroot", false, "Show packages in goroot.")
-	cmdList.Flags.BoolVar(&prettyFlag, "pretty_print", false, "Make output easy to read, indenting nested dependencies.")
+	cmdList.Flags.BoolVar(&gorootFlag, "show-goroot", false, "Show packages in goroot.")
+	cmdList.Flags.BoolVar(&prettyFlag, "pretty-print", false, "Make output easy to read, indenting nested dependencies.")
 	cmdList.Flags.BoolVar(&transitiveFlag, "transitive", false, "List transitive dependencies.")
-	cmdRoot.Flags.BoolVar(&includeTestsFlag, "include_tests", false, "Include tests in computing dependencies.")
+	cmdRoot.Flags.BoolVar(&includeTestsFlag, "include-tests", false, "Include tests in computing dependencies.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 }
 

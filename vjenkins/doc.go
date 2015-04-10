@@ -50,7 +50,7 @@ Usage:
 <names> is a list of names identifying nodes to be created.
 
 The vjenkins node create flags are:
- -credentials_id=73f76f53-8332-4259-bc08-d6f0b8521a5b
+ -credentials-id=73f76f53-8332-4259-bc08-d6f0b8521a5b
    The credentials ID used to connect the master to the node.
  -description=
    Node description.
