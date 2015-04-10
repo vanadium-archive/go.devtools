@@ -46,7 +46,7 @@ Usage:
    presubmit query [flags]
 
 The presubmit query flags are:
- -log_file=${HOME}/tmp/presubmit_log
+ -log-file=${HOME}/tmp/presubmit_log
    The file that stores the refs from the previous Gerrit query.
  -manifest=
    Name of the project manifest.
@@ -63,9 +63,9 @@ Usage:
    presubmit result [flags]
 
 The presubmit result flags are:
- -build_number=-1
+ -build-number=-1
    The number of the Jenkins build.
- -dashboard_host=https://dashboard.staging.v.io
+ -dashboard-host=https://dashboard.staging.v.io
    The host of the dashboard server.
  -manifest=
    Name of the project manifest.
@@ -84,7 +84,7 @@ Usage:
    presubmit test [flags]
 
 The presubmit test flags are:
- -build_number=-1
+ -build-number=-1
    The number of the Jenkins build.
  -manifest=
    Name of the project manifest.

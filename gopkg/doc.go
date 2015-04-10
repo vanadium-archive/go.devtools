@@ -45,7 +45,7 @@ A '--' argument terminates the list of packages.
 The gopkg flags are:
  -kind=const,var,func,type
    Print information for the specified kinds, in the order listed.
- -name_re=.*
+ -name-re=.*
    Filter out identifier names that don't match this regexp.
  -noheader=false
    Don't print headers.
@@ -55,7 +55,7 @@ The gopkg flags are:
    Don't print type descriptions.
  -test=false
    Load test code (*_test.go) for packages.
- -type_re=.*
+ -type-re=.*
    Filter out type descriptions that don't match this regexp.
 */
 package main

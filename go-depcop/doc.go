@@ -42,7 +42,7 @@ The go-depcop commands are:
 Run "go-depcop help [command]" for command usage.
 
 The go-depcop flags are:
- -include_tests=false
+ -include-tests=false
    Include tests in computing dependencies.
  -v=false
    Print verbose output.
@@ -70,9 +70,9 @@ Usage:
 <packages> is a list of packages
 
 The go-depcop list flags are:
- -pretty_print=false
+ -pretty-print=false
    Make output easy to read, indenting nested dependencies.
- -show_goroot=false
+ -show-goroot=false
    Show packages in goroot.
  -transitive=false
    List transitive dependencies.

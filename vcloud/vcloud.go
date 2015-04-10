@@ -180,11 +180,11 @@ func init() {
 	cmdSH.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
 	cmdCopyAndRun.Flags.BoolVar(&flagFailFast, "failfast", false, "Skip unstarted nodes after the first failing node.")
 	cmdCopyAndRun.Flags.StringVar(&flagOutDir, "outdir", "", "Output directory to store results from each node.")
-	cmdNodeCreate.Flags.StringVar(&flagBootDiskSize, "boot_disk_size", "500GB", "Size of the machine boot disk.")
+	cmdNodeCreate.Flags.StringVar(&flagBootDiskSize, "boot-disk-size", "500GB", "Size of the machine boot disk.")
 	cmdNodeCreate.Flags.StringVar(&flagImage, "image", "ubuntu-14-04", "Image to create the machine from.")
-	cmdNodeCreate.Flags.StringVar(&flagMachineType, "machine_type", "n1-standard-8", "Machine type to create.")
+	cmdNodeCreate.Flags.StringVar(&flagMachineType, "machine-type", "n1-standard-8", "Machine type to create.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to create the machine in.")
-	cmdNodeCreate.Flags.StringVar(&flagSetupScript, "setup_script", "", "Script to set up the machine.")
+	cmdNodeCreate.Flags.StringVar(&flagSetupScript, "setup-script", "", "Script to set up the machine.")
 	cmdNodeDelete.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to delete the machine in.")
 }
 

@@ -35,8 +35,8 @@ var (
 
 func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
-	cmdQuery.Flags.StringVar(&logFilePathFlag, "log_file", os.ExpandEnv(defaultLogFilePath), "The file that stores the refs from the previous Gerrit query.")
-	cmdQuery.Flags.Lookup("log_file").DefValue = defaultLogFilePath
+	cmdQuery.Flags.StringVar(&logFilePathFlag, "log-file", os.ExpandEnv(defaultLogFilePath), "The file that stores the refs from the previous Gerrit query.")
+	cmdQuery.Flags.Lookup("log-file").DefValue = defaultLogFilePath
 	cmdQuery.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 }
 

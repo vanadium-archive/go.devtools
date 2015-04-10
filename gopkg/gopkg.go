@@ -55,8 +55,8 @@ func init() {
 	cmdGoPkg.Flags.BoolVar(&flagNoName, "noname", false, "Don't print identifier names.")
 	cmdGoPkg.Flags.BoolVar(&flagNoType, "notype", false, "Don't print type descriptions.")
 	cmdGoPkg.Flags.Var(&flagKind, "kind", "Print information for the specified kinds, in the order listed.")
-	cmdGoPkg.Flags.StringVar(&flagNameRE, "name_re", ".*", "Filter out identifier names that don't match this regexp.")
-	cmdGoPkg.Flags.StringVar(&flagTypeRE, "type_re", ".*", "Filter out type descriptions that don't match this regexp.")
+	cmdGoPkg.Flags.StringVar(&flagNameRE, "name-re", ".*", "Filter out identifier names that don't match this regexp.")
+	cmdGoPkg.Flags.StringVar(&flagTypeRE, "type-re", ".*", "Filter out type descriptions that don't match this regexp.")
 }
 
 func parseRegexp(expr string) (*regexp.Regexp, error) {
