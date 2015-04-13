@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
-
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
@@ -23,16 +22,12 @@ const (
 	cloudServiceLatencyMetric = "custom.cloudmonitoring.googleapis.com/v/service/latency"
 	nameLabelKey              = "custom.cloudmonitoring.googleapis.com/name"
 	historyDuration           = "1h"
-	bucket                    = "gs://vanadium-oncall/data"
 )
 
 var (
-	colorFlag          bool
-	dryrunFlag         bool
 	keyFileFlag        string
 	projectFlag        string
 	serviceAccountFlag string
-	verboseFlag        bool
 )
 
 type OncallData struct {
@@ -62,28 +57,23 @@ type GCEInstanceData struct {
 }
 
 func init() {
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdRoot.Flags.BoolVar(&dryrunFlag, "n", false, "Show what commands will run, but do not execute them.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdRoot.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's key file.")
-	cmdRoot.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
-	cmdRoot.Flags.StringVar(&serviceAccountFlag, "account", "", "The service account used to communicate with GCM.")
+	cmdCollect.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's key file.")
+	cmdCollect.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
+	cmdCollect.Flags.StringVar(&serviceAccountFlag, "account", "", "The service account used to communicate with GCM.")
 }
 
-// root returns a command that represents the root of the collector tool.
-func root() *cmdline.Command {
-	return cmdRoot
+// cmdCollect represents the 'collect' command of the oncall tool.
+var cmdCollect = &cmdline.Command{
+	Name:  "collect",
+	Short: "Collect data for oncall dashboard",
+	Long: `
+This subcommand collects data from Google Cloud Monitoring and stores the
+processed data to Google Storage.
+`,
+	Run: runCollect,
 }
 
-// cmdRoot represents the root of the collector tool.
-var cmdRoot = &cmdline.Command{
-	Run:   runRoot,
-	Name:  "collector",
-	Short: "Tool for collecting data displayed in oncall dashboard",
-	Long:  "Tool for collecting data displayed in oncall dashboard.",
-}
-
-func runRoot(command *cmdline.Command, _ []string) error {
+func runCollect(command *cmdline.Command, _ []string) error {
 	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
 		Color:   &colorFlag,
 		Verbose: &verboseFlag,

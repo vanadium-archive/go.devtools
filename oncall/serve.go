@@ -15,40 +15,25 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
-const (
-	bucket = "gs://vanadium-oncall/data"
-)
-
 var (
-	cacheFlag   string
-	colorFlag   bool
-	dryrunFlag  bool
-	portFlag    int
-	verboseFlag bool
+	cacheFlag string
+	portFlag  int
 )
 
 func init() {
-	cmdRoot.Flags.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdRoot.Flags.BoolVar(&dryrunFlag, "n", false, "Show what commands will run, but do not execute them.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdRoot.Flags.IntVar(&portFlag, "port", 8000, "Port for the server.")
+	cmdServe.Flags.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
+	cmdServe.Flags.IntVar(&portFlag, "port", 8000, "Port for the server.")
 }
 
-// root returns a command that represents the root of the server tool.
-func root() *cmdline.Command {
-	return cmdRoot
+// cmdServe represents the 'serve' command of the oncall tool.
+var cmdServe = &cmdline.Command{
+	Run:   runServe,
+	Name:  "serve",
+	Short: "Serve oncall dashboard data from Google Storage",
+	Long:  "Serve oncall dashboard data from Google Storage.",
 }
 
-// cmdRoot represents the root of the server tool.
-var cmdRoot = &cmdline.Command{
-	Run:   runRoot,
-	Name:  "server",
-	Short: "A server for serving collected oncall data",
-	Long:  "A server for serving collected oncall data.",
-}
-
-func runRoot(command *cmdline.Command, _ []string) (e error) {
+func runServe(command *cmdline.Command, _ []string) (e error) {
 	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
 		Color:   &colorFlag,
 		Verbose: &verboseFlag,
