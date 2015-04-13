@@ -16,6 +16,7 @@ import (
 // checkFunctions is a map from check names to the corresponding check functions.
 var checkFunctions = map[string]func(*tool.Context) error{
 	"service-latency": checkServiceLatency,
+	"gce-instance":    checkGCEInstances,
 }
 
 // cmdCheck represents the "check" command of the vmon tool.
