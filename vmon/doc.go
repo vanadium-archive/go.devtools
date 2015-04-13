@@ -54,7 +54,8 @@ Usage:
    vmon md create <names>
 
 <names> is a list of metric descriptor names to create. Available:
-service-latency
+gce-instance-cpu, gce-instance-disk, gce-instance-memory, gce-instance-ping,
+gce-instance-tcpconn, service-latency
 
 Vmon Md Delete
 
@@ -64,7 +65,8 @@ Usage:
    vmon md delete <names>
 
 <names> is a list of metric descriptor names to delete. Available:
-service-latency
+gce-instance-cpu, gce-instance-disk, gce-instance-memory, gce-instance-ping,
+gce-instance-tcpconn, service-latency
 
 Vmon Md List
 
@@ -118,7 +120,7 @@ Usage:
    vmon check run <names>
 
 <names> is a list of names identifying the checks to run. Available:
-service-latency
+gce-instance, service-latency
 
 Vmon Help
 
