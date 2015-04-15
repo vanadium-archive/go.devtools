@@ -6,6 +6,10 @@
   ],
   "go-workspaces-new" : [
       "release/go",
+      "release/javascript/core/go",
+      "release/projects/browser/go",
+      "release/projects/chat/clients/shell/go",
+      "release/projects/pipe2browser/go",
       "roadmap/go",
       "third_party/go"
   ],
@@ -15,6 +19,10 @@
   ],
   "vdl-workspaces-new" : [
       "release/go",
+      "release/javascript/core/go",
+      "release/projects/browser/go",
+      "release/projects/chat/clients/shell/go",
+      "release/projects/pipe2browser/go",
       "roadmap/go"
   ],
   "project-tests": {
