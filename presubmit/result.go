@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"v.io/x/devtools/internal/jenkins"
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
@@ -155,7 +155,7 @@ type axisInfo struct {
 }
 
 type testResultInfo struct {
-	Result           testutil.TestResult
+	Result           test.Result
 	TestName         string // This is the test name without the part suffix (vanadium-go-race).
 	Timestamp        int64
 	PostSubmitResult string
@@ -327,13 +327,13 @@ outer:
 
 		buildInfo, err := lastCompletedBuildStatus(ctx, name, axisValues)
 		if err != nil {
-			testutil.Fail(ctx, "%v\n", err)
+			test.Fail(ctx, "%v\n", err)
 			continue
 		}
 		curIdStr := buildInfo.Id
 		curId, err := strconv.Atoi(curIdStr)
 		if err != nil {
-			testutil.Fail(ctx, "Atoi(%v) failed: %v\n", curIdStr, err)
+			test.Fail(ctx, "Atoi(%v) failed: %v\n", curIdStr, err)
 			continue
 		}
 		for i := curId; i >= 0; i-- {
@@ -341,7 +341,7 @@ outer:
 			buildSpec := genBuildSpec(name, resultInfo.AxisValues, fmt.Sprintf("%d", i))
 			curBuildInfo, err := jenkinsObj.BuildInfoForSpec(buildSpec)
 			if err != nil {
-				testutil.Fail(ctx, "%v\n", err)
+				test.Fail(ctx, "%v\n", err)
 				continue outer
 			}
 			if curBuildInfo.Timestamp > timestamp {
@@ -349,7 +349,7 @@ outer:
 			}
 			// "cases" will be empty on error.
 			cases, _ := jenkinsObj.FailedTestCasesForBuildSpec(buildSpec)
-			testutil.Pass(ctx, "Got build status of build %d: %s\n", i, curBuildInfo.Result)
+			test.Pass(ctx, "Got build status of build %d: %s\n", i, curBuildInfo.Result)
 			data[resultInfo.key()] = &postSubmitBuildData{
 				result:          curBuildInfo.Result,
 				failedTestCases: cases,
@@ -448,7 +448,7 @@ func (r *testReporter) reportFailedPresubmitBuild(ctx *tool.Context) bool {
 // It returns whether any merge conflicts are found in the given testResults.
 func (r *testReporter) reportMergeConflicts(ctx *tool.Context) bool {
 	for _, resultInfo := range r.testResults {
-		if resultInfo.Result.Status == testutil.TestFailedMergeConflict {
+		if resultInfo.Result.Status == test.MergeConflict {
 			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.Result.MergeConflictCL)
 			if err := postMessage(ctx, message, r.refs, false); err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
@@ -486,7 +486,7 @@ func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]st
 	for _, resultInfo := range r.testResults {
 		name := resultInfo.TestName
 		result := resultInfo.Result
-		if result.Status == testutil.TestSkipped {
+		if result.Status == test.Skipped {
 			fmt.Fprintf(r.report, "skipped %v\n", name)
 			continue
 		}
@@ -559,7 +559,7 @@ func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *test
 
 	// Get the status of the current presubmit test.
 	curStatus := statusUnknown
-	if result.Status == testutil.TestPassed {
+	if result.Status == test.Passed {
 		curStatus = statusSuccess
 	} else {
 		testFailed = true
@@ -570,8 +570,8 @@ func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *test
 	}
 
 	// Timeout value.
-	if result.Status == testutil.TestTimedOut {
-		timeoutValue := testutil.DefaultTestTimeout
+	if result.Status == test.TimedOut {
+		timeoutValue := test.DefaultTimeout
 		if result.TimeoutValue != 0 {
 			timeoutValue = result.TimeoutValue
 		}

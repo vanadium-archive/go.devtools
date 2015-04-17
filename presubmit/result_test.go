@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"v.io/x/devtools/internal/jenkins"
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 )
 
@@ -47,17 +47,17 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 	`
 	jenkinsBuildNumberFlag = 10
 	ctx := tool.NewDefaultContext()
-	type test struct {
+	type testSpec struct {
 		testResult                testResultInfo
 		postsubmitFailedTestCases []jenkins.TestCase
 		expectedGroups            *failedTestCasesGroups
 		expectedSeenTests         map[string]int
 	}
 
-	tests := []test{
-		test{
+	tests := []testSpec{
+		testSpec{
 			testResult: testResultInfo{
-				Result:   testutil.TestResult{Status: testutil.TestFailed},
+				Result:   test.Result{Status: test.Failed},
 				TestName: "vanadium-go-test",
 				AxisValues: axisValuesInfo{
 					Arch:      "amd64",

@@ -23,7 +23,7 @@ import (
 
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -502,11 +502,11 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 		if err != nil {
 			return nil, err
 		}
-		var r testutil.TestResult
+		var r test.Result
 		if err := json.Unmarshal(bytes, &r); err != nil {
 			return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(bytes), err)
 		}
-		if r.Status != testutil.TestPassed {
+		if r.Status != test.Passed {
 			data.result = false
 		}
 

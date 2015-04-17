@@ -1,8 +1,5 @@
 {
 	"dependencies": {
-		"incoming": [
-			{"deny": "..."}
-		],
 		"outgoing": [
 			{"allow": "v.io/x/lib/..."},
 			{"allow": "v.io/x/devtools/lib/..."},

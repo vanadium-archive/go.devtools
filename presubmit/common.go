@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 )
 
@@ -53,7 +53,7 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 		if err := gerrit.PostReview(ref, message, labels); err != nil {
 			return err
 		}
-		testutil.Pass(ctx, "review posted for %q with labels %v.\n", ref, labels)
+		test.Pass(ctx, "review posted for %q with labels %v.\n", ref, labels)
 	}
 	return nil
 }

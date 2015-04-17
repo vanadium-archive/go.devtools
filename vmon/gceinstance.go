@@ -21,7 +21,7 @@ import (
 
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/monitoring"
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 )
 
@@ -73,10 +73,10 @@ func checkGCEInstances(ctx *tool.Context) error {
 	msg := "Getting instance list\n"
 	instances, err := getInstances(ctx)
 	if err != nil {
-		testutil.Fail(ctx, msg)
+		test.Fail(ctx, msg)
 		return err
 	}
-	testutil.Pass(ctx, msg)
+	test.Pass(ctx, msg)
 
 	if err := invoker(ctx, "Check ping latencies\n", instances, checkPing); err != nil {
 		return err
@@ -95,10 +95,10 @@ func checkGCEInstances(ctx *tool.Context) error {
 
 func invoker(ctx *tool.Context, msg string, instances []*gceInstanceData, fn func(*tool.Context, []*gceInstanceData) error) error {
 	if err := fn(ctx, instances); err != nil {
-		testutil.Fail(ctx, msg)
+		test.Fail(ctx, msg)
 		return err
 	}
-	testutil.Pass(ctx, msg)
+	test.Pass(ctx, msg)
 	return nil
 }
 
@@ -299,7 +299,7 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 			case "gce-instance-tcpconn":
 				value = instance.stat.tcpconn
 			default:
-				testutil.Fail(ctx, msg)
+				test.Fail(ctx, msg)
 				return fmt.Errorf("Invalid metric name: %q", metricName)
 			}
 			// GCM treats 0 and missing value the same.
@@ -307,11 +307,11 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 				continue
 			}
 			if err := sendInstanceDataToGCM(s, metricName, timeStr, instance, value); err != nil {
-				testutil.Fail(ctx, msg)
+				test.Fail(ctx, msg)
 				return fmt.Errorf("failed to add %q to GCM: %v\n", metricName, err)
 			}
 		}
-		testutil.Pass(ctx, msg)
+		test.Pass(ctx, msg)
 	}
 	return nil
 }

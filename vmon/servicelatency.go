@@ -15,7 +15,7 @@ import (
 
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/runutil"
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 )
 
@@ -64,14 +64,14 @@ func checkServiceLatency(ctx *tool.Context) error {
 	hasError := false
 	for _, service := range services {
 		if lat, err := checkSingleService(ctx, service); err != nil {
-			testutil.Fail(ctx, "%s\n", service.name)
+			test.Fail(ctx, "%s\n", service.name)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
 		} else {
 			if lat == timeout {
-				testutil.Warn(ctx, "%s: %s [TIMEOUT]\n", service.name, lat)
+				test.Warn(ctx, "%s: %s [TIMEOUT]\n", service.name, lat)
 			} else {
-				testutil.Pass(ctx, "%s: %s\n", service.name, lat)
+				test.Pass(ctx, "%s: %s\n", service.name, lat)
 			}
 		}
 	}

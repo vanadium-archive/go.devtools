@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
@@ -208,9 +208,9 @@ func startJenkinsTests(ctx *tool.Context, tests []string) error {
 	for _, t := range tests {
 		msg := fmt.Sprintf("add build to %q\n", t)
 		if err := jenkins.AddBuild(t); err == nil {
-			testutil.Pass(ctx, "%s", msg)
+			test.Pass(ctx, "%s", msg)
 		} else {
-			testutil.Fail(ctx, "%s", msg)
+			test.Fail(ctx, "%s", msg)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 		}
 	}

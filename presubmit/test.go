@@ -9,20 +9,28 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/testutil"
+	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
 	"v.io/x/lib/cmdline"
+)
+
+const (
+	// gsPrefix identifies the prefix of a Google Storage location where
+	// the test results are stored.
+	gsPrefix = "gs://vanadium-test-results/v0/"
 )
 
 var (
@@ -169,24 +177,101 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 		}
 	}
 
-	// Run the tests.
+	// Run the tests via "v23 test run" and collect the test results.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
-	prefix := fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("OS"), os.Getenv("ARCH"))
-	opts := []testutil.TestOpt{testutil.ShortOpt(true), testutil.PrefixOpt(prefix)}
-	// If part suffix exists, add partIndex to test opts.
-	if partIndex != -1 {
-		opts = append(opts, testutil.PartOpt(partIndex))
-	}
-
-	if results, err := testutil.RunTests(ctx, env, []string{testName}, opts...); err == nil {
-		result, ok := results[testName]
-		if !ok {
-			return fmt.Errorf("No test result found for %q", testName)
-		}
-		return writeTestStatusFile(ctx, *result, curTimestamp, testName, partIndex)
-	} else {
+	outputDir, err := ctx.Run().TempDir("", "")
+	if err != nil {
 		return err
 	}
+	defer collect.Error(func() error { return ctx.Run().RemoveAll(outputDir) }, &e)
+
+	v23Args := []string{
+		"test", "run",
+		"-output-dir", outputDir,
+	}
+	if partIndex != -1 {
+		v23Args = append(v23Args, "-part", fmt.Sprintf("%d", partIndex))
+	}
+	v23Args = append(v23Args, testName)
+
+	opts := ctx.Run().Opts()
+	opts.Env = env
+	if err := ctx.Run().CommandWithOpts(opts, "v23", v23Args...); err != nil {
+		// Check the error status to differentiate failed test errors.
+		exiterr, ok := err.(*exec.ExitError)
+		if !ok {
+			return err
+		}
+		status, ok := exiterr.Sys().(syscall.WaitStatus)
+		if !ok {
+			return err
+		}
+		if status.ExitStatus() != test.FailedExitCode {
+			return err
+		}
+	}
+	var results map[string]*test.Result
+	resultsFile := filepath.Join(outputDir, "results")
+	bytes, err := ctx.Run().ReadFile(resultsFile)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(bytes, &results); err != nil {
+		return fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(bytes))
+	}
+	result, ok := results[testName]
+	if !ok {
+		return fmt.Errorf("no test result found for %q", testName)
+	}
+
+	// Upload the test results to Google Storage.
+	path := gsPrefix + fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("OS"), os.Getenv("ARCH"))
+	if err := persistTestData(ctx, outputDir, testName, partIndex, path); err != nil {
+		fmt.Fprintf(ctx.Stderr(), "failed to store test results: %v\n", err)
+	}
+
+	return writeTestStatusFile(ctx, *result, curTimestamp, testName, partIndex)
+}
+
+// persistTestData uploads test data to Google Storage.
+func persistTestData(ctx *tool.Context, outputDir string, testName string, partIndex int, path string) error {
+	// Write out a file that records the host configuration.
+	conf := struct {
+		Arch string
+		OS   string
+	}{
+		Arch: runtime.GOARCH,
+		OS:   runtime.GOOS,
+	}
+	bytes, err := json.Marshal(conf)
+	if err != nil {
+		return fmt.Errorf("Marshal(%v) failed: %v", err)
+	}
+	confFile := filepath.Join(outputDir, "conf")
+	if err := ctx.Run().WriteFile(confFile, bytes, os.FileMode(0600)); err != nil {
+		return err
+	}
+	if partIndex == -1 {
+		partIndex = 0
+	}
+	// Upload test data to Google Storage.
+	dstDir := fmt.Sprintf("%s/%s/%d", path, testName, partIndex)
+	args := []string{"-q", "-m", "cp", filepath.Join(outputDir, "*"), dstDir}
+	if err := ctx.Run().Command("gsutil", args...); err != nil {
+		return err
+	}
+	xUnitFile := xunit.ReportPath(testName)
+	if _, err := os.Stat(xUnitFile); err == nil {
+		args := []string{"-q", "cp", xUnitFile, dstDir + "/" + "xunit.xml"}
+		if err := ctx.Run().Command("gsutil", args...); err != nil {
+			return err
+		}
+	} else {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("Stat(%v) failed: %v", xUnitFile, err)
+		}
+	}
+	return nil
 }
 
 // sanityChecks performs basic sanity checks for various flags.
@@ -275,10 +360,10 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 	}
 	for _, cl := range cls {
 		if err := prepareFn(cl); err != nil {
-			testutil.Fail(ctx, "pull changes from %s\n", cl.String())
+			test.Fail(ctx, "pull changes from %s\n", cl.String())
 			return &cl, err
 		}
-		testutil.Pass(ctx, "pull changes from %s\n", cl.String())
+		test.Pass(ctx, "pull changes from %s\n", cl.String())
 	}
 	return nil, nil
 }
@@ -290,8 +375,8 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error
 	if err := xunit.CreateFailureReport(ctx, testName, testName, "MergeConflict", message, message); err != nil {
 		return nil
 	}
-	result := testutil.TestResult{
-		Status:          testutil.TestFailedMergeConflict,
+	result := test.Result{
+		Status:          test.MergeConflict,
 		MergeConflictCL: failedCL.String(),
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest
@@ -365,7 +450,7 @@ func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects util.Projects) 
 // "master" presubmit project for generating final test results message.
 //
 // For more details, see comments in result.go.
-func writeTestStatusFile(ctx *tool.Context, result testutil.TestResult, curTimestamp int64, testName string, partIndex int) error {
+func writeTestStatusFile(ctx *tool.Context, result test.Result, curTimestamp int64, testName string, partIndex int) error {
 	// Get the file path.
 	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("status_%s.json", strings.Replace(testName, "-", "_", -1))
 	statusFilePath := ""
