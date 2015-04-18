@@ -498,13 +498,19 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 		partDir := filepath.Join(jobDir, part)
 
 		// Test result.
-		bytes, err := ctx.Run().ReadFile(filepath.Join(partDir, "result"))
+		bytes, err := ctx.Run().ReadFile(filepath.Join(partDir, "results"))
 		if err != nil {
 			return nil, err
 		}
-		var r test.Result
-		if err := json.Unmarshal(bytes, &r); err != nil {
+		var results map[string]test.Result
+		if err := json.Unmarshal(bytes, &results); err != nil {
 			return nil, fmt.Errorf("Unmarshal(%v) failed: %v", string(bytes), err)
+		}
+		// There should be only one test in the "results" file.
+		var r test.Result
+		for _, curResult := range results {
+			r = curResult
+			break
 		}
 		if r.Status != test.Passed {
 			data.result = false
