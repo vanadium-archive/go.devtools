@@ -37,7 +37,12 @@ var (
 
 const (
 	binariesBucketName = "vanadium-binaries"
+
+	// NoValidSnapshotsExitCode is returned when there are no valid snapshots for the --date-prefix specified.
+	NoValidSnapshotsExitCode = 3
 )
+
+// TODO(suharshs): Add tests that mock out google.Storage.
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -93,7 +98,7 @@ func runList(command *cmdline.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	binaries, err := binarySnapshots(service)
+	binaries, err := binarySnapshots(ctx, service)
 	if err != nil {
 		return err
 	}
@@ -125,7 +130,7 @@ func runDownload(command *cmdline.Command, args []string) error {
 		return err
 	}
 
-	binaries, timestamp, err := latestBinaries(client)
+	binaries, timestamp, err := latestBinaries(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -133,7 +138,7 @@ func runDownload(command *cmdline.Command, args []string) error {
 		outputDirFlag = fmt.Sprintf("./v23_%s_%s_%s", runtime.GOOS, runtime.GOARCH, timestamp)
 	}
 	if err := ctx.Run().MkdirAll(outputDirFlag, 0755); err != nil {
-		return fmt.Errorf("Error while creating directory %s: %s", outputDirFlag, err)
+		return err
 	}
 
 	numBinaries := len(binaries)
@@ -151,9 +156,13 @@ func runDownload(command *cmdline.Command, args []string) error {
 		}
 		if gotError {
 			if err := ctx.Run().RemoveAll(outputDirFlag); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "failed to remove %s: %v", outputDirFlag, err)
+				fmt.Fprintf(ctx.Stderr(), "%v", err)
 			}
 			return fmt.Errorf("operation failed")
+		}
+		// Remove the .done file from the snapshot.
+		if err := ctx.Run().RemoveAll(path.Join(outputDirFlag, ".done")); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -162,12 +171,12 @@ func runDownload(command *cmdline.Command, args []string) error {
 
 // latestBinaries returns the binaries of the latest snapshot whose timestamp
 // matches the datePrefixFlag, along with the matching timestamp.
-func latestBinaries(client *http.Client) ([]string, string, error) {
+func latestBinaries(ctx *tool.Context, client *http.Client) ([]string, string, error) {
 	service, err := storage.New(client)
 	if err != nil {
 		return nil, "", err
 	}
-	timestamp, err := latestTimestamp(client, service)
+	timestamp, err := latestTimestamp(ctx, client, service)
 	if err != nil {
 		return nil, "", err
 	}
@@ -194,9 +203,9 @@ func latestBinaries(client *http.Client) ([]string, string, error) {
 	return ret, timestamp, nil
 }
 
-// latestTimestamp returns the time the latest snapshot within the
+// latestTimestamp returns the time of the latest snapshot within the
 // date-prefix range.
-func latestTimestamp(client *http.Client, service *storage.Service) (string, error) {
+func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Service) (string, error) {
 	// If no datePrefixFlag is provided, we just want to get the latest snapshot.
 	if datePrefixFlag == "" {
 		latestFile := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, "latest")
@@ -207,7 +216,7 @@ func latestTimestamp(client *http.Client, service *storage.Service) (string, err
 		return string(b), nil
 	}
 	// Otherwise, we get the snapshots that match datePrefixFlag and choose the latest.
-	snapshots, err := binarySnapshots(service)
+	snapshots, err := binarySnapshots(ctx, service)
 	if err != nil {
 		return "", err
 	}
@@ -226,20 +235,13 @@ func latestTimestamp(client *http.Client, service *storage.Service) (string, err
 			latestTime = t
 		}
 	}
-	if latest == "" {
-		return "", fmt.Errorf("no binaries exist")
-	}
 	return latest, nil
 }
 
-func binarySnapshots(service *storage.Service) ([]string, error) {
-	// TODO(suharshs,jsimsa): Snapshots have a .done file written to them if they
-	// were completely successful. We need to have this code only display the snapshot
-	// if the .done file is present.
+func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, error) {
 	binaryPrefix := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
-	// We delimit results by the end of the timestamp string so that we don't display
-	// duplicate timestamps for each binary.
-	res, err := service.Objects.List(binariesBucketName).Fields("nextPageToken", "prefixes").Prefix(binaryPrefix).Delimiter(":00/").Do()
+	// We delimit results by the ".done" file to ensure that only successfully completed snapshots are considered.
+	res, err := service.Objects.List(binariesBucketName).Fields("nextPageToken", "prefixes").Prefix(binaryPrefix).Delimiter("/.done").Do()
 	if err != nil {
 		return nil, err
 	}
@@ -252,9 +254,14 @@ func binarySnapshots(service *storage.Service) ([]string, error) {
 		snapshots = append(snapshots, res.Prefixes...)
 	}
 	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("no snapshots found (OS: %s, Arch: %s, Date: %s)", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
+		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
+		return nil, cmdline.ErrExitCode(NoValidSnapshotsExitCode)
 	}
-	return snapshots, nil
+	ret := make([]string, len(snapshots))
+	for i, snapshot := range snapshots {
+		ret[i] = strings.TrimSuffix(snapshot, "/.done")
+	}
+	return ret, nil
 }
 
 func createClient(ctx *tool.Context) (*http.Client, error) {
@@ -281,7 +288,7 @@ func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, e
 		}
 		fileName := filepath.Join(outputDirFlag, path.Base(binaryPath))
 		if err := ctx.Run().WriteFile(fileName, b, 0755); err != nil {
-			return fmt.Errorf("failed to write file: %v", err)
+			return err
 		}
 		return nil
 	}
