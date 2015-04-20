@@ -160,6 +160,7 @@
       "vanadium-js-node-integration",
       "vanadium-js-unit",
       "vanadium-js-vdl",
+      "vanadium-js-vdl-audit",
       "vanadium-js-vom"
     ],
     "projects": [
