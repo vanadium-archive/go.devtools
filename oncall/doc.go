@@ -53,6 +53,8 @@ The oncall serve flags are:
    Directory to use for caching files.
  -port=8000
    Port for the server.
+ -static=
+   Directory to use for serving static files.
 
 Oncall Help
 

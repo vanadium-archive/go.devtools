@@ -16,13 +16,15 @@ import (
 )
 
 var (
-	cacheFlag string
-	portFlag  int
+	cacheFlag     string
+	portFlag      int
+	staticDirFlag string
 )
 
 func init() {
 	cmdServe.Flags.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
 	cmdServe.Flags.IntVar(&portFlag, "port", 8000, "Port for the server.")
+	cmdServe.Flags.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
 }
 
 // cmdServe represents the 'serve' command of the oncall tool.
@@ -55,6 +57,8 @@ func runServe(command *cmdline.Command, _ []string) (e error) {
 		dataHandler(ctx, root, w, r)
 	}
 	http.HandleFunc("/data", handler)
+	staticHandler := http.FileServer(http.Dir(staticDirFlag))
+	http.Handle("/", staticHandler)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), nil); err != nil {
 		return fmt.Errorf("ListenAndServe(%d) failed: %v", portFlag, err)
 	}
