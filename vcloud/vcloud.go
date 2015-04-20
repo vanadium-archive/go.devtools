@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -196,12 +197,6 @@ type nodeInfo struct {
 	InternalIP  string
 	ExternalIP  string
 	Status      string
-}
-
-// Parse parses the next line from r and fills in n.
-func (n *nodeInfo) Parse(r io.Reader) error {
-	_, err := fmt.Fscanln(r, &n.Name, &n.Zone, &n.MachineType, &n.InternalIP, &n.ExternalIP, &n.Status)
-	return err
 }
 
 func (n nodeInfo) String() string {
@@ -576,34 +571,37 @@ func listAll(ctx *tool.Context, dryrun bool) (nodeInfos, error) {
 	opts.DryRun = dryrun
 	opts.Stdin = nil
 	opts.Stdout = &stdout
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "compute", "instances", "list", "--project", *flagProject); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "-q", "compute", "instances", "list", "--project", *flagProject, "--format=json"); err != nil {
 		return nil, err
 	}
 	if ctx.Verbose() {
 		fmt.Fprintln(ctx.Stdout(), stdout.String())
 	}
-	// The first line is the column headings.
-	var head nodeInfo
-	if err := head.Parse(&stdout); err != nil {
-		return nil, err
-	}
-	if got, want := head, infoHeader; got != want {
-		// A mismatch indicates the columns may have been re-organized, and the rest
-		// of our logic operating on each nodeInfo may be incorrect.
-		return nil, fmt.Errorf("got list headers %v, want %v\n", got, want)
-	}
-	// Parse each line until we get to EOF.
-	var all nodeInfos
-ParseLineLoop:
-	for {
-		var node nodeInfo
-		switch err := node.Parse(&stdout); {
-		case err == io.EOF:
-			break ParseLineLoop
-		case err != nil:
-			return nil, err
+	var instances []struct {
+		Name              string
+		Zone              string
+		NetworkInterfaces []struct {
+			AccessConfigs []struct {
+				NatIP string
+			}
+			NetworkIP string
 		}
-		all = append(all, node)
+		MachineType string
+		Status      string
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &instances); err != nil {
+		return nil, fmt.Errorf("Unmarshal() failed: %v", err)
+	}
+	var all nodeInfos
+	for _, instance := range instances {
+		all = append(all, nodeInfo{
+			Name:        instance.Name,
+			Zone:        instance.Zone,
+			MachineType: instance.MachineType,
+			InternalIP:  instance.NetworkInterfaces[0].NetworkIP,
+			ExternalIP:  instance.NetworkInterfaces[0].AccessConfigs[0].NatIP,
+			Status:      instance.Status,
+		})
 	}
 	all.Sort()
 	return all, nil
