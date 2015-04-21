@@ -6,9 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Daily builds of Vanadium binaries are stored in a Google Storage bucket. This
-command facilitates retrieval of these binaries, for instance for the purpose of
-regression testing.
+Command vbinary retrieves daily builds of Vanadium binaries stored in a Google
+Storage bucket.
 
 Usage:
    vbinary [flags] <command>

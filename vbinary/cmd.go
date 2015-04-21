@@ -66,9 +66,9 @@ var cmdRoot = &cmdline.Command{
 	Name:  "vbinary",
 	Short: "Access daily builds of Vanadium binaries",
 	Long: `
-Daily builds of Vanadium binaries are stored in a Google Storage
-bucket. This command facilitates retrieval of these binaries, for
-instance for the purpose of regression testing.
+
+Command vbinary retrieves daily builds of Vanadium binaries stored in
+a Google Storage bucket.
 `,
 	Children: []*cmdline.Command{cmdList, cmdDownload},
 }
@@ -79,8 +79,8 @@ var cmdList = &cmdline.Command{
 	Name:  "list",
 	Short: "List existing daily builds of Vanadium binaries",
 	Long: `
-List existing daily builds of Vanadium binaries. The displayed dates can be
-limited with the --date-prefix flag.
+List existing daily builds of Vanadium binaries. The displayed dates
+can be limited with the --date-prefix flag.
 `,
 }
 
@@ -114,9 +114,11 @@ var cmdDownload = &cmdline.Command{
 	Name:  "download",
 	Short: "Download an existing daily build of Vanadium binaries",
 	Long: `
-Download an existing daily build of Vanadium binaries. The latest snapshot within
-the --date-prefix range will be downloaded. If no --date-prefix flag is provided,
-the overall latest snapshot will be downloaded.`,
+Download an existing daily build of Vanadium binaries. The latest
+snapshot within the --date-prefix range will be downloaded. If no
+--date-prefix flag is provided, the overall latest snapshot will be
+downloaded.
+`,
 }
 
 func runDownload(command *cmdline.Command, args []string) error {
