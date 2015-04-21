@@ -10,6 +10,7 @@
       "third_party"
   ],
   "go-workspaces-new" : [
+      "infrastructure/go",
       "release/go",
       "release/javascript/core/go",
       "release/projects/browser/go",
