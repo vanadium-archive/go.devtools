@@ -15,7 +15,6 @@ The oncall commands are:
    collect     Collect data for oncall dashboard
    serve       Serve oncall dashboard data from Google Storage
    help        Display help for commands or topics
-Run "oncall help [command]" for command usage.
 
 The oncall flags are:
  -color=true
@@ -25,7 +24,7 @@ The oncall flags are:
  -v=false
    Print verbose output.
 
-Oncall Collect
+Oncall collect
 
 This subcommand collects data from Google Cloud Monitoring and stores the
 processed data to Google Storage.
@@ -41,7 +40,7 @@ The oncall collect flags are:
  -project=
    The GCM's corresponding GCE project ID.
 
-Oncall Serve
+Oncall serve
 
 Serve oncall dashboard data from Google Storage.
 
@@ -56,7 +55,7 @@ The oncall serve flags are:
  -static=
    Directory to use for serving static files.
 
-Oncall Help
+Oncall help
 
 Help with no args displays the usage of the parent command.
 
@@ -64,11 +63,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    oncall help [flags] [command/topic ...]
@@ -76,7 +74,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The oncall help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

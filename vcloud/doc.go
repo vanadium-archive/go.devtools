@@ -19,7 +19,6 @@ The vcloud commands are:
    run         Copy file(s) to GCE node(s) and run
    sh          Start a shell or run a command on GCE node(s)
    help        Display help for commands or topics
-Run "vcloud help [command]" for command usage.
 
 The global flags are:
  -color=false
@@ -33,7 +32,7 @@ The global flags are:
  -v=false
    Print verbose output.
 
-Vcloud List
+Vcloud list
 
 List GCE node information.  Runs 'gcloud compute instances list'.
 
@@ -52,7 +51,7 @@ The vcloud list flags are:
  -noheader=false
    Don't print list table header.
 
-Vcloud Cp
+Vcloud cp
 
 Copy files to GCE node(s).  Runs 'gcloud compute copy-files'.  The default is to
 copy to/from all nodes in parallel.
@@ -94,7 +93,7 @@ The vcloud cp flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud Node
+Vcloud node
 
 Manage GCE nodes.
 
@@ -107,7 +106,7 @@ The vcloud node commands are:
    create      Create GCE nodes
    delete      Delete GCE nodes
 
-Vcloud Node Authorize
+Vcloud node authorize
 
 Authorizes a user to login to a GCE node (possibly as other user). For instance,
 this mechanism is used to give Jenkins slave nodes access to the GCE mirror of
@@ -119,7 +118,7 @@ Usage:
 <userA>@<hostA> [<userB>@]<hostB> authorizes userA to log into GCE node hostB
 from GCE node hostA as user userB. The default value for userB is userA.
 
-Vcloud Node Deauthorize
+Vcloud node deauthorize
 
 Deuthorizes a user to login to a GCE node (possibly as other user). For
 instance, this mechanism is used to revoke access of give Jenkins slave nodes to
@@ -131,7 +130,7 @@ Usage:
 <userA>@<hostA> [<userB>@]<hostB> deauthorizes userA to log into GCE node hostB
 from GCE node hostA as user userB. The default value for userB is userA.
 
-Vcloud Node Create
+Vcloud node create
 
 Create GCE nodes. Runs 'gcloud compute instances create'.
 
@@ -152,7 +151,7 @@ The vcloud node create flags are:
  -zone=us-central1-f
    Zone to create the machine in.
 
-Vcloud Node Delete
+Vcloud node delete
 
 Delete GCE nodes. Runs 'gcloud compute instances delete'.
 
@@ -165,7 +164,7 @@ The vcloud node delete flags are:
  -zone=us-central1-f
    Zone to delete the machine in.
 
-Vcloud Run
+Vcloud run
 
 Copy file(s) to GCE node(s) and run.  Uses the logic of both cp and sh.
 
@@ -205,7 +204,7 @@ The vcloud run flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud Sh
+Vcloud sh
 
 Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
 
@@ -240,7 +239,7 @@ The vcloud sh flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud Help
+Vcloud help
 
 Help with no args displays the usage of the parent command.
 
@@ -248,11 +247,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    vcloud help [flags] [command/topic ...]
@@ -260,7 +258,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The vcloud help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

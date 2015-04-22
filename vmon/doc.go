@@ -17,7 +17,6 @@ The vmon commands are:
    check       Manage checks whose results are used in GCM for alerting and
                graphing
    help        Display help for commands or topics
-Run "vmon help [command]" for command usage.
 
 The vmon flags are:
  -account=
@@ -31,7 +30,7 @@ The vmon flags are:
  -v=false
    Print verbose output.
 
-Vmon Md
+Vmon md
 
 Metric descriptor defines the metadata for a custom metric. It includes the
 metric's name, description, a set of labels, and its type. Before adding custom
@@ -46,7 +45,7 @@ The vmon md commands are:
    list        List known custom metric descriptors
    query       Query metric descriptors from GCM using the given filter
 
-Vmon Md Create
+Vmon md create
 
 Create the given metric descriptor in GCM.
 
@@ -57,7 +56,7 @@ Usage:
 gce-instance-cpu, gce-instance-disk, gce-instance-memory, gce-instance-ping,
 gce-instance-tcpconn, service-latency
 
-Vmon Md Delete
+Vmon md delete
 
 Delete the given metric descriptor from GCM.
 
@@ -68,14 +67,14 @@ Usage:
 gce-instance-cpu, gce-instance-disk, gce-instance-memory, gce-instance-ping,
 gce-instance-tcpconn, service-latency
 
-Vmon Md List
+Vmon md list
 
 List known custom metric descriptors.
 
 Usage:
    vmon md list
 
-Vmon Md Query
+Vmon md query
 
 Query metric descriptors from GCM using the given filter.
 
@@ -86,7 +85,7 @@ The vmon md query flags are:
  -filter=custom.cloudmonitoring.googleapis.com
    The filter used for query. Default to only query custom metrics.
 
-Vmon Check
+Vmon check
 
 Manage checks whose results are used in GCM for alerting and graphing.
 
@@ -105,14 +104,14 @@ The vmon check flags are:
  -root=dev.v.io
    The blessings root.
 
-Vmon Check List
+Vmon check list
 
 List known checks.
 
 Usage:
    vmon check list
 
-Vmon Check Run
+Vmon check run
 
 Run the given checks.
 
@@ -122,7 +121,7 @@ Usage:
 <names> is a list of names identifying the checks to run. Available:
 gce-instance, service-latency
 
-Vmon Help
+Vmon help
 
 Help with no args displays the usage of the parent command.
 
@@ -130,11 +129,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    vmon help [flags] [command/topic ...]
@@ -142,7 +140,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The vmon help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

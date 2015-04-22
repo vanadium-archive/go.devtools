@@ -39,7 +39,6 @@ The go-depcop commands are:
    rlist       List incoming package dependencies
    version     Print version
    help        Display help for commands or topics
-Run "go-depcop help [command]" for command usage.
 
 The go-depcop flags are:
  -include-tests=false
@@ -47,7 +46,7 @@ The go-depcop flags are:
  -v=false
    Print verbose output.
 
-Go-Depcop Check
+Go-depcop check
 
 Check package dependency constraints.
 
@@ -60,7 +59,7 @@ The go-depcop check flags are:
  -r=false
    Check dependencies recursively.
 
-Go-Depcop List
+Go-depcop list
 
 List outgoing package dependencies.
 
@@ -77,7 +76,7 @@ The go-depcop list flags are:
  -transitive=false
    List transitive dependencies.
 
-Go-Depcop Rlist
+Go-depcop rlist
 
 List incoming package dependencies.
 
@@ -86,14 +85,14 @@ Usage:
 
 <packages> is a list of packages
 
-Go-Depcop Version
+Go-depcop version
 
 Print version of the go-depcop tool.
 
 Usage:
    go-depcop version
 
-Go-Depcop Help
+Go-depcop help
 
 Help with no args displays the usage of the parent command.
 
@@ -101,11 +100,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    go-depcop help [flags] [command/topic ...]
@@ -113,7 +111,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The go-depcop help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main
