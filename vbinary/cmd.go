@@ -22,6 +22,7 @@ import (
 
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -37,9 +38,6 @@ var (
 
 const (
 	binariesBucketName = "vanadium-binaries"
-
-	// NoValidSnapshotsExitCode is returned when there are no valid snapshots for the --date-prefix specified.
-	NoValidSnapshotsExitCode = 3
 )
 
 // TODO(suharshs): Add tests that mock out google.Storage.
@@ -257,7 +255,7 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 	}
 	if len(snapshots) == 0 {
 		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
-		return nil, cmdline.ErrExitCode(NoValidSnapshotsExitCode)
+		return nil, cmdline.ErrExitCode(util.NoSnapshotExitCode)
 	}
 	ret := make([]string, len(snapshots))
 	for i, snapshot := range snapshots {
