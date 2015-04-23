@@ -31,6 +31,10 @@ func checkServiceCounters(ctx *tool.Context) error {
 			name:       "mounttable nodes",
 			objectName: namespaceRootFlag + "/__debug/stats/mounttable/num-nodes",
 		},
+		prodServiceCounter{
+			name:       "mounttable mounted servers",
+			objectName: namespaceRootFlag + "/__debug/stats/mounttable/num-mounted-servers",
+		},
 	}
 
 	hasError := false
