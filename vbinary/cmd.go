@@ -239,15 +239,18 @@ func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Se
 }
 
 func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, error) {
-	binaryPrefix := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
-	// We delimit results by the ".done" file to ensure that only successfully completed snapshots are considered.
-	res, err := service.Objects.List(binariesBucketName).Fields("nextPageToken", "prefixes").Prefix(binaryPrefix).Delimiter("/.done").Do()
+	filterSnapshots := func(call *storage.ObjectsListCall) (*storage.Objects, error) {
+		binaryPrefix := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
+		// We delimit results by the ".done" file to ensure that only successfully completed snapshots are considered.
+		return call.Fields("nextPageToken", "prefixes").Prefix(binaryPrefix).Delimiter("/.done").Do()
+	}
+	res, err := filterSnapshots(service.Objects.List(binariesBucketName))
 	if err != nil {
 		return nil, err
 	}
 	snapshots := res.Prefixes
 	for res.NextPageToken != "" {
-		res, err = service.Objects.List(binariesBucketName).PageToken(res.NextPageToken).Do()
+		res, err = filterSnapshots(service.Objects.List(binariesBucketName).PageToken(res.NextPageToken))
 		if err != nil {
 			return nil, err
 		}
