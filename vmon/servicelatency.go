@@ -107,6 +107,10 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 	}
 
 	// Add the latency as a custom metric to GCM.
+	serviceLocation := serviceLocationMap[namespaceRootFlag]
+	if serviceLocation == nil {
+		return 0, fmt.Errorf("service location not found for %q", namespaceRootFlag)
+	}
 	mdLat := monitoring.CustomMetricDescriptors["service-latency"]
 	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
 	if err != nil {
@@ -124,7 +128,9 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
 					Metric: mdLat.Name,
 					Labels: map[string]string{
-						mdLat.Labels[0].Key: service.name,
+						mdLat.Labels[0].Key: serviceLocation.instance,
+						mdLat.Labels[1].Key: serviceLocation.zone,
+						mdLat.Labels[2].Key: service.name,
 					},
 				},
 			},

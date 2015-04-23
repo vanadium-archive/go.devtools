@@ -9,6 +9,7 @@ import "v.io/x/lib/cmdline"
 var (
 	binDirFlag         string
 	blessingsRootFlag  string
+	credentialsFlag    string
 	colorFlag          bool
 	keyFileFlag        string
 	namespaceRootFlag  string
@@ -29,7 +30,8 @@ func init() {
 	cmdMetricDescriptorQuery.Flags.StringVar(&queryFilterFlag, "filter", defaultQueryFilter, "The filter used for query. Default to only query custom metrics.")
 	cmdCheck.Flags.StringVar(&binDirFlag, "bin-dir", "", "The path where all binaries are downloaded.")
 	cmdCheck.Flags.StringVar(&blessingsRootFlag, "root", "dev.v.io", "The blessings root.")
-	cmdCheck.Flags.StringVar(&namespaceRootFlag, "ns", "/ns.dev.v.io:8101", "The namespace root.")
+	cmdCheck.Flags.StringVar(&namespaceRootFlag, "v23.namespace.root", "/ns.dev.v.io:8101", "The namespace root.")
+	cmdCheck.Flags.StringVar(&credentialsFlag, "v23.credentials", "", "The path to v23 credentials.")
 }
 
 // root returns a command that represents the root of the vmon tool.

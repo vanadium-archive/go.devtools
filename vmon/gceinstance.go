@@ -46,18 +46,50 @@ echo ${DISK_USAGE} > output_disk_$(hostname)
 
 # Check open TCP connections.
 sudo netstat -anp --tcp | egrep "ESTABLISHED|CLOSE_WAIT|FIN_WAIT1|FIN_WAIT2" | wc -l > output_tcpconn_$(hostname)
+
+# Check nginx
+if [[ "$(hostname)" == nginx* ]]; then
+  # Output is in the form of:
+  #
+  # Active connections: 12
+  # server accepts handled requests
+  #  64028 64028 65047
+  # Reading: 3 Writing: 4 Waiting: 5
+  NGINX_STATS="$(curl -s local-stackdriver-agent.stackdriver.com/nginx_status)"
+
+  # Calculate qps.
+  CUR_TIME_SECONDS="$(date +%s)"
+  CUR_TOTAL_REQS="$(echo "${NGINX_STATS}" | grep '^ ' | awk '{print $3}')"
+  LAST_REQS_INFO_FILE="/tmp/v-last-requests-info"
+  QPS=0
+  if [ -f "${LAST_REQS_INFO_FILE=}" ]; then
+    LAST_TIME_SECONDS="$(cat "${LAST_REQS_INFO_FILE}" | awk '{print $1}')"
+    LAST_TOTAL_REQS="$(cat "${LAST_REQS_INFO_FILE}" | awk '{print $2}')"
+    QPS="$(echo "scale=2; (${CUR_TOTAL_REQS}-${LAST_TOTAL_REQS})/(${CUR_TIME_SECONDS}-${LAST_TIME_SECONDS})" | bc)"
+  fi
+  echo "${CUR_TIME_SECONDS} ${CUR_TOTAL_REQS}" > "${LAST_REQS_INFO_FILE}"
+  echo ${QPS} > output_nginx-qps_$(hostname)
+
+  # Other stats.
+  echo "${NGINX_STATS}" | sed -n 's/^Active connections:\s*\(\d*\)/\1/p' > output_nginx-activeconn_$(hostname)
+  echo "${NGINX_STATS}" | grep Reading | awk '{print $2}' > output_nginx-readingconn_$(hostname)
+  echo "${NGINX_STATS}" | grep Reading | awk '{print $4}' > output_nginx-writingconn_$(hostname)
+  echo "${NGINX_STATS}" | grep Reading | awk '{print $6}' > output_nginx-waitingconn_$(hostname)
+fi
 `
 
 var (
-	pingResultRE = regexp.MustCompile(`(\S*)\s*:.*min/avg/max = [^/]*/([^/]*)/[^/]*`)
-	metricNames  = []string{"gce-instance-cpu", "gce-instance-memory", "gce-instance-disk", "gce-instance-ping", "gce-instance-tcpconn"}
+	pingResultRE     = regexp.MustCompile(`(\S*)\s*:.*min/avg/max = [^/]*/([^/]*)/[^/]*`)
+	gceMetricNames   = []string{"cpu-usage", "memory-usage", "disk-usage", "ping", "tcpconn"}
+	nginxMetricNames = []string{"qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
 )
 
 type gceInstanceData struct {
-	name string
-	zone string
-	ip   string
-	stat *gceInstanceStat
+	name      string
+	zone      string
+	ip        string
+	stat      *gceInstanceStat
+	nginxStat *nginxStat
 }
 
 type gceInstanceStat struct {
@@ -66,6 +98,14 @@ type gceInstanceStat struct {
 	diskUsage   float64
 	pingLatency float64
 	tcpconn     float64
+}
+
+type nginxStat struct {
+	qps                float64
+	activeConnections  float64
+	readingConnections float64
+	writingConnections float64
+	waitingConnections float64
 }
 
 // checkGCEInstances checks all GCE instances in a GCE project.
@@ -142,6 +182,13 @@ func getInstances(ctx *tool.Context) ([]*gceInstanceData, error) {
 					diskUsage:   -1,
 					pingLatency: -1,
 					tcpconn:     -1,
+				},
+				nginxStat: &nginxStat{
+					qps:                -1,
+					activeConnections:  -1,
+					readingConnections: -1,
+					writingConnections: -1,
+					waitingConnections: -1,
 				},
 			})
 		}
@@ -252,6 +299,16 @@ func checkInstanceStats(ctx *tool.Context, instances []*gceInstanceData) (e erro
 				instanceByNode[node].stat.diskUsage = value
 			case "tcpconn":
 				instanceByNode[node].stat.tcpconn = value
+			case "nginx-qps":
+				instanceByNode[node].nginxStat.qps = value
+			case "nginx-activeconn":
+				instanceByNode[node].nginxStat.activeConnections = value
+			case "nginx-readingconn":
+				instanceByNode[node].nginxStat.readingConnections = value
+			case "nginx-writingconn":
+				instanceByNode[node].nginxStat.writingConnections = value
+			case "nginx-waitingconn":
+				instanceByNode[node].nginxStat.waitingConnections = value
 			}
 		}
 		return nil
@@ -284,19 +341,19 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 	}
 	timeStr := time.Now().Format(time.RFC3339)
 	for _, instance := range instances {
-		msg := fmt.Sprintf("Send data for %s (%s)\n", instance.name, instance.zone)
-		for _, metricName := range metricNames {
+		msg := fmt.Sprintf("Send gce instance data for %s (%s)\n", instance.name, instance.zone)
+		for _, metricName := range gceMetricNames {
 			value := -1.0
 			switch metricName {
-			case "gce-instance-cpu":
+			case "cpu-usage":
 				value = instance.stat.cpuUsage
-			case "gce-instance-memory":
+			case "memory-usage":
 				value = instance.stat.memUsage
-			case "gce-instance-disk":
+			case "disk-usage":
 				value = instance.stat.diskUsage
-			case "gce-instance-ping":
+			case "ping":
 				value = instance.stat.pingLatency
-			case "gce-instance-tcpconn":
+			case "tcpconn":
 				value = instance.stat.tcpconn
 			default:
 				test.Fail(ctx, msg)
@@ -306,31 +363,54 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 			if value == 0 {
 				continue
 			}
-			if err := sendInstanceDataToGCM(s, metricName, timeStr, instance, value); err != nil {
+			if err := sendInstanceDataToGCM(s, "gce-instance", metricName, timeStr, instance, value); err != nil {
 				test.Fail(ctx, msg)
 				return fmt.Errorf("failed to add %q to GCM: %v\n", metricName, err)
 			}
 		}
+
+		msg = fmt.Sprintf("Send nginx data for %s (%s)\n", instance.name, instance.zone)
+		for _, metricName := range nginxMetricNames {
+			nginxMetricNames = []string{"qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
+			value := -1.0
+			switch metricName {
+			case "qps":
+				value = instance.nginxStat.qps
+			case "active-connections":
+				value = instance.nginxStat.activeConnections
+			case "reading-connections":
+				value = instance.nginxStat.readingConnections
+			case "writing-connections":
+				value = instance.nginxStat.writingConnections
+			case "waiting-connections":
+				value = instance.nginxStat.waitingConnections
+			default:
+				test.Fail(ctx, msg)
+				return fmt.Errorf("Invalid metric name: %q", metricName)
+			}
+			// GCM treats 0 and missing value the same.
+			if value == 0 {
+				continue
+			}
+			if err := sendInstanceDataToGCM(s, "nginx", metricName, timeStr, instance, value); err != nil {
+				test.Fail(ctx, msg)
+				return fmt.Errorf("failed to add %q to GCM: %v\n", metricName, err)
+			}
+		}
+
 		test.Pass(ctx, msg)
 	}
 	return nil
 }
 
 // sendInstanceDataToGCM sends a single instance's stat to GCM.
-func sendInstanceDataToGCM(s *cloudmonitoring.Service, metricName, timeStr string, instance *gceInstanceData, value float64) error {
+func sendInstanceDataToGCM(s *cloudmonitoring.Service, metricType, metricName, timeStr string, instance *gceInstanceData, value float64) error {
 	pt := cloudmonitoring.Point{
 		DoubleValue: value,
 		Start:       timeStr,
 		End:         timeStr,
 	}
-	if metricName == "gce-instance-tcpconn" {
-		pt = cloudmonitoring.Point{
-			Int64Value: int64(value),
-			Start:      timeStr,
-			End:        timeStr,
-		}
-	}
-	md := monitoring.CustomMetricDescriptors[metricName]
+	md := monitoring.CustomMetricDescriptors[metricType]
 	_, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
 		Timeseries: []*cloudmonitoring.TimeseriesPoint{
 			&cloudmonitoring.TimeseriesPoint{
@@ -340,6 +420,7 @@ func sendInstanceDataToGCM(s *cloudmonitoring.Service, metricName, timeStr strin
 					Labels: map[string]string{
 						md.Labels[0].Key: instance.name,
 						md.Labels[1].Key: instance.zone,
+						md.Labels[2].Key: metricName,
 					},
 				},
 			},

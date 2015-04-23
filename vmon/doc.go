@@ -52,9 +52,8 @@ Create the given metric descriptor in GCM.
 Usage:
    vmon md create <names>
 
-<names> is a list of metric descriptor names to create. Available:
-gce-instance-cpu, gce-instance-disk, gce-instance-memory, gce-instance-ping,
-gce-instance-tcpconn, service-latency
+<names> is a list of metric descriptor names to create. Available: gce-instance,
+nginx, service-counters, service-latency
 
 Vmon md delete
 
@@ -63,9 +62,8 @@ Delete the given metric descriptor from GCM.
 Usage:
    vmon md delete <names>
 
-<names> is a list of metric descriptor names to delete. Available:
-gce-instance-cpu, gce-instance-disk, gce-instance-memory, gce-instance-ping,
-gce-instance-tcpconn, service-latency
+<names> is a list of metric descriptor names to delete. Available: gce-instance,
+nginx, service-counters, service-latency
 
 Vmon md list
 
@@ -99,10 +97,12 @@ The vmon check commands are:
 The vmon check flags are:
  -bin-dir=
    The path where all binaries are downloaded.
- -ns=/ns.dev.v.io:8101
-   The namespace root.
  -root=dev.v.io
    The blessings root.
+ -v23.credentials=
+   The path to v23 credentials.
+ -v23.namespace.root=/ns.dev.v.io:8101
+   The namespace root.
 
 Vmon check list
 
@@ -119,7 +119,7 @@ Usage:
    vmon check run <names>
 
 <names> is a list of names identifying the checks to run. Available:
-gce-instance, service-latency
+gce-instance, service-counters, service-latency
 
 Vmon help
 
