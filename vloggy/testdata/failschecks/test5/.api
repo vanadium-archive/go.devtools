@@ -1,0 +1,2 @@
+pkg test5, method (Type) ReturnsSomething(int) int
+pkg test5, type Type struct

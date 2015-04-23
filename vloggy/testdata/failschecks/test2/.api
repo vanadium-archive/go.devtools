@@ -1,0 +1,9 @@
+pkg test2, method (HalfType2) Method1()
+pkg test2, method (HalfType3) Method1()
+pkg test2, method (HalfType3) Method2(int)
+pkg test2, method (Type1) Method1()
+pkg test2, method (Type1) Method2(int)
+pkg test2, type HalfType2 struct
+pkg test2, type HalfType3 struct
+pkg test2, type HalfType3 struct, embedded HalfType2
+pkg test2, type Type1 struct
