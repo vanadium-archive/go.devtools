@@ -18,6 +18,7 @@ var checkFunctions = map[string]func(*tool.Context) error{
 	"service-latency":  checkServiceLatency,
 	"service-counters": checkServiceCounters,
 	"gce-instance":     checkGCEInstances,
+	"rpc-load-test":    checkRPCLoadTest,
 }
 
 // cmdCheck represents the "check" command of the vmon tool.
