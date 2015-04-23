@@ -1,0 +1,5 @@
+pkg iface, type Interface1 interface { Method1, Method2 }
+pkg iface, type Interface1 interface, Method1()
+pkg iface, type Interface1 interface, Method2(int)
+pkg iface, type ReturnsValueInterface interface { ReturnsSomething }
+pkg iface, type ReturnsValueInterface interface, ReturnsSomething(int) int

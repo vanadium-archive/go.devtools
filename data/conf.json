@@ -1,6 +1,7 @@
 {
   "api-check-required-projects": [
       "release.go.v23",
+      "release.go.x.devtools",
       "release.go.x.lib",
       "release.go.x.ref"
   ],
