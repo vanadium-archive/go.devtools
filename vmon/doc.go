@@ -53,7 +53,7 @@ Usage:
    vmon md create <names>
 
 <names> is a list of metric descriptor names to create. Available: gce-instance,
-nginx, service-counters, service-latency
+nginx, rpc-load-test, service-counters, service-latency
 
 Vmon md delete
 
@@ -63,7 +63,7 @@ Usage:
    vmon md delete <names>
 
 <names> is a list of metric descriptor names to delete. Available: gce-instance,
-nginx, service-counters, service-latency
+nginx, rpc-load-test, service-counters, service-latency
 
 Vmon md list
 
@@ -119,7 +119,7 @@ Usage:
    vmon check run <names>
 
 <names> is a list of names identifying the checks to run. Available:
-gce-instance, service-counters, service-latency
+gce-instance, rpc-load-test, service-counters, service-latency
 
 Vmon help
 
