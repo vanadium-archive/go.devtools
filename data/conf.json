@@ -33,9 +33,6 @@
       "roadmap/go"
   ],
   "project-tests": {
-    "release.go.jni": [
-      "go"
-    ],
     "release.go.v23": [
       "go",
       "javascript",
@@ -78,9 +75,6 @@
     "release.projects.playground": [
       "vanadium-playground-test"
     ],
-    "scripts": [
-      "vanadium-bootstrap"
-    ],
     "third_party": [
       "third_party-go",
       "go",
@@ -88,6 +82,7 @@
       "projects"
     ],
     "www": [
+      "vanadium-bootstrap",
       "vanadium-www-site",
       "vanadium-www-tutorials"
     ]
