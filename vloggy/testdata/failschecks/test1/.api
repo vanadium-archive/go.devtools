@@ -1,3 +1,0 @@
-pkg test1, method (Type1) Method1()
-pkg test1, method (Type1) Method2(int)
-pkg test1, type Type1 struct

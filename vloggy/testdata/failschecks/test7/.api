@@ -1,3 +1,0 @@
-pkg test7, method (*PtrType) Method1()
-pkg test7, method (*PtrType) Method2(int)
-pkg test7, type PtrType struct
