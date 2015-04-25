@@ -20,8 +20,13 @@ import (
 
 const (
 	cloudServiceLatencyMetric = "custom.cloudmonitoring.googleapis.com/v/service/latency"
-	nameLabelKey              = "custom.cloudmonitoring.googleapis.com/name"
+	metricNameLabelKey        = "custom.cloudmonitoring.googleapis.com/metric-name"
 	historyDuration           = "1h"
+	serviceStatusOK           = "serviceStatusOK"
+	serviceStatusWarning      = "serviceStatusWarning"
+	serviceStatusDown         = "serviceStatusDown"
+	warningLatency            = 2000
+	criticalLatency           = 5000
 )
 
 var (
@@ -56,6 +61,25 @@ type GCEInstanceData struct {
 	Status string
 }
 
+type serviceStatusData struct {
+	CollectionTimestamp int64
+	Status              []statusData
+}
+
+type statusData struct {
+	Name           string
+	BuildTimestamp string
+	SnapshotLabel  string
+	CurrentStatus  string
+	Incidents      []incidentData
+}
+
+type incidentData struct {
+	Start    int64
+	Duration int64
+	Status   string
+}
+
 func init() {
 	cmdCollect.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's key file.")
 	cmdCollect.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
@@ -80,10 +104,21 @@ func runCollect(command *cmdline.Command, _ []string) error {
 		DryRun:  &dryrunFlag,
 	})
 
-	oncallData := &OncallData{}
+	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 
-	cloudServicesData, err := collectCloudServicesData(ctx, now)
+	// Collect service status data used in the external dashboard.
+	statusData, err := collectServiceStatusData(ctx, s, now)
+	if err != nil {
+		return err
+	}
+
+	// Collect oncall related data used in the internal oncall dashboard.
+	oncallData := &OncallData{}
+	cloudServicesData, err := collectCloudServicesData(ctx, s, now)
 	if err != nil {
 		return err
 	}
@@ -95,19 +130,99 @@ func runCollect(command *cmdline.Command, _ []string) error {
 	}
 	oncallData.GCEInstances = gceInstancesData
 
-	if err := persistOncallData(ctx, oncallData, now); err != nil {
+	if err := persistOncallData(ctx, statusData, oncallData, now); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func collectCloudServicesData(ctx *tool.Context, now time.Time) (map[string][]CloudServiceData, error) {
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+func collectServiceStatusData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time) (*serviceStatusData, error) {
+	// Collect data for the last 8 days and aggregate data every 10 minutes.
+	resp, err := s.Timeseries.List(projectFlag, cloudServiceLatencyMetric, now.Format(time.RFC3339), &cloudmonitoring.ListTimeseriesRequest{
+		Kind: "cloudmonitoring#listTimeseriesRequest",
+	}).Window("10m").Timespan("8d").Aggregator("max").Do()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("List failed: %v", err)
 	}
 
+	status := []statusData{}
+	for _, t := range resp.Timeseries {
+		curStatusData := statusData{
+			Name:          t.TimeseriesDesc.Labels[metricNameLabelKey],
+			CurrentStatus: statusForLatency(t.Points[0].DoubleValue), // t.Points[0] is the latest
+			// TODO(jingjin): add build timestamp and snapshot label when they are available.
+		}
+		incidents, err := calcIncidents(t.Points)
+		if err != nil {
+			return nil, err
+		}
+		curStatusData.Incidents = incidents
+		status = append(status, curStatusData)
+	}
+	return &serviceStatusData{
+		CollectionTimestamp: now.Unix(),
+		Status:              status,
+	}, nil
+}
+
+func calcIncidents(points []*cloudmonitoring.Point) ([]incidentData, error) {
+	lastStatus := serviceStatusOK
+	incidents := []incidentData{}
+	var curIncident incidentData
+	// "points" are sorted from now to past. To calculate incidents, we iterate
+	// through them backwards.
+	for i := len(points) - 1; i >= 0; i-- {
+		point := points[i]
+		value := point.DoubleValue
+		curStatus := statusForLatency(value)
+		if curStatus != lastStatus {
+			pointTime, err := time.Parse(time.RFC3339, point.Start)
+			if err != nil {
+				return nil, fmt.Errorf("time.Parse(%s) failed: %v", point.Start, err)
+			}
+
+			// Set the duration of the last incident.
+			if curIncident.Status != "" {
+				curIncident.Duration = pointTime.Unix() - curIncident.Start
+				incidents = append(incidents, curIncident)
+				curIncident.Status = ""
+			}
+
+			// At the start of an incident, create a new incidentData object, and
+			// record the incident start time and status.
+			if curStatus != serviceStatusOK {
+				curIncident = incidentData{}
+				curIncident.Start = pointTime.Unix()
+				curIncident.Status = curStatus
+			}
+			lastStatus = curStatus
+		}
+	}
+	// Process the possible last incident.
+	if lastStatus != serviceStatusOK {
+		strLastPointTime := points[0].Start
+		pointTime, err := time.Parse(time.RFC3339, strLastPointTime)
+		if err != nil {
+			return nil, fmt.Errorf("time.Parse(%q) failed: %v", strLastPointTime, err)
+		}
+		curIncident.Duration = pointTime.Unix() - curIncident.Start
+		incidents = append(incidents, curIncident)
+	}
+	return incidents, nil
+}
+
+func statusForLatency(latency float64) string {
+	if latency < warningLatency {
+		return serviceStatusOK
+	}
+	if latency < criticalLatency {
+		return serviceStatusWarning
+	}
+	return serviceStatusDown
+}
+
+func collectCloudServicesData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time) (map[string][]CloudServiceData, error) {
 	// Query data for the cloud service latency metric which will return multiple
 	// time series for different services.
 	resp, err := s.Timeseries.List(projectFlag, cloudServiceLatencyMetric, now.Format(time.RFC3339), &cloudmonitoring.ListTimeseriesRequest{
@@ -119,7 +234,7 @@ func collectCloudServicesData(ctx *tool.Context, now time.Time) (map[string][]Cl
 	cloudServicesData := []CloudServiceData{}
 	for _, t := range resp.Timeseries {
 		cloudServiceData := CloudServiceData{
-			Name: t.TimeseriesDesc.Labels[nameLabelKey],
+			Name: t.TimeseriesDesc.Labels[metricNameLabelKey],
 		}
 		pts := []PointData{}
 		for _, point := range t.Points {
@@ -168,10 +283,15 @@ func collectGCEInstancesData(ctx *tool.Context) (map[string][]GCEInstanceData, e
 	return instancesByZone, nil
 }
 
-func persistOncallData(ctx *tool.Context, oncallData *OncallData, now time.Time) error {
-	// Use timestamp (down to the minute part) as file name.
-	fileName := now.Format("200601021504")
-	bytes, err := json.MarshalIndent(oncallData, "", "  ")
+func persistOncallData(ctx *tool.Context, statusData *serviceStatusData, oncallData *OncallData, now time.Time) error {
+	// Use timestamp (down to the minute part) as the main file name.
+	// We store oncall data and status data separately for efficiency.
+	curTime := now.Format("200601021504")
+	bytesStatus, err := json.MarshalIndent(statusData, "", "  ")
+	if err != nil {
+		return fmt.Errorf("MarshalIndent() failed: %v", err)
+	}
+	bytesOncall, err := json.MarshalIndent(oncallData, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
 	}
@@ -182,12 +302,16 @@ func persistOncallData(ctx *tool.Context, oncallData *OncallData, now time.Time)
 		return err
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
-	oncallDataFile := filepath.Join(tmpDir, fileName)
-	if err := ctx.Run().WriteFile(oncallDataFile, bytes, os.FileMode(0600)); err != nil {
+	statusDataFile := filepath.Join(tmpDir, fmt.Sprintf("%s.status", curTime))
+	if err := ctx.Run().WriteFile(statusDataFile, bytesStatus, os.FileMode(0600)); err != nil {
+		return err
+	}
+	oncallDataFile := filepath.Join(tmpDir, fmt.Sprintf("%s.oncall", curTime))
+	if err := ctx.Run().WriteFile(oncallDataFile, bytesOncall, os.FileMode(0600)); err != nil {
 		return err
 	}
 	latestFile := filepath.Join(tmpDir, "latest")
-	if err := ctx.Run().WriteFile(latestFile, []byte(fileName), os.FileMode(0600)); err != nil {
+	if err := ctx.Run().WriteFile(latestFile, []byte(curTime), os.FileMode(0600)); err != nil {
 		return err
 	}
 
