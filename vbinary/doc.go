@@ -18,6 +18,8 @@ The vbinary commands are:
    help        Display help for commands or topics
 
 The vbinary flags are:
+ -arch=<runtime.GOARCH>
+   Target architecture.  The default is the value of runtime.GOARCH.
  -color=true
    Use color to format output.
  -date-prefix=
@@ -26,6 +28,8 @@ The vbinary flags are:
    Google Developers service account JSON key file.
  -n=false
    Show what commands will run but do not execute them.
+ -os=<runtime.GOOS>
+   Target operating system.  The default is the value of runtime.GOOS.
  -v=false
    Print verbose output.
 
