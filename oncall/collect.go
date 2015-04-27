@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	cloudServiceLatencyMetric = "custom.cloudmonitoring.googleapis.com/v/service/latency"
+	cloudServiceLatencyMetric = "custom.cloudmonitoring.googleapis.com/vanadium/service/latency"
 	metricNameLabelKey        = "custom.cloudmonitoring.googleapis.com/metric-name"
 	historyDuration           = "1h"
 	serviceStatusOK           = "serviceStatusOK"
