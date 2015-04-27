@@ -17,6 +17,7 @@ import (
 var checkFunctions = map[string]func(*tool.Context) error{
 	"service-latency":  checkServiceLatency,
 	"service-counters": checkServiceCounters,
+	"service-qps":      checkAllServiceQPS,
 	"gce-instance":     checkGCEInstances,
 	"rpc-load-test":    checkRPCLoadTest,
 }
