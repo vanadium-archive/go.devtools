@@ -32,6 +32,8 @@ var (
 	dryRunFlag  bool
 	verboseFlag bool
 
+	osFlag         string
+	archFlag       string
 	datePrefixFlag string
 	keyFileFlag    string
 	outputDirFlag  string
@@ -50,6 +52,11 @@ func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
+
+	cmdRoot.Flags.StringVar(&archFlag, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
+	cmdRoot.Flags.Lookup("arch").DefValue = "<runtime.GOARCH>"
+	cmdRoot.Flags.StringVar(&osFlag, "os", runtime.GOOS, "Target operating system.  The default is the value of runtime.GOOS.")
+	cmdRoot.Flags.Lookup("os").DefValue = "<runtime.GOOS>"
 
 	cmdRoot.Flags.StringVar(&keyFileFlag, "key-file", "", "Google Developers service account JSON key file.")
 	cmdRoot.Flags.StringVar(&datePrefixFlag, "date-prefix", "", "Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.")
@@ -137,7 +144,7 @@ func runDownload(command *cmdline.Command, args []string) error {
 		return err
 	}
 	if len(outputDirFlag) == 0 {
-		outputDirFlag = fmt.Sprintf("./v23_%s_%s_%s", runtime.GOOS, runtime.GOARCH, timestamp)
+		outputDirFlag = fmt.Sprintf("./v23_%s_%s_%s", osFlag, archFlag, timestamp)
 	}
 	if err := ctx.Run().MkdirAll(outputDirFlag, 0755); err != nil {
 		return err
@@ -182,7 +189,7 @@ func latestBinaries(ctx *tool.Context, client *http.Client) ([]string, string, e
 	if err != nil {
 		return nil, "", err
 	}
-	binaryPrefix := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, timestamp)
+	binaryPrefix := fmt.Sprintf("%s_%s/%s", osFlag, archFlag, timestamp)
 	res, err := service.Objects.List(binariesBucketName).Fields("nextPageToken", "items/name").Prefix(binaryPrefix).Do()
 	if err != nil {
 		return nil, "", err
@@ -196,7 +203,7 @@ func latestBinaries(ctx *tool.Context, client *http.Client) ([]string, string, e
 		objs = append(objs, res.Items...)
 	}
 	if len(objs) == 0 {
-		return nil, "", fmt.Errorf("no binaries found (OS: %s, Arch: %s, Date: %s)", runtime.GOOS, runtime.GOARCH, timestamp)
+		return nil, "", fmt.Errorf("no binaries found (OS: %s, Arch: %s, Date: %s)", osFlag, archFlag, timestamp)
 	}
 	ret := make([]string, len(objs))
 	for i, obj := range objs {
@@ -210,7 +217,7 @@ func latestBinaries(ctx *tool.Context, client *http.Client) ([]string, string, e
 func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Service) (string, error) {
 	// If no datePrefixFlag is provided, we just want to get the latest snapshot.
 	if datePrefixFlag == "" {
-		latestFile := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, "latest")
+		latestFile := fmt.Sprintf("%s_%s/%s", osFlag, archFlag, "latest")
 		b, err := downloadFileBytes(client, latestFile)
 		if err != nil {
 			return "", err
@@ -242,7 +249,7 @@ func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Se
 
 func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, error) {
 	filterSnapshots := func(call *storage.ObjectsListCall) (*storage.Objects, error) {
-		binaryPrefix := fmt.Sprintf("%s_%s/%s", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
+		binaryPrefix := fmt.Sprintf("%s_%s/%s", osFlag, archFlag, datePrefixFlag)
 		// We delimit results by the ".done" file to ensure that only successfully completed snapshots are considered.
 		return call.Fields("nextPageToken", "prefixes").Prefix(binaryPrefix).Delimiter("/.done").Do()
 	}
@@ -259,7 +266,7 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 		snapshots = append(snapshots, res.Prefixes...)
 	}
 	if len(snapshots) == 0 {
-		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", runtime.GOOS, runtime.GOARCH, datePrefixFlag)
+		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", osFlag, archFlag, datePrefixFlag)
 		return nil, cmdline.ErrExitCode(util.NoSnapshotExitCode)
 	}
 	ret := make([]string, len(snapshots))
