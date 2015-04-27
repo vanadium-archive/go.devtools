@@ -125,7 +125,7 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 	if serviceLocation == nil {
 		return fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
-	mdQPSPerMethod := monitoring.CustomMetricDescriptors["service-rpc-qps-permethod"]
+	mdQPSPerMethod := monitoring.CustomMetricDescriptors["service-qps-method"]
 	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
 	if err != nil {
 		return err
@@ -158,7 +158,7 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 	}
 
 	// Send total QPS to GCM.
-	mdQPSTotal := monitoring.CustomMetricDescriptors["service-rpc-qps-total"]
+	mdQPSTotal := monitoring.CustomMetricDescriptors["service-qps-total"]
 	_, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
 		Timeseries: []*cloudmonitoring.TimeseriesPoint{
 			&cloudmonitoring.TimeseriesPoint{
