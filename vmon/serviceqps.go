@@ -99,7 +99,6 @@ func getQPSData(ctx *tool.Context, info qpsInfo) (map[string]float64, float64, e
 	totalQPS := 0.0
 	lines := strings.Split(buf.String(), "\n")
 	for _, line := range lines {
-		fmt.Println(line)
 		// Each line is in the form of:
 		// <root>/__debug/stats/rpc/server/routing-id/<routing-id>/methods/<method>/latency-ms/delta1m: Count: 10  Min: 38  Max: 43  Avg: 39.30
 		matches := qpsRE.FindStringSubmatch(line)
@@ -132,6 +131,9 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 	}
 	timeStr := time.Now().Format(time.RFC3339)
 	for method, qps := range qpsPerMethod {
+		if qps == 0 {
+			continue
+		}
 		_, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
 			Timeseries: []*cloudmonitoring.TimeseriesPoint{
 				&cloudmonitoring.TimeseriesPoint{
@@ -158,28 +160,30 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 	}
 
 	// Send total QPS to GCM.
-	mdQPSTotal := monitoring.CustomMetricDescriptors["service-qps-total"]
-	_, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-		Timeseries: []*cloudmonitoring.TimeseriesPoint{
-			&cloudmonitoring.TimeseriesPoint{
-				Point: &cloudmonitoring.Point{
-					DoubleValue: totalQPS,
-					Start:       timeStr,
-					End:         timeStr,
-				},
-				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-					Metric: mdQPSTotal.Name,
-					Labels: map[string]string{
-						mdQPSTotal.Labels[0].Key: serviceLocation.instance,
-						mdQPSTotal.Labels[1].Key: serviceLocation.zone,
-						mdQPSTotal.Labels[2].Key: info.name,
+	if totalQPS != 0 {
+		mdQPSTotal := monitoring.CustomMetricDescriptors["service-qps-total"]
+		_, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
+			Timeseries: []*cloudmonitoring.TimeseriesPoint{
+				&cloudmonitoring.TimeseriesPoint{
+					Point: &cloudmonitoring.Point{
+						DoubleValue: totalQPS,
+						Start:       timeStr,
+						End:         timeStr,
+					},
+					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
+						Metric: mdQPSTotal.Name,
+						Labels: map[string]string{
+							mdQPSTotal.Labels[0].Key: serviceLocation.instance,
+							mdQPSTotal.Labels[1].Key: serviceLocation.zone,
+							mdQPSTotal.Labels[2].Key: info.name,
+						},
 					},
 				},
 			},
-		},
-	}).Do()
-	if err != nil {
-		return fmt.Errorf("Timeseries Write failed: %v", err)
+		}).Do()
+		if err != nil {
+			return fmt.Errorf("Timeseries Write failed: %v", err)
+		}
 	}
 
 	return nil
