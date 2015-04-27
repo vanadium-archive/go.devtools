@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -38,6 +39,7 @@ var (
 
 const (
 	binariesBucketName = "vanadium-binaries"
+	gceUser            = "veyron"
 )
 
 // TODO(suharshs): Add tests that mock out google.Storage.
@@ -268,7 +270,11 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 }
 
 func createClient(ctx *tool.Context) (*http.Client, error) {
-	oauthHttpClient := &http.Client{}
+	if os.Getenv("USER") == gceUser {
+		// We're on GCE, use the metadata server to get a token.
+		return oauth2.NewClient(oauth2.NoContext, google.ComputeTokenSource("")), nil
+	}
+
 	if len(keyFileFlag) > 0 {
 		data, err := ctx.Run().ReadFile(keyFileFlag)
 		if err != nil {
@@ -278,9 +284,10 @@ func createClient(ctx *tool.Context) (*http.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create JWT config file: %v", err)
 		}
-		oauthHttpClient = conf.Client(oauth2.NoContext)
+		return conf.Client(oauth2.NoContext), nil
 	}
-	return oauthHttpClient, nil
+
+	return &http.Client{}, nil
 }
 
 func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, errChan chan<- error) {
