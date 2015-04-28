@@ -298,9 +298,11 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
+	f := false
 	ctx := tool.NewContext(tool.ContextOpts{
-		Stdout: &buf,
-		Stderr: &buf,
+		Stdout:  &buf,
+		Stderr:  &buf,
+		Verbose: &f,
 	})
 	sender := clsSender{
 		clLists: clLists,
