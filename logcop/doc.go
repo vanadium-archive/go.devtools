@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Command vloggy checks for and injects logging statements into Go source code.
+Command logcop checks for and injects logging statements into Go source code.
 
 When checking, it ensures that all implementations in <packages> of all exported
 interfaces declared in packages passed to the -interface flag have an
@@ -16,20 +16,20 @@ When injecting, it modifies the source code to inject such logging constructs.
 
 LIMITATIONS:
 
-vloggy requires the "v.io/x/lib/vlog" to be imported as "vlog".  Aliasing the
-log package to another name makes vloggy ignore the calls.  Importing any other
+logcop requires the "v.io/x/lib/vlog" to be imported as "vlog".  Aliasing the
+log package to another name makes logcop ignore the calls.  Importing any other
 package with the name "vlog" will invoke undefined behavior.
 
 Usage:
-   vloggy [flags] <command>
+   logcop [flags] <command>
 
-The vloggy commands are:
+The logcop commands are:
    check       Check for log statements in public API implementations
    inject      Inject log statements in public API implementations
    version     Print version
    help        Display help for commands or topics
 
-The vloggy flags are:
+The logcop flags are:
  -color=true
    Use color to format output.
  -n=false
@@ -39,44 +39,44 @@ The vloggy flags are:
  -v=false
    Print verbose output.
 
-Vloggy check
+Logcop check
 
 Check for log statements in public API implementations.
 
 Usage:
-   vloggy check [flags] <packages>
+   logcop check [flags] <packages>
 
 <packages> is the list of packages to be checked.
 
-The vloggy check flags are:
+The logcop check flags are:
  -interface=
    Comma-separated list of interface packages (required)
 
-Vloggy inject
+Logcop inject
 
 Inject log statements in public API implementations. Note that inject modifies
 <packages> in-place.  It is a good idea to commit changes to version control
 before running this tool so you can see the diff or revert the changes.
 
 Usage:
-   vloggy inject [flags] <packages>
+   logcop inject [flags] <packages>
 
 <packages> is the list of packages to inject log statements in.
 
-The vloggy inject flags are:
+The logcop inject flags are:
  -gofmt=true
    Automatically run gofmt on the modified files
  -interface=
    Comma-separated list of interface packages (required)
 
-Vloggy version
+Logcop version
 
-Print version of the vloggy tool.
+Print version of the logcop tool.
 
 Usage:
-   vloggy version
+   logcop version
 
-Vloggy help
+Logcop help
 
 Help with no args displays the usage of the parent command.
 
@@ -90,11 +90,11 @@ back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
 the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
-   vloggy help [flags] [command/topic ...]
+   logcop help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The vloggy help flags are:
+The logcop help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

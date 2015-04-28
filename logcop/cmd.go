@@ -31,17 +31,17 @@ func init() {
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 }
 
-// root returns a command that represents the root of the vloggy tool.
+// root returns a command that represents the root of the logcop tool.
 func root() *cmdline.Command {
 	return cmdRoot
 }
 
 var cmdRoot = &cmdline.Command{
-	Name:  "vloggy",
+	Name:  "logcop",
 	Short: "Tool for checking and injecting log statements in code",
 	Long: `
 
-Command vloggy checks for and injects logging statements into Go source code.
+Command logcop checks for and injects logging statements into Go source code.
 
 When checking, it ensures that all implementations in <packages> of all exported
 interfaces declared in packages passed to the -interface flag have an
@@ -51,16 +51,16 @@ When injecting, it modifies the source code to inject such logging constructs.
 
 LIMITATIONS:
 
-vloggy requires the ` + logPackageQuotedImportPath + ` to be
+logcop requires the ` + logPackageQuotedImportPath + ` to be
 imported as "` + logPackageIdentifier + `".  Aliasing the log package
-to another name makes vloggy ignore the calls.  Importing any
+to another name makes logcop ignore the calls.  Importing any
 other package with the name "` + logPackageIdentifier + `" will
 invoke undefined behavior.
 `,
 	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdVersion},
 }
 
-// cmdCheck represents the 'check' command of the vloggy tool.
+// cmdCheck represents the 'check' command of the logcop tool.
 var cmdCheck = &cmdline.Command{
 	Run:      runCheck,
 	Name:     "check",
@@ -106,7 +106,7 @@ func runCheck(command *cmdline.Command, args []string) error {
 	return executeInjector(ctx, interfacePackageList, implementationPackageList, true)
 }
 
-// cmdInject represents the 'inject' command of the vloggy tool.
+// cmdInject represents the 'inject' command of the logcop tool.
 var cmdInject = &cmdline.Command{
 	Run:   runInject,
 	Name:  "inject",
@@ -131,16 +131,16 @@ func runInject(command *cmdline.Command, args []string) error {
 	return executeInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 
-// cmdVersion represents the 'version' command of the vloggy tool.
+// cmdVersion represents the 'version' command of the logcop tool.
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
 	Short: "Print version",
-	Long:  "Print version of the vloggy tool.",
+	Long:  "Print version of the logcop tool.",
 }
 
 func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "vloggy tool version %v\n", tool.Version)
+	fmt.Fprintf(command.Stdout(), "logcop tool version %v\n", tool.Version)
 	return nil
 }
 

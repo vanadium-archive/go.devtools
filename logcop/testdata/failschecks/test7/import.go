@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package test1
+package test7
 
-import _ "v.io/x/devtools/vloggy/testdata/iface"
+import _ "v.io/x/devtools/logcop/testdata/iface"
