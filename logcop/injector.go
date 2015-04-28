@@ -42,17 +42,25 @@ const (
 // gcOrSourceImportert will use gcimporter to attempt to import from
 // a .a file, but if one doesn't exist it will import from source code.
 func gcOrSourceImporter(ctx *tool.Context, fset *token.FileSet, imports map[string]*types.Package, path string) (*types.Package, error) {
+	// gcimporter can only handle .a files and if there is no .a file it will
+	// return without checking the contents of imports.
 	if p, err := gcimporter.Import(imports, path); err == nil {
 		return p, err
+	}
+	// need to import and update imports ourselves for source files.
+	_, id := gcimporter.FindPkg(path, "")
+	if pkg := imports[id]; pkg != nil {
+		return pkg, nil
 	}
 	if progressFlag {
 		fmt.Fprintf(ctx.Stdout(), "importing from source: %s\n", path)
 	}
 	bpkg, err := build.Default.Import(path, ".", build.ImportMode(build.ImportComment))
-	_, pkg, err := parseAndTypeCheckPackage(ctx, fset, bpkg)
+	_, pkg, err := parseAndTypeCheckPackage(ctx, fset, imports, bpkg)
 	if err != nil {
 		return nil, err
 	}
+	imports[id] = pkg
 	return pkg, err
 }
 
@@ -95,9 +103,10 @@ func importPkgs(ctx *tool.Context, interfaces, implementations []string) (ifcs, 
 }
 
 // parseAndTypeCheckPackage will parse and type check a given package.
-func parseAndTypeCheckPackage(ctx *tool.Context, fset *token.FileSet, bpkg *build.Package) ([]*ast.File, *types.Package, error) {
+func parseAndTypeCheckPackage(ctx *tool.Context, fset *token.FileSet, imports map[string]*types.Package, bpkg *build.Package) ([]*ast.File, *types.Package, error) {
 
 	config := &types.Config{}
+	config.Packages = imports
 	config.Import = func(imports map[string]*types.Package, path string) (*types.Package, error) {
 		return gcOrSourceImporter(ctx, fset, imports, path)
 	}
@@ -159,8 +168,9 @@ func run(ctx *tool.Context, interfaceList, implementationList []string, checkOnl
 	// positions are relative to fset
 	fset := token.NewFileSet()
 	checkFailed := []string{}
+	imports := make(map[string]*types.Package)
 	for _, impl := range impls {
-		asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, impl)
+		asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, imports, impl)
 		if err != nil {
 			return fmt.Errorf("failed to parse+type check: %s: %s", impl.ImportPath, err)
 		}
