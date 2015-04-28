@@ -79,7 +79,7 @@ func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.
 		}
 	}
 
-	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucket, ts)
+	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucket, ts+".oncall")
 	if err != nil {
 		respondWithError(ctx, err, w)
 		return
@@ -89,7 +89,6 @@ func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.
 		respondWithError(ctx, err, w)
 		return
 	}
-	w.Header().Set("Cache-control", "public, max-age=2592000")
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(bytes)
 }
