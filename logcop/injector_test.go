@@ -75,7 +75,7 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 	fset := token.NewFileSet() // positions are relative to fset
 
 	impl := impls[0]
-	asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, impl)
+	asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, nil, impl)
 	if err != nil {
 		t.Fatal(err)
 	}
