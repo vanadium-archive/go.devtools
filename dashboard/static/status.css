@@ -111,21 +111,21 @@ div.service-history-item {
   cursor: pointer;
 }
 
-div.service-history-item.service-warning {
+div.service-history-item.serviceStatusWarning {
   background-color: #FF6E40;
   opacity: 0.7;
 }
 
-div.service-history-item.service-warning:hover {
+div.service-history-item.serviceStatusWarning:hover {
   opacity: 1;
 }
 
-div.service-history-item.service-down {
+div.service-history-item.serviceStatusDown {
   background-color: #AA0000;
   opacity: 0.7;
 }
 
-div.service-history-item.service-down:hover {
+div.service-history-item.serviceStatusDown:hover {
   opacity: 1;
 }
 
