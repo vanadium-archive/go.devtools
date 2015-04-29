@@ -156,6 +156,7 @@ func getInstances(ctx *tool.Context) ([]*gceInstanceData, error) {
 	var instances []struct {
 		Name              string
 		Zone              string
+		Status            string
 		NetworkInterfaces []struct {
 			AccessConfigs []struct {
 				NatIP string
@@ -167,6 +168,9 @@ func getInstances(ctx *tool.Context) ([]*gceInstanceData, error) {
 	}
 	filteredInstances := []*gceInstanceData{}
 	for _, instance := range instances {
+		if instance.Status != "RUNNING" {
+			continue
+		}
 		name := instance.Name
 		// We only collect data for the machines that are running vanadium services
 		// and nginx servers.
