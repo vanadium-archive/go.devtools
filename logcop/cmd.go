@@ -19,12 +19,16 @@ var (
 	gofmtFlag      bool
 	dryRunFlag     bool
 	colorFlag      bool
+	diffOnlyFlag   bool
 )
 
 func init() {
-	cmdCheck.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required)")
-	cmdInject.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required)")
-	cmdInject.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files")
+	cmdCheck.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required).")
+	cmdInject.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required).")
+	cmdInject.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files.")
+	cmdInject.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
+	cmdRemove.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files.")
+	cmdRemove.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
@@ -57,7 +61,7 @@ to another name makes logcop ignore the calls.  Importing any
 other package with the name "` + logPackageIdentifier + `" will
 invoke undefined behavior.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
 }
 
 // cmdCheck represents the 'check' command of the logcop tool.
@@ -103,7 +107,7 @@ func runCheck(command *cmdline.Command, args []string) error {
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
 	})
-	return executeInjector(ctx, interfacePackageList, implementationPackageList, true)
+	return runInjector(ctx, interfacePackageList, implementationPackageList, true)
 }
 
 // cmdInject represents the 'inject' command of the logcop tool.
@@ -128,7 +132,31 @@ func runInject(command *cmdline.Command, args []string) error {
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
 	})
-	return executeInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
+	return runInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
+}
+
+// cmdRemove represents the 'remove' command of the logcop tool.
+var cmdRemove = &cmdline.Command{
+	Run:   runRemove,
+	Name:  "remove",
+	Short: "Remove log statements in public API implementations",
+	Long: `Remove log statements in public API implementations.
+Note that remove modifies <packages> in-place.  It is a good idea
+to commit changes to version control before running this tool so
+you can see the diff or revert the changes.
+`,
+	ArgsName: "<packages>",
+	ArgsLong: "<packages> is the list of packages to remove log statements from.",
+}
+
+// runRemove handles the "remove" command.
+func runRemove(command *cmdline.Command, args []string) error {
+	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+		Color:   &colorFlag,
+		DryRun:  &dryRunFlag,
+		Verbose: &verboseFlag,
+	})
+	return runRemover(ctx, args)
 }
 
 // cmdVersion represents the 'version' command of the logcop tool.
@@ -142,9 +170,4 @@ var cmdVersion = &cmdline.Command{
 func runVersion(command *cmdline.Command, _ []string) error {
 	fmt.Fprintf(command.Stdout(), "logcop tool version %v\n", tool.Version)
 	return nil
-}
-
-// executeInjector creates a new LogInjector instance and runs it.
-func executeInjector(ctx *tool.Context, interfacePackageList, implementationPackageList []string, checkOnly bool) error {
-	return run(ctx, interfacePackageList, implementationPackageList, checkOnly)
 }

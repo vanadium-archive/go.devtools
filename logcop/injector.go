@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 
+	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/tool"
 )
@@ -151,7 +152,7 @@ func newStringSet(values []string) map[string]struct{} {
 }
 
 // run runs the log injector.
-func run(ctx *tool.Context, interfaceList, implementationList []string, checkOnly bool) error {
+func runInjector(ctx *tool.Context, interfaceList, implementationList []string, checkOnly bool) error {
 	// use 'go list' and the builder to import all of the packages
 	// specified as interfaces and implementations.
 	ifcs, impls, err := importPkgs(ctx, interfaceList, implementationList)
@@ -206,6 +207,37 @@ func run(ctx *tool.Context, interfaceList, implementationList []string, checkOnl
 		os.Exit(1)
 	}
 
+	return nil
+}
+
+func runRemover(ctx *tool.Context, implementationList []string) error {
+	// use 'go list' and the builder to import all of the packages
+	// specified as implementations.
+	_, impls, err := importPkgs(ctx, []string{}, implementationList)
+	if err != nil {
+		return err
+	}
+
+	if progressFlag {
+		printHeader(ctx.Stdout(), "Package Summary")
+		fmt.Fprintf(ctx.Stdout(), "%v expands to %d implementation packages\n", implementationList, len(impls))
+	}
+
+	// positions are relative to fset
+	fset := token.NewFileSet()
+	imports := make(map[string]*types.Package)
+	for _, impl := range impls {
+		asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, imports, impl)
+		if err != nil {
+			return fmt.Errorf("failed to parse+type check: %s: %s", impl.ImportPath, err)
+		}
+		methods := findMethods(ctx, fset, tpkg)
+		methodPositions := functionDeclarationsAtPositions(asts, methods)
+		needsRemoval := findRemovals(methodPositions)
+		if err := remove(ctx, fset, needsRemoval); err != nil {
+			return fmt.Errorf("removal failed for: %s: %s", impl.ImportPath, err)
+		}
+	}
 	return nil
 }
 
@@ -298,8 +330,7 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 				// the interfaces we care about. No need to log that.
 				if _, ok := apiMethodSet[fn.Name()]; ok {
 					if fn.Pos() == 0 {
-						// TODO(cnicolaou): figure out where these functions
-						// with no pos information come from.
+						// Embedded functions show up with a zero pos.
 						continue
 					}
 					if progressFlag {
@@ -313,9 +344,36 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 	return positions
 }
 
+func findMethodsInScope(ctx *tool.Context, fset *token.FileSet, positions map[token.Pos]struct{}, msetCache types.MethodSetCache, scope *types.Scope) {
+	for _, child := range scope.Names() {
+		object := scope.Lookup(child)
+		typ := object.Type()
+
+		switch v := typ.(type) {
+		case *types.Named:
+			for i := 0; i < v.NumMethods(); i++ {
+				m := v.Method(i)
+				positions[m.Pos()] = exists
+			}
+		case *types.Signature:
+			positions[object.Pos()] = exists
+		}
+	}
+}
+
+func findMethods(ctx *tool.Context, fset *token.FileSet, tpkg *types.Package) map[token.Pos]struct{} {
+	positions := map[token.Pos]struct{}{}
+	printHeader(ctx.Stdout(), "Methods in %s", tpkg.Path())
+	msetCache := types.MethodSetCache{}
+	scope := tpkg.Scope()
+	findMethodsInScope(ctx, fset, positions, msetCache, scope)
+	return positions
+}
+
 type patch struct {
-	Offset int
-	Text   string
+	Offset     int
+	Text       string
+	NextOffset int
 }
 
 type patchSorter []patch
@@ -411,6 +469,16 @@ func methodBeginsWithNoLogComment(m funcDeclRef) bool {
 	return false
 }
 
+func findRemovals(methods []funcDeclRef) map[funcDeclRef]error {
+	result := map[funcDeclRef]error{}
+	for _, m := range methods {
+		if err := validateLogStatement(m.Decl); err == nil {
+			result[m] = nil
+		}
+	}
+	return result
+}
+
 // checkMethods checks all items in methods and returns the subset
 // of them that do not have valid log statements.
 func checkMethods(methods []funcDeclRef) map[funcDeclRef]error {
@@ -440,6 +508,78 @@ func gofmt(ctx *tool.Context, files []string) error {
 	return ctx.Run().Command("gofmt", append([]string{"-w"}, files...)...)
 }
 
+// writeFiles writes out files modified by the patch sets supplied to it.
+func writeFiles(ctx *tool.Context, fset *token.FileSet, files map[*ast.File][]patch) (e error) {
+	filesToFormat := []string{}
+	for file, patches := range files {
+		filename := fset.Position(file.Pos()).Filename
+		filesToFormat = append(filesToFormat, filename)
+		sort.Sort(patchSorter(patches))
+		src, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		beginOffset := 0
+		patchedSrc := []byte{}
+		for _, patch := range patches {
+			patchedSrc = append(patchedSrc, src[beginOffset:patch.Offset]...)
+			patchedSrc = append(patchedSrc, patch.Text...)
+			beginOffset = patch.NextOffset
+		}
+		patchedSrc = append(patchedSrc, src[beginOffset:]...)
+		if diffOnlyFlag {
+			tmpDir, err := ctx.Run().TempDir("", "")
+			if err != nil {
+				return err
+			}
+			tmpFilename := filepath.Join(tmpDir, "logcop-"+filepath.Base(filename))
+			defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
+			if err := ctx.Run().WriteFile(tmpFilename, patchedSrc, os.FileMode(0644)); err != nil {
+				return err
+			}
+			if progressFlag {
+				fmt.Printf("Diffing %s with %s\n", filename, tmpFilename)
+			}
+			verbose := false
+			nctx := ctx.Clone(tool.ContextOpts{Verbose: &verbose})
+			gofmt(nctx, []string{tmpFilename})
+			nctx.Run().Command("diff", filename, tmpFilename)
+		} else {
+			ctx.Run().WriteFile(filename, patchedSrc, 644)
+		}
+	}
+	if diffOnlyFlag {
+		return nil
+	}
+	return gofmt(ctx, filesToFormat)
+}
+
+// remove removes a log call at the beginning of each method in methods.
+func remove(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
+	files := map[*ast.File][]patch{}
+	comments := map[*ast.File]ast.CommentMap{}
+	for fdRef, _ := range methods {
+		file := fdRef.File
+		if _, present := comments[file]; !present {
+			comments[fdRef.File] = ast.NewCommentMap(fset, file, file.Comments)
+		}
+	}
+
+	for m, _ := range methods {
+		file := m.File
+		stmts := m.Decl.Body.List
+		if len(stmts) == 0 {
+			return fmt.Errorf("no statements found for %s", m.Decl.Name)
+		}
+		// The first statement should be the vlog call we want to remove.
+		start := fset.Position(stmts[0].Pos()).Offset
+		end := fset.Position(stmts[0].End() + 1).Offset
+		delta := patch{Offset: start, NextOffset: end}
+		files[file] = append(files[file], delta)
+	}
+	return writeFiles(ctx, fset, files)
+}
+
 // inject injects a log call at the beginning of each method in methods.
 func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
 	// Warn the user for methods that already have something at
@@ -456,7 +596,11 @@ func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 
 	files := map[*ast.File][]patch{}
 	for m, _ := range methods {
-		delta := patch{Offset: fset.Position(m.Decl.Body.Lbrace).Offset + 1, Text: "\ndefer vlog.LogCall()(); "}
+		delta := patch{
+			Offset: fset.Position(m.Decl.Body.Lbrace).Offset + 1,
+			Text:   "\ndefer vlog.LogCall()(); ",
+		}
+		delta.NextOffset = delta.Offset
 		file := m.File
 		files[file] = append(files[file], delta)
 	}
@@ -466,28 +610,7 @@ func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 			files[file] = append(deltas, delta)
 		}
 	}
-
-	filesToFormat := []string{}
-	for file, patches := range files {
-		filename := fset.Position(file.Pos()).Filename
-		filesToFormat = append(filesToFormat, filename)
-		sort.Sort(patchSorter(patches))
-		src, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return err
-		}
-		beginOffset := 0
-		patchedSrc := []byte{}
-		for _, patch := range patches {
-			patchedSrc = append(patchedSrc, src[beginOffset:patch.Offset]...)
-			patchedSrc = append(patchedSrc, patch.Text...)
-			beginOffset = patch.Offset
-		}
-		patchedSrc = append(patchedSrc, src[beginOffset:]...)
-		ctx.Run().WriteFile(filename, patchedSrc, 644)
-	}
-
-	return gofmt(ctx, filesToFormat)
+	return writeFiles(ctx, fset, files)
 }
 
 // reportResults prints out the validation results from checkMethods

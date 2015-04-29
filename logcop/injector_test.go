@@ -5,11 +5,14 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"go/build"
 	"go/token"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"v.io/x/devtools/internal/tool"
@@ -37,6 +40,41 @@ func TestInvalidPackages(t *testing.T) {
 		if len(methods) == 0 {
 			t.Fatalf("Test package %q passes log checks but it should not", pkg)
 		}
+	}
+}
+
+func TestRemove(t *testing.T) {
+	stdout := bytes.NewBuffer(nil)
+	ctx := tool.NewDefaultContext()
+	ctx = ctx.Clone(tool.ContextOpts{Stdout: stdout})
+	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
+		t.Fatal(err)
+	}
+	pkg := path.Join(testPackagePrefix, "passeschecks")
+
+	diffOnlyFlag = true
+	if err := runRemover(ctx, []string{pkg}); err != nil {
+		t.Fatal(err)
+	}
+	const numLinesRemoved = 6
+	if got, want := strings.Count(stdout.String(), "<"), numLinesRemoved; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	scanner := bufio.NewScanner(bytes.NewBufferString(stdout.String()))
+	found := 0
+	for scanner.Scan() {
+		if !strings.HasPrefix(scanner.Text(), "<") {
+			continue
+		}
+		s := strings.TrimLeft(scanner.Text(), "< \t")
+		if !strings.HasPrefix(s, "defer vlog.LogCall") {
+			t.Errorf("unexpected line: %q (%q)", scanner.Text(), s)
+		} else {
+			found++
+		}
+	}
+	if got, want := found, numLinesRemoved; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 

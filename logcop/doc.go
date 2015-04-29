@@ -26,6 +26,7 @@ Usage:
 The logcop commands are:
    check       Check for log statements in public API implementations
    inject      Inject log statements in public API implementations
+   remove      Remove log statements in public API implementations
    version     Print version
    help        Display help for commands or topics
 
@@ -50,7 +51,7 @@ Usage:
 
 The logcop check flags are:
  -interface=
-   Comma-separated list of interface packages (required)
+   Comma-separated list of interface packages (required).
 
 Logcop inject
 
@@ -64,10 +65,29 @@ Usage:
 <packages> is the list of packages to inject log statements in.
 
 The logcop inject flags are:
+ -diff-only=false
+   Show changes that would be made without actually making them.
  -gofmt=true
-   Automatically run gofmt on the modified files
+   Automatically run gofmt on the modified files.
  -interface=
-   Comma-separated list of interface packages (required)
+   Comma-separated list of interface packages (required).
+
+Logcop remove
+
+Remove log statements in public API implementations. Note that remove modifies
+<packages> in-place.  It is a good idea to commit changes to version control
+before running this tool so you can see the diff or revert the changes.
+
+Usage:
+   logcop remove [flags] <packages>
+
+<packages> is the list of packages to remove log statements from.
+
+The logcop remove flags are:
+ -diff-only=false
+   Show changes that would be made without actually making them.
+ -gofmt=true
+   Automatically run gofmt on the modified files.
 
 Logcop version
 
