@@ -1,0 +1,170 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+body {
+  margin: 0px;
+  font-family: Roboto;
+  -webkit-font-smoothing: antialiased;
+}
+
+div.header {
+  background-color: #00838F;
+  box-shadow: rgba(0, 0, 0, 0.20) 0px 2px 4px 0px;
+  width: 100%;
+  line-height: 48px;
+}
+
+div.header div.title {
+  font-size: 18px;
+  color: white;
+  width: 16em;
+  padding-left: 20px;
+}
+
+div.main-container {
+  display: flex;
+  display: -webkit-flex;
+  justify-content: center;
+  -webkit-justify-content: center;
+  margin-top: 100px;
+}
+
+div.header-row {
+  display: flex;
+  display: -webkit-flex;
+}
+
+div.header-row div.header-current {
+  width: 226px;
+  margin-right: 2px;
+  font-size: 12px;
+  color: #888;
+  text-align: right;
+}
+
+div.header-row div.header-history {
+  flex-grow: 1;
+  position: relative;
+  height: 12px;
+}
+
+div.day-label {
+  width: 40px;
+  font-size: 12px;
+  position: absolute;
+  color: #888;
+}
+
+div.service-header {
+  text-align: right;
+  font-size: 14px;
+  width: 180px;
+  padding: 6px 0px;
+  margin-right: 6px;
+}
+
+div.service-name {
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #607D8B;
+  font-weight: 500;
+}
+
+div.service-buildts {
+  font-size: 9px;
+  color: #888;
+  line-height: 11px;
+}
+
+div.service-snapshot {
+  font-size: 9px;
+  color: #888;
+  line-height: 11px;
+}
+
+div.service-row {
+  display: flex;
+  display: -webkit-flex;
+  height: 60px;
+}
+
+div.service-history {
+  background-color: #E6F3F4;
+  margin: 7px 0px 5px 0px;
+  height: 40px;
+  position: relative;
+}
+
+div.day-divider {
+  position: absolute;
+  width: 1px;
+  height: 40px;
+  background-color: white;
+}
+
+div.service-history-item {
+  top: 0px;
+  height: 40px;
+  width: 5px;
+  position: absolute;
+  cursor: pointer;
+}
+
+div.service-history-item.service-warning {
+  background-color: #FF6E40;
+  opacity: 0.7;
+}
+
+div.service-history-item.service-warning:hover {
+  opacity: 1;
+}
+
+div.service-history-item.service-down {
+  background-color: #AA0000;
+  opacity: 0.7;
+}
+
+div.service-history-item.service-down:hover {
+  opacity: 1;
+}
+
+div.service-cur-status {
+  margin: 7px 0px 5px 0px;
+  height: 40px;
+  width: 40px;
+  margin-right: 2px;
+}
+
+div.service-cur-status.serviceStatusOK {
+  background-image: url("/static/checkmark.svg");
+  background-size: 14px 14px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #00838F;
+}
+
+div.service-cur-status.serviceStatusWarning {
+  background-image: url("/static/warning.svg");
+  background-size: 14px 14px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #FF6E40;
+}
+
+div.service-cur-status.serviceStatusDown {
+  background-image: url("/static/cross.svg");
+  background-size: 12px 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #AA0000;
+}
+
+div#incident-details {
+  top: 0px;
+  left: 0px;
+  position: absolute;
+  color: #888;
+  font-size: 10px;
+  display: none;
+}
