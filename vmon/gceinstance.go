@@ -365,7 +365,7 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 			}
 			// GCM treats 0 and missing value the same.
 			if value == 0 {
-				continue
+				value = 0.0001
 			}
 			if err := sendInstanceDataToGCM(s, "gce-instance", metricName, timeStr, instance, value); err != nil {
 				test.Fail(ctx, msg)
@@ -394,7 +394,7 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 			}
 			// GCM treats 0 and missing value the same.
 			if value == 0 {
-				continue
+				value = 0.0001
 			}
 			if err := sendInstanceDataToGCM(s, "nginx", metricName, timeStr, instance, value); err != nil {
 				test.Fail(ctx, msg)
