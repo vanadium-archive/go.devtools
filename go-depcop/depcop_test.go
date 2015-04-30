@@ -6,133 +6,161 @@ package main
 
 import (
 	"go/build"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
-func init() {
-	ctx.BuildTags = []string{"testpackage"}
+func allow(expr string) importRule   { return importRule{false, expr} }
+func deny(expr string) importRule    { return importRule{true, expr} }
+func pkg(path string) *build.Package { return &build.Package{ImportPath: path} }
+func pkgGoroot(path string) *build.Package {
+	p := pkg(path)
+	p.Goroot = true
+	return p
 }
 
-func TestEnforceDependencyRulesOnPackage(t *testing.T) {
-	var dependencyRuleTests = []dependencyRuleTest{
-		{dependencyPolicy{
-			Outgoing: []dependencyRule{
-				{false, "v23/..."},
-				{true, "..."},
-			},
-		}, []dependencyRuleTestCase{
-			{true, &build.Package{ImportPath: "google/test"}, rejectedPolicyAction, 1},
-			{true, &build.Package{ImportPath: "v23/test"}, approvedPolicyAction, 0},
-			{true, &build.Package{ImportPath: "fmt", Goroot: true}, undecidedPolicyAction, 0xc0de},
-			{false, &build.Package{ImportPath: "cool-v23-app"}, undecidedPolicyAction, 0xcafe},
-			{false, &build.Package{ImportPath: "v23/testing"}, undecidedPolicyAction, 42},
-			{false, &build.Package{ImportPath: "google/testing"}, undecidedPolicyAction, 0},
-		}},
-		{dependencyPolicy{
-			Outgoing: []dependencyRule{
-				dependencyRule{true, "syscall"},
-			},
-		}, []dependencyRuleTestCase{
-			{true, &build.Package{ImportPath: "syscall"}, rejectedPolicyAction, 0},
-			{true, &build.Package{ImportPath: "fmt", Goroot: true}, undecidedPolicyAction, -1},
-		}},
-	}
+func TestEnforceImportRule(t *testing.T) {
+	tests := []struct {
+		rule   importRule
+		pkg    *build.Package
+		result importResult
+	}{
+		{deny("..."), pkg("foo"), rejectedResult},
+		{deny("..."), pkgGoroot("foo"), undecidedResult},
+		{allow("..."), pkg("foo"), approvedResult},
+		{allow("..."), pkgGoroot("foo"), undecidedResult},
 
-	for _, test := range dependencyRuleTests {
-		for _, tc := range test.testCases {
-			action, index, err := enforceDependencyRulesOnPackage(test.policy.ruleSet(tc.outgoing), tc.pkg)
-			if err != nil {
-				t.Fatal("error enforcing dependency:", err)
-			}
-			if action != tc.action || (action != undecidedPolicyAction && index != tc.index) {
-				t.Fatalf("failed to %s %q on rule %d; actual: %s on rule %d", tc.action, tc.pkg.ImportPath, tc.index, action, index)
-			}
+		{deny("foo"), pkg("foo"), rejectedResult},
+		{deny("foo"), pkg("foo/a"), undecidedResult},
+		{deny("foo"), pkg("bar"), undecidedResult},
+		{allow("foo"), pkg("foo"), approvedResult},
+		{allow("foo"), pkg("foo/a"), undecidedResult},
+		{allow("foo"), pkg("bar"), undecidedResult},
+
+		{deny("foo/..."), pkg("foo"), rejectedResult},
+		{deny("foo/..."), pkg("foo/a"), rejectedResult},
+		{deny("foo/..."), pkg("foo/a/b/c"), rejectedResult},
+		{deny("foo/..."), pkg("bar"), undecidedResult},
+		{deny("foo/..."), pkg("bar/foo"), undecidedResult},
+		{allow("foo/..."), pkg("foo"), approvedResult},
+		{allow("foo/..."), pkg("foo/a"), approvedResult},
+		{allow("foo/..."), pkg("foo/a/b/c"), approvedResult},
+		{allow("foo/..."), pkg("bar"), undecidedResult},
+		{allow("foo/..."), pkg("bar/foo"), undecidedResult},
+	}
+	for _, test := range tests {
+		result, err := test.rule.enforce(test.pkg)
+		if err != nil {
+			t.Errorf("%v %s failed: %v", test.rule, test.pkg.ImportPath, err)
+		}
+		if got, want := result, test.result; got != want {
+			t.Errorf("%v %s got %v, want %v", test.rule, test.pkg.ImportPath, got, want)
 		}
 	}
 }
 
-type dependencyRuleTestCase struct {
-	outgoing bool
-	pkg      *build.Package
-	action   dependencyPolicyAction
-	index    int
-}
-type dependencyRuleTest struct {
-	policy    dependencyPolicy
-	testCases []dependencyRuleTestCase
-}
-
-func TestVerifyDependency(t *testing.T) {
-	var packageTests = []packageTest{
-		{"v.io/x/devtools/go-depcop/testdata/test-a", false},
-		{"v.io/x/devtools/go-depcop/testdata/test-b", true},
-		{"v.io/x/devtools/go-depcop/testdata/test-c", true},
-		{"v.io/x/devtools/go-depcop/testdata/test-c/child", false},
-		{"v.io/x/devtools/go-depcop/testdata/import-C", false},
-		{"v.io/x/devtools/go-depcop/testdata/import-unsafe", false},
-		{"v.io/x/devtools/go-depcop/testdata/test-internal", false},
-		{"v.io/x/devtools/go-depcop/testdata/test-internal/child", false},
-		{"v.io/x/devtools/go-depcop/testdata/test-internal/internal/child", false},
-		{"v.io/x/devtools/go-depcop/testdata/test-internal-fail", true},
+func TestVerifyGo15InternalRule(t *testing.T) {
+	tests := []struct {
+		src, dst string
+		want     bool
+	}{
+		{"foo", "bar", true},
+		// Anything rooted at "a/b/c" is allowed.
+		{"a/b/c", "a/b/c/internal", true},
+		{"a/b/c/X", "a/b/c/internal", true},
+		{"a/b/c/X/Y", "a/b/c/internal", true},
+		{"a/b/c", "a/b/c/internal/d/e/f", true},
+		{"a/b/c/X", "a/b/c/internal/d/e/f", true},
+		{"a/b/c/X/Y", "a/b/c/internal/d/e/f", true},
+		// Things not rooted at "a/b/c" are rejected.
+		{"a", "a/b/c/internal", false},
+		{"z", "a/b/c/internal", false},
+		{"a/b", "a/b/c/internal", false},
+		{"a/b/X", "a/b/c/internal", false},
+		{"a/b/X/Y", "a/b/c/internal", false},
+		{"a/b/ccc", "a/b/c/internal", false},
+		{"a", "a/b/c/internal/d/e/f", false},
+		{"z", "a/b/c/internal/d/e/f", false},
+		{"a/b", "a/b/c/internal/d/e/f", false},
+		{"a/b/X", "a/b/c/internal/d/e/f", false},
+		{"a/b/X/Y", "a/b/c/internal/d/e/f", false},
+		{"a/b/ccc", "a/b/c/internal/d/e/f", false},
+		// The path component must be "internal".
+		{"a", "a/b/c/intern", true},
+		{"z", "a/b/c/intern", true},
+		{"a/b", "a/b/c/intern", true},
+		{"a/b/X", "a/b/c/intern", true},
+		{"a/b/X/Y", "a/b/c/intern", true},
+		{"a/b/ccc", "a/b/c/intern", true},
+		{"a", "a/b/c/internalZ/d/e/f", true},
+		{"z", "a/b/c/internalZ/d/e/f", true},
+		{"a/b", "a/b/c/internalZ/d/e/f", true},
+		{"a/b/X", "a/b/c/internalZ/d/e/f", true},
+		{"a/b/X/Y", "a/b/c/internalZ/d/e/f", true},
+		{"a/b/ccc", "a/b/c/internalZ/d/e/f", true},
+		// Multiple internal, anything rooted at "a/b/c/internal/d/e/f" is allowed.
+		{"a/b/c/internal/d/e/f", "a/b/c/internal/d/e/f/internal", true},
+		{"a/b/c/internal/d/e/f/X", "a/b/c/internal/d/e/f/internal", true},
+		{"a/b/c/internal/d/e/f/X/Y", "a/b/c/internal/d/e/f/internal", true},
+		{"a/b/c/internal/d/e/f", "a/b/c/internal/d/e/f/internal/g/h/i", true},
+		{"a/b/c/internal/d/e/f/X", "a/b/c/internal/d/e/f/internal/g/h/i", true},
+		{"a/b/c/internal/d/e/f/X/Y", "a/b/c/internal/d/e/f/internal/g/h/i", true},
+		// Multiple internal, things not rooted at "a/b/c/internal/d/e/f" are rejected.
+		{"a/b/c", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/X", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/X/Y", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/internal", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/internal/d", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/internal/d/e", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/internal/d/e/X", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/internal/d/e/X/Y", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c/internal/d/e/fff", "a/b/c/internal/d/e/f/internal", false},
+		{"a/b/c", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/X", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/X/Y", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/internal", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/internal/d", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/internal/d/e", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/internal/d/e/X", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/internal/d/e/X/Y", "a/b/c/internal/d/e/f/internal/g/h/i", false},
+		{"a/b/c/internal/d/e/fff", "a/b/c/internal/d/e/f/internal/g/h/i", false},
 	}
+	for _, test := range tests {
+		got, want := verifyGo15InternalRule(test.src, test.dst), test.want
+		if got != want {
+			t.Errorf("%v failed", test)
+		}
+	}
+}
 
-	for _, test := range packageTests {
+func TestCheckImports(t *testing.T) {
+	tests := []struct {
+		name string
+		pass bool
+	}{
+		{"v.io/x/devtools/go-depcop/testdata/test-a", true},
+		{"v.io/x/devtools/go-depcop/testdata/test-b", false},
+		{"v.io/x/devtools/go-depcop/testdata/test-c", false},
+		{"v.io/x/devtools/go-depcop/testdata/test-c/child", true},
+		{"v.io/x/devtools/go-depcop/testdata/import-C", true},
+		{"v.io/x/devtools/go-depcop/testdata/import-unsafe", true},
+		{"v.io/x/devtools/go-depcop/testdata/test-internal", true},
+		{"v.io/x/devtools/go-depcop/testdata/test-internal/child", true},
+		{"v.io/x/devtools/go-depcop/testdata/test-internal/internal/child", true},
+		{"v.io/x/devtools/go-depcop/testdata/test-internal-fail", false},
+	}
+	for _, test := range tests {
 		p, err := importPackage(test.name)
 		if err != nil {
-			t.Fatal("error loading package:", err)
+			t.Errorf("%s error loading package: %v", test, err)
+			continue
 		}
-
-		v, err := verifyDependencyHierarchy(p, map[*build.Package]bool{}, nil, false)
+		v, err := checkImports(p)
 		if err != nil {
-			t.Fatal("error:", err)
+			t.Errorf("%s failed: %v", test, err)
+			continue
 		}
-
-		if test.fail && len(v) == 0 {
-			t.Fatalf("%q was expected to fail dependency check but did not", test.name)
-		} else if !test.fail && len(v) > 0 {
-			t.Fatalf("%q was expected to pass dependency check but did not: %v", test.name, v)
-		}
-	}
-}
-
-type packageTest struct {
-	name string
-	fail bool
-}
-
-func (a dependencyPolicyAction) string() string {
-	return []string{"ignore", "approve", "reject"}[int(a)]
-}
-
-func (policy *dependencyPolicy) ruleSet(outgoing bool) []dependencyRule {
-	if outgoing {
-		return policy.Outgoing
-	}
-	return policy.Incoming
-}
-
-func TestComputeIncomingDependency(t *testing.T) {
-	root := os.Getenv("V23_ROOT")
-	if root == "" {
-		t.Fatalf("V23_ROOT not set")
-	}
-	oldPath := os.Getenv("GOPATH")
-	defer os.Setenv("GOPATH", oldPath)
-	if err := os.Setenv("GOPATH", filepath.Join(root, "release", "go")); err != nil {
-		t.Fatalf("Setenv(%v, %v) failed: %v", "GOPATH", filepath.Join(root, "release", "go"))
-	}
-	allDeps, err := computeIncomingDependencies()
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-	this, that := "v.io/x/devtools/internal/tool", "v.io/x/devtools/go-depcop"
-	if deps, ok := allDeps[this]; !ok {
-		t.Fatalf("no incoming dependencies for %v", this)
-	} else {
-		if _, ok := deps[that]; !ok {
-			t.Fatalf("missing incoming dependency for %v -> %v", that, this)
+		if got, want := test.pass, len(v) == 0; got != want {
+			t.Errorf("%s didn't %s as expected", test.name, map[bool]string{true: "pass", false: "fail"}[test.pass])
 		}
 	}
 }

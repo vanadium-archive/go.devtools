@@ -1,7 +1,5 @@
 {
-	"dependencies": {
-		"outgoing": [
-			{"deny": "syscall"}
-		]
-	}
+	"imports": [
+		{"deny": "syscall"}
+	]
 }

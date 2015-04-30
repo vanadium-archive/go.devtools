@@ -5,10 +5,7 @@
 package main
 
 import (
-	"fmt"
-	_ "v.io/x/devtools/go-depcop/testdata/test-b"
+	_ "v.io/x/devtools/go-depcop/testdata/test-a"
 )
 
-func main() {
-	fmt.Println("C")
-}
+func main() {}

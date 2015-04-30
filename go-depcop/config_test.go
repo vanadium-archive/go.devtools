@@ -10,75 +10,107 @@ import (
 	"testing"
 )
 
-var invalidDependencyPolicyConfigTests = []string{
-	"testdata/invalid-rules-1.depcop",
-	"testdata/invalid-rules-2.depcop",
-}
-
-var dependencyPolicyConfigTests = []dependencyPolicyConfigTest{
-	{"testdata/load-test.depcop", dependencyPolicy{
-		Incoming: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "allowed-package/x"},
-		}, Outgoing: []dependencyRule{
-			{IsDenyRule: true, PackageExpression: "denied-package/x"},
-			{IsDenyRule: false, PackageExpression: "allowed-package/y"},
-		},
-	}},
-	{"testdata/nacl-app.depcop", dependencyPolicy{
-		Outgoing: []dependencyRule{
-			{IsDenyRule: true, PackageExpression: "syscall"},
-		}, Incoming: []dependencyRule{},
-	}},
-	{"testdata/v23-runtimes.depcop", dependencyPolicy{
-		Incoming: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "v23/rt/..."},
-			{IsDenyRule: true, PackageExpression: "..."},
-		}, Outgoing: []dependencyRule{},
-	}},
-	{"testdata/v23-x.depcop", dependencyPolicy{
-		Incoming: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "v23/X/..."},
-			{IsDenyRule: true, PackageExpression: "..."},
-		}, Outgoing: []dependencyRule{},
-	}},
-	{"testdata/v23-rt.depcop", dependencyPolicy{
-		Outgoing: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "v23/runtimes/..."},
-		}, Incoming: []dependencyRule{},
-	}},
-	{"testdata/v23.depcop", dependencyPolicy{
-		Outgoing: []dependencyRule{
-			{IsDenyRule: false, PackageExpression: "v23/..."},
-			{IsDenyRule: true, PackageExpression: "..."},
-		}, Incoming: []dependencyRule{},
-	}},
-}
-
-func TestLoadPackageFile(t *testing.T) {
-	_, err := loadPackageConfigFile("testdata/non-existent.depcop")
-	if err == nil || !os.IsNotExist(err) {
-		t.Fatal("reading from a non-existent config file should return a file not exists error, got:", err)
+func TestLoadPackageConfigFile(t *testing.T) {
+	tests := []packageConfig{
+		{"testdata/load-test.depcop", []importRule{
+			{IsDenyRule: true, PkgExpr: "denied-package/x"},
+			{IsDenyRule: false, PkgExpr: "allowed-package/y"},
+		}},
+		{"testdata/nacl-app.depcop", []importRule{
+			{IsDenyRule: true, PkgExpr: "syscall"},
+		}},
+		{"testdata/v23-rt.depcop", []importRule{
+			{IsDenyRule: false, PkgExpr: "v23/runtimes/..."},
+		}},
+		{"testdata/v23.depcop", []importRule{
+			{IsDenyRule: false, PkgExpr: "v23/..."},
+			{IsDenyRule: true, PkgExpr: "..."},
+		}},
 	}
-
-	for _, invalidFile := range invalidDependencyPolicyConfigTests {
-		_, err = loadPackageConfigFile(invalidFile)
-		if err == nil {
-			t.Fatal("reading from the invalid config file %q is not causing an error", invalidFile)
-		}
-	}
-
-	for _, tc := range dependencyPolicyConfigTests {
-		pkgConfig, err := loadPackageConfigFile(tc.file)
+	for _, test := range tests {
+		config, err := loadPackageConfigFile(test.Path)
 		if err != nil {
 			t.Fatal("error reading config file:", err)
 		}
-		if !reflect.DeepEqual(pkgConfig.Dependencies, tc.policy) {
-			t.Fatalf("failed to read %q correctly. expected: %v, got: %v", tc.file, tc.policy, pkgConfig.Dependencies)
+		if got, want := config.Imports, test.Imports; !reflect.DeepEqual(got, want) {
+			t.Errorf("%s got %v, want %v", test.Path, got, want)
 		}
 	}
 }
 
-type dependencyPolicyConfigTest struct {
-	file   string
-	policy dependencyPolicy
+func TestLoadPackageConfigFileNotExist(t *testing.T) {
+	config, err := loadPackageConfigFile("testdata/non-existent.depcop")
+	if config != nil || err == nil || !os.IsNotExist(err) {
+		t.Errorf("got (%v, %v), want (nil, NoExist)", config, err)
+	}
+}
+
+func TestParsePackageConfig(t *testing.T) {
+	tests := []struct {
+		Data   string
+		Config *packageConfig
+	}{
+		{
+			`{"imports": [{"allow": "..."}]}`,
+			&packageConfig{Imports: []importRule{
+				{IsDenyRule: false, PkgExpr: "..."},
+			}},
+		},
+		{
+			`{"imports": [{"deny": "..."}]}`,
+			&packageConfig{Imports: []importRule{
+				{IsDenyRule: true, PkgExpr: "..."},
+			}},
+		},
+		{
+			`{"imports": [{"allow": "..."}, {"deny": "..."}]}`,
+			&packageConfig{Imports: []importRule{
+				{IsDenyRule: false, PkgExpr: "..."},
+				{IsDenyRule: true, PkgExpr: "..."},
+			}},
+		},
+		{
+			`{"imports": [{"allow": "foo"}, {"allow": "bar"}, {"deny": "baz/..."}]}`,
+			&packageConfig{Imports: []importRule{
+				{IsDenyRule: false, PkgExpr: "foo"},
+				{IsDenyRule: false, PkgExpr: "bar"},
+				{IsDenyRule: true, PkgExpr: "baz/..."},
+			}},
+		},
+	}
+	for _, test := range tests {
+		config, err := parsePackageConfig([]byte(test.Data))
+		if err != nil {
+			t.Errorf("%s failed: %v", test.Data, err)
+		}
+		if got, want := test.Config, config; !reflect.DeepEqual(got, want) {
+			t.Errorf("%s got %v, want %v", test.Data, got, want)
+		}
+	}
+}
+
+func TestParsePackageConfigError(t *testing.T) {
+	tests := []string{
+		``,
+		`{}`,
+		`[]`,
+		`{"foo": ""}`,
+		`{"foo": []}`,
+		`{"foo": [{}]}`,
+		`{"foo": [{"allow": "v23/rt/..."}]}`,
+		`{"imports": ""}`,
+		`{"imports": []}`,
+		`{"imports": ["foo"]}`,
+		`{"imports": [{}]}`,
+		`{"imports": [{"foo": "v23/rt/..."}]}`,
+		`{"imports": [{"allow": "v23/rt/...", "deny": "bar"}]}`,
+		`{"imports": [{"allow": ""}]}`,
+		`{"imports": [{"deny": ""}]}`,
+	}
+	for _, test := range tests {
+		config, err := parsePackageConfig([]byte(test))
+		if config != nil || err == nil {
+			t.Errorf("%s got (%v, %v), want (nil, error)", test, config, err)
+		}
+	}
 }

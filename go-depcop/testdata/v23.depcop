@@ -1,8 +1,6 @@
 {
-	"dependencies": {
-		"outgoing": [
-			{"allow": "v23/..."},
-			{"deny": "..."}
-		]
-	}
+	"imports": [
+		{"allow": "v23/..."},
+		{"deny": "..."}
+	]
 }

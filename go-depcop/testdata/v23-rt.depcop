@@ -1,7 +1,5 @@
 {
-	"dependencies": {
-		"outgoing": [
-			{"allow": "v23/runtimes/..."}
-		]
-	}
+	"imports": [
+		{"allow": "v23/runtimes/..."}
+	]
 }

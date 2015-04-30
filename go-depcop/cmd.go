@@ -2,178 +2,243 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
 	"fmt"
 	"go/build"
+	"os"
 
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 
 var (
-	includeTestsFlag bool
-	gorootFlag       bool
-	prettyFlag       bool
-	recursiveFlag    bool
-	transitiveFlag   bool
-	verboseFlag      bool
+	flagShowGoroot bool
+	flagIndent     bool
+	flagDirect     bool
 )
 
+const descDirect = "Only consider direct dependencies, rather than transitive dependencies."
+const descGoroot = "Show packages in goroot."
+
 func init() {
-	cmdCheck.Flags.BoolVar(&recursiveFlag, "r", false, "Check dependencies recursively.")
-	cmdList.Flags.BoolVar(&gorootFlag, "show-goroot", false, "Show packages in goroot.")
-	cmdList.Flags.BoolVar(&prettyFlag, "pretty-print", false, "Make output easy to read, indenting nested dependencies.")
-	cmdList.Flags.BoolVar(&transitiveFlag, "transitive", false, "List transitive dependencies.")
-	cmdRoot.Flags.BoolVar(&includeTestsFlag, "include-tests", false, "Include tests in computing dependencies.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdList.Flags.BoolVar(&flagIndent, "indent", false, "List dependencies with pretty indentation.")
+	cmdList.Flags.BoolVar(&flagDirect, "direct", false, descDirect)
+	cmdList.Flags.BoolVar(&flagShowGoroot, "show-goroot", false, descGoroot)
+	cmdListImporters.Flags.BoolVar(&flagDirect, "direct", false, descDirect)
+	cmdListImporters.Flags.BoolVar(&flagShowGoroot, "show-goroot", false, descGoroot)
 }
 
-// Root returns a command that represents the root of the go-depcop tool.
-func root() *cmdline.Command {
-	return cmdRoot
+func main() {
+	os.Exit(cmdRoot.Main())
 }
 
 var cmdRoot = &cmdline.Command{
 	Name:  "go-depcop",
-	Short: "checks Go package dependencies against constraints",
+	Short: "checks Go package dependencies against user-defined rules",
 	Long: `
 Command go-depcop checks Go package dependencies against constraints described
-in GO.PACKAGE files.  Both incoming and outgoing dependencies may be configured,
-and Go "internal" package rules are enforced.
-
-GO.PACKAGE files are traversed hierarchically, from the deepmost package to
-GOROOT, until a matching rule is found.  If no matching rule is found, the
-default behavior is to allow the dependency, to stay compatible with existing
-packages that do not include dependency rules.
-
-GO.PACKAGE is a JSON file that looks like this:
-   {
-     "dependencies": {
-       "outgoing": [
-         {"allow": "allowpattern1/..."},
-         {"deny": "denypattern"},
-         {"allow": "pattern2"}
-       ],
-       "incoming": [
-         {"allow": "pattern3"},
-         {"deny": "pattern4"}
-       ]
-     }
-   }
+in GO.PACKAGE files.  In addition to user-defined constraints, the Go 1.5
+internal package rules are also enforced.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdList, cmdRevList, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdList, cmdListImporters, cmdVersion},
 }
 
-// cmdCheck represents the 'check' command of the go-depcop tool.
 var cmdCheck = &cmdline.Command{
 	Run:      runCheck,
 	Name:     "check",
-	Short:    "Check package dependency constraints",
-	Long:     "Check package dependency constraints.",
 	ArgsName: "<packages>",
-	ArgsLong: "<packages> is a list of packages",
-}
+	ArgsLong: "<packages> is a list of packages to check",
+	Short:    "Check package dependency constraints",
+	Long: `
+Check package dependency constraints.
 
-func runCheck(command *cmdline.Command, args []string) error {
-	violations := []dependencyRuleReference{}
+Every Go package directory may contain an optional GO.PACKAGE file.  Each file
+specifies dependency rules, which either allow or deny imports by that package.
+The files are traversed hierarchically, from the deepmost package to the root of
+the source tree, until a matching rule is found.  If no matching rule is found,
+the default behavior is to allow the dependency, to stay compatible with
+existing packages that do not include dependency rules.
 
-	for _, arg := range args {
-		p, err := importPackage(arg)
+GO.PACKAGE is a JSON file that looks like this:
+   {
+     "imports": [
+       {"allow": "pattern1/..."},
+       {"allow": "pattern2"},
+       {"deny":  "..."}
+     ]
+   }
+
+Each item in "imports" is a rule, which either allows or denies imports based on
+the given pattern.  Patterns that end with "/..." are special: "foo/..." means
+that foo and all its subpackages match the rule.  The special-case pattern "..."
+means that all packages in GOPATH, but not GOROOT, match the rule.
+`}
+
+func runCheck(cmd *cmdline.Command, args []string) error {
+	// Gather packages specified in args.
+	var pkgs []*build.Package
+	paths, err := listPackagePaths(cmd, args...)
+	if err != nil {
+		return err
+	}
+	for _, path := range paths {
+		pkg, err := importPackage(path)
 		if err != nil {
 			return err
 		}
-		var v []dependencyRuleReference
-		v, err = verifyDependencyHierarchy(p, map[*build.Package]bool{}, nil, recursiveFlag)
+		pkgs = append(pkgs, pkg)
+	}
+	// Check each package.
+	var violations []importViolation
+	for _, pkg := range pkgs {
+		v, err := checkImports(pkg)
 		if err != nil {
 			return err
 		}
 		violations = append(violations, v...)
 	}
-
 	for _, v := range violations {
-		switch v.Direction {
-		case outgoingDependency:
-			fmt.Fprintf(command.Stdout(), "%q violates its outgoing rule by depending on %q:\n    {\"deny\": %q} (in %s)\n",
-				v.Package.ImportPath, v.MatchingPackage.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
-		case incomingDependency:
-			if v.InternalPackage {
-				fmt.Fprintf(command.Stdout(), "%q is inaccessible by package %q because it is internal\n", v.Package.ImportPath, v.MatchingPackage.ImportPath)
-			} else {
-				fmt.Fprintf(command.Stdout(), "%q violates incoming rule of package %q:\n    {\"deny\": %q} (in %s)\n",
-					v.MatchingPackage.ImportPath, v.Package.ImportPath, v.RuleSet[v.RuleIndex].PackageExpression, v.Path)
-			}
-		}
+		fmt.Fprintf(cmd.Stdout(), "%q not allowed to import %q (%v)\n", v.Src.ImportPath, v.Dst.ImportPath, v.Err)
 	}
-
 	if len(violations) > 0 {
 		return fmt.Errorf("dependency violation")
 	}
-
 	return nil
 }
 
-// cmdList represents the 'list' command of the go-depcop tool.
 var cmdList = &cmdline.Command{
 	Run:      runList,
 	Name:     "list",
-	Short:    "List outgoing package dependencies",
-	Long:     "List outgoing package dependencies.",
 	ArgsName: "<packages>",
 	ArgsLong: "<packages> is a list of packages",
-}
+	Short:    "List packages imported by the given packages",
+	Long: `
+List packages imported by the given <packages>.
 
-func runList(command *cmdline.Command, args []string) error {
-	if len(args) == 0 {
-		return command.UsageErrorf("not enough arguments")
-	}
+Lists all transitive imports by default; set the -direct flag to limit the
+listing to direct imports by the given <packages>.
 
-	for _, arg := range args {
-		p, err := importPackage(arg)
-		if err != nil {
-			return err
-		}
-		if err := printDependencyHierarchy(command.Stdout(), p, map[*build.Package]bool{}, 0); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+Elides $GOROOT packages by default; set the -show-goroot flag to show packages
+in $GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves
+as if -show-goroot were set to true.
 
-// cmdRevList represents the 'rlist' command of the go-depcop tool.
-var cmdRevList = &cmdline.Command{
-	Run:      runRevList,
-	Name:     "rlist",
-	Short:    "List incoming package dependencies",
-	Long:     "List incoming package dependencies.",
-	ArgsName: "<packages>",
-	ArgsLong: "<packages> is a list of packages",
-}
+Lists each imported package exactly once.  Set the -indent flag for pretty
+indentation to help visualize the dependency hierarchy.  Setting -indent may
+cause the same package to be listed multiple times.
+`}
 
-// TODO(jsimsa): Implement transitive incoming dependencies as a
-// fix-point.
-func runRevList(command *cmdline.Command, args []string) error {
-	if len(args) == 0 {
-		return command.UsageErrorf("not enough arguments")
-	}
-	revDeps, err := computeIncomingDependencies()
+func runList(cmd *cmdline.Command, args []string) error {
+	// Gather packages specified in args.
+	var pkgs []*build.Package
+	paths, err := listPackagePaths(cmd, args...)
 	if err != nil {
 		return err
 	}
-	for _, arg := range args {
-		if deps, ok := revDeps[arg]; !ok {
-			fmt.Fprintf(command.Stderr(), "package %v not found\n", arg)
-		} else {
-			for dep, _ := range deps {
-				fmt.Fprintf(command.Stdout(), "%v\n", dep)
+	showGoroot := flagShowGoroot
+	for _, path := range paths {
+		pkg, err := importPackage(path)
+		if err != nil {
+			return err
+		}
+		if pkg.Goroot {
+			// If any package in args is a GOROOT package, always show GOROOT deps.
+			showGoroot = true
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	if flagIndent {
+		// Print indented deps for each package.
+		for _, pkg := range pkgs {
+			if err := printIndentedDeps(cmd.Stdout(), pkg, 0, flagDirect, showGoroot); err != nil {
+				return err
 			}
 		}
+		return nil
+	}
+	// Print deps for all combined packages.
+	deps := make(map[string]*build.Package)
+	for _, pkg := range pkgs {
+		if err := packageDeps(pkg, deps, flagDirect, showGoroot); err != nil {
+			return err
+		}
+	}
+	for _, dep := range sortPackages(deps) {
+		fmt.Fprintln(cmd.Stdout(), dep.ImportPath)
 	}
 	return nil
 }
 
-// cmdVersion represent the 'version' command of the go-depcop tool.
+var cmdListImporters = &cmdline.Command{
+	Run:      runListImporters,
+	Name:     "list-importers",
+	ArgsName: "<packages>",
+	ArgsLong: "<packages> is a list of packages",
+	Short:    "List packages that import the given packages",
+	Long: `
+List packages that import the given <packages>; the reverse of "list".  The
+listed packages are called "importers".
+
+Lists all transitive importers by default; set the -direct flag to limit the
+listing to importers that directly import the given <packages>.
+
+Elides $GOROOT packages by default; set the -show-goroot flag to show importers
+in $GOROOT.  If any of the given <packages> are $GOROOT packages, list-reverse
+behaves as if -show-goroot were set to true.
+
+Lists each importer package exactly once.
+`}
+
+func runListImporters(cmd *cmdline.Command, args []string) error {
+	// Gather target packages specified in args.
+	targets := make(map[string]*build.Package)
+	targetPaths, err := listPackagePaths(cmd, args...)
+	if err != nil {
+		return err
+	}
+	showGoroot := flagShowGoroot
+	for _, path := range targetPaths {
+		pkg, err := importPackage(path)
+		if err != nil {
+			return err
+		}
+		if pkg.Goroot {
+			// If any package in args is a GOROOT package, always show GOROOT deps.
+			showGoroot = true
+		}
+		targets[path] = pkg
+	}
+	// Gather all known packages.
+	allPaths, err := listPackagePaths(cmd, "all")
+	if err != nil {
+		return err
+	}
+	// Print every package that has dependencies that overlap with the targets.
+	matches := make(map[string]*build.Package)
+	for _, path := range allPaths {
+		pkg, err := importPackage(path)
+		if err != nil {
+			return err
+		}
+		deps := make(map[string]*build.Package)
+		if err := packageDeps(pkg, deps, flagDirect, showGoroot); err != nil {
+			return err
+		}
+		if hasOverlap(deps, targets) {
+			matches[path] = pkg
+		}
+	}
+	for _, pkg := range sortPackages(matches) {
+		fmt.Fprintln(cmd.Stdout(), pkg.ImportPath)
+	}
+	return nil
+}
+
 var cmdVersion = &cmdline.Command{
 	Run:   runVersion,
 	Name:  "version",
@@ -181,7 +246,7 @@ var cmdVersion = &cmdline.Command{
 	Long:  "Print version of the go-depcop tool.",
 }
 
-func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "go-depcop tool version %v\n", tool.Version)
+func runVersion(cmd *cmdline.Command, _ []string) error {
+	fmt.Fprintf(cmd.Stdout(), "go-depcop tool version %v\n", tool.Version)
 	return nil
 }

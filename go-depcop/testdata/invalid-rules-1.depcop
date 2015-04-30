@@ -1,8 +1,0 @@
-{
-	"dependencies": {
-		"incoming": [
-			{"allow": "v23/rt/...", "deny": ""},
-			{"deny": "..."}
-		]
-	}
-}

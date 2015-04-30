@@ -70,11 +70,11 @@ func gcOrSourceImporter(ctx *tool.Context, fset *token.FileSet, imports map[stri
 // spec for example) and then import those packages.
 func importPkgs(ctx *tool.Context, interfaces, implementations []string) (ifcs, impls []*build.Package, err error) {
 
-	ifcPkgs, err := goutil.List(ctx, interfaces)
+	ifcPkgs, err := goutil.List(ctx, interfaces...)
 	if err != nil {
 		return nil, nil, err
 	}
-	implPkgs, err := goutil.List(ctx, implementations)
+	implPkgs, err := goutil.List(ctx, implementations...)
 	if err != nil {
 		return nil, nil, err
 	}

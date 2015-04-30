@@ -1,7 +1,5 @@
 {
-	"dependencies": {
-		"outgoing": [
-			{"deny": "fmt"}
-		]
-	}
+	"imports": [
+		{"deny": "v.io/..."}
+	]
 }

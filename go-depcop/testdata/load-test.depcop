@@ -1,11 +1,6 @@
 {
-	"dependencies": {
-		"incoming": [
-			{"allow": "allowed-package/x"}
-		],
-		"outgoing": [
-			{"deny": "denied-package/x"},
-			{"allow": "allowed-package/y"}
-		]
-	}
+	"imports": [
+		{"deny": "denied-package/x"},
+		{"allow": "allowed-package/y"}
+	]
 }

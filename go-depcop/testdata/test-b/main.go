@@ -6,10 +6,10 @@ package main
 
 import (
 	"fmt"
-	a "v.io/x/devtools/go-depcop/testdata/test-a"
+
+	_ "v.io/x/devtools/go-depcop/testdata/test-c"
 )
 
 func main() {
 	fmt.Println("B")
-	a.A()
 }
