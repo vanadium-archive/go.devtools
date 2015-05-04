@@ -10,19 +10,26 @@ import (
 	"fmt"
 	"go/build"
 	"go/token"
+	"io/ioutil"
 	"path"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/types"
 
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 )
 
 const (
-	failingPrefix       = "failschecks"
-	failingPackageCount = 7
-	testPackagePrefix   = "v.io/x/devtools/logcop/testdata"
+	failingPrefix        = "failschecks"
+	withArgsPrefix       = "withargs"
+	failingPackageCount  = 7
+	withArgsPackageCount = 2
+	testPackagePrefix    = "v.io/x/devtools/logcop/testdata"
 )
 
 func TestValidPackages(t *testing.T) {
@@ -56,25 +63,75 @@ func TestRemove(t *testing.T) {
 	if err := runRemover(ctx, []string{pkg}); err != nil {
 		t.Fatal(err)
 	}
-	const numLinesRemoved = 6
-	if got, want := strings.Count(stdout.String(), "<"), numLinesRemoved; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
+	diffs := []string{}
 	scanner := bufio.NewScanner(bytes.NewBufferString(stdout.String()))
-	found := 0
 	for scanner.Scan() {
-		if !strings.HasPrefix(scanner.Text(), "<") {
+		text := scanner.Text()
+		if strings.Contains(text, "] >>") {
 			continue
 		}
-		s := strings.TrimLeft(scanner.Text(), "< \t")
-		if !strings.HasPrefix(s, "defer vlog.LogCall") {
-			t.Errorf("unexpected line: %q (%q)", scanner.Text(), s)
-		} else {
-			found++
-		}
+		diffs = append(diffs, text)
 	}
-	if got, want := found, numLinesRemoved; got != want {
+
+	diffFilename := filepath.Join("testdata", "passeschecks.diff")
+	want := ""
+	if buf, err := ioutil.ReadFile(diffFilename); err != nil {
+		t.Fatal(err)
+	} else {
+		want = strings.TrimRight(string(buf), "\n")
+	}
+	if got := strings.Join(diffs, "\n"); got != want {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestInject(t *testing.T) {
+	testInject(t, "iface", failingPrefix, failingPackageCount)
+}
+
+func TestInjectWithArgs(t *testing.T) {
+	testInject(t, "iface2", withArgsPrefix, withArgsPackageCount)
+}
+
+func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
+	ctx := tool.NewDefaultContext()
+	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
+		t.Fatal(err)
+	}
+	ifc := path.Join(testPackagePrefix, iface)
+
+	diffOnlyFlag = true
+	for i := 1; i <= testPackageCount; i++ {
+		stdout := bytes.NewBuffer(nil)
+		ctx = ctx.Clone(tool.ContextOpts{Stdout: stdout})
+		testPkg := "test" + strconv.Itoa(i)
+		pkg := path.Join(testPackagePrefix, prefix, testPkg)
+		if err := runInjector(ctx, []string{ifc}, []string{pkg}, false); err != nil {
+			t.Fatal(err)
+		}
+		diffs := []string{}
+		scanner := bufio.NewScanner(bytes.NewBufferString(stdout.String()))
+		re := regexp.MustCompile(".*Warning: [[:^space:]]+: (.*)")
+		for scanner.Scan() {
+			text := scanner.Text()
+			if strings.Contains(text, "] >>") {
+				continue
+			}
+			if parts := re.FindStringSubmatch(text); len(parts) == 2 {
+				text = parts[1]
+			}
+			diffs = append(diffs, text)
+		}
+		diffFilename := filepath.Join("testdata", prefix, testPkg+".diff")
+		want := ""
+		if buf, err := ioutil.ReadFile(diffFilename); err != nil {
+			t.Fatal(err)
+		} else {
+			want = strings.TrimRight(string(buf), "\n")
+		}
+		if got := strings.Join(diffs, "\n"); got != want {
+			t.Errorf("%s: got %v, want %v", testPkg, got, want)
+		}
 	}
 }
 
@@ -101,7 +158,12 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 	}
 	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
 
-	ifcs, impls, err := importPkgs(ctx, interfaceList, packages)
+	ifcs, err := importPkgs(ctx, interfaceList)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	impls, err := importPkgs(ctx, packages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,22 +172,32 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	fset := token.NewFileSet() // positions are relative to fset
+	ps := newState(ctx)
 
-	impl := impls[0]
-	asts, tpkg, err := parseAndTypeCheckPackage(ctx, fset, nil, impl)
+	ifc := ifcs[0]
+	_, ifcpkg, err := ps.parseAndTypeCheckPackage(ifc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	interfaces := findPublicInterfaces(ctx, ifcs, tpkg)
+	interfaces := findPublicInterfaces(ctx, []*types.Package{ifcpkg})
 	if len(interfaces) == 0 {
-		t.Fatalf("Log injector did not find any interfaces in %s for %s", interfaceList, tpkg.Path())
+		t.Fatalf("Log injector did not find any interfaces in %s for %s", interfaceList, ifcpkg.Path())
 	}
-	methods := findMethodsImplementing(ctx, fset, tpkg, interfaces)
+
+	impl := impls[0]
+	asts, tpkg, err := ps.parseAndTypeCheckPackage(impl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	methods := findMethodsImplementing(ctx, ps.fset, tpkg, interfaces)
 	if len(methods) == 0 {
 		t.Fatalf("Log injector could not find any methods implementing the test interfaces in %v", impls)
 	}
-	methodPositions := functionDeclarationsAtPositions(asts, methods)
-	return fset, checkMethods(methodPositions)
+	methodPositions, err := functionDeclarationsAtPositions(ps.fset, asts, nil, methods)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ps.fset, checkMethods(methodPositions)
 }

@@ -139,8 +139,8 @@ func runInject(command *cmdline.Command, args []string) error {
 var cmdRemove = &cmdline.Command{
 	Run:   runRemove,
 	Name:  "remove",
-	Short: "Remove log statements in public API implementations",
-	Long: `Remove log statements in public API implementations.
+	Short: "Remove log statements",
+	Long: `Remove log statements.
 Note that remove modifies <packages> in-place.  It is a good idea
 to commit changes to version control before running this tool so
 you can see the diff or revert the changes.

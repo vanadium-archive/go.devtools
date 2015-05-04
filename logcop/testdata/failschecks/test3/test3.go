@@ -13,10 +13,19 @@ func (Type1) Method2(int) {}
 
 type HalfType2 struct{}
 
+// Need to ensure that injection doesn't lose the trailing }.
+// That is, the injected code ends up looking like:
+// Method() {
+//   defer func()() // comment
+// }
+// and not
+// Method() { defer func()() // comment }
+//
 func (HalfType2) Method1() {}
 
 type HalfType3 struct {
 	HalfType2
 }
 
-func (HalfType3) Method2(int) {}
+// Make sure that we correctly inject before the first statement.
+func (HalfType3) Method2(int) { _ = 3 }

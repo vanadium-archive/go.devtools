@@ -1,0 +1,14 @@
+15d14
+< 	defer vlog.LogCall("random text")()
+19d17
+< 	defer vlog.LogCall()() // random comment
+32d29
+< 	defer vlog.LogCall(a)(&b)
+39d35
+< 	defer vlog.LogCall(a)()
+51d46
+< 	defer vlog.LogCallf("a: %d", a)("b: %d", &b) // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+58d52
+< 	defer vlog.LogCallf("switch test")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+15d14
+< 	defer vlog.LogCall("some more random text")()

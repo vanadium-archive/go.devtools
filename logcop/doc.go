@@ -26,7 +26,7 @@ Usage:
 The logcop commands are:
    check       Check for log statements in public API implementations
    inject      Inject log statements in public API implementations
-   remove      Remove log statements in public API implementations
+   remove      Remove log statements
    version     Print version
    help        Display help for commands or topics
 
@@ -74,9 +74,9 @@ The logcop inject flags are:
 
 Logcop remove
 
-Remove log statements in public API implementations. Note that remove modifies
-<packages> in-place.  It is a good idea to commit changes to version control
-before running this tool so you can see the diff or revert the changes.
+Remove log statements. Note that remove modifies <packages> in-place.  It is a
+good idea to commit changes to version control before running this tool so you
+can see the diff or revert the changes.
 
 Usage:
    logcop remove [flags] <packages>

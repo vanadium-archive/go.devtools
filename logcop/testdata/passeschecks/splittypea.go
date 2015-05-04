@@ -12,6 +12,6 @@ func (SplitType) Method1() {
 	// does not make a difference to have a
 	// random comment
 	// here
-	defer vlog.LogCall("random text")()
+	defer vlog.LogCall("some more random text")()
 	// or here
 }

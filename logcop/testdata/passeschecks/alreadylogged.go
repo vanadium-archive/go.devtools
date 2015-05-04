@@ -16,7 +16,7 @@ func (Type1) Method1() {
 }
 
 func (Type1) Method2(int) {
-	defer vlog.LogCall()()
+	defer vlog.LogCall()() // random comment
 }
 
 func (Type1) NotPartOfInterfaceMethod3() {}
@@ -47,7 +47,19 @@ func (UnexportedType) UnexportedInterfaceMethod() {}
 type LogCallfTest struct{}
 
 func (obj LogCallfTest) ReturnsSomething(a int) (b int) {
-	defer vlog.LogCallf("a: %d", a)("b: %d", &b)
+	// this comment should make no difference
+	defer vlog.LogCallf("a: %d", a)("b: %d", &b) // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	// this comment should remain
+	return 42
+}
+
+func (obj LogCallfTest) AnotherTestForRemove(a int) (b int) {
+	// this comment should make no difference
+	defer vlog.LogCallf("switch test")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	switch {
+	case 4:
+		// Another comment
+	}
 	return 42
 }
 
