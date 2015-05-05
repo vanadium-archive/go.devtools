@@ -29,19 +29,19 @@ const localCheckScript = `#!/bin/bash
 
 # Check cpu.
 CPU_IDLE="$(top -bn2 | grep Cpu | tail -1 | sed -n 's/.*,\s*\(\S*\) id,.*/\1/p')"
-CPU_USAGE="$(echo "scale=4; (100.0-${CPU_IDLE})/100.0" | bc)"
+CPU_USAGE="$(echo "scale=4; 100.0-${CPU_IDLE}" | bc)"
 echo ${CPU_USAGE} > output_cpu_$(hostname)
 
 # Check memory.
 MEM="$(free -m)"
 MEM_TOTAL="$(echo "${MEM}" | grep Mem: | awk '{print $2}')"
 MEM_FREE="$(echo "${MEM}" | grep /cache: | awk '{print $4}')"
-MEM_USAGE="$(echo "scale=4; (${MEM_TOTAL}-${MEM_FREE})/${MEM_TOTAL}" | bc)"
+MEM_USAGE="$(echo "scale=4; (${MEM_TOTAL}-${MEM_FREE})/${MEM_TOTAL}*100.0" | bc)"
 echo ${MEM_USAGE} > output_mem_$(hostname)
 
 # Check disk.
 DISK_PCT="$(df | grep /dev/sda1 | awk '{print $5}')"
-DISK_USAGE="$(echo "scale=4; ${DISK_PCT::-1}/100" | bc)"
+DISK_USAGE="$(echo "scale=4; ${DISK_PCT::-1}" | bc)"
 echo ${DISK_USAGE} > output_disk_$(hostname)
 
 # Check open TCP connections.
