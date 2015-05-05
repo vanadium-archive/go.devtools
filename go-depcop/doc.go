@@ -20,6 +20,10 @@ The go-depcop commands are:
    version        Print version
    help           Display help for commands or topics
 
+The global flags are:
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
+
 Go-depcop check
 
 Check package dependency constraints.

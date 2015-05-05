@@ -30,6 +30,10 @@ The vmon flags are:
  -v=false
    Print verbose output.
 
+The global flags are:
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
+
 Vmon md
 
 Metric descriptor defines the metadata for a custom metric. It includes the

@@ -33,6 +33,10 @@ The vbinary flags are:
  -v=false
    Print verbose output.
 
+The global flags are:
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
+
 Vbinary list
 
 List existing daily builds of Vanadium binaries. The displayed dates can be

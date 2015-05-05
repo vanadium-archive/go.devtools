@@ -40,6 +40,10 @@ The logcop flags are:
  -v=false
    Print verbose output.
 
+The global flags are:
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
+
 Logcop check
 
 Check for log statements in public API implementations.

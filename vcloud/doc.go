@@ -31,6 +31,8 @@ The global flags are:
    Run operations as the given user on each node.
  -v=false
    Print verbose output.
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
 
 Vcloud list
 

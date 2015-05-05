@@ -34,6 +34,10 @@ The presubmit flags are:
  -v=false
    Print verbose output.
 
+The global flags are:
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
+
 Presubmit query
 
 This subcommand queries open CLs from Gerrit, calculates diffs from the previous
