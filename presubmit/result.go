@@ -139,6 +139,18 @@ var multiConfigurationJobs = map[string]*axisInfo{
 		hasParts: false,
 		showOS:   true,
 	},
+	"vanadium-www-site": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
+	"vanadium-www-tutorial": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
 }
 
 // axisInfo stores which axes a Jenkins job has configured.
