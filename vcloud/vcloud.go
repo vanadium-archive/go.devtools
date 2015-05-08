@@ -153,6 +153,29 @@ names do not have embedded commas.
 `
 )
 
+type fieldsFlag map[string]bool
+
+func (f *fieldsFlag) String() string {
+	if f == nil {
+		return ""
+	}
+	out := make([]string, 0, len(*f))
+	for field := range *f {
+		out = append(out, field)
+	}
+	return strings.Join(out, ",")
+}
+func (f *fieldsFlag) Set(from string) error {
+	if from == "" {
+		return nil
+	}
+	*f = make(map[string]bool)
+	for _, field := range strings.Split(from, ",") {
+		(*f)[field] = true
+	}
+	return nil
+}
+
 var (
 	// Global flags.
 	flagColor   = flag.Bool("color", false, "Format output in color.")
@@ -170,10 +193,12 @@ var (
 	flagBootDiskSize string
 	flagMachineType  string
 	flagSetupScript  string
+	flagFields       fieldsFlag
 )
 
 func init() {
 	cmdList.Flags.BoolVar(&flagListNoHeader, "noheader", false, "Don't print list table header.")
+	cmdList.Flags.Var(&flagFields, "fields", "Only display these fields, specified as comma-separated column header names.")
 	cmdCP.Flags.IntVar(&flagP, "p", -1, "Copy to/from this many nodes in parallel."+parallelDesc)
 	cmdSH.Flags.IntVar(&flagP, "p", -1, "Run command on this many nodes in parallel."+parallelDesc)
 	cmdCopyAndRun.Flags.IntVar(&flagP, "p", -1, "Copy/run on this many nodes in parallel."+parallelDesc)
@@ -200,7 +225,26 @@ type nodeInfo struct {
 }
 
 func (n nodeInfo) String() string {
-	return fmt.Sprintf("%-18s %-15s %-15s %-15s %-15s %s", n.Name, n.Zone, n.MachineType, n.InternalIP, n.ExternalIP, n.Status)
+	var columns []string
+	if flagFields == nil || flagFields[infoHeader.Name] {
+		columns = append(columns, fmt.Sprintf("%-18s", n.Name))
+	}
+	if flagFields == nil || flagFields[infoHeader.Zone] {
+		columns = append(columns, fmt.Sprintf("%-15s", n.Zone))
+	}
+	if flagFields == nil || flagFields[infoHeader.MachineType] {
+		columns = append(columns, fmt.Sprintf("%-15s", n.MachineType))
+	}
+	if flagFields == nil || flagFields[infoHeader.InternalIP] {
+		columns = append(columns, fmt.Sprintf("%-15s", n.InternalIP))
+	}
+	if flagFields == nil || flagFields[infoHeader.ExternalIP] {
+		columns = append(columns, fmt.Sprintf("%-15s", n.ExternalIP))
+	}
+	if flagFields == nil || flagFields[infoHeader.Status] {
+		columns = append(columns, fmt.Sprintf("%s", n.Status))
+	}
+	return strings.Join(columns, " ")
 }
 
 // infoHeader contains the table headers from 'gcloud compute instances list'.
@@ -388,7 +432,7 @@ func (x nodeInfos) run(w io.Writer, fn func(node nodeInfo) runResult) error {
 			}
 		}
 	}()
-	// Collect results; each node returns a result even if its skipped.
+	// Collect results; each node returns a result even if it's skipped.
 	var skip, fail, done nodeInfos
 	for ix := 0; ix < len(x); ix++ {
 		result := <-results
