@@ -1,0 +1,176 @@
+<?xml version="1.0" ?>
+<config>
+  <apiCheckProjects>
+    <project>release.go.v23</project>
+    <project>release.go.x.devtools</project>
+    <project>release.go.x.lib</project>
+  </apiCheckProjects>
+  <goWorkspaces>
+    <workspace>infrastructure/go</workspace>
+    <workspace>release/go</workspace>
+    <workspace>release/javascript/core/go</workspace>
+    <workspace>release/projects/browser/go</workspace>
+    <workspace>release/projects/chat/clients/shell/go</workspace>
+    <workspace>release/projects/pipe2browser/go</workspace>
+    <workspace>roadmap/go</workspace>
+    <workspace>roadmap/go/src/v.io/syncbase/third_party/go</workspace>
+    <workspace>third_party/go</workspace>
+  </goWorkspaces>
+  <projectTests>
+    <project name="release.go.v23">
+      <test>go</test>
+      <test>javascript</test>
+      <test>projects</test>
+      <test>vanadium-bootstrap</test>
+    </project>
+    <project name="release.go.x.devtools">
+      <test>go</test>
+      <test>javascript</test>
+      <test>projects</test>
+      <test>third_party-go</test>
+      <test>vanadium-bootstrap</test>
+    </project>
+    <project name="release.go.x.lib">
+      <test>go</test>
+      <test>javascript</test>
+      <test>projects</test>
+      <test>vanadium-bootstrap</test>
+    </project>
+    <project name="release.go.x.ref">
+      <test>go</test>
+      <test>javascript</test>
+      <test>projects</test>
+      <test>vanadium-bootstrap</test>
+    </project>
+    <project name="release.js.core">
+      <test>javascript</test>
+      <test>projects</test>
+    </project>
+    <project name="release.projects.browser">
+      <test>vanadium-browser-test</test>
+    </project>
+    <project name="release.projects.chat">
+      <test>vanadium-chat-shell-test</test>
+      <test>vanadium-chat-web-test</test>
+    </project>
+    <project name="release.projects.pipe2browser">
+      <test>vanadium-pipe2browser-test</test>
+    </project>
+    <project name="release.projects.playground">
+      <test>vanadium-playground-test</test>
+    </project>
+    <project name="third_party">
+      <test>go</test>
+      <test>javascript</test>
+      <test>projects</test>
+      <test>third_party-go</test>
+    </project>
+    <project name="www">
+      <test>vanadium-bootstrap</test>
+      <test>vanadium-www-site</test>
+      <test>vanadium-www-tutorials</test>
+    </project>
+  </projectTests>
+  <snapshostLabelTests>
+    <snapshot name="old-store">
+      <test>vanadium-go-build</test>
+      <test>vanadium-go-test</test>
+    </snapshot>
+    <snapshot name="release">
+    </snapshot>
+    <snapshot name="stable-go">
+      <test>vanadium-go-build</test>
+      <test>vanadium-go-race</test>
+      <test>vanadium-go-test</test>
+    </snapshot>
+  </snapshostLabelTests>
+  <testDependencies>
+    <test name="third_party-go-race">
+      <dependency>third_party-go-test</dependency>
+    </test>
+    <test name="third_party-go-test">
+      <dependency>third_party-go-build</dependency>
+    </test>
+    <test name="vanadium-android-build">
+      <dependency>vanadium-android-build-native</dependency>
+    </test>
+    <test name="vanadium-android-test">
+      <dependency>vanadium-android-build</dependency>
+    </test>
+    <test name="vanadium-browser-test">
+      <dependency>vanadium-go-build</dependency>
+      <dependency>vanadium-js-browser-integration</dependency>
+      <dependency>vanadium-js-node-integration</dependency>
+    </test>
+    <test name="vanadium-playground-test">
+      <dependency>vanadium-go-build</dependency>
+      <dependency>vanadium-js-node-integration</dependency>
+    </test>
+    <test name="vanadium-go-race">
+      <dependency>vanadium-go-test</dependency>
+    </test>
+    <test name="vanadium-go-test">
+      <dependency>vanadium-go-build</dependency>
+    </test>
+    <test name="vanadium-js-browser-integration">
+      <dependency>vanadium-go-build</dependency>
+      <dependency>vanadium-js-unit</dependency>
+    </test>
+    <test name="vanadium-js-node-integration">
+      <dependency>vanadium-go-build</dependency>
+      <dependency>vanadium-js-unit</dependency>
+    </test>
+    <test name="vanadium-integration-test">
+      <dependency>vanadium-go-build</dependency>
+    </test>
+  </testDependencies>
+  <testGroups>
+    <group name="go">
+      <test>vanadium-go-build</test>
+      <test>vanadium-go-generate</test>
+      <test>vanadium-go-race</test>
+      <test>vanadium-go-test</test>
+      <test>vanadium-go-vdl</test>
+      <test>vanadium-integration-test</test>
+      <test>vanadium-regression-test</test>
+      <test>vanadium-prod-services-test</test>
+      <test>vanadium-www-tutorials</test>
+    </group>
+    <group name="javascript">
+      <test>vanadium-js-browser-integration</test>
+      <test>vanadium-js-build-extension</test>
+      <test>vanadium-js-doc</test>
+      <test>vanadium-js-node-integration</test>
+      <test>vanadium-js-unit</test>
+      <test>vanadium-js-vdl</test>
+      <test>vanadium-js-vdl-audit</test>
+      <test>vanadium-js-vom</test>
+    </group>
+    <group name="projects">
+      <test>vanadium-browser-test</test>
+      <test>vanadium-chat-shell-test</test>
+      <test>vanadium-chat-web-test</test>
+      <test>vanadium-pipe2browser-test</test>
+      <test>vanadium-playground-test</test>
+    </group>
+    <group name="third_party-go">
+      <test>third_party-go-build</test>
+      <test>third_party-go-race</test>
+      <test>third_party-go-test</test>
+    </group>
+  </testGroups>
+  <testParts>
+    <test name="vanadium-go-race">
+      <part>v.io/x/ref/services/...</part>
+      <part>v.io/x/ref/profiles/...</part>
+    </test>
+  </testParts>
+  <vdlWorkspaces>
+    <workspace>release/go</workspace>
+    <workspace>release/javascript/core/go</workspace>
+    <workspace>release/projects/browser/go</workspace>
+    <workspace>release/projects/chat/clients/shell/go</workspace>
+    <workspace>release/projects/pipe2browser/go</workspace>
+    <workspace>roadmap/go</workspace>
+  </vdlWorkspaces>
+</config>
