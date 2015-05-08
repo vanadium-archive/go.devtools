@@ -50,6 +50,8 @@ names do not have embedded commas.
 If [nodes] is not provided, lists information for all nodes.
 
 The vcloud list flags are:
+ -fields=
+   Only display these fields, specified as comma-separated column header names.
  -noheader=false
    Don't print list table header.
 
