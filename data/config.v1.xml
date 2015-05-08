@@ -71,7 +71,7 @@
       <test>vanadium-www-tutorials</test>
     </project>
   </projectTests>
-  <snapshostLabelTests>
+  <snapshotLabelTests>
     <snapshot name="old-store">
       <test>vanadium-go-build</test>
       <test>vanadium-go-test</test>
@@ -83,7 +83,7 @@
       <test>vanadium-go-race</test>
       <test>vanadium-go-test</test>
     </snapshot>
-  </snapshostLabelTests>
+  </snapshotLabelTests>
   <testDependencies>
     <test name="third_party-go-race">
       <dependency>third_party-go-test</dependency>
