@@ -162,7 +162,7 @@
   <testParts>
     <test name="vanadium-go-race">
       <part>v.io/x/ref/services/...</part>
-      <part>v.io/x/ref/profiles/...</part>
+      <part>v.io/x/ref/runtime/...</part>
     </test>
   </testParts>
   <vdlWorkspaces>

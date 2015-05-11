@@ -379,7 +379,7 @@ func TestGetTestsToRun(t *testing.T) {
 			"go": []string{"vanadium-go-build", "vanadium-go-test", "vanadium-go-race"},
 		}),
 		util.TestPartsOpt(map[string][]string{
-			"vanadium-go-race": []string{"v.io/x/ref/services/device/...", "v.io/x/ref/profiles/..."},
+			"vanadium-go-race": []string{"v.io/x/ref/services/device/...", "v.io/x/ref/runtime/..."},
 		}),
 	)
 	if err := root.WriteLocalToolsConfig(ctx, config); err != nil {
