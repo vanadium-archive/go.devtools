@@ -24,27 +24,27 @@ import (
 	"time"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 // TODO(toddw): Add tests by mocking out gcloud.
 
 func main() {
-	cmdline2.Main(cmdVCloud)
+	cmdline.Main(cmdVCloud)
 }
 
-var cmdVCloud = &cmdline2.Command{
+var cmdVCloud = &cmdline.Command{
 	Name:  "vcloud",
 	Short: "wrapper over the Google Compute Engine gcloud tool",
 	Long: `
 Command vcloud is a wrapper over the Google Compute Engine gcloud tool.  It
 simplifies common usage scenarios and provides some Vanadium-specific support.
 `,
-	Children: []*cmdline2.Command{cmdList, cmdCP, cmdNode, cmdCopyAndRun, cmdSH},
+	Children: []*cmdline.Command{cmdList, cmdCP, cmdNode, cmdCopyAndRun, cmdSH},
 }
 
-var cmdList = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runList),
+var cmdList = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runList),
 	Name:   "list",
 	Short:  "List GCE node information",
 	Long: `
@@ -56,8 +56,8 @@ If [nodes] is not provided, lists information for all nodes.
 `,
 }
 
-var cmdCP = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runCP),
+var cmdCP = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runCP),
 	Name:   "cp",
 	Short:  "Copy files to/from GCE node(s)",
 	Long: `
@@ -87,8 +87,8 @@ E.g. if <nodes> matches A, B and C:
 `,
 }
 
-var cmdSH = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runSH),
+var cmdSH = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runSH),
 	Name:   "sh",
 	Short:  "Start a shell or run a command on GCE node(s)",
 	Long: `
@@ -111,8 +111,8 @@ The default is to run on all nodes in parallel.
 `,
 }
 
-var cmdCopyAndRun = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runCopyAndRun),
+var cmdCopyAndRun = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runCopyAndRun),
 	Name:   "run",
 	Short:  "Copy file(s) to GCE node(s) and run",
 	Long: `
@@ -264,7 +264,7 @@ func addUser(user, suffix string) string {
 	return suffix
 }
 
-func newContext(env *cmdline2.Env) *tool.Context {
+func newContext(env *cmdline.Env) *tool.Context {
 	return tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   flagColor,
 		DryRun:  flagDryRun,
@@ -665,7 +665,7 @@ func listMatching(ctx *tool.Context, exprlist string) (nodeInfos, error) {
 	return match, nil
 }
 
-func runList(env *cmdline2.Env, args []string) error {
+func runList(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
 	all, err := listAll(ctx, *flagDryRun)
 	if err != nil {
@@ -686,7 +686,7 @@ func runList(env *cmdline2.Env, args []string) error {
 	return env.UsageErrorf("too many args")
 }
 
-func runCP(env *cmdline2.Env, args []string) error {
+func runCP(env *cmdline.Env, args []string) error {
 	if len(args) < 3 {
 		return env.UsageErrorf("need at least three args")
 	}
@@ -715,7 +715,7 @@ func runCP(env *cmdline2.Env, args []string) error {
 	return nodes.RunCopy(ctx, srcs, dst)
 }
 
-func runSH(env *cmdline2.Env, args []string) error {
+func runSH(env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("no node(s) specified")
 	}
@@ -733,7 +733,7 @@ func runSH(env *cmdline2.Env, args []string) error {
 	return nodes.RunCommand(ctx, *flagUser, args[1:])
 }
 
-func runCopyAndRun(env *cmdline2.Env, args []string) error {
+func runCopyAndRun(env *cmdline.Env, args []string) error {
 	if len(args) < 2 {
 		return env.UsageErrorf("need at least two args")
 	}

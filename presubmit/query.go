@@ -21,7 +21,7 @@ import (
 	"v.io/x/devtools/internal/gerrit"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 const (
@@ -109,7 +109,7 @@ func (s *multiPartCLSet) cls() clList {
 }
 
 // cmdQuery represents the 'query' command of the presubmit tool.
-var cmdQuery = &cmdline2.Command{
+var cmdQuery = &cmdline.Command{
 	Name:  "query",
 	Short: "Query open CLs from Gerrit",
 	Long: `
@@ -118,11 +118,11 @@ query results, and sends each one with related metadata (ref, project, changeId)
 to a Jenkins job which will run tests against the corresponding CL and post
 review with test results.
 `,
-	Runner: cmdline2.RunnerFunc(runQuery),
+	Runner: cmdline.RunnerFunc(runQuery),
 }
 
 // runQuery implements the "query" subcommand.
-func runQuery(env *cmdline2.Env, args []string) error {
+func runQuery(env *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:    &colorFlag,
 		DryRun:   &dryRunFlag,

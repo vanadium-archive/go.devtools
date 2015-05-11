@@ -13,7 +13,7 @@ import (
 
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 var (
@@ -26,7 +26,7 @@ func isPseudoPackage(p *build.Package) bool {
 	return p == pseudoPackageUnsafe || p == pseudoPackageC
 }
 
-func listPackagePaths(env *cmdline2.Env, args ...string) ([]string, error) {
+func listPackagePaths(env *cmdline.Env, args ...string) ([]string, error) {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{Verbose: new(bool)})
 	return goutil.List(ctx, args...)
 }

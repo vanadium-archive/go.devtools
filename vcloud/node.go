@@ -11,18 +11,18 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
-var cmdNode = &cmdline2.Command{
+var cmdNode = &cmdline.Command{
 	Name:     "node",
 	Short:    "Manage GCE nodes",
 	Long:     "Manage GCE nodes.",
-	Children: []*cmdline2.Command{cmdNodeAuthorize, cmdNodeDeauthorize, cmdNodeCreate, cmdNodeDelete},
+	Children: []*cmdline.Command{cmdNodeAuthorize, cmdNodeDeauthorize, cmdNodeCreate, cmdNodeDelete},
 }
 
-var cmdNodeAuthorize = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runNodeAuthorize),
+var cmdNodeAuthorize = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runNodeAuthorize),
 	Name:   "authorize",
 	Short:  "Authorize a user to login to a GCE node",
 	Long: `
@@ -38,8 +38,8 @@ userB is userA.
 `,
 }
 
-var cmdNodeDeauthorize = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runNodeDeauthorize),
+var cmdNodeDeauthorize = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runNodeDeauthorize),
 	Name:   "deauthorize",
 	Short:  "Deauthorize a user to login to a GCE node",
 	Long: `
@@ -93,7 +93,7 @@ func parseUserAndHost(args []string) (string, string, string, string, error) {
 // TODO(jsimsa): Add command-line flags for specifying the name of the
 // SSH key file to use and whether to create one if it does not
 // exist.
-func runNodeAuthorize(env *cmdline2.Env, args []string) error {
+func runNodeAuthorize(env *cmdline.Env, args []string) error {
 	userA, hostA, userB, hostB, err := parseUserAndHost(args)
 	if err != nil {
 		return env.UsageErrorf("%v", err)
@@ -138,7 +138,7 @@ func runNodeAuthorize(env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-func runNodeDeauthorize(env *cmdline2.Env, args []string) error {
+func runNodeDeauthorize(env *cmdline.Env, args []string) error {
 	userA, hostA, userB, hostB, err := parseUserAndHost(args)
 	if err != nil {
 		return env.UsageErrorf("%v", err)
@@ -169,8 +169,8 @@ func runNodeDeauthorize(env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdNodeCreate = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runNodeCreate),
+var cmdNodeCreate = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runNodeCreate),
 	Name:   "create",
 	Short:  "Create GCE nodes",
 	Long: `
@@ -180,8 +180,8 @@ Create GCE nodes. Runs 'gcloud compute instances create'.
 	ArgsLong: "<names> is a list of names identifying nodes to be created.",
 }
 
-var cmdNodeDelete = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runNodeDelete),
+var cmdNodeDelete = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runNodeDelete),
 	Name:   "delete",
 	Short:  "Delete GCE nodes",
 	Long: `
@@ -191,7 +191,7 @@ Delete GCE nodes. Runs 'gcloud compute instances delete'.
 	ArgsLong: "<names> is a list of names identifying nodes to be deleted.",
 }
 
-func runNodeCreate(env *cmdline2.Env, args []string) error {
+func runNodeCreate(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
 
 	// Create the GCE node(s).
@@ -250,7 +250,7 @@ func runNodeCreate(env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-func runNodeDelete(env *cmdline2.Env, args []string) error {
+func runNodeDelete(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
 
 	// Delete the GCE node(s).

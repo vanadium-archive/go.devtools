@@ -21,7 +21,7 @@ import (
 
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 const (
@@ -160,17 +160,17 @@ func init() {
 }
 
 // cmdCollect represents the 'collect' command of the oncall tool.
-var cmdCollect = &cmdline2.Command{
+var cmdCollect = &cmdline.Command{
 	Name:  "collect",
 	Short: "Collect data for oncall dashboard",
 	Long: `
 This subcommand collects data from Google Cloud Monitoring and stores the
 processed data to Google Storage.
 `,
-	Runner: cmdline2.RunnerFunc(runCollect),
+	Runner: cmdline.RunnerFunc(runCollect),
 }
 
-func runCollect(env *cmdline2.Env, _ []string) error {
+func runCollect(env *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		Verbose: &verboseFlag,

@@ -24,7 +24,7 @@ import (
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 type testStatus int
@@ -84,7 +84,7 @@ func init() {
 }
 
 // cmdResult represents the 'result' command of the presubmit tool.
-var cmdResult = &cmdline2.Command{
+var cmdResult = &cmdline.Command{
 	Name:  "result",
 	Short: "Process and post test results.",
 	Long: `
@@ -92,7 +92,7 @@ Result processes all the test statuses and results files collected from all the
 presubmit test configuration builds, creates a result summary, and posts the
 summary back to the corresponding Gerrit review thread.
 `,
-	Runner: cmdline2.RunnerFunc(runResult),
+	Runner: cmdline.RunnerFunc(runResult),
 }
 
 // multiConfigurationJobs is a map from Jenkins job names to their axis infos.
@@ -271,7 +271,7 @@ func (ri testResultInfo) key() string {
 // Each individual presubmit test will generate the .json file and the .xml file
 // at the end of their run, and the presubmit "master" job is configured to
 // collect all those files and store them in the above directory structure.
-func runResult(env *cmdline2.Env, args []string) (e error) {
+func runResult(env *cmdline.Env, args []string) (e error) {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:    &colorFlag,
 		DryRun:   &dryRunFlag,

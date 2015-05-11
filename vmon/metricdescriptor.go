@@ -12,11 +12,11 @@ import (
 	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/x/devtools/internal/monitoring"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 // cmdMetricDescriptor represents the "md" command of the vmon tool.
-var cmdMetricDescriptor = &cmdline2.Command{
+var cmdMetricDescriptor = &cmdline.Command{
 	Name:  "md",
 	Short: "The 'md' command manages metric descriptors in the given GCM instance",
 	Long: `
@@ -24,7 +24,7 @@ Metric descriptor defines the metadata for a custom metric. It includes the
 metric's name, description, a set of labels, and its type. Before adding custom
 metric data points to GCM, we need to create its metric descriptor (once).
 `,
-	Children: []*cmdline2.Command{
+	Children: []*cmdline.Command{
 		cmdMetricDescriptorCreate,
 		cmdMetricDescriptorDelete,
 		cmdMetricDescriptorList,
@@ -33,8 +33,8 @@ metric data points to GCM, we need to create its metric descriptor (once).
 }
 
 // cmdMetricDescriptorCreate represents the "vmon md create" command.
-var cmdMetricDescriptorCreate = &cmdline2.Command{
-	Runner:   cmdline2.RunnerFunc(runMetricDescriptorCreate),
+var cmdMetricDescriptorCreate = &cmdline.Command{
+	Runner:   cmdline.RunnerFunc(runMetricDescriptorCreate),
 	Name:     "create",
 	Short:    "Create the given metric descriptor in GCM",
 	Long:     "Create the given metric descriptor in GCM.",
@@ -42,7 +42,7 @@ var cmdMetricDescriptorCreate = &cmdline2.Command{
 	ArgsLong: "<names> is a list of metric descriptor names to create. Available: " + strings.Join(knownMetricDescriptorNames(), ", "),
 }
 
-func runMetricDescriptorCreate(env *cmdline2.Env, args []string) error {
+func runMetricDescriptorCreate(env *cmdline.Env, args []string) error {
 	if err := checkArgs(env, args); err != nil {
 		return err
 	}
@@ -62,8 +62,8 @@ func runMetricDescriptorCreate(env *cmdline2.Env, args []string) error {
 }
 
 // cmdMetricDescriptorDelete represents the "vmon md delete" command.
-var cmdMetricDescriptorDelete = &cmdline2.Command{
-	Runner:   cmdline2.RunnerFunc(runMetricDescriptorDelete),
+var cmdMetricDescriptorDelete = &cmdline.Command{
+	Runner:   cmdline.RunnerFunc(runMetricDescriptorDelete),
 	Name:     "delete",
 	Short:    "Delete the given metric descriptor from GCM",
 	Long:     "Delete the given metric descriptor from GCM.",
@@ -71,7 +71,7 @@ var cmdMetricDescriptorDelete = &cmdline2.Command{
 	ArgsLong: "<names> is a list of metric descriptor names to delete. Available: " + strings.Join(knownMetricDescriptorNames(), ", "),
 }
 
-func runMetricDescriptorDelete(env *cmdline2.Env, args []string) error {
+func runMetricDescriptorDelete(env *cmdline.Env, args []string) error {
 	if err := checkArgs(env, args); err != nil {
 		return err
 	}
@@ -91,14 +91,14 @@ func runMetricDescriptorDelete(env *cmdline2.Env, args []string) error {
 }
 
 // cmdMetricDescriptorList represents the "vmon md list" command.
-var cmdMetricDescriptorList = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runMetricDescriptorList),
+var cmdMetricDescriptorList = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runMetricDescriptorList),
 	Name:   "list",
 	Short:  "List known custom metric descriptors",
 	Long:   "List known custom metric descriptors.",
 }
 
-func runMetricDescriptorList(env *cmdline2.Env, _ []string) error {
+func runMetricDescriptorList(env *cmdline.Env, _ []string) error {
 	for _, n := range knownMetricDescriptorNames() {
 		fmt.Fprintf(env.Stdout, "%s\n", n)
 	}
@@ -106,14 +106,14 @@ func runMetricDescriptorList(env *cmdline2.Env, _ []string) error {
 }
 
 // cmdMetricDescriptorQuery represents the "vmon md query" command.
-var cmdMetricDescriptorQuery = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runMetricDescriptorQuery),
+var cmdMetricDescriptorQuery = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runMetricDescriptorQuery),
 	Name:   "query",
 	Short:  "Query metric descriptors from GCM using the given filter",
 	Long:   "Query metric descriptors from GCM using the given filter.",
 }
 
-func runMetricDescriptorQuery(env *cmdline2.Env, _ []string) error {
+func runMetricDescriptorQuery(env *cmdline.Env, _ []string) error {
 	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
 	if err != nil {
 		return err
@@ -164,7 +164,7 @@ func knownMetricDescriptorNames() []string {
 	return names
 }
 
-func checkArgs(env *cmdline2.Env, args []string) error {
+func checkArgs(env *cmdline.Env, args []string) error {
 	for _, arg := range args {
 		if _, ok := monitoring.CustomMetricDescriptors[arg]; !ok {
 			return env.UsageErrorf("metric descriptor %v does not exist", arg)

@@ -7,7 +7,7 @@
 
 package main
 
-import "v.io/x/lib/cmdline2"
+import "v.io/x/lib/cmdline"
 
 const (
 	bucket = "gs://vanadium-oncall/data"
@@ -26,13 +26,13 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 // cmdRoot represents the root of the oncall tool.
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:     "oncall",
 	Short:    "Command oncall implements oncall specific utilities used by Vanadium team",
 	Long:     "Command oncall implements oncall specific utilities used by Vanadium team.",
-	Children: []*cmdline2.Command{cmdCollect, cmdServe},
+	Children: []*cmdline.Command{cmdCollect, cmdServe},
 }

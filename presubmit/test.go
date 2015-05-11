@@ -24,7 +24,7 @@ import (
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 const (
@@ -48,14 +48,14 @@ func init() {
 }
 
 // cmdTest represents the 'test' command of the presubmit tool.
-var cmdTest = &cmdline2.Command{
+var cmdTest = &cmdline.Command{
 	Name:  "test",
 	Short: "Run tests for a CL",
 	Long: `
 This subcommand pulls the open CLs from Gerrit, runs tests specified in a config
 file, and posts test results back to the corresponding Gerrit review thread.
 `,
-	Runner: cmdline2.RunnerFunc(runTest),
+	Runner: cmdline.RunnerFunc(runTest),
 }
 
 const (
@@ -77,7 +77,7 @@ func (c cl) String() string {
 }
 
 // runTest implements the 'test' subcommand.
-func runTest(cmdlineEnv *cmdline2.Env, args []string) (e error) {
+func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	ctx := tool.NewContextFromEnv(cmdlineEnv, tool.ContextOpts{
 		Color:    &colorFlag,
 		DryRun:   &dryRunFlag,
@@ -275,7 +275,7 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 }
 
 // sanityChecks performs basic sanity checks for various flags.
-func sanityChecks(env *cmdline2.Env) error {
+func sanityChecks(env *cmdline.Env) error {
 	manifestFilePath, err := util.ManifestFile(manifestFlag)
 	if err != nil {
 		return err

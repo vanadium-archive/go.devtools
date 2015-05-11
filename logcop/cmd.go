@@ -12,11 +12,11 @@ import (
 	"strings"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 var (
@@ -42,7 +42,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "logcop",
 	Short: "Tool for checking and injecting log statements in code",
 	Long: `
@@ -63,12 +63,12 @@ to another name makes logcop ignore the calls.  Importing any
 other package with the name "` + logPackageIdentifier + `" will
 invoke undefined behavior.
 `,
-	Children: []*cmdline2.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
 }
 
 // cmdCheck represents the 'check' command of the logcop tool.
-var cmdCheck = &cmdline2.Command{
-	Runner:   cmdline2.RunnerFunc(runCheck),
+var cmdCheck = &cmdline.Command{
+	Runner:   cmdline.RunnerFunc(runCheck),
 	Name:     "check",
 	Short:    "Check for log statements in public API implementations",
 	Long:     "Check for log statements in public API implementations.",
@@ -94,7 +94,7 @@ func splitCommaSeparatedValues(s string) []string {
 
 // runCheck handles the "check" command and executes
 // the log injector in check-only mode.
-func runCheck(env *cmdline2.Env, args []string) error {
+func runCheck(env *cmdline.Env, args []string) error {
 	interfacePackageList := splitCommaSeparatedValues(interfacesFlag)
 	implementationPackageList := args
 	if len(interfacePackageList) == 0 {
@@ -113,8 +113,8 @@ func runCheck(env *cmdline2.Env, args []string) error {
 }
 
 // cmdInject represents the 'inject' command of the logcop tool.
-var cmdInject = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runInject),
+var cmdInject = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runInject),
 	Name:   "inject",
 	Short:  "Inject log statements in public API implementations",
 	Long: `Inject log statements in public API implementations.
@@ -128,7 +128,7 @@ you can see the diff or revert the changes.
 
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
-func runInject(env *cmdline2.Env, args []string) error {
+func runInject(env *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
@@ -138,8 +138,8 @@ func runInject(env *cmdline2.Env, args []string) error {
 }
 
 // cmdRemove represents the 'remove' command of the logcop tool.
-var cmdRemove = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runRemove),
+var cmdRemove = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runRemove),
 	Name:   "remove",
 	Short:  "Remove log statements",
 	Long: `Remove log statements.
@@ -152,7 +152,7 @@ you can see the diff or revert the changes.
 }
 
 // runRemove handles the "remove" command.
-func runRemove(env *cmdline2.Env, args []string) error {
+func runRemove(env *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
@@ -162,14 +162,14 @@ func runRemove(env *cmdline2.Env, args []string) error {
 }
 
 // cmdVersion represents the 'version' command of the logcop tool.
-var cmdVersion = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runVersion),
+var cmdVersion = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runVersion),
 	Name:   "version",
 	Short:  "Print version",
 	Long:   "Print version of the logcop tool.",
 }
 
-func runVersion(env *cmdline2.Env, _ []string) error {
+func runVersion(env *cmdline.Env, _ []string) error {
 	fmt.Fprintf(env.Stdout, "logcop tool version %v\n", tool.Version)
 	return nil
 }

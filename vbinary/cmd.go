@@ -27,7 +27,7 @@ import (
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 var (
@@ -67,11 +67,11 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 // cmdRoot represents the "vbinary" command.
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "vbinary",
 	Short: "Access daily builds of Vanadium binaries",
 	Long: `
@@ -79,12 +79,12 @@ var cmdRoot = &cmdline2.Command{
 Command vbinary retrieves daily builds of Vanadium binaries stored in
 a Google Storage bucket.
 `,
-	Children: []*cmdline2.Command{cmdList, cmdDownload},
+	Children: []*cmdline.Command{cmdList, cmdDownload},
 }
 
 // cmdList represents the "vbinary list" command.
-var cmdList = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runList),
+var cmdList = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runList),
 	Name:   "list",
 	Short:  "List existing daily builds of Vanadium binaries",
 	Long: `
@@ -93,7 +93,7 @@ can be limited with the --date-prefix flag.
 `,
 }
 
-func runList(env *cmdline2.Env, _ []string) error {
+func runList(env *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
@@ -118,8 +118,8 @@ func runList(env *cmdline2.Env, _ []string) error {
 }
 
 // cmdDownload represents the "vbinary download" command.
-var cmdDownload = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runDownload),
+var cmdDownload = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runDownload),
 	Name:   "download",
 	Short:  "Download an existing daily build of Vanadium binaries",
 	Long: `
@@ -130,7 +130,7 @@ downloaded.
 `,
 }
 
-func runDownload(env *cmdline2.Env, args []string) error {
+func runDownload(env *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
@@ -269,7 +269,7 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 	}
 	if len(snapshots) == 0 {
 		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", osFlag, archFlag, datePrefixFlag)
-		return nil, cmdline2.ErrExitCode(util.NoSnapshotExitCode)
+		return nil, cmdline.ErrExitCode(util.NoSnapshotExitCode)
 	}
 	ret := make([]string, len(snapshots))
 	for i, snapshot := range snapshots {

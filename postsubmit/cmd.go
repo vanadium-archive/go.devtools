@@ -18,7 +18,7 @@ import (
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 var (
@@ -55,28 +55,28 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 // cmdRoot represents the root of the postsubmit tool.
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "postsubmit",
 	Short: "performs Vanadium postsubmit related functions",
 	Long: `
 Command postsubmit performs Vanadium postsubmit related functions.
 `,
-	Children: []*cmdline2.Command{cmdPoll, cmdVersion},
+	Children: []*cmdline.Command{cmdPoll, cmdVersion},
 }
 
 // cmdPoll represents the "poll" command of the postsubmit tool.
-var cmdPoll = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runPoll),
+var cmdPoll = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runPoll),
 	Name:   "poll",
 	Short:  "Poll changes and start corresponding builds on Jenkins",
 	Long:   "Poll changes and start corresponding builds on Jenkins.",
 }
 
-func runPoll(env *cmdline2.Env, _ []string) error {
+func runPoll(env *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:    &colorFlag,
 		DryRun:   &dryRunFlag,
@@ -220,14 +220,14 @@ func startJenkinsTests(ctx *tool.Context, tests []string) error {
 }
 
 // cmdVersion represent the "version" command of the postsubmit tool.
-var cmdVersion = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runVersion),
+var cmdVersion = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runVersion),
 	Name:   "version",
 	Short:  "Print version",
 	Long:   "Print version of the postsubmit tool.",
 }
 
-func runVersion(env *cmdline2.Env, _ []string) error {
+func runVersion(env *cmdline.Env, _ []string) error {
 	fmt.Fprintf(env.Stdout, "postsubmit tool version %v\n", tool.Version)
 	return nil
 }
