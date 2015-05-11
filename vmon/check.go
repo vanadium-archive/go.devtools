@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 // checkFunctions is a map from check names to the corresponding check functions.
@@ -23,25 +23,25 @@ var checkFunctions = map[string]func(*tool.Context) error{
 }
 
 // cmdCheck represents the "check" command of the vmon tool.
-var cmdCheck = &cmdline2.Command{
+var cmdCheck = &cmdline.Command{
 	Name:  "check",
 	Short: "Manage checks whose results are used in GCM for alerting and graphing",
 	Long:  "Manage checks whose results are used in GCM for alerting and graphing.",
-	Children: []*cmdline2.Command{
+	Children: []*cmdline.Command{
 		cmdCheckList,
 		cmdCheckRun,
 	},
 }
 
 // cmdCheckList represents the "vmon check list" command.
-var cmdCheckList = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runCheckList),
+var cmdCheckList = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runCheckList),
 	Name:   "list",
 	Short:  "List known checks",
 	Long:   "List known checks.",
 }
 
-func runCheckList(env *cmdline2.Env, _ []string) error {
+func runCheckList(env *cmdline.Env, _ []string) error {
 	checks := []string{}
 	for name := range checkFunctions {
 		checks = append(checks, name)
@@ -54,8 +54,8 @@ func runCheckList(env *cmdline2.Env, _ []string) error {
 }
 
 // cmdCheckRun represents the "vmon check run" command.
-var cmdCheckRun = &cmdline2.Command{
-	Runner:   cmdline2.RunnerFunc(runCheckRun),
+var cmdCheckRun = &cmdline.Command{
+	Runner:   cmdline.RunnerFunc(runCheckRun),
 	Name:     "run",
 	Short:    "Run the given checks",
 	Long:     "Run the given checks.",
@@ -63,7 +63,7 @@ var cmdCheckRun = &cmdline2.Command{
 	ArgsLong: "<names> is a list of names identifying the checks to run. Available: " + strings.Join(knownCheckNames(), ", "),
 }
 
-func runCheckRun(env *cmdline2.Env, args []string) error {
+func runCheckRun(env *cmdline.Env, args []string) error {
 	// Check args.
 	for _, arg := range args {
 		if _, ok := checkFunctions[arg]; !ok {

@@ -7,7 +7,7 @@
 
 package main
 
-import "v.io/x/lib/cmdline2"
+import "v.io/x/lib/cmdline"
 
 var (
 	binDirFlag         string
@@ -38,17 +38,17 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 // cmdRoot represents the root of the vmon tool.
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "vmon",
 	Short: "interacts with Google Cloud Monitoring",
 	Long: `
 Command vmon interacts with Google Cloud Monitoring.
 `,
-	Children: []*cmdline2.Command{
+	Children: []*cmdline.Command{
 		cmdMetricDescriptor,
 		cmdCheck,
 	},

@@ -16,7 +16,7 @@ import (
 
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 const (
@@ -69,7 +69,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)
 	}
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 // printf outputs the given message prefixed by outputPrefix, adding a
@@ -83,24 +83,24 @@ func printf(out io.Writer, format string, args ...interface{}) {
 }
 
 // cmdRoot represents the root of the presubmit tool.
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "presubmit",
 	Short: "performs Vanadium presubmit related functions.",
 	Long: `
 Command presubmit performs Vanadium presubmit related functions.
 `,
-	Children: []*cmdline2.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
+	Children: []*cmdline.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
 }
 
 // cmdVersion represent the 'version' command of the presubmit tool.
-var cmdVersion = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runVersion),
+var cmdVersion = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runVersion),
 	Name:   "version",
 	Short:  "Print version",
 	Long:   "Print version of the presubmit tool.",
 }
 
-func runVersion(env *cmdline2.Env, _ []string) error {
+func runVersion(env *cmdline.Env, _ []string) error {
 	printf(env.Stdout, "presubmit tool version %v\n", tool.Version)
 	return nil
 }

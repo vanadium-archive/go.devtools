@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 // TODO(jsimsa): Add tests by mocking out jenkins.
@@ -24,28 +24,28 @@ import (
 // TODO(jsimsa): Create a tools/lib/gcutil package that encapsulates
 // the interaction with GCE and use it here and in the vcloud tool.
 func main() {
-	cmdline2.Main(cmdVJenkins)
+	cmdline.Main(cmdVJenkins)
 }
 
-var cmdVJenkins = &cmdline2.Command{
+var cmdVJenkins = &cmdline.Command{
 	Name:  "vjenkins",
 	Short: "Vanadium-specific utilities for interacting with Jenkins",
 	Long: `
 Command vjenkins implements Vanadium-specific utilities for interacting with
 Jenkins.
 `,
-	Children: []*cmdline2.Command{cmdNode},
+	Children: []*cmdline.Command{cmdNode},
 }
 
-var cmdNode = &cmdline2.Command{
+var cmdNode = &cmdline.Command{
 	Name:     "node",
 	Short:    "Manage Jenkins slave nodes",
 	Long:     "Manage Jenkins slave nodes.",
-	Children: []*cmdline2.Command{cmdNodeCreate, cmdNodeDelete},
+	Children: []*cmdline.Command{cmdNodeCreate, cmdNodeDelete},
 }
 
-var cmdNodeCreate = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runNodeCreate),
+var cmdNodeCreate = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runNodeCreate),
 	Name:   "create",
 	Short:  "Create Jenkins slave nodes",
 	Long: `
@@ -55,8 +55,8 @@ Create Jenkins nodes. Uses the Jenkins REST API to create new slave nodes.
 	ArgsLong: "<names> is a list of names identifying nodes to be created.",
 }
 
-var cmdNodeDelete = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runNodeDelete),
+var cmdNodeDelete = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runNodeDelete),
 	Name:   "delete",
 	Short:  "Delete Jenkins slave nodes",
 	Long: `
@@ -89,7 +89,7 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "vanadium-internal", "GCE project of the machine.")
 }
 
-func newContext(env *cmdline2.Env) *tool.Context {
+func newContext(env *cmdline.Env) *tool.Context {
 	return tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   flagColor,
 		DryRun:  flagDryRun,
@@ -124,7 +124,7 @@ func lookupIPAddress(ctx *tool.Context, node string) (string, error) {
 }
 
 // runNodeCreate adds slave node(s) to Jenkins configuration.
-func runNodeCreate(env *cmdline2.Env, args []string) error {
+func runNodeCreate(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
 	jenkins, err := ctx.Jenkins(flagJenkinsHost)
 	if err != nil {
@@ -145,7 +145,7 @@ func runNodeCreate(env *cmdline2.Env, args []string) error {
 }
 
 // runNodeDelete removes slave node(s) from Jenkins configuration.
-func runNodeDelete(env *cmdline2.Env, args []string) error {
+func runNodeDelete(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
 	jenkins, err := ctx.Jenkins(flagJenkinsHost)
 	if err != nil {

@@ -14,15 +14,15 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 func main() {
-	cmdline2.Main(cmdGoPkg)
+	cmdline.Main(cmdGoPkg)
 }
 
-var cmdGoPkg = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runGoPkg),
+var cmdGoPkg = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runGoPkg),
 	Name:   "gopkg",
 	Short:  "prints information about go packages",
 	Long: `
@@ -70,7 +70,7 @@ func parseRegexp(expr string) (*regexp.Regexp, error) {
 	return regexp.Compile(expr)
 }
 
-func runGoPkg(env *cmdline2.Env, args []string) error {
+func runGoPkg(env *cmdline.Env, args []string) error {
 	// Parse flags.
 	nameRE, err := parseRegexp(flagNameRE)
 	if err != nil {
