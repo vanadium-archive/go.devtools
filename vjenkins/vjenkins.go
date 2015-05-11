@@ -11,13 +11,12 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 // TODO(jsimsa): Add tests by mocking out jenkins.
@@ -25,30 +24,30 @@ import (
 // TODO(jsimsa): Create a tools/lib/gcutil package that encapsulates
 // the interaction with GCE and use it here and in the vcloud tool.
 func main() {
-	os.Exit(cmdVJenkins.Main())
+	cmdline2.Main(cmdVJenkins)
 }
 
-var cmdVJenkins = &cmdline.Command{
+var cmdVJenkins = &cmdline2.Command{
 	Name:  "vjenkins",
 	Short: "Vanadium-specific utilities for interacting with Jenkins",
 	Long: `
 Command vjenkins implements Vanadium-specific utilities for interacting with
 Jenkins.
 `,
-	Children: []*cmdline.Command{cmdNode},
+	Children: []*cmdline2.Command{cmdNode},
 }
 
-var cmdNode = &cmdline.Command{
+var cmdNode = &cmdline2.Command{
 	Name:     "node",
 	Short:    "Manage Jenkins slave nodes",
 	Long:     "Manage Jenkins slave nodes.",
-	Children: []*cmdline.Command{cmdNodeCreate, cmdNodeDelete},
+	Children: []*cmdline2.Command{cmdNodeCreate, cmdNodeDelete},
 }
 
-var cmdNodeCreate = &cmdline.Command{
-	Run:   runNodeCreate,
-	Name:  "create",
-	Short: "Create Jenkins slave nodes",
+var cmdNodeCreate = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runNodeCreate),
+	Name:   "create",
+	Short:  "Create Jenkins slave nodes",
 	Long: `
 Create Jenkins nodes. Uses the Jenkins REST API to create new slave nodes.
 `,
@@ -56,10 +55,10 @@ Create Jenkins nodes. Uses the Jenkins REST API to create new slave nodes.
 	ArgsLong: "<names> is a list of names identifying nodes to be created.",
 }
 
-var cmdNodeDelete = &cmdline.Command{
-	Run:   runNodeDelete,
-	Name:  "delete",
-	Short: "Delete Jenkins slave nodes",
+var cmdNodeDelete = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runNodeDelete),
+	Name:   "delete",
+	Short:  "Delete Jenkins slave nodes",
 	Long: `
 Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
 `,
@@ -90,8 +89,8 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "vanadium-internal", "GCE project of the machine.")
 }
 
-func newContext(cmd *cmdline.Command) *tool.Context {
-	return tool.NewContextFromCommand(cmd, tool.ContextOpts{
+func newContext(env *cmdline2.Env) *tool.Context {
+	return tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   flagColor,
 		DryRun:  flagDryRun,
 		Verbose: flagVerbose,
@@ -125,8 +124,8 @@ func lookupIPAddress(ctx *tool.Context, node string) (string, error) {
 }
 
 // runNodeCreate adds slave node(s) to Jenkins configuration.
-func runNodeCreate(cmd *cmdline.Command, args []string) error {
-	ctx := newContext(cmd)
+func runNodeCreate(env *cmdline2.Env, args []string) error {
+	ctx := newContext(env)
 	jenkins, err := ctx.Jenkins(flagJenkinsHost)
 	if err != nil {
 		return err
@@ -146,8 +145,8 @@ func runNodeCreate(cmd *cmdline.Command, args []string) error {
 }
 
 // runNodeDelete removes slave node(s) from Jenkins configuration.
-func runNodeDelete(cmd *cmdline.Command, args []string) error {
-	ctx := newContext(cmd)
+func runNodeDelete(env *cmdline2.Env, args []string) error {
+	ctx := newContext(env)
 	jenkins, err := ctx.Jenkins(flagJenkinsHost)
 	if err != nil {
 		return err

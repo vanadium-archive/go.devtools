@@ -24,7 +24,7 @@ import (
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 const (
@@ -48,14 +48,14 @@ func init() {
 }
 
 // cmdTest represents the 'test' command of the presubmit tool.
-var cmdTest = &cmdline.Command{
+var cmdTest = &cmdline2.Command{
 	Name:  "test",
 	Short: "Run tests for a CL",
 	Long: `
 This subcommand pulls the open CLs from Gerrit, runs tests specified in a config
 file, and posts test results back to the corresponding Gerrit review thread.
 `,
-	Run: runTest,
+	Runner: cmdline2.RunnerFunc(runTest),
 }
 
 const (
@@ -77,8 +77,8 @@ func (c cl) String() string {
 }
 
 // runTest implements the 'test' subcommand.
-func runTest(command *cmdline.Command, args []string) (e error) {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runTest(cmdlineEnv *cmdline2.Env, args []string) (e error) {
+	ctx := tool.NewContextFromEnv(cmdlineEnv, tool.ContextOpts{
 		Color:    &colorFlag,
 		DryRun:   &dryRunFlag,
 		Manifest: &manifestFlag,
@@ -86,7 +86,7 @@ func runTest(command *cmdline.Command, args []string) (e error) {
 	})
 
 	// Basic sanity checks.
-	if err := sanityChecks(command); err != nil {
+	if err := sanityChecks(cmdlineEnv); err != nil {
 		return err
 	}
 
@@ -275,7 +275,7 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 }
 
 // sanityChecks performs basic sanity checks for various flags.
-func sanityChecks(command *cmdline.Command) error {
+func sanityChecks(env *cmdline2.Env) error {
 	manifestFilePath, err := util.ManifestFile(manifestFlag)
 	if err != nil {
 		return err
@@ -284,10 +284,10 @@ func sanityChecks(command *cmdline.Command) error {
 		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
 	}
 	if projectsFlag == "" {
-		return command.UsageErrorf("-projects flag is required")
+		return env.UsageErrorf("-projects flag is required")
 	}
 	if reviewTargetRefsFlag == "" {
-		return command.UsageErrorf("-refs flag is required")
+		return env.UsageErrorf("-refs flag is required")
 	}
 	return nil
 }

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -9,8 +12,12 @@ import (
 	"strings"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
+
+func main() {
+	cmdline2.Main(cmdRoot)
+}
 
 var (
 	interfacesFlag string
@@ -35,12 +42,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 }
 
-// root returns a command that represents the root of the logcop tool.
-func root() *cmdline.Command {
-	return cmdRoot
-}
-
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "logcop",
 	Short: "Tool for checking and injecting log statements in code",
 	Long: `
@@ -61,12 +63,12 @@ to another name makes logcop ignore the calls.  Importing any
 other package with the name "` + logPackageIdentifier + `" will
 invoke undefined behavior.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
+	Children: []*cmdline2.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
 }
 
 // cmdCheck represents the 'check' command of the logcop tool.
-var cmdCheck = &cmdline.Command{
-	Run:      runCheck,
+var cmdCheck = &cmdline2.Command{
+	Runner:   cmdline2.RunnerFunc(runCheck),
 	Name:     "check",
 	Short:    "Check for log statements in public API implementations",
 	Long:     "Check for log statements in public API implementations.",
@@ -92,17 +94,17 @@ func splitCommaSeparatedValues(s string) []string {
 
 // runCheck handles the "check" command and executes
 // the log injector in check-only mode.
-func runCheck(command *cmdline.Command, args []string) error {
+func runCheck(env *cmdline2.Env, args []string) error {
 	interfacePackageList := splitCommaSeparatedValues(interfacesFlag)
 	implementationPackageList := args
 	if len(interfacePackageList) == 0 {
-		return command.UsageErrorf("no interface packages listed")
+		return env.UsageErrorf("no interface packages listed")
 	}
 
 	if len(implementationPackageList) == 0 {
-		return command.UsageErrorf("no implementation package listed")
+		return env.UsageErrorf("no implementation package listed")
 	}
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
@@ -111,10 +113,10 @@ func runCheck(command *cmdline.Command, args []string) error {
 }
 
 // cmdInject represents the 'inject' command of the logcop tool.
-var cmdInject = &cmdline.Command{
-	Run:   runInject,
-	Name:  "inject",
-	Short: "Inject log statements in public API implementations",
+var cmdInject = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runInject),
+	Name:   "inject",
+	Short:  "Inject log statements in public API implementations",
 	Long: `Inject log statements in public API implementations.
 Note that inject modifies <packages> in-place.  It is a good idea
 to commit changes to version control before running this tool so
@@ -126,8 +128,8 @@ you can see the diff or revert the changes.
 
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
-func runInject(command *cmdline.Command, args []string) error {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runInject(env *cmdline2.Env, args []string) error {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
@@ -136,10 +138,10 @@ func runInject(command *cmdline.Command, args []string) error {
 }
 
 // cmdRemove represents the 'remove' command of the logcop tool.
-var cmdRemove = &cmdline.Command{
-	Run:   runRemove,
-	Name:  "remove",
-	Short: "Remove log statements",
+var cmdRemove = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runRemove),
+	Name:   "remove",
+	Short:  "Remove log statements",
 	Long: `Remove log statements.
 Note that remove modifies <packages> in-place.  It is a good idea
 to commit changes to version control before running this tool so
@@ -150,8 +152,8 @@ you can see the diff or revert the changes.
 }
 
 // runRemove handles the "remove" command.
-func runRemove(command *cmdline.Command, args []string) error {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runRemove(env *cmdline2.Env, args []string) error {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
@@ -160,14 +162,14 @@ func runRemove(command *cmdline.Command, args []string) error {
 }
 
 // cmdVersion represents the 'version' command of the logcop tool.
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version",
-	Long:  "Print version of the logcop tool.",
+var cmdVersion = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runVersion),
+	Name:   "version",
+	Short:  "Print version",
+	Long:   "Print version of the logcop tool.",
 }
 
-func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "logcop tool version %v\n", tool.Version)
+func runVersion(env *cmdline2.Env, _ []string) error {
+	fmt.Fprintf(env.Stdout, "logcop tool version %v\n", tool.Version)
 	return nil
 }

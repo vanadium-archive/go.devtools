@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 // checkFunctions is a map from check names to the corresponding check functions.
@@ -23,39 +23,39 @@ var checkFunctions = map[string]func(*tool.Context) error{
 }
 
 // cmdCheck represents the "check" command of the vmon tool.
-var cmdCheck = &cmdline.Command{
+var cmdCheck = &cmdline2.Command{
 	Name:  "check",
 	Short: "Manage checks whose results are used in GCM for alerting and graphing",
 	Long:  "Manage checks whose results are used in GCM for alerting and graphing.",
-	Children: []*cmdline.Command{
+	Children: []*cmdline2.Command{
 		cmdCheckList,
 		cmdCheckRun,
 	},
 }
 
 // cmdCheckList represents the "vmon check list" command.
-var cmdCheckList = &cmdline.Command{
-	Run:   runCheckList,
-	Name:  "list",
-	Short: "List known checks",
-	Long:  "List known checks.",
+var cmdCheckList = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runCheckList),
+	Name:   "list",
+	Short:  "List known checks",
+	Long:   "List known checks.",
 }
 
-func runCheckList(command *cmdline.Command, _ []string) error {
+func runCheckList(env *cmdline2.Env, _ []string) error {
 	checks := []string{}
 	for name := range checkFunctions {
 		checks = append(checks, name)
 	}
 	sort.Strings(checks)
 	for _, check := range checks {
-		fmt.Fprintf(command.Stdout(), "%v\n", check)
+		fmt.Fprintf(env.Stdout, "%v\n", check)
 	}
 	return nil
 }
 
 // cmdCheckRun represents the "vmon check run" command.
-var cmdCheckRun = &cmdline.Command{
-	Run:      runCheckRun,
+var cmdCheckRun = &cmdline2.Command{
+	Runner:   cmdline2.RunnerFunc(runCheckRun),
 	Name:     "run",
 	Short:    "Run the given checks",
 	Long:     "Run the given checks.",
@@ -63,20 +63,20 @@ var cmdCheckRun = &cmdline.Command{
 	ArgsLong: "<names> is a list of names identifying the checks to run. Available: " + strings.Join(knownCheckNames(), ", "),
 }
 
-func runCheckRun(command *cmdline.Command, args []string) error {
+func runCheckRun(env *cmdline2.Env, args []string) error {
 	// Check args.
 	for _, arg := range args {
 		if _, ok := checkFunctions[arg]; !ok {
-			return command.UsageErrorf("check %v does not exist", arg)
+			return env.UsageErrorf("check %v does not exist", arg)
 		}
 	}
 	if len(args) == 0 {
-		return command.UsageErrorf("no checks provided")
+		return env.UsageErrorf("no checks provided")
 	}
 
 	// Run checks.
 	hasError := false
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		Verbose: &verboseFlag,
 	})

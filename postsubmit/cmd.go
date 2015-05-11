@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -15,7 +18,7 @@ import (
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 var (
@@ -51,31 +54,30 @@ func init() {
 	cmdPoll.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 }
 
-// root returns a command that represents the root of the postsubmit tool.
-func root() *cmdline.Command {
-	return cmdRoot
+func main() {
+	cmdline2.Main(cmdRoot)
 }
 
 // cmdRoot represents the root of the postsubmit tool.
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "postsubmit",
 	Short: "performs Vanadium postsubmit related functions",
 	Long: `
 Command postsubmit performs Vanadium postsubmit related functions.
 `,
-	Children: []*cmdline.Command{cmdPoll, cmdVersion},
+	Children: []*cmdline2.Command{cmdPoll, cmdVersion},
 }
 
 // cmdPoll represents the "poll" command of the postsubmit tool.
-var cmdPoll = &cmdline.Command{
-	Run:   runPoll,
-	Name:  "poll",
-	Short: "Poll changes and start corresponding builds on Jenkins",
-	Long:  "Poll changes and start corresponding builds on Jenkins.",
+var cmdPoll = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runPoll),
+	Name:   "poll",
+	Short:  "Poll changes and start corresponding builds on Jenkins",
+	Long:   "Poll changes and start corresponding builds on Jenkins.",
 }
 
-func runPoll(command *cmdline.Command, _ []string) error {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runPoll(env *cmdline2.Env, _ []string) error {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:    &colorFlag,
 		DryRun:   &dryRunFlag,
 		Manifest: &manifestFlag,
@@ -218,14 +220,14 @@ func startJenkinsTests(ctx *tool.Context, tests []string) error {
 }
 
 // cmdVersion represent the "version" command of the postsubmit tool.
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version",
-	Long:  "Print version of the postsubmit tool.",
+var cmdVersion = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runVersion),
+	Name:   "version",
+	Short:  "Print version",
+	Long:   "Print version of the postsubmit tool.",
 }
 
-func runVersion(command *cmdline.Command, _ []string) error {
-	fmt.Fprintf(command.Stdout(), "postsubmit tool version %v\n", tool.Version)
+func runVersion(env *cmdline2.Env, _ []string) error {
+	fmt.Fprintf(env.Stdout, "postsubmit tool version %v\n", tool.Version)
 	return nil
 }

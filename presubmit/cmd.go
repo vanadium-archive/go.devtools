@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -13,7 +16,7 @@ import (
 
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 const (
@@ -59,6 +62,16 @@ var (
 	vroot                string
 )
 
+func main() {
+	var err error
+	vroot, err = util.V23Root()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		os.Exit(1)
+	}
+	cmdline2.Main(cmdRoot)
+}
+
 // printf outputs the given message prefixed by outputPrefix, adding a
 // blank line before any messages that start with "###".
 func printf(out io.Writer, format string, args ...interface{}) {
@@ -69,36 +82,25 @@ func printf(out io.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(out, format, args...)
 }
 
-// root returns a command that represents the root of the presubmit tool.
-func root() *cmdline.Command {
-	var err error
-	vroot, err = util.V23Root()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
-		os.Exit(1)
-	}
-	return cmdRoot
-}
-
 // cmdRoot represents the root of the presubmit tool.
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "presubmit",
 	Short: "performs Vanadium presubmit related functions.",
 	Long: `
 Command presubmit performs Vanadium presubmit related functions.
 `,
-	Children: []*cmdline.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
+	Children: []*cmdline2.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
 }
 
 // cmdVersion represent the 'version' command of the presubmit tool.
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version",
-	Long:  "Print version of the presubmit tool.",
+var cmdVersion = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runVersion),
+	Name:   "version",
+	Short:  "Print version",
+	Long:   "Print version of the presubmit tool.",
 }
 
-func runVersion(command *cmdline.Command, _ []string) error {
-	printf(command.Stdout(), "presubmit tool version %v\n", tool.Version)
+func runVersion(env *cmdline2.Env, _ []string) error {
+	printf(env.Stdout, "presubmit tool version %v\n", tool.Version)
 	return nil
 }

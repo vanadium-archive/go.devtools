@@ -17,10 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
+
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 const (
@@ -159,18 +160,18 @@ func init() {
 }
 
 // cmdCollect represents the 'collect' command of the oncall tool.
-var cmdCollect = &cmdline.Command{
+var cmdCollect = &cmdline2.Command{
 	Name:  "collect",
 	Short: "Collect data for oncall dashboard",
 	Long: `
 This subcommand collects data from Google Cloud Monitoring and stores the
 processed data to Google Storage.
 `,
-	Run: runCollect,
+	Runner: cmdline2.RunnerFunc(runCollect),
 }
 
-func runCollect(command *cmdline.Command, _ []string) error {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runCollect(env *cmdline2.Env, _ []string) error {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		Verbose: &verboseFlag,
 		DryRun:  &dryrunFlag,

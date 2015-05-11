@@ -12,7 +12,7 @@ import (
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 var (
@@ -28,15 +28,15 @@ func init() {
 }
 
 // cmdServe represents the 'serve' command of the oncall tool.
-var cmdServe = &cmdline.Command{
-	Run:   runServe,
-	Name:  "serve",
-	Short: "Serve oncall dashboard data from Google Storage",
-	Long:  "Serve oncall dashboard data from Google Storage.",
+var cmdServe = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runServe),
+	Name:   "serve",
+	Short:  "Serve oncall dashboard data from Google Storage",
+	Long:   "Serve oncall dashboard data from Google Storage.",
 }
 
-func runServe(command *cmdline.Command, _ []string) (e error) {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runServe(env *cmdline2.Env, _ []string) (e error) {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		Verbose: &verboseFlag,
 	})

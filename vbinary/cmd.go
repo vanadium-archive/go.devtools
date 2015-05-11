@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -19,12 +22,12 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/storage/v1"
+	storage "google.golang.org/api/storage/v1"
 
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 var (
@@ -63,13 +66,12 @@ func init() {
 	cmdDownload.Flags.StringVar(&outputDirFlag, "output-dir", "", "Directory for storing downloaded binaries.")
 }
 
-// root returns a command that represents the root of the vbinary tool.
-func root() *cmdline.Command {
-	return cmdRoot
+func main() {
+	cmdline2.Main(cmdRoot)
 }
 
 // cmdRoot represents the "vbinary" command.
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "vbinary",
 	Short: "Access daily builds of Vanadium binaries",
 	Long: `
@@ -77,22 +79,22 @@ var cmdRoot = &cmdline.Command{
 Command vbinary retrieves daily builds of Vanadium binaries stored in
 a Google Storage bucket.
 `,
-	Children: []*cmdline.Command{cmdList, cmdDownload},
+	Children: []*cmdline2.Command{cmdList, cmdDownload},
 }
 
 // cmdList represents the "vbinary list" command.
-var cmdList = &cmdline.Command{
-	Run:   runList,
-	Name:  "list",
-	Short: "List existing daily builds of Vanadium binaries",
+var cmdList = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runList),
+	Name:   "list",
+	Short:  "List existing daily builds of Vanadium binaries",
 	Long: `
 List existing daily builds of Vanadium binaries. The displayed dates
 can be limited with the --date-prefix flag.
 `,
 }
 
-func runList(command *cmdline.Command, _ []string) error {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runList(env *cmdline2.Env, _ []string) error {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
@@ -116,10 +118,10 @@ func runList(command *cmdline.Command, _ []string) error {
 }
 
 // cmdDownload represents the "vbinary download" command.
-var cmdDownload = &cmdline.Command{
-	Run:   runDownload,
-	Name:  "download",
-	Short: "Download an existing daily build of Vanadium binaries",
+var cmdDownload = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runDownload),
+	Name:   "download",
+	Short:  "Download an existing daily build of Vanadium binaries",
 	Long: `
 Download an existing daily build of Vanadium binaries. The latest
 snapshot within the --date-prefix range will be downloaded. If no
@@ -128,8 +130,8 @@ downloaded.
 `,
 }
 
-func runDownload(command *cmdline.Command, args []string) error {
-	ctx := tool.NewContextFromCommand(command, tool.ContextOpts{
+func runDownload(env *cmdline2.Env, args []string) error {
+	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
 		Verbose: &verboseFlag,
@@ -267,7 +269,7 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 	}
 	if len(snapshots) == 0 {
 		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", osFlag, archFlag, datePrefixFlag)
-		return nil, cmdline.ErrExitCode(util.NoSnapshotExitCode)
+		return nil, cmdline2.ErrExitCode(util.NoSnapshotExitCode)
 	}
 	ret := make([]string, len(snapshots))
 	for i, snapshot := range snapshots {

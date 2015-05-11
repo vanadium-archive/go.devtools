@@ -24,29 +24,29 @@ import (
 	"time"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 // TODO(toddw): Add tests by mocking out gcloud.
 
 func main() {
-	os.Exit(cmdVCloud.Main())
+	cmdline2.Main(cmdVCloud)
 }
 
-var cmdVCloud = &cmdline.Command{
+var cmdVCloud = &cmdline2.Command{
 	Name:  "vcloud",
 	Short: "wrapper over the Google Compute Engine gcloud tool",
 	Long: `
 Command vcloud is a wrapper over the Google Compute Engine gcloud tool.  It
 simplifies common usage scenarios and provides some Vanadium-specific support.
 `,
-	Children: []*cmdline.Command{cmdList, cmdCP, cmdNode, cmdCopyAndRun, cmdSH},
+	Children: []*cmdline2.Command{cmdList, cmdCP, cmdNode, cmdCopyAndRun, cmdSH},
 }
 
-var cmdList = &cmdline.Command{
-	Run:   runList,
-	Name:  "list",
-	Short: "List GCE node information",
+var cmdList = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runList),
+	Name:   "list",
+	Short:  "List GCE node information",
 	Long: `
 List GCE node information.  Runs 'gcloud compute instances list'.
 `,
@@ -56,10 +56,10 @@ If [nodes] is not provided, lists information for all nodes.
 `,
 }
 
-var cmdCP = &cmdline.Command{
-	Run:   runCP,
-	Name:  "cp",
-	Short: "Copy files to/from GCE node(s)",
+var cmdCP = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runCP),
+	Name:   "cp",
+	Short:  "Copy files to/from GCE node(s)",
 	Long: `
 Copy files to GCE node(s).  Runs 'gcloud compute copy-files'.  The default is to
 copy to/from all nodes in parallel.
@@ -87,10 +87,10 @@ E.g. if <nodes> matches A, B and C:
 `,
 }
 
-var cmdSH = &cmdline.Command{
-	Run:   runSH,
-	Name:  "sh",
-	Short: "Start a shell or run a command on GCE node(s)",
+var cmdSH = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runSH),
+	Name:   "sh",
+	Short:  "Start a shell or run a command on GCE node(s)",
 	Long: `
 Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
 `,
@@ -111,10 +111,10 @@ The default is to run on all nodes in parallel.
 `,
 }
 
-var cmdCopyAndRun = &cmdline.Command{
-	Run:   runCopyAndRun,
-	Name:  "run",
-	Short: "Copy file(s) to GCE node(s) and run",
+var cmdCopyAndRun = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runCopyAndRun),
+	Name:   "run",
+	Short:  "Copy file(s) to GCE node(s) and run",
 	Long: `
 Copy file(s) to GCE node(s) and run.  Uses the logic of both cp and sh.
 `,
@@ -264,8 +264,8 @@ func addUser(user, suffix string) string {
 	return suffix
 }
 
-func newContext(cmd *cmdline.Command) *tool.Context {
-	return tool.NewContextFromCommand(cmd, tool.ContextOpts{
+func newContext(env *cmdline2.Env) *tool.Context {
+	return tool.NewContextFromEnv(env, tool.ContextOpts{
 		Color:   flagColor,
 		DryRun:  flagDryRun,
 		Verbose: flagVerbose,
@@ -665,35 +665,35 @@ func listMatching(ctx *tool.Context, exprlist string) (nodeInfos, error) {
 	return match, nil
 }
 
-func runList(cmd *cmdline.Command, args []string) error {
-	ctx := newContext(cmd)
+func runList(env *cmdline2.Env, args []string) error {
+	ctx := newContext(env)
 	all, err := listAll(ctx, *flagDryRun)
 	if err != nil {
 		return err
 	}
 	switch {
 	case len(args) == 0:
-		fmt.Fprint(cmd.Stdout(), all)
+		fmt.Fprint(env.Stdout, all)
 		return nil
 	case len(args) == 1:
 		matches, err := all.MatchNames(args[0])
 		if err != nil {
-			return cmd.UsageErrorf("%v", err)
+			return env.UsageErrorf("%v", err)
 		}
-		fmt.Fprint(cmd.Stdout(), matches)
+		fmt.Fprint(env.Stdout, matches)
 		return nil
 	}
-	return cmd.UsageErrorf("too many args")
+	return env.UsageErrorf("too many args")
 }
 
-func runCP(cmd *cmdline.Command, args []string) error {
+func runCP(env *cmdline2.Env, args []string) error {
 	if len(args) < 3 {
-		return cmd.UsageErrorf("need at least three args")
+		return env.UsageErrorf("need at least three args")
 	}
-	ctx := newContext(cmd)
+	ctx := newContext(env)
 	nodes, err := listMatching(ctx, args[0])
 	if err != nil {
-		return cmd.UsageErrorf("%v", err)
+		return env.UsageErrorf("%v", err)
 	}
 	// If dst is remote, all srcs must be local.  If dst is local, all srcs must
 	// be remote.
@@ -702,52 +702,52 @@ func runCP(cmd *cmdline.Command, args []string) error {
 	if strings.HasPrefix(dst, ":") {
 		for _, src := range srcs {
 			if strings.HasPrefix(src, ":") {
-				return cmd.UsageErrorf("dst is remote; all srcs must be local")
+				return env.UsageErrorf("dst is remote; all srcs must be local")
 			}
 		}
 	} else {
 		for _, src := range srcs {
 			if !strings.HasPrefix(src, ":") {
-				return cmd.UsageErrorf("dst is local; all srcs must be remote")
+				return env.UsageErrorf("dst is local; all srcs must be remote")
 			}
 		}
 	}
 	return nodes.RunCopy(ctx, srcs, dst)
 }
 
-func runSH(cmd *cmdline.Command, args []string) error {
+func runSH(env *cmdline2.Env, args []string) error {
 	if len(args) == 0 {
-		return cmd.UsageErrorf("no node(s) specified")
+		return env.UsageErrorf("no node(s) specified")
 	}
-	ctx := newContext(cmd)
+	ctx := newContext(env)
 	nodes, err := listMatching(ctx, args[0])
 	if err != nil {
-		return cmd.UsageErrorf("%v", err)
+		return env.UsageErrorf("%v", err)
 	}
 	if len(nodes) == 1 && len(args) == 1 {
 		return nodes[0].StartShell(ctx)
 	}
 	if len(args) == 1 {
-		return cmd.UsageErrorf("must specify command; more than one matching node: %v", nodes.Names())
+		return env.UsageErrorf("must specify command; more than one matching node: %v", nodes.Names())
 	}
 	return nodes.RunCommand(ctx, *flagUser, args[1:])
 }
 
-func runCopyAndRun(cmd *cmdline.Command, args []string) error {
+func runCopyAndRun(env *cmdline2.Env, args []string) error {
 	if len(args) < 2 {
-		return cmd.UsageErrorf("need at least two args")
+		return env.UsageErrorf("need at least two args")
 	}
 	files, cmdline, err := splitCopyAndRunArgs(args[1:])
 	if err != nil {
-		return cmd.UsageErrorf("%v", err)
+		return env.UsageErrorf("%v", err)
 	}
 	if strings.HasPrefix(flagOutDir, ":") {
-		return cmd.UsageErrorf("-outdir must be local")
+		return env.UsageErrorf("-outdir must be local")
 	}
-	ctx := newContext(cmd)
+	ctx := newContext(env)
 	nodes, err := listMatching(ctx, args[0])
 	if err != nil {
-		return cmd.UsageErrorf("%v", err)
+		return env.UsageErrorf("%v", err)
 	}
 	return nodes.RunCopyAndRun(ctx, *flagUser, files, cmdline, flagOutDir)
 }

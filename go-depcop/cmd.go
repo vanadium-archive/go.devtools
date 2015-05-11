@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // The following enables go generate to generate the doc.go file.
-//
 //go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
 
 package main
@@ -11,10 +10,9 @@ package main
 import (
 	"fmt"
 	"go/build"
-	"os"
 
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 var (
@@ -35,10 +33,10 @@ func init() {
 }
 
 func main() {
-	os.Exit(cmdRoot.Main())
+	cmdline2.Main(cmdRoot)
 }
 
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "go-depcop",
 	Short: "checks Go package dependencies against user-defined rules",
 	Long: `
@@ -46,11 +44,11 @@ Command go-depcop checks Go package dependencies against constraints described
 in GO.PACKAGE files.  In addition to user-defined constraints, the Go 1.5
 internal package rules are also enforced.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdList, cmdListImporters, cmdVersion},
+	Children: []*cmdline2.Command{cmdCheck, cmdList, cmdListImporters, cmdVersion},
 }
 
-var cmdCheck = &cmdline.Command{
-	Run:      runCheck,
+var cmdCheck = &cmdline2.Command{
+	Runner:   cmdline2.RunnerFunc(runCheck),
 	Name:     "check",
 	ArgsName: "<packages>",
 	ArgsLong: "<packages> is a list of packages to check",
@@ -80,10 +78,10 @@ that foo and all its subpackages match the rule.  The special-case pattern "..."
 means that all packages in GOPATH, but not GOROOT, match the rule.
 `}
 
-func runCheck(cmd *cmdline.Command, args []string) error {
+func runCheck(env *cmdline2.Env, args []string) error {
 	// Gather packages specified in args.
 	var pkgs []*build.Package
-	paths, err := listPackagePaths(cmd, args...)
+	paths, err := listPackagePaths(env, args...)
 	if err != nil {
 		return err
 	}
@@ -104,7 +102,7 @@ func runCheck(cmd *cmdline.Command, args []string) error {
 		violations = append(violations, v...)
 	}
 	for _, v := range violations {
-		fmt.Fprintf(cmd.Stdout(), "%q not allowed to import %q (%v)\n", v.Src.ImportPath, v.Dst.ImportPath, v.Err)
+		fmt.Fprintf(env.Stdout, "%q not allowed to import %q (%v)\n", v.Src.ImportPath, v.Dst.ImportPath, v.Err)
 	}
 	if len(violations) > 0 {
 		return fmt.Errorf("dependency violation")
@@ -112,8 +110,8 @@ func runCheck(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdList = &cmdline.Command{
-	Run:      runList,
+var cmdList = &cmdline2.Command{
+	Runner:   cmdline2.RunnerFunc(runList),
 	Name:     "list",
 	ArgsName: "<packages>",
 	ArgsLong: "<packages> is a list of packages",
@@ -133,10 +131,10 @@ indentation to help visualize the dependency hierarchy.  Setting -indent may
 cause the same package to be listed multiple times.
 `}
 
-func runList(cmd *cmdline.Command, args []string) error {
+func runList(env *cmdline2.Env, args []string) error {
 	// Gather packages specified in args.
 	var pkgs []*build.Package
-	paths, err := listPackagePaths(cmd, args...)
+	paths, err := listPackagePaths(env, args...)
 	if err != nil {
 		return err
 	}
@@ -155,7 +153,7 @@ func runList(cmd *cmdline.Command, args []string) error {
 	if flagIndent {
 		// Print indented deps for each package.
 		for _, pkg := range pkgs {
-			if err := printIndentedDeps(cmd.Stdout(), pkg, 0, flagDirect, showGoroot); err != nil {
+			if err := printIndentedDeps(env.Stdout, pkg, 0, flagDirect, showGoroot); err != nil {
 				return err
 			}
 		}
@@ -169,13 +167,13 @@ func runList(cmd *cmdline.Command, args []string) error {
 		}
 	}
 	for _, dep := range sortPackages(deps) {
-		fmt.Fprintln(cmd.Stdout(), dep.ImportPath)
+		fmt.Fprintln(env.Stdout, dep.ImportPath)
 	}
 	return nil
 }
 
-var cmdListImporters = &cmdline.Command{
-	Run:      runListImporters,
+var cmdListImporters = &cmdline2.Command{
+	Runner:   cmdline2.RunnerFunc(runListImporters),
 	Name:     "list-importers",
 	ArgsName: "<packages>",
 	ArgsLong: "<packages> is a list of packages",
@@ -194,10 +192,10 @@ behaves as if -show-goroot were set to true.
 Lists each importer package exactly once.
 `}
 
-func runListImporters(cmd *cmdline.Command, args []string) error {
+func runListImporters(env *cmdline2.Env, args []string) error {
 	// Gather target packages specified in args.
 	targets := make(map[string]*build.Package)
-	targetPaths, err := listPackagePaths(cmd, args...)
+	targetPaths, err := listPackagePaths(env, args...)
 	if err != nil {
 		return err
 	}
@@ -214,7 +212,7 @@ func runListImporters(cmd *cmdline.Command, args []string) error {
 		targets[path] = pkg
 	}
 	// Gather all known packages.
-	allPaths, err := listPackagePaths(cmd, "all")
+	allPaths, err := listPackagePaths(env, "all")
 	if err != nil {
 		return err
 	}
@@ -234,19 +232,19 @@ func runListImporters(cmd *cmdline.Command, args []string) error {
 		}
 	}
 	for _, pkg := range sortPackages(matches) {
-		fmt.Fprintln(cmd.Stdout(), pkg.ImportPath)
+		fmt.Fprintln(env.Stdout, pkg.ImportPath)
 	}
 	return nil
 }
 
-var cmdVersion = &cmdline.Command{
-	Run:   runVersion,
-	Name:  "version",
-	Short: "Print version",
-	Long:  "Print version of the go-depcop tool.",
+var cmdVersion = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runVersion),
+	Name:   "version",
+	Short:  "Print version",
+	Long:   "Print version of the go-depcop tool.",
 }
 
-func runVersion(cmd *cmdline.Command, _ []string) error {
-	fmt.Fprintf(cmd.Stdout(), "go-depcop tool version %v\n", tool.Version)
+func runVersion(env *cmdline2.Env, _ []string) error {
+	fmt.Fprintf(env.Stdout, "go-depcop tool version %v\n", tool.Version)
 	return nil
 }

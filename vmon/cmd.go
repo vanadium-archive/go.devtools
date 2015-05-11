@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
-import "v.io/x/lib/cmdline"
+import "v.io/x/lib/cmdline2"
 
 var (
 	binDirFlag         string
@@ -34,19 +37,18 @@ func init() {
 	cmdCheck.Flags.StringVar(&credentialsFlag, "v23.credentials", "", "The path to v23 credentials.")
 }
 
-// root returns a command that represents the root of the vmon tool.
-func root() *cmdline.Command {
-	return cmdRoot
+func main() {
+	cmdline2.Main(cmdRoot)
 }
 
 // cmdRoot represents the root of the vmon tool.
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "vmon",
 	Short: "interacts with Google Cloud Monitoring",
 	Long: `
 Command vmon interacts with Google Cloud Monitoring.
 `,
-	Children: []*cmdline.Command{
+	Children: []*cmdline2.Command{
 		cmdMetricDescriptor,
 		cmdCheck,
 	},

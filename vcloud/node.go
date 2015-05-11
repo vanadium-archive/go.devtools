@@ -11,20 +11,20 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
-var cmdNode = &cmdline.Command{
+var cmdNode = &cmdline2.Command{
 	Name:     "node",
 	Short:    "Manage GCE nodes",
 	Long:     "Manage GCE nodes.",
-	Children: []*cmdline.Command{cmdNodeAuthorize, cmdNodeDeauthorize, cmdNodeCreate, cmdNodeDelete},
+	Children: []*cmdline2.Command{cmdNodeAuthorize, cmdNodeDeauthorize, cmdNodeCreate, cmdNodeDelete},
 }
 
-var cmdNodeAuthorize = &cmdline.Command{
-	Run:   runNodeAuthorize,
-	Name:  "authorize",
-	Short: "Authorize a user to login to a GCE node",
+var cmdNodeAuthorize = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runNodeAuthorize),
+	Name:   "authorize",
+	Short:  "Authorize a user to login to a GCE node",
 	Long: `
 Authorizes a user to login to a GCE node (possibly as other user). For
 instance, this mechanism is used to give Jenkins slave nodes access to
@@ -38,10 +38,10 @@ userB is userA.
 `,
 }
 
-var cmdNodeDeauthorize = &cmdline.Command{
-	Run:   runNodeDeauthorize,
-	Name:  "deauthorize",
-	Short: "Deauthorize a user to login to a GCE node",
+var cmdNodeDeauthorize = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runNodeDeauthorize),
+	Name:   "deauthorize",
+	Short:  "Deauthorize a user to login to a GCE node",
 	Long: `
 Deuthorizes a user to login to a GCE node (possibly as other
 user). For instance, this mechanism is used to revoke access of give
@@ -93,15 +93,15 @@ func parseUserAndHost(args []string) (string, string, string, string, error) {
 // TODO(jsimsa): Add command-line flags for specifying the name of the
 // SSH key file to use and whether to create one if it does not
 // exist.
-func runNodeAuthorize(cmd *cmdline.Command, args []string) error {
+func runNodeAuthorize(env *cmdline2.Env, args []string) error {
 	userA, hostA, userB, hostB, err := parseUserAndHost(args)
 	if err != nil {
-		return cmd.UsageErrorf("%v", err)
+		return env.UsageErrorf("%v", err)
 	}
 
 	// Copy the public SSH key for <userA> from <hostA> to the local
 	// machine.
-	ctx := newContext(cmd)
+	ctx := newContext(env)
 	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		return fmt.Errorf("TempDir() failed: %v", err)
@@ -138,15 +138,15 @@ func runNodeAuthorize(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-func runNodeDeauthorize(cmd *cmdline.Command, args []string) error {
+func runNodeDeauthorize(env *cmdline2.Env, args []string) error {
 	userA, hostA, userB, hostB, err := parseUserAndHost(args)
 	if err != nil {
-		return cmd.UsageErrorf("%v", err)
+		return env.UsageErrorf("%v", err)
 	}
 
 	// Remove all keys for <userA>@<hostA> from the set of authorized
 	// keys of <userB> on <hostB>.
-	ctx := newContext(cmd)
+	ctx := newContext(env)
 	allNodes, err := listAll(ctx, *flagDryRun)
 	if err != nil {
 		return err
@@ -169,10 +169,10 @@ func runNodeDeauthorize(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdNodeCreate = &cmdline.Command{
-	Run:   runNodeCreate,
-	Name:  "create",
-	Short: "Create GCE nodes",
+var cmdNodeCreate = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runNodeCreate),
+	Name:   "create",
+	Short:  "Create GCE nodes",
 	Long: `
 Create GCE nodes. Runs 'gcloud compute instances create'.
 `,
@@ -180,10 +180,10 @@ Create GCE nodes. Runs 'gcloud compute instances create'.
 	ArgsLong: "<names> is a list of names identifying nodes to be created.",
 }
 
-var cmdNodeDelete = &cmdline.Command{
-	Run:   runNodeDelete,
-	Name:  "delete",
-	Short: "Delete GCE nodes",
+var cmdNodeDelete = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runNodeDelete),
+	Name:   "delete",
+	Short:  "Delete GCE nodes",
 	Long: `
 Delete GCE nodes. Runs 'gcloud compute instances delete'.
 `,
@@ -191,8 +191,8 @@ Delete GCE nodes. Runs 'gcloud compute instances delete'.
 	ArgsLong: "<names> is a list of names identifying nodes to be deleted.",
 }
 
-func runNodeCreate(cmd *cmdline.Command, args []string) error {
-	ctx := newContext(cmd)
+func runNodeCreate(env *cmdline2.Env, args []string) error {
+	ctx := newContext(env)
 
 	// Create the GCE node(s).
 	createArgs := []string{
@@ -250,8 +250,8 @@ func runNodeCreate(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-func runNodeDelete(cmd *cmdline.Command, args []string) error {
-	ctx := newContext(cmd)
+func runNodeDelete(env *cmdline2.Env, args []string) error {
+	ctx := newContext(env)
 
 	// Delete the GCE node(s).
 	var in bytes.Buffer

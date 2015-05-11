@@ -9,23 +9,22 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 )
 
 func main() {
-	os.Exit(cmdGoPkg.Main())
+	cmdline2.Main(cmdGoPkg)
 }
 
-var cmdGoPkg = &cmdline.Command{
-	Run:   runGoPkg,
-	Name:  "gopkg",
-	Short: "prints information about go packages",
+var cmdGoPkg = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runGoPkg),
+	Name:   "gopkg",
+	Short:  "prints information about go packages",
 	Long: `
 Command gopkg prints information about go packages.
 
@@ -71,7 +70,7 @@ func parseRegexp(expr string) (*regexp.Regexp, error) {
 	return regexp.Compile(expr)
 }
 
-func runGoPkg(cmd *cmdline.Command, args []string) error {
+func runGoPkg(env *cmdline2.Env, args []string) error {
 	// Parse flags.
 	nameRE, err := parseRegexp(flagNameRE)
 	if err != nil {
@@ -88,10 +87,10 @@ func runGoPkg(cmd *cmdline.Command, args []string) error {
 	}
 	args, err = config.FromArgs(args, flagTest)
 	if err != nil {
-		return cmd.UsageErrorf("failed to parse args: %v", err)
+		return env.UsageErrorf("failed to parse args: %v", err)
 	}
 	if len(args) != 0 {
-		return cmd.UsageErrorf("unrecognized args %q", args)
+		return env.UsageErrorf("unrecognized args %q", args)
 	}
 	prog, err := config.Load()
 	if err != nil {
@@ -101,7 +100,7 @@ func runGoPkg(cmd *cmdline.Command, args []string) error {
 	for _, pkginfo := range prog.InitialPackages() {
 		pkg := pkginfo.Pkg
 		if !flagNoHeader {
-			fmt.Fprintf(cmd.Stdout(), "%s (%s)\n", pkg.Path(), pkg.Name())
+			fmt.Fprintf(env.Stdout, "%s (%s)\n", pkg.Path(), pkg.Name())
 		}
 		scope := pkg.Scope()
 		data := make(map[Kind][]NameType)
@@ -117,7 +116,7 @@ func runGoPkg(cmd *cmdline.Command, args []string) error {
 		}
 		for _, kind := range flagKind {
 			if !flagNoHeader {
-				fmt.Fprintf(cmd.Stdout(), "%ss\n", strings.Title(kind.String()))
+				fmt.Fprintf(env.Stdout, "%ss\n", strings.Title(kind.String()))
 			}
 			for _, nt := range data[kind] {
 				var line string
@@ -129,7 +128,7 @@ func runGoPkg(cmd *cmdline.Command, args []string) error {
 				}
 				line = strings.TrimSpace(line)
 				if line != "" {
-					fmt.Fprintf(cmd.Stdout(), "  %s\n", line)
+					fmt.Fprintf(env.Stdout, "  %s\n", line)
 				}
 			}
 		}
