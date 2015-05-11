@@ -145,3 +145,45 @@ func TestCalcIncidents(t *testing.T) {
 		}
 	}
 }
+
+func TestOverThresholdFor(t *testing.T) {
+	testCases := []struct {
+		timestamps     []int64
+		values         []float64
+		threshold      float64
+		holdMinutes    int
+		expectedResult bool
+	}{
+		// Not over threshold.
+		{
+			timestamps:     []int64{0, 60, 120, 180, 240, 300, 360},
+			values:         []float64{0, 0, 0, 0, 0, 0, 0},
+			threshold:      100,
+			holdMinutes:    5,
+			expectedResult: false,
+		},
+		// Over threshold, but not long enough.
+		{
+			timestamps:     []int64{0, 60, 120, 180, 240, 300, 360},
+			values:         []float64{0, 0, 0, 0, 0, 200, 200},
+			threshold:      100,
+			holdMinutes:    5,
+			expectedResult: false,
+		},
+		// Over threshold and long enough.
+		{
+			timestamps:     []int64{0, 60, 120, 180, 240, 300, 360},
+			values:         []float64{0, 200, 200, 200, 200, 200, 200},
+			threshold:      100,
+			holdMinutes:    5,
+			expectedResult: true,
+		},
+	}
+
+	for _, test := range testCases {
+		got := overThresholdFor(test.timestamps, test.values, test.threshold, test.holdMinutes)
+		if got != test.expectedResult {
+			t.Fatalf("want %v, got %v", test.expectedResult, got)
+		}
+	}
+}

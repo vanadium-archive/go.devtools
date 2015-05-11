@@ -120,7 +120,7 @@ func getQPSData(ctx *tool.Context, info qpsInfo) (map[string]float64, float64, e
 
 func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qpsInfo) error {
 	// Send QPS per method to GCM.
-	serviceLocation := serviceLocationMap[namespaceRootFlag]
+	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
 	if serviceLocation == nil {
 		return fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
@@ -145,8 +145,8 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
 						Metric: mdQPSPerMethod.Name,
 						Labels: map[string]string{
-							mdQPSPerMethod.Labels[0].Key: serviceLocation.instance,
-							mdQPSPerMethod.Labels[1].Key: serviceLocation.zone,
+							mdQPSPerMethod.Labels[0].Key: serviceLocation.Instance,
+							mdQPSPerMethod.Labels[1].Key: serviceLocation.Zone,
 							mdQPSPerMethod.Labels[2].Key: info.name,
 							mdQPSPerMethod.Labels[3].Key: method,
 						},
@@ -173,8 +173,8 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
 						Metric: mdQPSTotal.Name,
 						Labels: map[string]string{
-							mdQPSTotal.Labels[0].Key: serviceLocation.instance,
-							mdQPSTotal.Labels[1].Key: serviceLocation.zone,
+							mdQPSTotal.Labels[0].Key: serviceLocation.Instance,
+							mdQPSTotal.Labels[1].Key: serviceLocation.Zone,
 							mdQPSTotal.Labels[2].Key: info.name,
 						},
 					},

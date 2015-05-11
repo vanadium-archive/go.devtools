@@ -82,7 +82,7 @@ func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64,
 	}
 
 	// Add the counter as a custom metric to GCM.
-	serviceLocation := serviceLocationMap[namespaceRootFlag]
+	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
 	if serviceLocation == nil {
 		return 0, fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
@@ -103,8 +103,8 @@ func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64,
 				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
 					Metric: mdLat.Name,
 					Labels: map[string]string{
-						mdLat.Labels[0].Key: serviceLocation.instance,
-						mdLat.Labels[1].Key: serviceLocation.zone,
+						mdLat.Labels[0].Key: serviceLocation.Instance,
+						mdLat.Labels[1].Key: serviceLocation.Zone,
 						mdLat.Labels[2].Key: counter.name,
 					},
 				},
