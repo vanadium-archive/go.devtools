@@ -12,10 +12,8 @@ Usage:
    vmon [flags] <command>
 
 The vmon commands are:
-   md          The 'md' command manages metric descriptors in the given GCM
-               instance
-   check       Manage checks whose results are used in GCM for alerting and
-               graphing
+   md          Manage metric descriptors in the given GCM instance
+   check       Manage checks used for alerting and graphing
    help        Display help for commands or topics
 
 The vmon flags are:

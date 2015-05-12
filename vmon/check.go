@@ -25,7 +25,7 @@ var checkFunctions = map[string]func(*tool.Context) error{
 // cmdCheck represents the "check" command of the vmon tool.
 var cmdCheck = &cmdline.Command{
 	Name:  "check",
-	Short: "Manage checks whose results are used in GCM for alerting and graphing",
+	Short: "Manage checks used for alerting and graphing",
 	Long:  "Manage checks whose results are used in GCM for alerting and graphing.",
 	Children: []*cmdline.Command{
 		cmdCheckList,

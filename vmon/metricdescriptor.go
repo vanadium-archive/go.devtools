@@ -18,7 +18,7 @@ import (
 // cmdMetricDescriptor represents the "md" command of the vmon tool.
 var cmdMetricDescriptor = &cmdline.Command{
 	Name:  "md",
-	Short: "The 'md' command manages metric descriptors in the given GCM instance",
+	Short: "Manage metric descriptors in the given GCM instance",
 	Long: `
 Metric descriptor defines the metadata for a custom metric. It includes the
 metric's name, description, a set of labels, and its type. Before adding custom

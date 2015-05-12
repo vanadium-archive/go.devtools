@@ -13,7 +13,7 @@ Usage:
 
 The presubmit commands are:
    query       Query open CLs from Gerrit
-   result      Process and post test results.
+   result      Process and post test results
    test        Run tests for a CL
    version     Print version
    help        Display help for commands or topics

@@ -61,7 +61,7 @@ func main() {
 // cmdRoot represents the root of the postsubmit tool.
 var cmdRoot = &cmdline.Command{
 	Name:  "postsubmit",
-	Short: "performs Vanadium postsubmit related functions",
+	Short: "Perform Vanadium postsubmit related functions",
 	Long: `
 Command postsubmit performs Vanadium postsubmit related functions.
 `,

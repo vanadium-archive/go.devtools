@@ -86,7 +86,7 @@ func init() {
 // cmdResult represents the 'result' command of the presubmit tool.
 var cmdResult = &cmdline.Command{
 	Name:  "result",
-	Short: "Process and post test results.",
+	Short: "Process and post test results",
 	Long: `
 Result processes all the test statuses and results files collected from all the
 presubmit test configuration builds, creates a result summary, and posts the

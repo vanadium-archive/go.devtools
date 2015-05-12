@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon dashboard implements the Vanadium dashboard web server.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
-	"os"
 
 	"v.io/x/devtools/internal/tool"
+	"v.io/x/lib/cmdline"
 )
 
 var (
@@ -26,15 +27,14 @@ var (
 )
 
 func init() {
-	flag.StringVar(&resultsBucketFlag, "results-bucket", resultsBucket, "Google Storage bucket to use for fetching test results.")
-	flag.StringVar(&statusBucketFlag, "status-bucket", statusBucket, "Google Storage bucket to use for fetching service status data.")
-	flag.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
-	flag.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	flag.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	flag.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
-	flag.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	flag.IntVar(&portFlag, "port", 8000, "Port for the server.")
-	flag.Parse()
+	cmdDashboard.Flags.StringVar(&resultsBucketFlag, "results-bucket", resultsBucket, "Google Storage bucket to use for fetching test results.")
+	cmdDashboard.Flags.StringVar(&statusBucketFlag, "status-bucket", statusBucket, "Google Storage bucket to use for fetching service status data.")
+	cmdDashboard.Flags.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
+	cmdDashboard.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
+	cmdDashboard.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
+	cmdDashboard.Flags.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
+	cmdDashboard.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdDashboard.Flags.IntVar(&portFlag, "port", 8000, "Port for the server.")
 }
 
 func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
@@ -77,6 +77,17 @@ func respondWithError(ctx *tool.Context, err error, w http.ResponseWriter) {
 }
 
 func main() {
+	cmdline.Main(cmdDashboard)
+}
+
+var cmdDashboard = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runDashboard),
+	Name:   "dashboard",
+	Short:  "Runs the Vanadium dashboard web server",
+	Long:   "Command dashboard runs the Vanadium dashboard web server.",
+}
+
+func runDashboard(env *cmdline.Env, args []string) error {
 	ctx := tool.NewContext(tool.ContextOpts{
 		Color:   &colorFlag,
 		DryRun:  &dryRunFlag,
@@ -94,7 +105,7 @@ func main() {
 	http.HandleFunc("/health", health)
 	http.HandleFunc("/", handler)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), loggingHandler(ctx, http.DefaultServeMux)); err != nil {
-		fmt.Fprintf(os.Stderr, "ListenAndServer() failed: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("ListenAndServer() failed: %v", err)
 	}
+	return nil
 }

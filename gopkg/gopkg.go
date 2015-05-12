@@ -24,7 +24,7 @@ func main() {
 var cmdGoPkg = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runGoPkg),
 	Name:   "gopkg",
-	Short:  "prints information about go packages",
+	Short:  "Print information about go packages",
 	Long: `
 Command gopkg prints information about go packages.
 

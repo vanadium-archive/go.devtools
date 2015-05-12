@@ -85,7 +85,7 @@ func printf(out io.Writer, format string, args ...interface{}) {
 // cmdRoot represents the root of the presubmit tool.
 var cmdRoot = &cmdline.Command{
 	Name:  "presubmit",
-	Short: "performs Vanadium presubmit related functions.",
+	Short: "Perform Vanadium presubmit related functions",
 	Long: `
 Command presubmit performs Vanadium presubmit related functions.
 `,

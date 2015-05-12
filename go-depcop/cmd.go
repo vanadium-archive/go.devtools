@@ -38,7 +38,7 @@ func main() {
 
 var cmdRoot = &cmdline.Command{
 	Name:  "go-depcop",
-	Short: "checks Go package dependencies against user-defined rules",
+	Short: "Check Go package dependencies against user-defined rules",
 	Long: `
 Command go-depcop checks Go package dependencies against constraints described
 in GO.PACKAGE files.  In addition to user-defined constraints, the Go 1.5
