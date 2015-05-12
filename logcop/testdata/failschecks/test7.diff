@@ -6,8 +6,8 @@
 < func (*PtrType) Method2(int) {}
 ---
 > func (*PtrType) Method1() {
-> 	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer vlog.LogCall()() // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 > }
 > func (*PtrType) Method2(int) {
-> 	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer vlog.LogCall()() // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 > }

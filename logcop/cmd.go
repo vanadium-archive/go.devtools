@@ -20,26 +20,40 @@ func main() {
 }
 
 var (
-	interfacesFlag string
-	progressFlag   bool
-	verboseFlag    bool
-	gofmtFlag      bool
-	dryRunFlag     bool
-	colorFlag      bool
-	diffOnlyFlag   bool
+	interfacesFlag       string
+	progressFlag         bool
+	verboseFlag          bool
+	gofmtFlag            bool
+	dryRunFlag           bool
+	colorFlag            bool
+	diffOnlyFlag         bool
+	useContextFlag       bool
+	removeCallFlag       string
+	injectCallFlag       string
+	injectCallImportFlag string
 )
 
 func init() {
 	cmdCheck.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required).")
+
+	cmdCheck.Flags.StringVar(&injectCallFlag, "call", "LogCall", "The function call to be checked for as defer <pkg>.<call>()() and defer <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.")
+	cmdCheck.Flags.StringVar(&injectCallImportFlag, "import", "v.io/x/lib/vlog", "Import path for the injected call.")
+
 	cmdInject.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required).")
 	cmdInject.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files.")
 	cmdInject.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
+	cmdInject.Flags.StringVar(&injectCallFlag, "call", "LogCall", "The function call to be injected as defer <pkg>.<call>()() and defer <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.")
+	cmdInject.Flags.StringVar(&injectCallImportFlag, "import", "v.io/x/lib/vlog", "Import path for the injected call.")
+
 	cmdRemove.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files.")
 	cmdRemove.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
+	cmdRemove.Flags.StringVar(&removeCallFlag, "call", "vlog.LogCall", "The function call to be removed. Note, that the package selector must be included. No attempt is made to remove the import declaration if the package is no longer used as a result of the removal.")
+
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
+	cmdRoot.Flags.BoolVar(&useContextFlag, "use-v23-context", false, "Pass a context.T argument (which must be of type v.io/v23/context.T), if available, to the injected call as its first parameter.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -53,15 +67,13 @@ When checking, it ensures that all implementations in <packages> of all exported
 interfaces declared in packages passed to the -interface flag have an
 appropriate logging construct.
 
-When injecting, it modifies the source code to inject such logging constructs.
+When injecting or removing, it modifies the source code to inject or remove
+such logging constructs.
 
 LIMITATIONS:
 
-logcop requires the ` + logPackageQuotedImportPath + ` to be
-imported as "` + logPackageIdentifier + `".  Aliasing the log package
-to another name makes logcop ignore the calls.  Importing any
-other package with the name "` + logPackageIdentifier + `" will
-invoke undefined behavior.
+Removal will not automatically remove the package import for the call to
+be removed.
 `,
 	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
 }

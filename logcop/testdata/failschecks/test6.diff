@@ -1,3 +1,9 @@
 ReturnsSomething: output arguments should be passed to the log function via their addresses
-16a17
-> 	defer vlog.LogCallf("a=%v", a)("b=%v", &b) // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+12c12,14
+< import ( "v.io/x/lib/vlog" )
+---
+> import (
+> 	"v.io/x/lib/vlog"
+> )
+16a19
+> 	defer vlog.LogCallf("a=%v", a)("b=%v", &b) // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT

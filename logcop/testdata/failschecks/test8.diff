@@ -1,5 +1,4 @@
-12a13,14
-> import "v.io/x/lib/vlog"
-> 
-24a27
+12a13
+> 	"v.io/x/lib/vlog"
+17a19
 > 	defer vlog.LogCall()() // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT

@@ -12,13 +12,13 @@ When checking, it ensures that all implementations in <packages> of all exported
 interfaces declared in packages passed to the -interface flag have an
 appropriate logging construct.
 
-When injecting, it modifies the source code to inject such logging constructs.
+When injecting or removing, it modifies the source code to inject or remove such
+logging constructs.
 
 LIMITATIONS:
 
-logcop requires the "v.io/x/lib/vlog" to be imported as "vlog".  Aliasing the
-log package to another name makes logcop ignore the calls.  Importing any other
-package with the name "vlog" will invoke undefined behavior.
+Removal will not automatically remove the package import for the call to be
+removed.
 
 Usage:
    logcop [flags] <command>
@@ -37,6 +37,9 @@ The logcop flags are:
    Show what commands will run but do not execute them.
  -progress=false
    Print verbose progress information.
+ -use-v23-context=false
+   Pass a context.T argument (which must be of type v.io/v23/context.T), if
+   available, to the injected call as its first parameter.
  -v=false
    Print verbose output.
 
@@ -54,6 +57,11 @@ Usage:
 <packages> is the list of packages to be checked.
 
 The logcop check flags are:
+ -call=LogCall
+   The function call to be checked for as defer <pkg>.<call>()() and defer
+   <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.
+ -import=v.io/x/lib/vlog
+   Import path for the injected call.
  -interface=
    Comma-separated list of interface packages (required).
 
@@ -69,10 +77,15 @@ Usage:
 <packages> is the list of packages to inject log statements in.
 
 The logcop inject flags are:
+ -call=LogCall
+   The function call to be injected as defer <pkg>.<call>()() and defer
+   <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.
  -diff-only=false
    Show changes that would be made without actually making them.
  -gofmt=true
    Automatically run gofmt on the modified files.
+ -import=v.io/x/lib/vlog
+   Import path for the injected call.
  -interface=
    Comma-separated list of interface packages (required).
 
@@ -88,6 +101,10 @@ Usage:
 <packages> is the list of packages to remove log statements from.
 
 The logcop remove flags are:
+ -call=vlog.LogCall
+   The function call to be removed. Note, that the package selector must be
+   included. No attempt is made to remove the import declaration if the package
+   is no longer used as a result of the removal.
  -diff-only=false
    Show changes that would be made without actually making them.
  -gofmt=true

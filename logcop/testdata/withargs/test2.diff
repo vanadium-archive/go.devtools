@@ -1,4 +1,4 @@
 6a7
 > import "v.io/x/lib/vlog"
 16a18
-> 	defer vlog.LogCallf("a=%v", a)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer vlog.LogCallf("a=%v", a)("") // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT

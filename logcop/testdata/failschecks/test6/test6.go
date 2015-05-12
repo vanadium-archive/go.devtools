@@ -9,7 +9,7 @@
 // pointer.
 package test6
 
-import "v.io/x/lib/vlog"
+import ( "v.io/x/lib/vlog" )
 
 type Type struct{}
 

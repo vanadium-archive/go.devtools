@@ -1,0 +1,6 @@
+6a7
+> import bar "foo.com/x/baz"
+11a13
+> 	defer bar.Bar(nil)(nil) // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+18a21
+> 	defer bar.Barf(ctx, "b=%v", b)(ctx, "") // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT

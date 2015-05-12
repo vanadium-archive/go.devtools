@@ -25,17 +25,22 @@ import (
 )
 
 const (
-	failingPrefix        = "failschecks"
-	withArgsPrefix       = "withargs"
-	failingPackageCount  = 7
-	withArgsPackageCount = 2
-	testPackagePrefix    = "v.io/x/devtools/logcop/testdata"
+	failingPrefix               = "failschecks"
+	withArgsPrefix              = "withargs"
+	withCommandLinePrefix       = "commandline"
+	failingPackageCount         = 8
+	withArgsPackageCount        = 2
+	withCommandLinePackageCount = 2
+	testPackagePrefix           = "v.io/x/devtools/logcop/testdata"
 )
 
 func TestValidPackages(t *testing.T) {
 	pkg := path.Join(testPackagePrefix, "passeschecks")
 	_, methods := doTest(t, []string{pkg})
 	if len(methods) > 0 {
+		for _, m := range methods {
+			t.Logf(">>> %v", m)
+		}
 		t.Fatalf("Test package %q failed to pass the log checks", pkg)
 	}
 }
@@ -80,6 +85,7 @@ func TestRemove(t *testing.T) {
 	} else {
 		want = strings.TrimRight(string(buf), "\n")
 	}
+
 	if got := strings.Join(diffs, "\n"); got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
@@ -91,6 +97,63 @@ func TestInject(t *testing.T) {
 
 func TestInjectWithArgs(t *testing.T) {
 	testInject(t, "iface2", withArgsPrefix, withArgsPackageCount)
+}
+
+func TestCommandLineArgs(t *testing.T) {
+	savedCallFlag := injectCallFlag
+	savedCallImportFlag := injectCallImportFlag
+	defer func() {
+		injectCallFlag = savedCallFlag
+		injectCallImportFlag = savedCallImportFlag
+	}()
+	injectCallFlag = "Bar"
+	injectCallImportFlag = "bar\tfoo.com/x/baz"
+	if err := initInjectorFlags(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := injectImportTag, "bar"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := injectImportPath, "foo.com/x/baz"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := injectPackage, "bar"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := injectCall, "Bar"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	injectCallFlag = "Bar"
+	injectCallImportFlag = "foo.com/x/baz"
+	if err := initInjectorFlags(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := injectImportTag, ""; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := injectImportPath, "foo.com/x/baz"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := injectPackage, "baz"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := injectCall, "Bar"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestInjectCommandLine(t *testing.T) {
+	savedCallFlag := injectCallFlag
+	savedCallImportFlag := injectCallImportFlag
+	defer func() {
+		injectCallFlag = savedCallFlag
+		injectCallImportFlag = savedCallImportFlag
+		useContextFlag = false
+	}()
+	injectCallFlag = "Bar"
+	injectCallImportFlag = "bar 	\"foo.com/x/baz\""
+	useContextFlag = true
+	testInject(t, "iface3", withCommandLinePrefix, withCommandLinePackageCount)
 }
 
 func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
@@ -156,6 +219,8 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
+
+	initInjectorFlags()
 	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
 
 	ifcs, err := importPkgs(ctx, interfaceList)
