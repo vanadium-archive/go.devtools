@@ -161,7 +161,7 @@
   </testGroups>
   <testParts>
     <test name="vanadium-go-race">
-      <part>v.io/x/ref/services/...</part>
+      <part>v.io/x/ref/services/device/internal/...</part>
       <part>v.io/x/ref/runtime/...</part>
     </test>
   </testParts>
