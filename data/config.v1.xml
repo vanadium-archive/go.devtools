@@ -163,6 +163,7 @@
     <test name="vanadium-go-race">
       <part>v.io/x/ref/services/device/internal/...</part>
       <part>v.io/x/ref/runtime/...</part>
+      <part>v.io/x/ref/services/...</part>
     </test>
   </testParts>
   <vdlWorkspaces>
