@@ -1,0 +1,9 @@
+ReturnsSomething: output arguments should be passed to the log function via their addresses
+12c12,14
+< import ( "v.io/x/lib/vlog" )
+---
+> import (
+> 	"v.io/x/lib/vlog"
+> )
+16a19
+> 	defer vlog.LogCallf("a=%v", a)("b=%v", &b) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

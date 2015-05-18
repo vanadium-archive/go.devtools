@@ -1,0 +1,2 @@
+18a19
+> 	defer vlog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

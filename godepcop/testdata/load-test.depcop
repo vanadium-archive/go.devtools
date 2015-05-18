@@ -1,0 +1,6 @@
+{
+	"imports": [
+		{"deny": "denied-package/x"},
+		{"allow": "allowed-package/y"}
+	]
+}

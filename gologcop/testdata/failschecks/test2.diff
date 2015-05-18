@@ -1,0 +1,5 @@
+12a13,14
+> import "v.io/x/lib/vlog"
+> 
+24a27
+> 	defer vlog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
