@@ -245,7 +245,7 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 	}
 	bytes, err := json.Marshal(conf)
 	if err != nil {
-		return fmt.Errorf("Marshal(%v) failed: %v", err)
+		return fmt.Errorf("Marshal(%v) failed: %v", conf, err)
 	}
 	confFile := filepath.Join(outputDir, "conf")
 	if err := ctx.Run().WriteFile(confFile, bytes, os.FileMode(0600)); err != nil {
@@ -400,7 +400,7 @@ func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util
 		// Find target Tools.
 		targetTools := []util.Tool{}
 		for name, tool := range tools {
-			if name == "v23" || name == "vdl" || name == "go-depcop" {
+			if name == "v23" || name == "vdl" || name == "godepcop" {
 				targetTools = append(targetTools, tool)
 			}
 		}
