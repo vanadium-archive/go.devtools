@@ -1,6 +1,0 @@
-8a9
-> 	bar "foo.com/x/baz"
-15a17
-> 	defer bar.Bar(nil)(nil) // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-23a26
-> 	defer bar.Barf(ctx, "b=%v", b)(ctx, "") // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT

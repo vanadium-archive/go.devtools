@@ -1,4 +1,0 @@
-12a13
-> 	"v.io/x/lib/vlog"
-17a19
-> 	defer vlog.LogCall()() // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT

@@ -1,2 +1,0 @@
-16a17
-> 	defer vlog.LogCall()() // logcop: DO NOT EDIT, MUST BE FIRST STATEMENT
