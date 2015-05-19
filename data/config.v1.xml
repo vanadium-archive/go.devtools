@@ -11,6 +11,7 @@
     <workspace>release/javascript/core/go</workspace>
     <workspace>release/projects/browser/go</workspace>
     <workspace>release/projects/chat/clients/shell/go</workspace>
+    <workspace>release/projects/media-sharing/go</workspace>
     <workspace>release/projects/pipe2browser/go</workspace>
     <workspace>roadmap/go</workspace>
     <workspace>roadmap/go/src/v.io/syncbase/third_party/go</workspace>
@@ -174,6 +175,7 @@
     <workspace>release/javascript/core/go</workspace>
     <workspace>release/projects/browser/go</workspace>
     <workspace>release/projects/chat/clients/shell/go</workspace>
+    <workspace>release/projects/media-sharing/go</workspace>
     <workspace>release/projects/pipe2browser/go</workspace>
     <workspace>roadmap/go</workspace>
   </vdlWorkspaces>
