@@ -111,7 +111,7 @@ type metricData struct {
 	Healthy           bool
 }
 
-// metricsMap stores metricData slices indexed by GCE instance.
+// metricsMap maps GCE instances to slices of metricData.
 type metricsMap map[string][]*metricData
 
 type buildInfoData struct {
@@ -124,7 +124,7 @@ type buildInfoData struct {
 	User         string
 }
 
-// buildInfoMap stores bulidInfoData slices indexed by GCE instance.
+// buildInfoMap maps GCE instances to slices of bulidInfoData.
 type buildInfoMap map[string][]*buildInfoData
 
 type gceInfoData struct {
@@ -243,15 +243,16 @@ func collectServiceStatusData(ctx *tool.Context, s *cloudmonitoring.Service, now
 		}
 		curStatusData.Incidents = incidents
 		buildInfoServiceName := serviceName
-		if serviceName == "binary discharger" || serviceName == "google identity service" || serviceName == "macaroon service" {
+		switch serviceName {
+		case "binary discharger", "google identity service", "macaroon service":
 			buildInfoServiceName = "identityd"
-		} else if serviceName == "mounttable" {
+		case "mounttable":
 			buildInfoServiceName = "mounttabled"
-		} else if serviceName == "proxy service" {
+		case "proxy service":
 			buildInfoServiceName = "proxyd"
-		} else if serviceName == "binary repository" {
+		case "binary repository":
 			buildInfoServiceName = "binaryd"
-		} else if serviceName == "application repository" {
+		case "application repository":
 			buildInfoServiceName = "applicationd"
 		}
 		curBuildInfo := buildInfoByServiceName[buildInfoServiceName]
@@ -576,6 +577,10 @@ func collectGCEInstancesData(ctx *tool.Context, s *cloudmonitoring.Service, now 
 	return nil
 }
 
+// overThresholdFor checks whether the most recent values of the given time
+// series are over the given threshold for the the given amount of time.
+// This function assumes that the given time series data points are sorted by
+// time (oldest first).
 func overThresholdFor(timestamps []int64, values []float64, threshold float64, holdMinutes int) bool {
 	numPoints := len(timestamps)
 	maxTime := timestamps[numPoints-1]
@@ -622,7 +627,7 @@ func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string,
 		Kind: "cloudmonitoring#listTimeseriesRequest",
 	}).Timespan(historyDuration).Do()
 	if err != nil {
-		return nil, fmt.Errorf("List failed: %v", err)
+		return nil, fmt.Errorf("List() failed: %v", err)
 	}
 
 	// Populate metric items and put them into the following zone-instance map.
@@ -655,12 +660,13 @@ func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string,
 		numPoints := len(t.Points)
 		timestamps := []int64{}
 		values := []float64{}
-		// t.Points are sorted from now to past. We iterate them backward.
+		// t.Points are sorted from now to past. We process them starting with the
+		// latest and going back in time.
 		for i := numPoints - 1; i >= 0; i-- {
 			point := t.Points[i]
 			epochTime, err := time.Parse(time.RFC3339, point.Start)
 			if err != nil {
-				fmt.Fprint(ctx.Stderr(), "%v\n", err)
+				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 				continue
 			}
 			timestamp := epochTime.Unix()
