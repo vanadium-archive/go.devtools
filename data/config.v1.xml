@@ -54,6 +54,9 @@
       <test>vanadium-chat-shell-test</test>
       <test>vanadium-chat-web-test</test>
     </project>
+    <project name="release.projects.media-sharing">
+      <test>go</test>
+    </project>
     <project name="release.projects.pipe2browser">
       <test>vanadium-pipe2browser-test</test>
     </project>
