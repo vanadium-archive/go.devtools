@@ -4,17 +4,7 @@
 -->
 <rotation>
   <shift>
-    <primary>rdaoud</primary>
-    <secondary>rjkroege</secondary>
-    <startDate>May 6, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>rjkroege</primary>
-    <secondary>rthellend</secondary>
-    <startDate>May 13, 2015 12:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>rthellend</primary>
+    <primary>jsimsa</primary>
     <secondary>bjornick</secondary>
     <startDate>May 20, 2015 12:00:00 PM</startDate>
   </shift>
@@ -129,7 +119,7 @@
     <startDate>Oct 21, 2015 12:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>jsimsa</primary>
+    <primary>rthellend</primary>
     <secondary>kash</secondary>
     <startDate>Oct 28, 2015 12:00:00 PM</startDate>
   </shift>
@@ -152,5 +142,15 @@
     <primary>nlacasse</primary>
     <secondary>rdaoud</secondary>
     <startDate>Nov 25, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>rdaoud</primary>
+    <secondary>rjkroege</secondary>
+    <startDate>Dec 2, 2015 12:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>rjkroege</primary>
+    <secondary>rthellend</secondary>
+    <startDate>Dec 9, 2015 12:00:00 PM</startDate>
   </shift>
 </rotation>
