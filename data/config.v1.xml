@@ -75,7 +75,8 @@
     <project name="www">
       <test>vanadium-bootstrap</test>
       <test>vanadium-www-site</test>
-      <test>vanadium-www-tutorials</test>
+      <test>vanadium-www-tutorials-core</test>
+      <test>vanadium-www-tutorials-js-node</test>
     </project>
   </projectTests>
   <snapshotLabelTests>
@@ -141,7 +142,7 @@
       <test>vanadium-integration-test</test>
       <test>vanadium-regression-test</test>
       <test>vanadium-prod-services-test</test>
-      <test>vanadium-www-tutorials</test>
+      <test>vanadium-www-tutorials-core</test>
     </group>
     <group name="javascript">
       <test>vanadium-js-browser-integration</test>
@@ -152,6 +153,7 @@
       <test>vanadium-js-vdl</test>
       <test>vanadium-js-vdl-audit</test>
       <test>vanadium-js-vom</test>
+      <test>vanadium-www-tutorials-js-node</test>
     </group>
     <group name="projects">
       <test>vanadium-browser-test</test>

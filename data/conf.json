@@ -84,7 +84,8 @@
     "www": [
       "vanadium-bootstrap",
       "vanadium-www-site",
-      "vanadium-www-tutorials"
+      "vanadium-www-tutorials-core",
+      "vanadium-www-tutorials-js-node"
     ]
   },
   "snapshot-label-tests": {
@@ -149,7 +150,7 @@
       "vanadium-integration-test",
       "vanadium-regression-test",
       "vanadium-prod-services-test",
-      "vanadium-www-tutorials"
+      "vanadium-www-tutorials-core"
     ],
     "javascript": [
       "vanadium-js-browser-integration",
@@ -159,7 +160,8 @@
       "vanadium-js-unit",
       "vanadium-js-vdl",
       "vanadium-js-vdl-audit",
-      "vanadium-js-vom"
+      "vanadium-js-vom",
+      "vanadium-www-tutorials-js-node"
     ],
     "projects": [
       "vanadium-chat-shell-test",
