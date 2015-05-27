@@ -1,14 +1,14 @@
 15d14
-< 	defer vlog.LogCall("random text")()
+< 	defer apilog.LogCall("random text")()
 19d17
-< 	defer vlog.LogCall()() // random comment
+< 	defer apilog.LogCall()() // random comment
 32d29
-< 	defer vlog.LogCall(a)(&b)
+< 	defer apilog.LogCall(a)(&b)
 39d35
-< 	defer vlog.LogCall(a)()
+< 	defer apilog.LogCall(a)()
 51d46
-< 	defer vlog.LogCallf("a: %d", a)("b: %d", &b) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+< 	defer apilog.LogCallf("a: %d", a)("b: %d", &b) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 58d52
-< 	defer vlog.LogCallf("switch test")("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+< 	defer apilog.LogCallf("switch test")("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 15d14
-< 	defer vlog.LogCall("some more random text")()
+< 	defer apilog.LogCall("some more random text")()

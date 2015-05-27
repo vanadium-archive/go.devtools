@@ -37,7 +37,7 @@ The gologcop flags are:
    Show what commands will run but do not execute them.
  -progress=false
    Print verbose progress information.
- -use-v23-context=false
+ -use-v23-context=true
    Pass a context.T argument (which must be of type v.io/v23/context.T), if
    available, to the injected call as its first parameter.
  -v=false
@@ -60,7 +60,7 @@ The gologcop check flags are:
  -call=LogCall
    The function call to be checked for as defer <pkg>.<call>()() and defer
    <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.
- -import=v.io/x/lib/vlog
+ -import=v.io/x/ref/lib/apilog
    Import path for the injected call.
  -interface=
    Comma-separated list of interface packages (required).
@@ -84,7 +84,7 @@ The gologcop inject flags are:
    Show changes that would be made without actually making them.
  -gofmt=true
    Automatically run gofmt on the modified files.
- -import=v.io/x/lib/vlog
+ -import=v.io/x/ref/lib/apilog
    Import path for the injected call.
  -interface=
    Comma-separated list of interface packages (required).
@@ -101,7 +101,7 @@ Usage:
 <packages> is the list of packages to remove log statements from.
 
 The gologcop remove flags are:
- -call=vlog.LogCall
+ -call=apilog.LogCall
    The function call to be removed. Note, that the package selector must be
    included. No attempt is made to remove the import declaration if the package
    is no longer used as a result of the removal.

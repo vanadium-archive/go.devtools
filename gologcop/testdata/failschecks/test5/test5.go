@@ -7,11 +7,11 @@
 // pointers)
 package test5
 
-import "v.io/x/lib/vlog"
+import "v.io/x/ref/lib/apilog"
 
 type Type struct{}
 
 func (Type) ReturnsSomething(a int) (b int) {
-	defer vlog.LogCall(a)(b)
+	defer apilog.LogCall(nil, a)(nil, b)
 	return 42
 }

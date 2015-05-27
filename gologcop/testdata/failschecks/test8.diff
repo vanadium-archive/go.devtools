@@ -1,4 +1,4 @@
 12a13
-> 	"v.io/x/lib/vlog"
+> 	"v.io/x/ref/lib/apilog"
 17a19
-> 	defer vlog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

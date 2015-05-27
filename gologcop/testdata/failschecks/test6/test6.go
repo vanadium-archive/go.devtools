@@ -9,11 +9,11 @@
 // pointer.
 package test6
 
-import ( "v.io/x/lib/vlog" )
+import ( "v.io/x/ref/lib/apilog" )
 
 type Type struct{}
 
 func (Type) ReturnsSomething(a int) (b int) {
-	defer vlog.LogCall("a: %d", a)("b: %d", &b)
+	defer apilog.LogCallf(nil, "a: %d", a)(nil, "b: %d", b)
 	return 42
 }

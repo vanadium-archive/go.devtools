@@ -1,4 +1,4 @@
 6a7
-> import "v.io/x/lib/vlog"
+> import "v.io/x/ref/lib/apilog"
 16a18
-> 	defer vlog.LogCallf("a=%v", a)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("a=%v", a)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

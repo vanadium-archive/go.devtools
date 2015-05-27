@@ -33,27 +33,33 @@ var (
 	injectCallImportFlag string
 )
 
+const (
+	apilogCall       = "LogCall"
+	apilogImport     = "v.io/x/ref/lib/apilog"
+	apilogRemoveCall = "apilog.LogCall"
+)
+
 func init() {
 	cmdCheck.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required).")
 
-	cmdCheck.Flags.StringVar(&injectCallFlag, "call", "LogCall", "The function call to be checked for as defer <pkg>.<call>()() and defer <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.")
-	cmdCheck.Flags.StringVar(&injectCallImportFlag, "import", "v.io/x/lib/vlog", "Import path for the injected call.")
+	cmdCheck.Flags.StringVar(&injectCallFlag, "call", apilogCall, "The function call to be checked for as defer <pkg>.<call>()() and defer <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.")
+	cmdCheck.Flags.StringVar(&injectCallImportFlag, "import", apilogImport, "Import path for the injected call.")
 
 	cmdInject.Flags.StringVar(&interfacesFlag, "interface", "", "Comma-separated list of interface packages (required).")
 	cmdInject.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files.")
 	cmdInject.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
-	cmdInject.Flags.StringVar(&injectCallFlag, "call", "LogCall", "The function call to be injected as defer <pkg>.<call>()() and defer <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.")
-	cmdInject.Flags.StringVar(&injectCallImportFlag, "import", "v.io/x/lib/vlog", "Import path for the injected call.")
+	cmdInject.Flags.StringVar(&injectCallFlag, "call", apilogCall, "The function call to be injected as defer <pkg>.<call>()() and defer <pkg>.<call>f(...)(...). The value of <pkg> is determined from --import.")
+	cmdInject.Flags.StringVar(&injectCallImportFlag, "import", apilogImport, "Import path for the injected call.")
 
 	cmdRemove.Flags.BoolVar(&gofmtFlag, "gofmt", true, "Automatically run gofmt on the modified files.")
 	cmdRemove.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
-	cmdRemove.Flags.StringVar(&removeCallFlag, "call", "vlog.LogCall", "The function call to be removed. Note, that the package selector must be included. No attempt is made to remove the import declaration if the package is no longer used as a result of the removal.")
+	cmdRemove.Flags.StringVar(&removeCallFlag, "call", apilogRemoveCall, "The function call to be removed. Note, that the package selector must be included. No attempt is made to remove the import declaration if the package is no longer used as a result of the removal.")
 
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
-	cmdRoot.Flags.BoolVar(&useContextFlag, "use-v23-context", false, "Pass a context.T argument (which must be of type v.io/v23/context.T), if available, to the injected call as its first parameter.")
+	cmdRoot.Flags.BoolVar(&useContextFlag, "use-v23-context", true, "Pass a context.T argument (which must be of type v.io/v23/context.T), if available, to the injected call as its first parameter.")
 }
 
 var cmdRoot = &cmdline.Command{

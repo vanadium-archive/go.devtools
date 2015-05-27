@@ -10,7 +10,7 @@ package test4
 
 import (
 	"fmt"
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/apilog"
 )
 
 type Type1 struct{}

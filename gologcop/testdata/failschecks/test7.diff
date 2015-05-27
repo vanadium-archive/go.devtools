@@ -1,13 +1,13 @@
 9a10,11
-> import "v.io/x/lib/vlog"
+> import "v.io/x/ref/lib/apilog"
 > 
 12,13c14,19
 < func (*PtrType) Method1()    {}
 < func (*PtrType) Method2(int) {}
 ---
 > func (*PtrType) Method1() {
-> 	defer vlog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 > }
 > func (*PtrType) Method2(int) {
-> 	defer vlog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 > }

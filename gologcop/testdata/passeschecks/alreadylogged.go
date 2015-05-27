@@ -6,17 +6,17 @@
 // all the necessary logging constructs.
 package passeschecks
 
-import "v.io/x/lib/vlog"
+import "v.io/x/ref/lib/apilog"
 
 type Type1 struct{}
 
 func (Type1) Method1() {
 	// random comment
-	defer vlog.LogCall("random text")()
+	defer apilog.LogCall("random text")()
 }
 
 func (Type1) Method2(int) {
-	defer vlog.LogCall()() // random comment
+	defer apilog.LogCall()() // random comment
 }
 
 func (Type1) NotPartOfInterfaceMethod3() {}
@@ -29,14 +29,14 @@ func (NotImplementingInterface) Method2() {}
 type ValueReturningType struct{}
 
 func (ValueReturningType) ReturnsSomething(a int) (b int) {
-	defer vlog.LogCall(a)(&b)
+	defer apilog.LogCall(a)(&b)
 	return 42
 }
 
 type ValueReturningType2 struct{}
 
 func (ValueReturningType2) ReturnsSomething(a int) (b int) {
-	defer vlog.LogCall(a)()
+	defer apilog.LogCall(a)()
 	return 42
 }
 
@@ -48,14 +48,14 @@ type LogCallfTest struct{}
 
 func (obj LogCallfTest) ReturnsSomething(a int) (b int) {
 	// this comment should make no difference
-	defer vlog.LogCallf("a: %d", a)("b: %d", &b) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf("a: %d", a)("b: %d", &b) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// this comment should remain
 	return 42
 }
 
 func (obj LogCallfTest) AnotherTestForRemove(a int) (b int) {
 	// this comment should make no difference
-	defer vlog.LogCallf("switch test")("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf("switch test")("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	switch {
 	case 4:
 		// Another comment

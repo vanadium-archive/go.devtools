@@ -4,7 +4,7 @@
 
 package passeschecks
 
-import "v.io/x/lib/vlog"
+import "v.io/x/ref/lib/apilog"
 
 type SplitType struct{}
 
@@ -12,6 +12,6 @@ func (SplitType) Method1() {
 	// does not make a difference to have a
 	// random comment
 	// here
-	defer vlog.LogCall("some more random text")()
+	defer apilog.LogCall("some more random text")()
 	// or here
 }

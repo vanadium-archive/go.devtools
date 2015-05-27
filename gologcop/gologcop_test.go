@@ -92,10 +92,20 @@ func TestRemove(t *testing.T) {
 }
 
 func TestInject(t *testing.T) {
+	savedContextFlag := useContextFlag
+	defer func() {
+		useContextFlag = savedContextFlag
+	}()
+	useContextFlag = false
 	testInject(t, "iface", failingPrefix, failingPackageCount)
 }
 
 func TestInjectWithArgs(t *testing.T) {
+	savedContextFlag := useContextFlag
+	defer func() {
+		useContextFlag = savedContextFlag
+	}()
+	useContextFlag = false
 	testInject(t, "iface2", withArgsPrefix, withArgsPackageCount)
 }
 
@@ -143,12 +153,13 @@ func TestCommandLineArgs(t *testing.T) {
 }
 
 func TestInjectCommandLine(t *testing.T) {
+	savedContextFlag := useContextFlag
 	savedCallFlag := injectCallFlag
 	savedCallImportFlag := injectCallImportFlag
 	defer func() {
 		injectCallFlag = savedCallFlag
 		injectCallImportFlag = savedCallImportFlag
-		useContextFlag = false
+		useContextFlag = savedContextFlag
 	}()
 	injectCallFlag = "Bar"
 	injectCallImportFlag = "bar 	\"foo.com/x/baz\""
@@ -260,7 +271,7 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 	if len(methods) == 0 {
 		t.Fatalf("Log injector could not find any methods implementing the test interfaces in %v", impls)
 	}
-	methodPositions, err := functionDeclarationsAtPositions(ps.fset, asts, nil, methods)
+	methodPositions, err := functionDeclarationsAtPositions(ps.fset, asts, ps.info, methods)
 	if err != nil {
 		t.Fatal(err)
 	}

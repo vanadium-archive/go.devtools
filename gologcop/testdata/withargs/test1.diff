@@ -1,16 +1,16 @@
 6a7
-> import "v.io/x/lib/vlog"
+> import "v.io/x/ref/lib/apilog"
 11a13
-> 	defer vlog.LogCallf("a=%v,b=%.10s...,c=,e=", a, b)("r1=%v,err=%v", &r1, &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("a=%v,b=%.10s...,c=,e=", a, b)("r1=%v,err=%v", &r1, &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 15a18
-> 	defer vlog.LogCallf("a=%v,b=%.10s...,c=,e=", a, b)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("a=%v,b=%.10s...,c=,e=", a, b)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 18a22
-> 	defer vlog.LogCallf("")("r1=%v,err=%v", &r1, &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("")("r1=%v,err=%v", &r1, &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 22a27
-> 	defer vlog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCall()() // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 26a32
-> 	defer vlog.LogCallf("err=%v", err)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("err=%v", err)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 29a36
-> 	defer vlog.LogCallf("a=%v,b...=%v", a, b)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("a=%v,b...=%v", a, b)("") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 32a40
-> 	defer vlog.LogCallf("a=,e=")("m=,err=%v", &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+> 	defer apilog.LogCallf("a=,e=")("m=,err=%v", &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

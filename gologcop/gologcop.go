@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -104,10 +105,19 @@ func (ps *parseState) addParsedPackage(path string, pkg *types.Package, asts []*
 // gcOrSourceImporter will use gcimporter to attempt to import from
 // a .a file, but if one doesn't exist it will import from source code.
 func (ps *parseState) gcOrSourceImporter(imports map[string]*types.Package, path string) (*types.Package, error) {
-	// gcimporter can only handle .a files and if there is no .a file it will
-	// return without checking the contents of imports.
-	if p, err := gcimporter.Import(imports, path); err == nil {
-		return p, err
+	// It seems that we need to special case the unsafe package.
+	if path == "unsafe" {
+		return types.Unsafe, nil
+	}
+	filename, _ := gcimporter.FindPkg(path, "")
+	// Only import system packages, we always want to parse application
+	// packages to ensure we have complete position information.
+	if strings.HasPrefix(filename, runtime.GOROOT()) {
+		// gcimporter can only handle .a files and if there is no .a file it will
+		// return without checking the contents of imports.
+		if p, err := gcimporter.Import(imports, path); err == nil {
+			return p, err
+		}
 	}
 	if pkg, _ := ps.parsedPackage(path); pkg != nil {
 		return pkg, nil
@@ -596,7 +606,6 @@ func findMethodsInScope(ctx *tool.Context, fset *token.FileSet, positions map[to
 	for _, child := range scope.Names() {
 		object := scope.Lookup(child)
 		typ := object.Type()
-
 		switch v := typ.(type) {
 		case *types.Named:
 			for i := 0; i < v.NumMethods(); i++ {
@@ -988,7 +997,7 @@ func validateLogStatement(method *ast.FuncDecl, pkg, name string) error {
 	}
 
 	deferArgs := deferStmt.Call.Args
-	if useContextFlag {
+	if useContextFlag && len(deferArgs) > 0 {
 		deferArgs = deferArgs[1:]
 	}
 
@@ -1007,7 +1016,12 @@ func validateLogStatement(method *ast.FuncDecl, pkg, name string) error {
 		if nCallArgs < 1 {
 			return &errInvalid{"no format specifier specified for returned defer func: " + name}
 		}
-		return ensureExprsArePointers(deferArgs[1:])
+		if len(deferArgs) > 0 {
+			// Skip past format flag, but if we're called for a Remove
+			// then we can't be sure there is a format.
+			deferArgs = deferArgs[1:]
+		}
+		return ensureExprsArePointers(deferArgs)
 	}
 
 	return &errNotExists{fmt.Sprintf("got \"%s.%s\", want \"%s.%s\"", packageIdent.Name, selector.Sel.Name, pkg, name)}
