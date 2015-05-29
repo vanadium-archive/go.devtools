@@ -1,0 +1,3 @@
+<godepcop>
+  <import allow="golang.org/x/tools/go/..."/>
+</godepcop>

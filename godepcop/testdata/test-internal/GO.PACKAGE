@@ -1,6 +1,0 @@
-{
-	"imports": [
-		{"allow": "v.io/x/devtools/godepcop/testdata/test-internal/..."},
-		{"deny": "..."}
-	]
-}

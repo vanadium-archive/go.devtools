@@ -1,0 +1,4 @@
+<godepcop>
+  <import allow="v.io/x/devtools/godepcop/testdata/test-internal/..."/>
+  <import deny="..."/>
+</godepcop>

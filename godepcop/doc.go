@@ -7,7 +7,7 @@
 
 /*
 Command godepcop checks Go package dependencies against constraints described in
-GO.PACKAGE files.  In addition to user-defined constraints, the Go 1.5 internal
+.godepcop files.  In addition to user-defined constraints, the Go 1.5 internal
 package rules are also enforced.
 
 Usage:
@@ -28,26 +28,39 @@ Godepcop check
 
 Check package dependency constraints.
 
-Every Go package directory may contain an optional GO.PACKAGE file.  Each file
+Every Go package directory may contain an optional .godepcop file.  Each file
 specifies dependency rules, which either allow or deny imports by that package.
 The files are traversed hierarchically, from the deepmost package to the root of
 the source tree, until a matching rule is found.  If no matching rule is found,
-the default behavior is to allow the dependency, to stay compatible with
-existing packages that do not include dependency rules.
+the default behavior is to allow the dependency, to support packages that do not
+have any dependency rules.
 
-GO.PACKAGE is a JSON file that looks like this:
-   {
-     "imports": [
-       {"allow": "pattern1/..."},
-       {"allow": "pattern2"},
-       {"deny":  "..."}
-     ]
-   }
+The .godepcop file is encoded in XML:
 
-Each item in "imports" is a rule, which either allows or denies imports based on
-the given pattern.  Patterns that end with "/..." are special: "foo/..." means
-that foo and all its subpackages match the rule.  The special-case pattern "..."
-means that all packages in GOPATH, but not GOROOT, match the rule.
+  <godepcop>
+    <import allow="pattern1/..."/>
+    <import allow="pattern2"/>
+    <import deny="..."/>
+    <test allow="pattern3"/>
+    <xtest allow="..."/>
+  </godepcop>
+
+Each element in godepcop is a rule, which either allows or denies imports based
+on the given pattern.  Patterns that end with "/..." are special: "foo/..."
+means that foo and all its subpackages match the rule.  The special-case pattern
+"..."  means that all packages in GOPATH, but not GOROOT, match the rule.
+
+There are three groups of rules:
+  import - Rules applied to all imports from the package.
+  test   - Extra rules for imports from all test files.
+  xtest  - Extra rules for imports from test files in the *_test package.
+
+Rules in each group are processed in the order they appear in the .godepcop
+file.  The transitive closure of the following imports are checked for each
+package P:
+  P.Imports                              - check import rules
+  P.Imports+P.TestImports                - check test and import rules
+  P.Imports+P.TestImports+P.XTestImports - check xtest, test and import rules
 
 Usage:
    godepcop check <packages>
@@ -61,9 +74,9 @@ List packages imported by the given <packages>.
 Lists all transitive imports by default; set the -direct flag to limit the
 listing to direct imports by the given <packages>.
 
-Elides $GOROOT packages by default; set the -show-goroot flag to show packages
-in $GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves
-as if -show-goroot were set to true.
+Elides $GOROOT packages by default; set the -goroot flag to include packages in
+$GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves as
+if -goroot were set to true.
 
 Lists each imported package exactly once.  Set the -indent flag for pretty
 indentation to help visualize the dependency hierarchy.  Setting -indent may
@@ -76,11 +89,15 @@ Usage:
 
 The godepcop list flags are:
  -direct=false
-   Only consider direct dependencies, rather than transitive dependencies.
+   Only show direct dependencies, rather than showing transitive dependencies.
+ -goroot=false
+   Show $GOROOT packages.
  -indent=false
    List dependencies with pretty indentation.
- -show-goroot=false
-   Show packages in goroot.
+ -test=false
+   Show imports from test files in the same package.
+ -xtest=false
+   Show imports from test files in the same package or in the *_test package.
 
 Godepcop list-importers
 
@@ -90,9 +107,9 @@ listed packages are called "importers".
 Lists all transitive importers by default; set the -direct flag to limit the
 listing to importers that directly import the given <packages>.
 
-Elides $GOROOT packages by default; set the -show-goroot flag to show importers
-in $GOROOT.  If any of the given <packages> are $GOROOT packages, list-reverse
-behaves as if -show-goroot were set to true.
+Elides $GOROOT packages by default; set the -goroot flag to include importers in
+$GOROOT.  If any of the given <packages> are $GOROOT packages, list-importers
+behaves as if -goroot were set to true.
 
 Lists each importer package exactly once.
 
@@ -103,9 +120,13 @@ Usage:
 
 The godepcop list-importers flags are:
  -direct=false
-   Only consider direct dependencies, rather than transitive dependencies.
- -show-goroot=false
-   Show packages in goroot.
+   Only show direct dependencies, rather than showing transitive dependencies.
+ -goroot=false
+   Show $GOROOT packages.
+ -test=false
+   Show imports from test files in the same package.
+ -xtest=false
+   Show imports from test files in the same package or in the *_test package.
 
 Godepcop version
 

@@ -44,53 +44,89 @@ func importPackage(path string) (*build.Package, error) {
 	return p, nil
 }
 
-// printIndentedDeps prints pkg and its dependencies to w, with fancy
-// indentation.  If directOnly is true, only direct dependencies are printed,
-// not transitive dependencies.
-func printIndentedDeps(w io.Writer, pkg *build.Package, depth int, directOnly, showGoroot bool) error {
-	header := "#"
-	if depth > 0 {
-		header = strings.Repeat(" │", depth-1) + " ├─"
+// depOpts holds options for computing package dependencies.
+type depOpts struct {
+	DirectOnly    bool // Only compute direct (rather than transitive) deps.
+	IncludeGoroot bool // Include $GOROOT packages.
+	IncludeTest   bool // Also include TestImports
+	IncludeXTest  bool // Also include TestImports and XTestImports.
+}
+
+// paths returns the initial package paths to use when computing dependencies.
+func (x depOpts) paths(pkg *build.Package) []string {
+	uniq := make(map[string]bool)
+	for _, i := range pkg.Imports {
+		uniq[i] = true
 	}
-	fmt.Fprintln(w, header+pkg.ImportPath)
-	if depth >= 1 && directOnly {
-		return nil
+	if x.IncludeTest || x.IncludeXTest {
+		for _, i := range pkg.TestImports {
+			uniq[i] = true
+		}
 	}
-	for _, importPath := range append(pkg.Imports, pkg.TestImports...) {
-		dep, err := importPackage(importPath)
+	if x.IncludeXTest {
+		for _, i := range pkg.XTestImports {
+			uniq[i] = true
+		}
+	}
+	var paths []string
+	for u, _ := range uniq {
+		// Don't include the package itself; it might have added from XTestImports.
+		if u != pkg.ImportPath {
+			paths = append(paths, u)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// PrintIdent prints pkg and its dependencies to w, with fancy indentation.
+func (x depOpts) PrintIndent(w io.Writer, pkg *build.Package) error {
+	fmt.Fprintln(w, "#"+pkg.ImportPath)
+	return x.printIndentHelper(w, x.paths(pkg), 0)
+}
+
+func (x depOpts) printIndentHelper(w io.Writer, paths []string, depth int) error {
+	for _, path := range paths {
+		pkg, err := importPackage(path)
 		if err != nil {
 			return err
 		}
-		if pkg.Goroot && !showGoroot {
+		if !x.IncludeGoroot && pkg.Goroot {
 			continue
 		}
-		if err := printIndentedDeps(w, dep, depth+1, directOnly, showGoroot); err != nil {
-			return err
+		fmt.Fprintln(w, strings.Repeat(" │", depth)+" ├─"+pkg.ImportPath)
+		if !x.DirectOnly {
+			if err := x.printIndentHelper(w, pkg.Imports, depth+1); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-// packageDeps fills deps with the dependencies of pkg.  If directOnly is true,
-// only direct dependencies are printed, not transitive dependencies.
-func packageDeps(pkg *build.Package, deps map[string]*build.Package, directOnly, showGoroot bool) error {
-	for _, importPath := range append(pkg.Imports, pkg.TestImports...) {
-		if deps[importPath] != nil {
+// Deps fills deps with the dependencies of pkg.  If directOnly is true, only
+// direct dependencies are printed, not transitive dependencies.
+func (x depOpts) Deps(pkg *build.Package, deps map[string]*build.Package) error {
+	return x.depsHelper(x.paths(pkg), deps)
+}
+
+func (x depOpts) depsHelper(paths []string, deps map[string]*build.Package) error {
+	for _, path := range paths {
+		if deps[path] != nil {
 			continue
 		}
-		dep, err := importPackage(importPath)
+		pkg, err := importPackage(path)
 		if err != nil {
 			return err
 		}
-		if dep.Goroot && !showGoroot {
+		if !x.IncludeGoroot && pkg.Goroot {
 			continue
 		}
-		deps[importPath] = dep
-		if directOnly {
-			continue
-		}
-		if err := packageDeps(dep, deps, directOnly, showGoroot); err != nil {
-			return err
+		deps[path] = pkg
+		if !x.DirectOnly {
+			if err := x.depsHelper(pkg.Imports, deps); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

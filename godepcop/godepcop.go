@@ -12,58 +12,48 @@ import (
 	"strings"
 )
 
-type importRule struct {
-	IsDenyRule bool
-	PkgExpr    string
-}
-
-type packageConfig struct {
-	Path    string
-	Imports []importRule
-}
-
-type importResult int
+type result int
 
 const (
-	undecidedResult importResult = iota
-	approvedResult
-	rejectedResult
+	resultUndecided result = iota
+	resultApproved
+	resultRejected
 )
 
-func (r importResult) String() string {
+func (r result) String() string {
 	return []string{"undecided", "approved", "rejected"}[int(r)]
 }
 
-type importViolation struct {
+type violation struct {
 	Src, Dst *build.Package
 	Err      error
 }
 
-func (r importRule) enforce(p *build.Package) (importResult, error) {
-	if r.PkgExpr == "..." {
+func enforceRule(r rule, pkg *build.Package) (result, error) {
+	if r.Pattern() == "..." {
 		switch {
-		case p.Goroot:
-			return undecidedResult, nil
-		case r.IsDenyRule:
-			return rejectedResult, nil
+		case pkg.Goroot:
+			return resultUndecided, nil
+		case r.IsDeny():
+			return resultRejected, nil
 		}
-		return approvedResult, nil
+		return resultApproved, nil
 	}
 
-	re := regexp.QuoteMeta(r.PkgExpr)
+	re := regexp.QuoteMeta(r.Pattern())
 	if strings.HasSuffix(re, `/\.\.\.`) {
 		re = re[:len(re)-len(`/\.\.\.`)] + `(/.*)?`
 	}
 
-	switch matched, err := regexp.MatchString("^"+re+"$", p.ImportPath); {
+	switch matched, err := regexp.MatchString("^"+re+"$", pkg.ImportPath); {
 	case err != nil:
-		return undecidedResult, err
+		return resultUndecided, err
 	case !matched:
-		return undecidedResult, nil
-	case r.IsDenyRule:
-		return rejectedResult, nil
+		return resultUndecided, nil
+	case r.IsDeny():
+		return resultRejected, nil
 	}
-	return approvedResult, nil
+	return resultApproved, nil
 }
 
 // verifyGo15InternalRule implements support for the internal package rule,
@@ -92,52 +82,93 @@ func verifyGo15InternalRule(src, dst string) bool {
 
 var errGo15Internal = errors.New("violates Go 1.5 internal package rule")
 
-func checkImport(pkg, dep *build.Package) (*importViolation, error) {
-	it := newPackageConfigIterator(pkg)
+func checkDep(pkg, dep *build.Package, mode checkMode) (*violation, error) {
+	it := newConfigIter(pkg)
 	for it.Advance() {
-		config := it.Value()
-		for _, rule := range config.Imports {
-			switch result, err := rule.enforce(dep); {
+		// Collect the ordered rules from this config for the given mode.
+		cfg := it.Value()
+		var rules []rule
+		switch mode {
+		case modeImport:
+			rules = cfg.ImportRules
+		case modeTest:
+			rules = append(cfg.TestRules, cfg.ImportRules...)
+		case modeXTest:
+			rules = append(cfg.XTestRules, cfg.TestRules...)
+			rules = append(rules, cfg.ImportRules...)
+		}
+		// Enforce each rule in order.
+		for _, rule := range rules {
+			switch result, err := enforceRule(rule, dep); {
 			case err != nil:
 				return nil, err
-			case result == approvedResult:
+			case result == resultApproved:
 				return nil, nil
-			case result == rejectedResult:
-				err := fmt.Errorf(`violates rule {"deny": %q} in %s`, rule.PkgExpr, config.Path)
-				return &importViolation{pkg, dep, err}, nil
+			case result == resultRejected:
+				err := fmt.Errorf(`violates %s deny rule %q in %s`, mode, rule.Pattern(), cfg.Path)
+				return &violation{pkg, dep, err}, nil
 			}
 		}
 	}
 	if err := it.Err(); err != nil {
 		return nil, err
 	}
+	// All config files have been checked without an approved or rejected result;
+	// treat this as an approved result.  This also handles the case where no
+	// config files have been specified.
 	return nil, nil
 }
 
-func checkImports(pkg *build.Package) ([]importViolation, error) {
-	var violations []importViolation
+func checkDeps(pkg *build.Package) ([]violation, error) {
+	var violations []violation
 	// First check direct dependencies against the Go 1.5 internal package rule.
-	deps := make(map[string]*build.Package)
-	if err := packageDeps(pkg, deps, true, true); err != nil {
+	optsDirect := depOpts{DirectOnly: true, IncludeGoroot: true, IncludeTest: true, IncludeXTest: true}
+	depsDirect := make(map[string]*build.Package)
+	if err := optsDirect.Deps(pkg, depsDirect); err != nil {
 		return nil, err
 	}
-	for _, dep := range sortPackages(deps) {
+	for _, dep := range sortPackages(depsDirect) {
 		if !verifyGo15InternalRule(pkg.ImportPath, dep.ImportPath) {
-			violations = append(violations, importViolation{pkg, dep, errGo15Internal})
+			violations = append(violations, violation{pkg, dep, errGo15Internal})
 		}
 	}
-	// Now check all transitive dependencies against the GO.PACKAGE rules.
-	if err := packageDeps(pkg, deps, false, true); err != nil {
-		return nil, err
-	}
-	for _, dep := range sortPackages(deps) {
-		v, err := checkImport(pkg, dep)
-		if err != nil {
+	// Now check transitive dependencies against the rules in .godepcop files.
+	// Each mode is checked independently, since the .godepcop configuration rules
+	// may be different.
+	for _, mode := range []checkMode{modeImport, modeTest, modeXTest} {
+		opts := depOpts{IncludeGoroot: true}
+		switch mode {
+		case modeTest:
+			opts.IncludeTest = true
+		case modeXTest:
+			opts.IncludeTest = true
+			opts.IncludeXTest = true
+		}
+		deps := make(map[string]*build.Package)
+		if err := opts.Deps(pkg, deps); err != nil {
 			return nil, err
 		}
-		if v != nil {
-			violations = append(violations, *v)
+		for _, dep := range sortPackages(deps) {
+			v, err := checkDep(pkg, dep, mode)
+			if err != nil {
+				return nil, err
+			}
+			if v != nil {
+				violations = append(violations, *v)
+			}
 		}
 	}
 	return violations, nil
+}
+
+type checkMode int
+
+const (
+	modeImport checkMode = iota
+	modeTest
+	modeXTest
+)
+
+func (mode checkMode) String() string {
+	return []string{"import", "test", "xtest"}[mode]
 }

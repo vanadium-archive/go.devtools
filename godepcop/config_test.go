@@ -5,112 +5,188 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
 
-func TestLoadPackageConfigFile(t *testing.T) {
-	tests := []packageConfig{
-		{"testdata/load-test.depcop", []importRule{
-			{IsDenyRule: true, PkgExpr: "denied-package/x"},
-			{IsDenyRule: false, PkgExpr: "allowed-package/y"},
-		}},
-		{"testdata/nacl-app.depcop", []importRule{
-			{IsDenyRule: true, PkgExpr: "syscall"},
-		}},
-		{"testdata/v23-rt.depcop", []importRule{
-			{IsDenyRule: false, PkgExpr: "v23/runtimes/..."},
-		}},
-		{"testdata/v23.depcop", []importRule{
-			{IsDenyRule: false, PkgExpr: "v23/..."},
-			{IsDenyRule: true, PkgExpr: "..."},
-		}},
+var (
+	abc, xyz, dots = "abc", "xyz", "..."
+
+	testConfigXML = `
+<godepcop>
+  <import allow="abc"/>
+  <import allow="xyz"/>
+  <import deny="..."/>
+  <test allow="..."/>
+  <xtest deny="..."/>
+</godepcop>
+`
+
+	testConfig = &config{
+		ImportRules: []rule{{Allow: &abc}, {Allow: &xyz}, {Deny: &dots}},
+		TestRules:   []rule{{Allow: &dots}},
+		XTestRules:  []rule{{Deny: &dots}},
 	}
-	for _, test := range tests {
-		config, err := loadPackageConfigFile(test.Path)
-		if err != nil {
-			t.Fatal("error reading config file:", err)
-		}
-		if got, want := config.Imports, test.Imports; !reflect.DeepEqual(got, want) {
-			t.Errorf("%s got %v, want %v", test.Path, got, want)
-		}
+)
+
+func TestLoadConfig(t *testing.T) {
+	// Create and load a config file.
+	dir, err := ioutil.TempDir("", "godepcop")
+	if err != nil {
+		t.Fatalf("TempDir failed: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, ".godepcop")
+	if err := ioutil.WriteFile(path, []byte(testConfigXML), os.ModePerm); err != nil {
+		t.Fatalf("WriteFile(%q) failed: %v", path, err)
+	}
+	cfg, err := loadConfig(path)
+	if err != nil {
+		t.Errorf("loadConfig failed: %v", err)
+	}
+	// Compare the loaded config against our expectations.
+	cpConfig := *testConfig
+	cpConfig.Path = path
+	if got, want := cfg, &cpConfig; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	// Make sure non-existent files return an error.
+	cfg, err = loadConfig(path + ".XYZ")
+	if cfg != nil || err == nil || !os.IsNotExist(err) {
+		t.Errorf("got (%v, %v), want (nil, NoExist)", cfg, err)
 	}
 }
 
-func TestLoadPackageConfigFileNotExist(t *testing.T) {
-	config, err := loadPackageConfigFile("testdata/non-existent.depcop")
-	if config != nil || err == nil || !os.IsNotExist(err) {
-		t.Errorf("got (%v, %v), want (nil, NoExist)", config, err)
-	}
-}
-
-func TestParsePackageConfig(t *testing.T) {
+func TestParseConfig(t *testing.T) {
 	tests := []struct {
 		Data   string
-		Config *packageConfig
+		Config *config
 	}{
 		{
-			`{"imports": [{"allow": "..."}]}`,
-			&packageConfig{Imports: []importRule{
-				{IsDenyRule: false, PkgExpr: "..."},
-			}},
+			`<godepcop><import allow="..."/></godepcop>`,
+			&config{ImportRules: []rule{{Allow: &dots}}},
 		},
 		{
-			`{"imports": [{"deny": "..."}]}`,
-			&packageConfig{Imports: []importRule{
-				{IsDenyRule: true, PkgExpr: "..."},
-			}},
+			`<godepcop><import deny="..."/></godepcop>`,
+			&config{ImportRules: []rule{{Deny: &dots}}},
 		},
 		{
-			`{"imports": [{"allow": "..."}, {"deny": "..."}]}`,
-			&packageConfig{Imports: []importRule{
-				{IsDenyRule: false, PkgExpr: "..."},
-				{IsDenyRule: true, PkgExpr: "..."},
-			}},
+			`<godepcop><import allow="abc"/><import deny="..."/></godepcop>`,
+			&config{ImportRules: []rule{{Allow: &abc}, {Deny: &dots}}},
 		},
 		{
-			`{"imports": [{"allow": "foo"}, {"allow": "bar"}, {"deny": "baz/..."}]}`,
-			&packageConfig{Imports: []importRule{
-				{IsDenyRule: false, PkgExpr: "foo"},
-				{IsDenyRule: false, PkgExpr: "bar"},
-				{IsDenyRule: true, PkgExpr: "baz/..."},
-			}},
+			testConfigXML,
+			testConfig,
 		},
 	}
 	for _, test := range tests {
-		config, err := parsePackageConfig([]byte(test.Data))
+		cfg, err := parseConfig([]byte(test.Data))
 		if err != nil {
 			t.Errorf("%s failed: %v", test.Data, err)
 		}
-		if got, want := test.Config, config; !reflect.DeepEqual(got, want) {
+		if got, want := cfg, test.Config; !reflect.DeepEqual(got, want) {
 			t.Errorf("%s got %v, want %v", test.Data, got, want)
 		}
 	}
 }
 
-func TestParsePackageConfigError(t *testing.T) {
-	tests := []string{
-		``,
-		`{}`,
-		`[]`,
-		`{"foo": ""}`,
-		`{"foo": []}`,
-		`{"foo": [{}]}`,
-		`{"foo": [{"allow": "v23/rt/..."}]}`,
-		`{"imports": ""}`,
-		`{"imports": []}`,
-		`{"imports": ["foo"]}`,
-		`{"imports": [{}]}`,
-		`{"imports": [{"foo": "v23/rt/..."}]}`,
-		`{"imports": [{"allow": "v23/rt/...", "deny": "bar"}]}`,
-		`{"imports": [{"allow": ""}]}`,
-		`{"imports": [{"deny": ""}]}`,
+func TestParseConfigError(t *testing.T) {
+	tests := []struct {
+		Data string
+		Err  string
+	}{
+		// XML syntax errors
+		{``, "*"},
+		{`<godepcop>`, "*"},
+		// No rules
+		{
+			`<godepcop/>`,
+			"at least one rule must be specified",
+		},
+		{
+			`<godepcop></godepcop>`,
+			"at least one rule must be specified",
+		},
+		// Import rules
+		{
+			`<godepcop><import/></godepcop>`,
+			"import: neither allow nor deny is specified",
+		},
+		{
+			`<godepcop><import foo=""/></godepcop>`,
+			"import: neither allow nor deny is specified",
+		},
+		{
+			`<godepcop><import allow=""/></godepcop>`,
+			"import: empty rule",
+		},
+		{
+			`<godepcop><import deny=""/></godepcop>`,
+			"import: empty rule",
+		},
+		{
+			`<godepcop><import allow="x" deny="y"/></godepcop>`,
+			"import: both allow and deny are specified",
+		},
+		// Test rules
+		{
+			`<godepcop><test/></godepcop>`,
+			"test: neither allow nor deny is specified",
+		},
+		{
+			`<godepcop><test foo=""/></godepcop>`,
+			"test: neither allow nor deny is specified",
+		},
+		{
+			`<godepcop><test allow=""/></godepcop>`,
+			"test: empty rule",
+		},
+		{
+			`<godepcop><test deny=""/></godepcop>`,
+			"test: empty rule",
+		},
+		{
+			`<godepcop><test allow="x" deny="y"/></godepcop>`,
+			"test: both allow and deny are specified",
+		},
+		// XTest rules
+		{
+			`<godepcop><xtest/></godepcop>`,
+			"xtest: neither allow nor deny is specified",
+		},
+		{
+			`<godepcop><xtest foo=""/></godepcop>`,
+			"xtest: neither allow nor deny is specified",
+		},
+		{
+			`<godepcop><xtest allow=""/></godepcop>`,
+			"xtest: empty rule",
+		},
+		{
+			`<godepcop><xtest deny=""/></godepcop>`,
+			"xtest: empty rule",
+		},
+		{
+			`<godepcop><xtest allow="x" deny="y"/></godepcop>`,
+			"xtest: both allow and deny are specified",
+		},
 	}
 	for _, test := range tests {
-		config, err := parsePackageConfig([]byte(test))
-		if config != nil || err == nil {
-			t.Errorf("%s got (%v, %v), want (nil, error)", test, config, err)
+		cfg, err := parseConfig([]byte(test.Data))
+		if cfg != nil {
+			t.Errorf("%s got %v, want nil", test.Data, cfg)
+		}
+		if test.Err == "*" {
+			if err == nil {
+				t.Errorf("%s got error nil, want %v", test.Data, test.Err)
+			}
+		} else {
+			if got, want := err.Error(), test.Err; got != want {
+				t.Errorf("%s got error %v, want %v", test.Data, got, want)
+			}
 		}
 	}
 }

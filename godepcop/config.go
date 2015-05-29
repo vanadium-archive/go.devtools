@@ -5,7 +5,7 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"go/build"
@@ -15,24 +15,54 @@ import (
 	"strings"
 )
 
-type importRuleJSON struct {
-	Allow *string `json:"allow"`
-	Deny  *string `json:"deny"`
-	// The above fields need to be pointers to be able to distinguish
-	// { "allow": "test", "deny": "" } from { "allow": "test" }
-	// by looking at the return value of json.Unmarshal.
+type config struct {
+	XMLName     struct{} `xml:"godepcop"`
+	ImportRules []rule   `xml:"import"`
+	TestRules   []rule   `xml:"test"`
+	XTestRules  []rule   `xml:"xtest"`
+	Path        string   `xml:"-"`
 }
 
-type packageConfigJSON struct {
-	Imports []importRuleJSON `json:"imports"`
+type rule struct {
+	// The fields are pointers so that we can distinguish empty from unset values.
+	Allow *string `xml:"allow,attr,omitempty"`
+	Deny  *string `xml:"deny,attr,omitempty"`
 }
 
-var configCache = map[string]*packageConfig{}
+func (r rule) IsDeny() bool {
+	return r.Deny != nil
+}
 
-// loadPackageConfigFile loads a GO.PACKAGE configuration file located at the
-// specified filesystem path.  If the call is successful, the output will be
-// cached and the same instance will be returned in subsequent calls.
-func loadPackageConfigFile(path string) (*packageConfig, error) {
+func (r rule) Pattern() string {
+	switch {
+	case r.Allow != nil:
+		return *r.Allow
+	case r.Deny != nil:
+		return *r.Deny
+	}
+	return ""
+}
+
+func (r rule) Validate() error {
+	switch {
+	case r.Allow == nil && r.Deny == nil:
+		return errNeitherAllowDeny
+	case r.Allow != nil && r.Deny != nil:
+		return errBothAllowDeny
+	case r.Allow != nil && *r.Allow != "":
+		return nil
+	case r.Deny != nil && *r.Deny != "":
+		return nil
+	}
+	return errEmptyRule
+}
+
+var configCache = map[string]*config{}
+
+// loadConfig loads a .godepcop configuration file located at the specified
+// filesystem path.  If the call is successful, the output will be cached and
+// the same instance will be returned in subsequent calls.
+func loadConfig(path string) (*config, error) {
 	if p, ok := configCache[path]; ok {
 		return p, nil
 	}
@@ -40,7 +70,7 @@ func loadPackageConfigFile(path string) (*packageConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	p, err := parsePackageConfig(data)
+	p, err := parseConfig(data)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", path, err)
 	}
@@ -52,104 +82,76 @@ func loadPackageConfigFile(path string) (*packageConfig, error) {
 var (
 	errBothAllowDeny    = errors.New("both allow and deny are specified")
 	errNeitherAllowDeny = errors.New("neither allow nor deny is specified")
-	errEmptyRule        = errors.New("empty import rule")
-	errNoRules          = errors.New("at least one import rule must be specified")
+	errEmptyRule        = errors.New("empty rule")
+	errNoRules          = errors.New("at least one rule must be specified")
 )
 
-func parseImportRule(r importRuleJSON) (importRule, error) {
-	switch {
-	case r.Allow != nil && r.Deny != nil:
-		return importRule{}, errBothAllowDeny
-	case r.Allow == nil && r.Deny == nil:
-		return importRule{}, errNeitherAllowDeny
-	case r.Allow != nil && *r.Allow != "":
-		return importRule{IsDenyRule: false, PkgExpr: *r.Allow}, nil
-	case r.Deny != nil && *r.Deny != "":
-		return importRule{IsDenyRule: true, PkgExpr: *r.Deny}, nil
-	}
-	return importRule{}, errEmptyRule
-}
-
-func parsePackageConfig(data []byte) (*packageConfig, error) {
-	var pkg packageConfigJSON
-	if err := json.Unmarshal(data, &pkg); err != nil {
+func parseConfig(data []byte) (*config, error) {
+	c := new(config)
+	if err := xml.Unmarshal(data, c); err != nil {
 		return nil, err
 	}
-	var rules []importRule
-	for _, d := range pkg.Imports {
-		rule, err := parseImportRule(d)
-		if err != nil {
-			return nil, err
-		}
-		rules = append(rules, rule)
-	}
-	if len(rules) == 0 {
+	if len(c.ImportRules) == 0 && len(c.TestRules) == 0 && len(c.XTestRules) == 0 {
 		return nil, errNoRules
 	}
-	return &packageConfig{Imports: rules}, nil
+	for _, r := range c.ImportRules {
+		if err := r.Validate(); err != nil {
+			return nil, fmt.Errorf("import: %v", err)
+		}
+	}
+	for _, r := range c.TestRules {
+		if err := r.Validate(); err != nil {
+			return nil, fmt.Errorf("test: %v", err)
+		}
+	}
+	for _, r := range c.XTestRules {
+		if err := r.Validate(); err != nil {
+			return nil, fmt.Errorf("xtest: %v", err)
+		}
+	}
+	return c, nil
 }
 
-type packageConfigIterator interface {
-	Advance() bool
-	Value() *packageConfig
-	Err() error
+type configIter struct {
+	cfg   *config
+	err   error
+	depth int
+	dir   string
 }
 
-type configFileIterator struct {
-	config *packageConfig
-	err    error
-	depth  int
-	dir    string
-}
+const configFileName = ".godepcop"
 
-type configFileReadError struct {
-	err  error
-	path string
-}
-
-func (e configFileReadError) Error() string {
-	return "invalid config file: " + e.path + ": " + e.err.Error()
-}
-
-const configFileName = "GO.PACKAGE"
-
-func (c *configFileIterator) Advance() bool {
+func (c *configIter) Advance() bool {
 	if c.depth < 0 {
 		return false
 	}
 	path := filepath.Join(c.dir, configFileName)
-	config, err := loadPackageConfigFile(path)
+	cfg, err := loadConfig(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			c.depth = -1
-			c.err = configFileReadError{err, path}
+			c.err = err
 			return false
 		}
-		config = &packageConfig{Path: path}
+		cfg = &config{Path: path}
 	}
 	c.depth--
 	c.dir = filepath.Dir(c.dir)
-	c.config = config
+	c.cfg = cfg
 	return true
 }
 
-func (c *configFileIterator) Value() *packageConfig {
-	return c.config
-}
+func (c *configIter) Value() *config { return c.cfg }
+func (c *configIter) Err() error     { return c.err }
 
-func (c *configFileIterator) Err() error {
-	return c.err
-}
-
-// newPackageConfigIterator returns an iterator over the GO.PACKAGE
-// configuration files for package p.  It starts at the config file in package
-// p, and then travels up successive directories until it reaches the root of
-// the import path.
-func newPackageConfigIterator(p *build.Package) packageConfigIterator {
+// newConfigIter returns an iterator over the .godepcop configuration files for
+// package p.  It starts at the config file in package p, and then travels up
+// successive directories until it reaches the root of the import path.
+func newConfigIter(p *build.Package) *configIter {
 	if isPseudoPackage(p) {
-		return &configFileIterator{depth: -1}
+		return &configIter{depth: -1}
 	}
-	return &configFileIterator{
+	return &configIter{
 		dir:   p.Dir,
 		depth: strings.Count(p.ImportPath, "/"),
 	}

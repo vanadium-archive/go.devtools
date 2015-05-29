@@ -1,8 +1,0 @@
-{
-	"imports": [
-		{"allow": "v.io/x/lib/..."},
-		{"allow": "v.io/x/devtools/lib/..."},
-		{"allow": "golang.org/x/tools/..."},
-		{"deny": "..."}
-	]
-}

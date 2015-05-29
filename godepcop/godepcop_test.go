@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func allow(expr string) importRule   { return importRule{false, expr} }
-func deny(expr string) importRule    { return importRule{true, expr} }
+func allow(expr string) rule         { return rule{Allow: &expr} }
+func deny(expr string) rule          { return rule{Deny: &expr} }
 func pkg(path string) *build.Package { return &build.Package{ImportPath: path} }
 func pkgGoroot(path string) *build.Package {
 	p := pkg(path)
@@ -18,37 +18,37 @@ func pkgGoroot(path string) *build.Package {
 	return p
 }
 
-func TestEnforceImportRule(t *testing.T) {
+func TestEnforceRule(t *testing.T) {
 	tests := []struct {
-		rule   importRule
+		rule   rule
 		pkg    *build.Package
-		result importResult
+		result result
 	}{
-		{deny("..."), pkg("foo"), rejectedResult},
-		{deny("..."), pkgGoroot("foo"), undecidedResult},
-		{allow("..."), pkg("foo"), approvedResult},
-		{allow("..."), pkgGoroot("foo"), undecidedResult},
+		{deny("..."), pkg("foo"), resultRejected},
+		{deny("..."), pkgGoroot("foo"), resultUndecided},
+		{allow("..."), pkg("foo"), resultApproved},
+		{allow("..."), pkgGoroot("foo"), resultUndecided},
 
-		{deny("foo"), pkg("foo"), rejectedResult},
-		{deny("foo"), pkg("foo/a"), undecidedResult},
-		{deny("foo"), pkg("bar"), undecidedResult},
-		{allow("foo"), pkg("foo"), approvedResult},
-		{allow("foo"), pkg("foo/a"), undecidedResult},
-		{allow("foo"), pkg("bar"), undecidedResult},
+		{deny("foo"), pkg("foo"), resultRejected},
+		{deny("foo"), pkg("foo/a"), resultUndecided},
+		{deny("foo"), pkg("bar"), resultUndecided},
+		{allow("foo"), pkg("foo"), resultApproved},
+		{allow("foo"), pkg("foo/a"), resultUndecided},
+		{allow("foo"), pkg("bar"), resultUndecided},
 
-		{deny("foo/..."), pkg("foo"), rejectedResult},
-		{deny("foo/..."), pkg("foo/a"), rejectedResult},
-		{deny("foo/..."), pkg("foo/a/b/c"), rejectedResult},
-		{deny("foo/..."), pkg("bar"), undecidedResult},
-		{deny("foo/..."), pkg("bar/foo"), undecidedResult},
-		{allow("foo/..."), pkg("foo"), approvedResult},
-		{allow("foo/..."), pkg("foo/a"), approvedResult},
-		{allow("foo/..."), pkg("foo/a/b/c"), approvedResult},
-		{allow("foo/..."), pkg("bar"), undecidedResult},
-		{allow("foo/..."), pkg("bar/foo"), undecidedResult},
+		{deny("foo/..."), pkg("foo"), resultRejected},
+		{deny("foo/..."), pkg("foo/a"), resultRejected},
+		{deny("foo/..."), pkg("foo/a/b/c"), resultRejected},
+		{deny("foo/..."), pkg("bar"), resultUndecided},
+		{deny("foo/..."), pkg("bar/foo"), resultUndecided},
+		{allow("foo/..."), pkg("foo"), resultApproved},
+		{allow("foo/..."), pkg("foo/a"), resultApproved},
+		{allow("foo/..."), pkg("foo/a/b/c"), resultApproved},
+		{allow("foo/..."), pkg("bar"), resultUndecided},
+		{allow("foo/..."), pkg("bar/foo"), resultUndecided},
 	}
 	for _, test := range tests {
-		result, err := test.rule.enforce(test.pkg)
+		result, err := enforceRule(test.rule, test.pkg)
 		if err != nil {
 			t.Errorf("%v %s failed: %v", test.rule, test.pkg.ImportPath, err)
 		}
@@ -132,7 +132,7 @@ func TestVerifyGo15InternalRule(t *testing.T) {
 	}
 }
 
-func TestCheckImports(t *testing.T) {
+func TestCheckDeps(t *testing.T) {
 	tests := []struct {
 		name string
 		pass bool
@@ -141,12 +141,15 @@ func TestCheckImports(t *testing.T) {
 		{"v.io/x/devtools/godepcop/testdata/test-b", false},
 		{"v.io/x/devtools/godepcop/testdata/test-c", false},
 		{"v.io/x/devtools/godepcop/testdata/test-c/child", true},
-		{"v.io/x/devtools/godepcop/testdata/import-C", true},
-		{"v.io/x/devtools/godepcop/testdata/import-unsafe", true},
+		{"v.io/x/devtools/godepcop/testdata/test-d", false},
+		{"v.io/x/devtools/godepcop/testdata/test-e", false},
+		{"v.io/x/devtools/godepcop/testdata/test-f", false},
 		{"v.io/x/devtools/godepcop/testdata/test-internal", true},
 		{"v.io/x/devtools/godepcop/testdata/test-internal/child", true},
 		{"v.io/x/devtools/godepcop/testdata/test-internal/internal/child", true},
 		{"v.io/x/devtools/godepcop/testdata/test-internal-fail", false},
+		{"v.io/x/devtools/godepcop/testdata/import-C", true},
+		{"v.io/x/devtools/godepcop/testdata/import-unsafe", true},
 	}
 	for _, test := range tests {
 		p, err := importPackage(test.name)
@@ -154,7 +157,7 @@ func TestCheckImports(t *testing.T) {
 			t.Errorf("%s error loading package: %v", test.name, err)
 			continue
 		}
-		v, err := checkImports(p)
+		v, err := checkDeps(p)
 		if err != nil {
 			t.Errorf("%s failed: %v", test.name, err)
 			continue

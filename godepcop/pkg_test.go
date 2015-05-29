@@ -40,7 +40,8 @@ func TestPackageDeps(t *testing.T) {
 			t.Errorf("importPackage(%q) failed: %v", test.path, err)
 		}
 		depPkgs := make(map[string]*build.Package)
-		if err := packageDeps(pkg, depPkgs, test.direct, test.goroot); err != nil {
+		opts := depOpts{DirectOnly: test.direct, IncludeGoroot: test.goroot}
+		if err := opts.Deps(pkg, depPkgs); err != nil {
 			t.Errorf("%v failed: %v", test, err)
 		}
 		if test.direct || !test.goroot {

@@ -1,0 +1,6 @@
+<godepcop>
+  <import allow="golang.org/x/net/..."/>
+  <import allow="golang.org/x/oauth2/..."/>
+  <import allow="google.golang.org/api/..."/>
+  <import allow="google.golang.org/cloud/..."/>
+</godepcop>

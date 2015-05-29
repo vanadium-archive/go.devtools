@@ -16,33 +16,50 @@ import (
 )
 
 var (
-	flagShowGoroot bool
-	flagIndent     bool
-	flagDirect     bool
+	flagIndent bool
+	flagDirect bool
+	flagGoroot bool
+	flagTest   bool
+	flagXTest  bool
 )
 
-const descDirect = "Only consider direct dependencies, rather than transitive dependencies."
-const descGoroot = "Show packages in goroot."
+const descDirect = "Only show direct dependencies, rather than showing transitive dependencies."
+const descGoroot = "Show $GOROOT packages."
+const descTest = "Show imports from test files in the same package."
+const descXTest = "Show imports from test files in the same package or in the *_test package."
 
 func init() {
 	cmdList.Flags.BoolVar(&flagIndent, "indent", false, "List dependencies with pretty indentation.")
 	cmdList.Flags.BoolVar(&flagDirect, "direct", false, descDirect)
-	cmdList.Flags.BoolVar(&flagShowGoroot, "show-goroot", false, descGoroot)
+	cmdList.Flags.BoolVar(&flagGoroot, "goroot", false, descGoroot)
+	cmdList.Flags.BoolVar(&flagTest, "test", false, descTest)
+	cmdList.Flags.BoolVar(&flagXTest, "xtest", false, descXTest)
 	cmdListImporters.Flags.BoolVar(&flagDirect, "direct", false, descDirect)
-	cmdListImporters.Flags.BoolVar(&flagShowGoroot, "show-goroot", false, descGoroot)
+	cmdListImporters.Flags.BoolVar(&flagGoroot, "goroot", false, descGoroot)
+	cmdListImporters.Flags.BoolVar(&flagTest, "test", false, descTest)
+	cmdListImporters.Flags.BoolVar(&flagXTest, "xtest", false, descXTest)
 }
 
 func main() {
 	cmdline.Main(cmdRoot)
 }
 
+func depOptsFromFlags() depOpts {
+	return depOpts{
+		DirectOnly:    flagDirect,
+		IncludeGoroot: flagGoroot,
+		IncludeTest:   flagTest,
+		IncludeXTest:  flagXTest,
+	}
+}
+
 var cmdRoot = &cmdline.Command{
 	Name:  "godepcop",
 	Short: "Check Go package dependencies against user-defined rules",
 	Long: `
-Command godepcop checks Go package dependencies against constraints described
-in GO.PACKAGE files.  In addition to user-defined constraints, the Go 1.5
-internal package rules are also enforced.
+Command godepcop checks Go package dependencies against constraints described in
+.godepcop files.  In addition to user-defined constraints, the Go 1.5 internal
+package rules are also enforced.
 `,
 	Children: []*cmdline.Command{cmdCheck, cmdList, cmdListImporters, cmdVersion},
 }
@@ -56,35 +73,48 @@ var cmdCheck = &cmdline.Command{
 	Long: `
 Check package dependency constraints.
 
-Every Go package directory may contain an optional GO.PACKAGE file.  Each file
+Every Go package directory may contain an optional .godepcop file.  Each file
 specifies dependency rules, which either allow or deny imports by that package.
 The files are traversed hierarchically, from the deepmost package to the root of
 the source tree, until a matching rule is found.  If no matching rule is found,
-the default behavior is to allow the dependency, to stay compatible with
-existing packages that do not include dependency rules.
+the default behavior is to allow the dependency, to support packages that do not
+have any dependency rules.
 
-GO.PACKAGE is a JSON file that looks like this:
-   {
-     "imports": [
-       {"allow": "pattern1/..."},
-       {"allow": "pattern2"},
-       {"deny":  "..."}
-     ]
-   }
+The .godepcop file is encoded in XML:
 
-Each item in "imports" is a rule, which either allows or denies imports based on
-the given pattern.  Patterns that end with "/..." are special: "foo/..." means
-that foo and all its subpackages match the rule.  The special-case pattern "..."
-means that all packages in GOPATH, but not GOROOT, match the rule.
+  <godepcop>
+    <import allow="pattern1/..."/>
+    <import allow="pattern2"/>
+    <import deny="..."/>
+    <test allow="pattern3"/>
+    <xtest allow="..."/>
+  </godepcop>
+
+Each element in godepcop is a rule, which either allows or denies imports based
+on the given pattern.  Patterns that end with "/..." are special: "foo/..."
+means that foo and all its subpackages match the rule.  The special-case pattern
+"..."  means that all packages in GOPATH, but not GOROOT, match the rule.
+
+There are three groups of rules:
+  import - Rules applied to all imports from the package.
+  test   - Extra rules for imports from all test files.
+  xtest  - Extra rules for imports from test files in the *_test package.
+
+Rules in each group are processed in the order they appear in the .godepcop
+file.  The transitive closure of the following imports are checked for each
+package P:
+  P.Imports                              - check import rules
+  P.Imports+P.TestImports                - check test and import rules
+  P.Imports+P.TestImports+P.XTestImports - check xtest, test and import rules
 `}
 
 func runCheck(env *cmdline.Env, args []string) error {
 	// Gather packages specified in args.
-	var pkgs []*build.Package
 	paths, err := listPackagePaths(env, args...)
 	if err != nil {
 		return err
 	}
+	var pkgs []*build.Package
 	for _, path := range paths {
 		pkg, err := importPackage(path)
 		if err != nil {
@@ -93,9 +123,9 @@ func runCheck(env *cmdline.Env, args []string) error {
 		pkgs = append(pkgs, pkg)
 	}
 	// Check each package.
-	var violations []importViolation
+	var violations []violation
 	for _, pkg := range pkgs {
-		v, err := checkImports(pkg)
+		v, err := checkDeps(pkg)
 		if err != nil {
 			return err
 		}
@@ -122,9 +152,9 @@ List packages imported by the given <packages>.
 Lists all transitive imports by default; set the -direct flag to limit the
 listing to direct imports by the given <packages>.
 
-Elides $GOROOT packages by default; set the -show-goroot flag to show packages
-in $GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves
-as if -show-goroot were set to true.
+Elides $GOROOT packages by default; set the -goroot flag to include packages in
+$GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves as
+if -goroot were set to true.
 
 Lists each imported package exactly once.  Set the -indent flag for pretty
 indentation to help visualize the dependency hierarchy.  Setting -indent may
@@ -133,27 +163,27 @@ cause the same package to be listed multiple times.
 
 func runList(env *cmdline.Env, args []string) error {
 	// Gather packages specified in args.
-	var pkgs []*build.Package
 	paths, err := listPackagePaths(env, args...)
 	if err != nil {
 		return err
 	}
-	showGoroot := flagShowGoroot
+	var pkgs []*build.Package
+	opts := depOptsFromFlags()
 	for _, path := range paths {
 		pkg, err := importPackage(path)
 		if err != nil {
 			return err
 		}
 		if pkg.Goroot {
-			// If any package in args is a GOROOT package, always show GOROOT deps.
-			showGoroot = true
+			// If any package in args is a GOROOT package, always include GOROOT deps.
+			opts.IncludeGoroot = true
 		}
 		pkgs = append(pkgs, pkg)
 	}
 	if flagIndent {
 		// Print indented deps for each package.
 		for _, pkg := range pkgs {
-			if err := printIndentedDeps(env.Stdout, pkg, 0, flagDirect, showGoroot); err != nil {
+			if err := opts.PrintIndent(env.Stdout, pkg); err != nil {
 				return err
 			}
 		}
@@ -162,7 +192,7 @@ func runList(env *cmdline.Env, args []string) error {
 	// Print deps for all combined packages.
 	deps := make(map[string]*build.Package)
 	for _, pkg := range pkgs {
-		if err := packageDeps(pkg, deps, flagDirect, showGoroot); err != nil {
+		if err := opts.Deps(pkg, deps); err != nil {
 			return err
 		}
 	}
@@ -185,29 +215,29 @@ listed packages are called "importers".
 Lists all transitive importers by default; set the -direct flag to limit the
 listing to importers that directly import the given <packages>.
 
-Elides $GOROOT packages by default; set the -show-goroot flag to show importers
-in $GOROOT.  If any of the given <packages> are $GOROOT packages, list-reverse
-behaves as if -show-goroot were set to true.
+Elides $GOROOT packages by default; set the -goroot flag to include importers in
+$GOROOT.  If any of the given <packages> are $GOROOT packages, list-importers
+behaves as if -goroot were set to true.
 
 Lists each importer package exactly once.
 `}
 
 func runListImporters(env *cmdline.Env, args []string) error {
 	// Gather target packages specified in args.
-	targets := make(map[string]*build.Package)
 	targetPaths, err := listPackagePaths(env, args...)
 	if err != nil {
 		return err
 	}
-	showGoroot := flagShowGoroot
+	targets := make(map[string]*build.Package)
+	opts := depOptsFromFlags()
 	for _, path := range targetPaths {
 		pkg, err := importPackage(path)
 		if err != nil {
 			return err
 		}
 		if pkg.Goroot {
-			// If any package in args is a GOROOT package, always show GOROOT deps.
-			showGoroot = true
+			// If any package in args is a GOROOT package, always include GOROOT deps.
+			opts.IncludeGoroot = true
 		}
 		targets[path] = pkg
 	}
@@ -224,7 +254,7 @@ func runListImporters(env *cmdline.Env, args []string) error {
 			return err
 		}
 		deps := make(map[string]*build.Package)
-		if err := packageDeps(pkg, deps, flagDirect, showGoroot); err != nil {
+		if err := opts.Deps(pkg, deps); err != nil {
 			return err
 		}
 		if hasOverlap(deps, targets) {
