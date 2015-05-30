@@ -37,7 +37,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Vbinary list
+Vbinary list - List existing daily builds of Vanadium binaries
 
 List existing daily builds of Vanadium binaries. The displayed dates can be
 limited with the --date-prefix flag.
@@ -45,7 +45,7 @@ limited with the --date-prefix flag.
 Usage:
    vbinary list
 
-Vbinary download
+Vbinary download - Download an existing daily build of Vanadium binaries
 
 Download an existing daily build of Vanadium binaries. The latest snapshot
 within the --date-prefix range will be downloaded. If no --date-prefix flag is
@@ -58,7 +58,7 @@ The vbinary download flags are:
  -output-dir=
    Directory for storing downloaded binaries.
 
-Vbinary help
+Vbinary help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

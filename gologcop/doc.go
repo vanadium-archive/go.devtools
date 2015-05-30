@@ -47,7 +47,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Gologcop check
+Gologcop check - Check for log statements in public API implementations
 
 Check for log statements in public API implementations.
 
@@ -65,7 +65,7 @@ The gologcop check flags are:
  -interface=
    Comma-separated list of interface packages (required).
 
-Gologcop inject
+Gologcop inject - Inject log statements in public API implementations
 
 Inject log statements in public API implementations. Note that inject modifies
 <packages> in-place.  It is a good idea to commit changes to version control
@@ -89,7 +89,7 @@ The gologcop inject flags are:
  -interface=
    Comma-separated list of interface packages (required).
 
-Gologcop remove
+Gologcop remove - Remove log statements
 
 Remove log statements. Note that remove modifies <packages> in-place.  It is a
 good idea to commit changes to version control before running this tool so you
@@ -110,14 +110,14 @@ The gologcop remove flags are:
  -gofmt=true
    Automatically run gofmt on the modified files.
 
-Gologcop version
+Gologcop version - Print version
 
 Print version of the gologcop tool.
 
 Usage:
    gologcop version
 
-Gologcop help
+Gologcop help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

@@ -34,7 +34,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Vcloud list
+Vcloud list - List GCE node information
 
 List GCE node information.  Runs 'gcloud compute instances list'.
 
@@ -97,7 +97,7 @@ The vcloud cp flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud node
+Vcloud node - Manage GCE nodes
 
 Manage GCE nodes.
 
@@ -110,7 +110,7 @@ The vcloud node commands are:
    create      Create GCE nodes
    delete      Delete GCE nodes
 
-Vcloud node authorize
+Vcloud node authorize - Authorize a user to login to a GCE node
 
 Authorizes a user to login to a GCE node (possibly as other user). For instance,
 this mechanism is used to give Jenkins slave nodes access to the GCE mirror of
@@ -122,7 +122,7 @@ Usage:
 <userA>@<hostA> [<userB>@]<hostB> authorizes userA to log into GCE node hostB
 from GCE node hostA as user userB. The default value for userB is userA.
 
-Vcloud node deauthorize
+Vcloud node deauthorize - Deauthorize a user to login to a GCE node
 
 Deuthorizes a user to login to a GCE node (possibly as other user). For
 instance, this mechanism is used to revoke access of give Jenkins slave nodes to
@@ -134,7 +134,7 @@ Usage:
 <userA>@<hostA> [<userB>@]<hostB> deauthorizes userA to log into GCE node hostB
 from GCE node hostA as user userB. The default value for userB is userA.
 
-Vcloud node create
+Vcloud node create - Create GCE nodes
 
 Create GCE nodes. Runs 'gcloud compute instances create'.
 
@@ -155,7 +155,7 @@ The vcloud node create flags are:
  -zone=us-central1-f
    Zone to create the machine in.
 
-Vcloud node delete
+Vcloud node delete - Delete GCE nodes
 
 Delete GCE nodes. Runs 'gcloud compute instances delete'.
 
@@ -243,7 +243,7 @@ The vcloud sh flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud help
+Vcloud help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

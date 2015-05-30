@@ -24,7 +24,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Godepcop check
+Godepcop check - Check package dependency constraints
 
 Check package dependency constraints.
 
@@ -67,7 +67,7 @@ Usage:
 
 <packages> is a list of packages to check
 
-Godepcop list
+Godepcop list - List packages imported by the given packages
 
 List packages imported by the given <packages>.
 
@@ -99,7 +99,7 @@ The godepcop list flags are:
  -xtest=false
    Show imports from test files in the same package or in the *_test package.
 
-Godepcop list-importers
+Godepcop list-importers - List packages that import the given packages
 
 List packages that import the given <packages>; the reverse of "list".  The
 listed packages are called "importers".
@@ -128,14 +128,14 @@ The godepcop list-importers flags are:
  -xtest=false
    Show imports from test files in the same package or in the *_test package.
 
-Godepcop version
+Godepcop version - Print version
 
 Print version of the godepcop tool.
 
 Usage:
    godepcop version
 
-Godepcop help
+Godepcop help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

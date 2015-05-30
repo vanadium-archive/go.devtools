@@ -30,7 +30,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Postsubmit poll
+Postsubmit poll - Poll changes and start corresponding builds on Jenkins
 
 Poll changes and start corresponding builds on Jenkins.
 
@@ -41,14 +41,14 @@ The postsubmit poll flags are:
  -manifest=
    Name of the project manifest.
 
-Postsubmit version
+Postsubmit version - Print version
 
 Print version of the postsubmit tool.
 
 Usage:
    postsubmit version
 
-Postsubmit help
+Postsubmit help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

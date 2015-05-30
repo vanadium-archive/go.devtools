@@ -36,7 +36,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Vkiosk collect
+Vkiosk collect - Takes screenshots of a given URL in Chrome and stores them in the given export dir
 
 The collect commands takes screenshots of a given URL in Chrome and stores them
 in the given export dir.
@@ -59,7 +59,7 @@ The vkiosk collect flags are:
  -url=
    The url to take screenshots for.
 
-Vkiosk serve
+Vkiosk serve - Serve screenshots from local file system or Google Storage
 
 Serve screenshots from local file system or Google Storage.
 
@@ -70,7 +70,7 @@ The vkiosk serve flags are:
  -port=8000
    Port for the server.
 
-Vkiosk help
+Vkiosk help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

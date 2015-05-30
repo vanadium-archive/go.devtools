@@ -28,7 +28,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Oncall collect
+Oncall collect - Collect data for oncall dashboard
 
 This subcommand collects data from Google Cloud Monitoring and stores the
 processed data to Google Storage.
@@ -48,7 +48,7 @@ The oncall collect flags are:
  -v23.credentials=
    The path to v23 credentials.
 
-Oncall serve
+Oncall serve - Serve oncall dashboard data from Google Storage
 
 Serve oncall dashboard data from Google Storage.
 
@@ -63,7 +63,7 @@ The oncall serve flags are:
  -static=
    Directory to use for serving static files.
 
-Oncall help
+Oncall help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

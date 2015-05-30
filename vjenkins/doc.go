@@ -30,7 +30,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Vjenkins node
+Vjenkins node - Manage Jenkins slave nodes
 
 Manage Jenkins slave nodes.
 
@@ -41,7 +41,7 @@ The vjenkins node commands are:
    create      Create Jenkins slave nodes
    delete      Delete Jenkins slave nodes
 
-Vjenkins node create
+Vjenkins node create - Create Jenkins slave nodes
 
 Create Jenkins nodes. Uses the Jenkins REST API to create new slave nodes.
 
@@ -60,7 +60,7 @@ The vjenkins node create flags are:
  -zone=us-central1-f
    GCE zone of the machine.
 
-Vjenkins node delete
+Vjenkins node delete - Delete Jenkins slave nodes
 
 Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
 
@@ -69,7 +69,7 @@ Usage:
 
 <names> is a list of names identifying nodes to be deleted.
 
-Vjenkins help
+Vjenkins help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

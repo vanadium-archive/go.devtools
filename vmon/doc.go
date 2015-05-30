@@ -32,7 +32,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Vmon md
+Vmon md - Manage metric descriptors in the given GCM instance
 
 Metric descriptor defines the metadata for a custom metric. It includes the
 metric's name, description, a set of labels, and its type. Before adding custom
@@ -47,7 +47,7 @@ The vmon md commands are:
    list        List known custom metric descriptors
    query       Query metric descriptors from GCM using the given filter
 
-Vmon md create
+Vmon md create - Create the given metric descriptor in GCM
 
 Create the given metric descriptor in GCM.
 
@@ -58,7 +58,7 @@ Usage:
 nginx, rpc-load-test, service-counters, service-latency, service-qps-method,
 service-qps-total
 
-Vmon md delete
+Vmon md delete - Delete the given metric descriptor from GCM
 
 Delete the given metric descriptor from GCM.
 
@@ -69,14 +69,14 @@ Usage:
 nginx, rpc-load-test, service-counters, service-latency, service-qps-method,
 service-qps-total
 
-Vmon md list
+Vmon md list - List known custom metric descriptors
 
 List known custom metric descriptors.
 
 Usage:
    vmon md list
 
-Vmon md query
+Vmon md query - Query metric descriptors from GCM using the given filter
 
 Query metric descriptors from GCM using the given filter.
 
@@ -87,7 +87,7 @@ The vmon md query flags are:
  -filter=custom.cloudmonitoring.googleapis.com
    The filter used for query. Default to only query custom metrics.
 
-Vmon check
+Vmon check - Manage checks used for alerting and graphing
 
 Manage checks whose results are used in GCM for alerting and graphing.
 
@@ -108,14 +108,14 @@ The vmon check flags are:
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
-Vmon check list
+Vmon check list - List known checks
 
 List known checks.
 
 Usage:
    vmon check list
 
-Vmon check run
+Vmon check run - Run the given checks
 
 Run the given checks.
 
@@ -125,7 +125,7 @@ Usage:
 <names> is a list of names identifying the checks to run. Available:
 gce-instance, rpc-load-test, service-counters, service-latency, service-qps
 
-Vmon help
+Vmon help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

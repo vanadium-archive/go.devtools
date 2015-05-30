@@ -38,7 +38,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Presubmit query
+Presubmit query - Query open CLs from Gerrit
 
 This subcommand queries open CLs from Gerrit, calculates diffs from the previous
 query results, and sends each one with related metadata (ref, project, changeId)
@@ -56,7 +56,7 @@ The presubmit query flags are:
  -query=(status:open -project:experimental)
    The string used to query Gerrit for open CLs.
 
-Presubmit result
+Presubmit result - Process and post test results
 
 Result processes all the test statuses and results files collected from all the
 presubmit test configuration builds, creates a result summary, and posts the
@@ -78,7 +78,7 @@ The presubmit result flags are:
  -refs=
    The review references separated by ':'.
 
-Presubmit test
+Presubmit test - Run tests for a CL
 
 This subcommand pulls the open CLs from Gerrit, runs tests specified in a config
 file, and posts test results back to the corresponding Gerrit review thread.
@@ -99,14 +99,14 @@ The presubmit test flags are:
  -test=
    The name of a single test to run.
 
-Presubmit version
+Presubmit version - Print version
 
 Print version of the presubmit tool.
 
 Usage:
    presubmit version
 
-Presubmit help
+Presubmit help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
