@@ -16,11 +16,11 @@ import (
 )
 
 type config struct {
-	XMLName     struct{} `xml:"godepcop"`
-	ImportRules []rule   `xml:"import"`
-	TestRules   []rule   `xml:"test"`
-	XTestRules  []rule   `xml:"xtest"`
-	Path        string   `xml:"-"`
+	XMLName    struct{} `xml:"godepcop"`
+	PkgRules   []rule   `xml:"pkg"`
+	TestRules  []rule   `xml:"test"`
+	XTestRules []rule   `xml:"xtest"`
+	Path       string   `xml:"-"`
 }
 
 type rule struct {
@@ -91,12 +91,12 @@ func parseConfig(data []byte) (*config, error) {
 	if err := xml.Unmarshal(data, c); err != nil {
 		return nil, err
 	}
-	if len(c.ImportRules) == 0 && len(c.TestRules) == 0 && len(c.XTestRules) == 0 {
+	if len(c.PkgRules) == 0 && len(c.TestRules) == 0 && len(c.XTestRules) == 0 {
 		return nil, errNoRules
 	}
-	for _, r := range c.ImportRules {
+	for _, r := range c.PkgRules {
 		if err := r.Validate(); err != nil {
-			return nil, fmt.Errorf("import: %v", err)
+			return nil, fmt.Errorf("pkg: %v", err)
 		}
 	}
 	for _, r := range c.TestRules {

@@ -38,9 +38,9 @@ have any dependency rules.
 The .godepcop file is encoded in XML:
 
   <godepcop>
-    <import allow="pattern1/..."/>
-    <import allow="pattern2"/>
-    <import deny="..."/>
+    <pkg allow="pattern1/..."/>
+    <pkg allow="pattern2"/>
+    <pkg deny="..."/>
     <test allow="pattern3"/>
     <xtest allow="..."/>
   </godepcop>
@@ -51,16 +51,16 @@ means that foo and all its subpackages match the rule.  The special-case pattern
 "..."  means that all packages in GOPATH, but not GOROOT, match the rule.
 
 There are three groups of rules:
-  import - Rules applied to all imports from the package.
-  test   - Extra rules for imports from all test files.
-  xtest  - Extra rules for imports from test files in the *_test package.
+  pkg   - Rules applied to all imports from the package.
+  test  - Extra rules for imports from all test files.
+  xtest - Extra rules for imports from test files in the *_test package.
 
 Rules in each group are processed in the order they appear in the .godepcop
 file.  The transitive closure of the following imports are checked for each
 package P:
-  P.Imports                              - check import rules
-  P.Imports+P.TestImports                - check test and import rules
-  P.Imports+P.TestImports+P.XTestImports - check xtest, test and import rules
+  P.Imports                              - check pkg rules
+  P.Imports+P.TestImports                - check test and pkg rules
+  P.Imports+P.TestImports+P.XTestImports - check xtest, test and pkg rules
 
 Usage:
    godepcop check <packages>

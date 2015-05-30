@@ -17,18 +17,18 @@ var (
 
 	testConfigXML = `
 <godepcop>
-  <import allow="abc"/>
-  <import allow="xyz"/>
-  <import deny="..."/>
+  <pkg allow="abc"/>
+  <pkg allow="xyz"/>
+  <pkg deny="..."/>
   <test allow="..."/>
   <xtest deny="..."/>
 </godepcop>
 `
 
 	testConfig = &config{
-		ImportRules: []rule{{Allow: &abc}, {Allow: &xyz}, {Deny: &dots}},
-		TestRules:   []rule{{Allow: &dots}},
-		XTestRules:  []rule{{Deny: &dots}},
+		PkgRules:   []rule{{Allow: &abc}, {Allow: &xyz}, {Deny: &dots}},
+		TestRules:  []rule{{Allow: &dots}},
+		XTestRules: []rule{{Deny: &dots}},
 	}
 )
 
@@ -66,16 +66,16 @@ func TestParseConfig(t *testing.T) {
 		Config *config
 	}{
 		{
-			`<godepcop><import allow="..."/></godepcop>`,
-			&config{ImportRules: []rule{{Allow: &dots}}},
+			`<godepcop><pkg allow="..."/></godepcop>`,
+			&config{PkgRules: []rule{{Allow: &dots}}},
 		},
 		{
-			`<godepcop><import deny="..."/></godepcop>`,
-			&config{ImportRules: []rule{{Deny: &dots}}},
+			`<godepcop><pkg deny="..."/></godepcop>`,
+			&config{PkgRules: []rule{{Deny: &dots}}},
 		},
 		{
-			`<godepcop><import allow="abc"/><import deny="..."/></godepcop>`,
-			&config{ImportRules: []rule{{Allow: &abc}, {Deny: &dots}}},
+			`<godepcop><pkg allow="abc"/><pkg deny="..."/></godepcop>`,
+			&config{PkgRules: []rule{{Allow: &abc}, {Deny: &dots}}},
 		},
 		{
 			testConfigXML,
@@ -110,26 +110,26 @@ func TestParseConfigError(t *testing.T) {
 			`<godepcop></godepcop>`,
 			"at least one rule must be specified",
 		},
-		// Import rules
+		// Pkg rules
 		{
-			`<godepcop><import/></godepcop>`,
-			"import: neither allow nor deny is specified",
+			`<godepcop><pkg/></godepcop>`,
+			"pkg: neither allow nor deny is specified",
 		},
 		{
-			`<godepcop><import foo=""/></godepcop>`,
-			"import: neither allow nor deny is specified",
+			`<godepcop><pkg foo=""/></godepcop>`,
+			"pkg: neither allow nor deny is specified",
 		},
 		{
-			`<godepcop><import allow=""/></godepcop>`,
-			"import: empty rule",
+			`<godepcop><pkg allow=""/></godepcop>`,
+			"pkg: empty rule",
 		},
 		{
-			`<godepcop><import deny=""/></godepcop>`,
-			"import: empty rule",
+			`<godepcop><pkg deny=""/></godepcop>`,
+			"pkg: empty rule",
 		},
 		{
-			`<godepcop><import allow="x" deny="y"/></godepcop>`,
-			"import: both allow and deny are specified",
+			`<godepcop><pkg allow="x" deny="y"/></godepcop>`,
+			"pkg: both allow and deny are specified",
 		},
 		// Test rules
 		{

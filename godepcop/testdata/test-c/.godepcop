@@ -1,3 +1,3 @@
 <godepcop>
-  <import deny="v.io/..."/>
+  <pkg deny="v.io/..."/>
 </godepcop>

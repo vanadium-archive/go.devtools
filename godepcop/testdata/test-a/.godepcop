@@ -1,4 +1,4 @@
 <godepcop>
   <!-- Note that "..." matches all packages *except* $GOROOT packages -->
-  <import deny="..."/>
+  <pkg deny="..."/>
 </godepcop>

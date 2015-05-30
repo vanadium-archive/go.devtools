@@ -89,13 +89,13 @@ func checkDep(pkg, dep *build.Package, mode checkMode) (*violation, error) {
 		cfg := it.Value()
 		var rules []rule
 		switch mode {
-		case modeImport:
-			rules = cfg.ImportRules
+		case modePkg:
+			rules = cfg.PkgRules
 		case modeTest:
-			rules = append(cfg.TestRules, cfg.ImportRules...)
+			rules = append(cfg.TestRules, cfg.PkgRules...)
 		case modeXTest:
 			rules = append(cfg.XTestRules, cfg.TestRules...)
-			rules = append(rules, cfg.ImportRules...)
+			rules = append(rules, cfg.PkgRules...)
 		}
 		// Enforce each rule in order.
 		for _, rule := range rules {
@@ -135,7 +135,7 @@ func checkDeps(pkg *build.Package) ([]violation, error) {
 	// Now check transitive dependencies against the rules in .godepcop files.
 	// Each mode is checked independently, since the .godepcop configuration rules
 	// may be different.
-	for _, mode := range []checkMode{modeImport, modeTest, modeXTest} {
+	for _, mode := range []checkMode{modePkg, modeTest, modeXTest} {
 		opts := depOpts{IncludeGoroot: true}
 		switch mode {
 		case modeTest:
@@ -164,11 +164,11 @@ func checkDeps(pkg *build.Package) ([]violation, error) {
 type checkMode int
 
 const (
-	modeImport checkMode = iota
+	modePkg checkMode = iota
 	modeTest
 	modeXTest
 )
 
 func (mode checkMode) String() string {
-	return []string{"import", "test", "xtest"}[mode]
+	return []string{"pkg", "test", "xtest"}[mode]
 }
