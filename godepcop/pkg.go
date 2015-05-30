@@ -70,7 +70,7 @@ func (x depOpts) paths(pkg *build.Package) []string {
 	}
 	var paths []string
 	for u, _ := range uniq {
-		// Don't include the package itself; it might have added from XTestImports.
+		// Don't include the package itself; it was added by XTestImports.
 		if u != pkg.ImportPath {
 			paths = append(paths, u)
 		}
