@@ -409,7 +409,7 @@ func (r *testReporter) postReport(ctx *tool.Context) (e error) {
 		return nil
 	}
 
-	r.reportBuildCop(ctx)
+	r.reportOncall(ctx)
 
 	failedTestNames := map[string]struct{}{}
 	numNewFailures := 0
@@ -471,13 +471,13 @@ func (r *testReporter) reportMergeConflicts(ctx *tool.Context) bool {
 	return false
 }
 
-// reportBuildCop reports current vanadium build cop.
-func (r *testReporter) reportBuildCop(ctx *tool.Context) {
-	buildCop, err := util.BuildCop(ctx, time.Now())
+// reportOncall reports current vanadium oncall.
+func (r *testReporter) reportOncall(ctx *tool.Context) {
+	oncall, err := util.Oncall(ctx, time.Now())
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
-		fmt.Fprintf(r.report, "\nCurrent Build Cop: %s\n\n", buildCop)
+		fmt.Fprintf(r.report, "\nCurrent Oncall: %s\n\n", oncall)
 	}
 }
 
