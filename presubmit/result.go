@@ -473,11 +473,11 @@ func (r *testReporter) reportMergeConflicts(ctx *tool.Context) bool {
 
 // reportOncall reports current vanadium oncall.
 func (r *testReporter) reportOncall(ctx *tool.Context) {
-	oncall, err := util.Oncall(ctx, time.Now())
+	shift, err := util.Oncall(ctx, time.Now())
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {
-		fmt.Fprintf(r.report, "\nCurrent Oncall: %s\n\n", oncall)
+		fmt.Fprintf(r.report, "\nCurrent Oncall: %s, %s\n\n", shift.Primary, shift.Secondary)
 	}
 }
 
