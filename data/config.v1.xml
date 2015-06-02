@@ -85,6 +85,9 @@
       <test>vanadium-go-build</test>
       <test>vanadium-go-test</test>
     </snapshot>
+    <!-- The "rc" snapshots are used for release candidates. -->
+    <snapshot name="rc">
+    </snapshot>
     <snapshot name="release">
     </snapshot>
     <snapshot name="stable-go">
