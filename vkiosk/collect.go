@@ -65,7 +65,7 @@ func runCollect(env *cmdline.Env, args []string) error {
 	}
 	fmt.Fprintf(ctx.Stdout(), "Tmp screenshot dir: %s\n", tmpDir)
 
-	fmt.Fprintf(ctx.Stdout(), "Starting Xvfb at DISPLAY=%s with resolution %s...", displayFlag, resolutionFlag)
+	fmt.Fprintf(ctx.Stdout(), "Starting Xvfb at DISPLAY=%s with resolution %s...\n", displayFlag, resolutionFlag)
 	p, err := startXvfb(ctx)
 	if err != nil {
 		return err
@@ -90,12 +90,12 @@ func runCollect(env *cmdline.Env, args []string) error {
 		os.Exit(0)
 	}()
 
-	fmt.Fprintf(ctx.Stdout(), "Starting Chrome for %q in Xvfb...", urlFlag)
+	fmt.Fprintf(ctx.Stdout(), "Starting Chrome for %q in Xvfb...\n", urlFlag)
 	if err := startChrome(ctx); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(ctx.Stdout(), "Starting Fluxbox in Xvfb...")
+	fmt.Fprintf(ctx.Stdout(), "Starting Fluxbox in Xvfb...\n")
 	if err := startFluxbox(ctx); err != nil {
 		return err
 	}
@@ -190,14 +190,14 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 	ticker := time.NewTicker(d)
 	for range ticker.C {
 		// Use "import" command to take screenshots.
-		fmt.Fprintf(ctx.Stdout(), "[%s]: take screenshot to %q...", nowTimestamp(), screenshotFile)
+		fmt.Fprintf(ctx.Stdout(), "[%s]: take screenshot to %q...\n", nowTimestamp(), screenshotFile)
 		if err := ctx.Run().CommandWithOpts(importOpts, "import", importArgs...); err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			continue
 		}
 
 		// Store the screenshots to export dir.
-		fmt.Fprintf(ctx.Stdout(), "[%s]: copying screenshot to %s...", nowTimestamp(), exportDirFlag)
+		fmt.Fprintf(ctx.Stdout(), "[%s]: copying screenshot to %s...\n", nowTimestamp(), exportDirFlag)
 		if strings.HasPrefix(exportDirFlag, "gs://") {
 			if err := ctx.Run().Command("gsutil", gsutilArgs...); err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
