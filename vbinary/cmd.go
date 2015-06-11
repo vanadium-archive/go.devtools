@@ -34,6 +34,7 @@ var (
 	colorFlag   bool
 	dryRunFlag  bool
 	verboseFlag bool
+	releaseFlag bool
 
 	osFlag         string
 	archFlag       string
@@ -43,9 +44,38 @@ var (
 )
 
 const (
-	binariesBucketName = "vanadium-binaries"
-	gceUser            = "veyron"
+	binariesBucketName        = "vanadium-binaries"
+	releaseBinariesBucketName = "vanadium-release"
+	gceUser                   = "veyron"
 )
+
+func bucketName() string {
+	if releaseFlag {
+		return releaseBinariesBucketName
+	}
+	return binariesBucketName
+}
+
+func dateLayout() string {
+	if releaseFlag {
+		return "2006-01-02.15:04"
+	}
+	return "2006-01-02T15:04:05-07:00"
+}
+
+func osArchDir() string {
+	if releaseFlag {
+		return ""
+	}
+	return fmt.Sprintf("%s_%s", osFlag, archFlag)
+}
+
+func stripOsArchDir(name string) string {
+	if releaseFlag {
+		return name
+	}
+	return strings.Split(name, "/")[1]
+}
 
 // TODO(suharshs): Add tests that mock out google.Storage.
 
@@ -55,6 +85,7 @@ func init() {
 	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
+	cmdRoot.Flags.BoolVar(&releaseFlag, "release", false, "Operate on vanadium-release bucket instead of vanadium-binaries.")
 
 	cmdRoot.Flags.StringVar(&archFlag, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
 	cmdRoot.Flags.Lookup("arch").DefValue = "<runtime.GOARCH>"
@@ -191,14 +222,14 @@ func latestBinaries(ctx *tool.Context, client *http.Client) ([]string, string, e
 	if err != nil {
 		return nil, "", err
 	}
-	binaryPrefix := fmt.Sprintf("%s_%s/%s", osFlag, archFlag, timestamp)
-	res, err := service.Objects.List(binariesBucketName).Fields("nextPageToken", "items/name").Prefix(binaryPrefix).Do()
+	binaryPrefix := path.Join(osArchDir(), timestamp)
+	res, err := service.Objects.List(bucketName()).Fields("nextPageToken", "items/name").Prefix(binaryPrefix).Do()
 	if err != nil {
 		return nil, "", err
 	}
 	objs := res.Items
 	for res.NextPageToken != "" {
-		res, err = service.Objects.List(binariesBucketName).PageToken(res.NextPageToken).Do()
+		res, err = service.Objects.List(bucketName()).PageToken(res.NextPageToken).Do()
 		if err != nil {
 			return nil, "", err
 		}
@@ -219,7 +250,7 @@ func latestBinaries(ctx *tool.Context, client *http.Client) ([]string, string, e
 func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Service) (string, error) {
 	// If no datePrefixFlag is provided, we just want to get the latest snapshot.
 	if datePrefixFlag == "" {
-		latestFile := fmt.Sprintf("%s_%s/%s", osFlag, archFlag, "latest")
+		latestFile := path.Join(osArchDir(), "latest")
 		b, err := downloadFileBytes(client, latestFile)
 		if err != nil {
 			return "", err
@@ -231,12 +262,11 @@ func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Se
 	if err != nil {
 		return "", err
 	}
-	const layout = "2006-01-02T15:04:05-07:00"
+	layout := dateLayout()
 	var latest string
 	var latestTime time.Time
 	for _, name := range snapshots {
-		spl := strings.Split(name, "/")
-		timestamp := spl[1]
+		timestamp := stripOsArchDir(name)
 		t, err := time.Parse(layout, timestamp)
 		if err != nil {
 			return "", err
@@ -251,17 +281,17 @@ func latestTimestamp(ctx *tool.Context, client *http.Client, service *storage.Se
 
 func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, error) {
 	filterSnapshots := func(call *storage.ObjectsListCall) (*storage.Objects, error) {
-		binaryPrefix := fmt.Sprintf("%s_%s/%s", osFlag, archFlag, datePrefixFlag)
+		binaryPrefix := path.Join(osArchDir(), datePrefixFlag)
 		// We delimit results by the ".done" file to ensure that only successfully completed snapshots are considered.
 		return call.Fields("nextPageToken", "prefixes").Prefix(binaryPrefix).Delimiter("/.done").Do()
 	}
-	res, err := filterSnapshots(service.Objects.List(binariesBucketName))
+	res, err := filterSnapshots(service.Objects.List(bucketName()))
 	if err != nil {
 		return nil, err
 	}
 	snapshots := res.Prefixes
 	for res.NextPageToken != "" {
-		res, err = filterSnapshots(service.Objects.List(binariesBucketName).PageToken(res.NextPageToken))
+		res, err = filterSnapshots(service.Objects.List(bucketName()).PageToken(res.NextPageToken))
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +354,7 @@ func downloadFileBytes(client *http.Client, filePath string) (b []byte, e error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request to %s: %v\n", urls, err)
 	}
-	req.URL.Path = strings.Replace(req.URL.Path, "{bucket}", url.QueryEscape(binariesBucketName), 1)
+	req.URL.Path = strings.Replace(req.URL.Path, "{bucket}", url.QueryEscape(bucketName()), 1)
 	req.URL.Path = strings.Replace(req.URL.Path, "{object}", url.QueryEscape(filePath), 1)
 	googleapi.SetOpaque(req.URL)
 	res, err := client.Do(req)

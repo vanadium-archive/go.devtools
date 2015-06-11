@@ -30,6 +30,8 @@ The vbinary flags are:
    Show what commands will run but do not execute them.
  -os=<runtime.GOOS>
    Target operating system.  The default is the value of runtime.GOOS.
+ -release=false
+   Operate on vanadium-release bucket instead of vanadium-binaries.
  -v=false
    Print verbose output.
 
