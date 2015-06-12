@@ -5,6 +5,22 @@
     <project>release.go.x.devtools</project>
     <project>release.go.x.lib</project>
   </apiCheckProjects>
+  <copyrightCheckProjects>
+    <project>release.go.v23</project>
+    <project>release.go.x.devtools</project>
+    <project>release.go.x.lib</project>
+    <project>release.go.x.ref</project>
+    <project>release.js.core</project>
+    <project>release.projects.browser</project>
+    <project>release.projects.chat</project>
+    <project>release.projects.media-sharing</project>
+    <project>release.projects.physical-lock</project>
+    <project>release.projects.pipe2browser</project>
+    <project>release.projects.playground</project>
+    <project>roadmap.go.syncbase</project>
+    <project>roadmap.js.syncbase</project>
+    <project>www</project>
+  </copyrightCheckProjects>
   <goWorkspaces>
     <workspace>infrastructure/go</workspace>
     <workspace>release/go</workspace>
