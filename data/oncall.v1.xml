@@ -4,31 +4,6 @@
 -->
 <rotation>
   <shift>
-    <primary>ribrdb</primary>
-    <secondary>rjkroege</secondary>
-    <startDate>May 22, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>rogulenko</primary>
-    <secondary>arup</secondary>
-    <startDate>May 25, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>rogulenko</primary>
-    <secondary>arup</secondary>
-    <startDate>May 29, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>jlodhia</primary>
-    <secondary>jkline</secondary>
-    <startDate>Jun 01, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>jlodhia</primary>
-    <secondary>jkline</secondary>
-    <startDate>Jun 05, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
     <primary>spetrovic</primary>
     <secondary>nlacasse</secondary>
     <startDate>Jun 08, 2015 08:00:00 AM</startDate>
@@ -39,13 +14,13 @@
     <startDate>Jun 12, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>taodong</primary>
-    <secondary>tilaks</secondary>
+    <primary>suharshs</primary>
+    <secondary>alexfandrianto</secondary>
     <startDate>Jun 15, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>taodong</primary>
-    <secondary>tilaks</secondary>
+    <primary>suharshs</primary>
+    <secondary>alexfandrianto</secondary>
     <startDate>Jun 19, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
@@ -69,12 +44,12 @@
     <startDate>Jul 03, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>alexfandrianto</primary>
+    <primary>sadovsky</primary>
     <secondary>aghassemi</secondary>
     <startDate>Jul 06, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>alexfandrianto</primary>
+    <primary>sadovsky</primary>
     <secondary>aghassemi</secondary>
     <startDate>Jul 10, 2015 08:00:00 AM</startDate>
   </shift>
