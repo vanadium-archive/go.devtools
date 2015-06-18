@@ -82,6 +82,8 @@
     </project>
     <project name="roadmap.go.syncbase">
       <test>go</test>
+      <test>vanadium-js-syncbase-browser</test>
+      <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="third_party">
       <test>go</test>
@@ -169,6 +171,8 @@
       <test>vanadium-js-build-extension</test>
       <test>vanadium-js-doc</test>
       <test>vanadium-js-node-integration</test>
+      <test>vanadium-js-syncbase-browser</test>
+      <test>vanadium-js-syncbase-node</test>
       <test>vanadium-js-unit</test>
       <test>vanadium-js-vdl</test>
       <test>vanadium-js-vdl-audit</test>
