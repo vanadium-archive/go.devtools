@@ -25,6 +25,7 @@ import (
 	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 )
 
 type testStatus int
@@ -836,10 +837,7 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 	fmt.Fprintf(r.report, "\nMore details at:\n%s/?type=presubmit&n=%d\n", dashboardHostFlag, jenkinsBuildNumberFlag)
 	if len(failedTestNames) > 0 {
 		// Generate link to retry failed tests only.
-		names := []string{}
-		for n := range failedTestNames {
-			names = append(names, n)
-		}
+		names := set.String.ToSlice(failedTestNames)
 		link := genStartPresubmitBuildLink(reviewTargetRefsFlag, projectsFlag, strings.Join(names, " "))
 		fmt.Fprintf(r.report, "\nTo re-run FAILED TESTS ONLY without uploading a new patch set:\n(click Proceed button on the next screen)\n%s\n", link)
 

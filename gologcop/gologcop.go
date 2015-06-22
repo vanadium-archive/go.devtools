@@ -194,15 +194,6 @@ func importPkgs(ctx *tool.Context, packageSpec []string) (ifcs []*build.Package,
 // function as sets.
 var exists = struct{}{}
 
-// newStringSet creates a new set out of a slice of strings.
-func newStringSet(values []string) map[string]struct{} {
-	set := map[string]struct{}{}
-	for _, s := range values {
-		set[s] = exists
-	}
-	return set
-}
-
 func initInjectorFlags() error {
 	parts := strings.FieldsFunc(injectCallImportFlag, unicode.IsSpace)
 	var err error

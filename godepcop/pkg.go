@@ -14,6 +14,7 @@ import (
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 )
 
 var (
@@ -54,19 +55,13 @@ type depOpts struct {
 
 // paths returns the initial package paths to use when computing dependencies.
 func (x depOpts) paths(pkg *build.Package) []string {
-	uniq := make(map[string]bool)
-	for _, i := range pkg.Imports {
-		uniq[i] = true
-	}
+	uniq := map[string]bool{}
+	set.StringBool.Union(uniq, set.StringBool.FromSlice(pkg.Imports))
 	if x.IncludeTest || x.IncludeXTest {
-		for _, i := range pkg.TestImports {
-			uniq[i] = true
-		}
+		set.StringBool.Union(uniq, set.StringBool.FromSlice(pkg.TestImports))
 	}
 	if x.IncludeXTest {
-		for _, i := range pkg.XTestImports {
-			uniq[i] = true
-		}
+		set.StringBool.Union(uniq, set.StringBool.FromSlice(pkg.XTestImports))
 	}
 	var paths []string
 	for u, _ := range uniq {

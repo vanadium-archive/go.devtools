@@ -25,6 +25,7 @@ import (
 
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 )
 
 // TODO(toddw): Add tests by mocking out gcloud.
@@ -159,20 +160,14 @@ func (f *fieldsFlag) String() string {
 	if f == nil {
 		return ""
 	}
-	out := make([]string, 0, len(*f))
-	for field := range *f {
-		out = append(out, field)
-	}
+	out := set.StringBool.ToSlice(*f)
 	return strings.Join(out, ",")
 }
 func (f *fieldsFlag) Set(from string) error {
 	if from == "" {
 		return nil
 	}
-	*f = make(map[string]bool)
-	for _, field := range strings.Split(from, ",") {
-		(*f)[field] = true
-	}
+	*f = set.StringBool.FromSlice(strings.Split(from, ","))
 	return nil
 }
 
