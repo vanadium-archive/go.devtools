@@ -85,6 +85,10 @@
       <test>vanadium-js-syncbase-browser</test>
       <test>vanadium-js-syncbase-node</test>
     </project>
+    <project name="roadmap.js.syncbase">
+      <test>vanadium-js-syncbase-browser</test>
+      <test>vanadium-js-syncbase-node</test>
+    </project>
     <project name="third_party">
       <test>go</test>
       <test>javascript</test>
