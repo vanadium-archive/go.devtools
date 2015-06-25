@@ -477,7 +477,7 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 			case "Manifest":
 				manifestMatches := manifestRE.FindStringSubmatch(value)
 				if manifestMatches != nil {
-					curBuildInfo.Snapshot = manifestMatches[1]
+					curBuildInfo.Snapshot = strings.Replace(manifestMatches[1], "snapshot/labels/", "", -1)
 				}
 			case "Pristine":
 				curBuildInfo.IsPristine = value
