@@ -17,6 +17,7 @@
     <project>release.projects.physical-lock</project>
     <project>release.projects.pipe2browser</project>
     <project>release.projects.playground</project>
+    <project>release.projects.reader</project>
     <project>roadmap.go.syncbase</project>
     <project>roadmap.js.syncbase</project>
     <project>www</project>
@@ -79,6 +80,9 @@
     </project>
     <project name="release.projects.playground">
       <test>vanadium-playground-test</test>
+    </project>
+    <project name="release.projects.reader">
+      <test>vanadium-reader-test</test>
     </project>
     <project name="roadmap.go.syncbase">
       <test>go</test>
