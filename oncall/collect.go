@@ -69,31 +69,24 @@ var (
 
 type oncallData struct {
 	CollectionTimestamp int64
-	Zones               map[string]*zoneData
+	Zones               map[string]*zoneData // Indexed by zone names.
 }
 
 type zoneData struct {
-	CloudServices *cloudServiceData
-	Nginx         *nginxData
-	GCE           *gceInstanceData
+	Instances map[string]*allMetricsData // Indexed by instance names.
+	Max       *allMetricsData
+	Average   *allMetricsData
 }
 
-type cloudServiceData struct {
-	ZoneName  string
-	Latency   metricsMap
-	Stats     metricsMap
-	BuildInfo buildInfoMap
-}
-
-type nginxData struct {
-	ZoneName string
-	Load     metricsMap
-}
-
-type gceInstanceData struct {
-	ZoneName string
-	GCEInfo  map[string]gceInfoData
-	Stats    metricsMap
+type allMetricsData struct {
+	CloudServiceLatency   map[string]*metricData // Indexed by metric names. Same below.
+	CloudServiceStats     map[string]*metricData
+	CloudServiceGCE       map[string]*metricData
+	CloudServiceBuildInfo map[string]*buildInfoData
+	NginxLoad             map[string]*metricData
+	NginxGCE              map[string]*metricData
+	GCEInfo               *gceInfoData
+	Range                 *rangeData
 }
 
 type metricData struct {
@@ -111,8 +104,14 @@ type metricData struct {
 	Healthy           bool
 }
 
-// metricsMap maps GCE instances to slices of metricData.
-type metricsMap map[string][]*metricData
+// metricDataMap is a map with the following structure:
+// {zoneName, {instanceName, {metricName, *metricData}}}.
+type metricDataMap map[string]map[string]map[string]*metricData
+
+type gceInfoData struct {
+	Status string
+	Id     string
+}
 
 type buildInfoData struct {
 	ZoneName     string
@@ -124,12 +123,29 @@ type buildInfoData struct {
 	User         string
 }
 
-// buildInfoMap maps GCE instances to slices of bulidInfoData.
-type buildInfoMap map[string][]*buildInfoData
+type rangeData struct {
+	MinTime int64
+	MaxTime int64
+}
 
-type gceInfoData struct {
-	Status string
-	Id     string
+func (r *rangeData) update(newMinTime, newMaxTime int64) {
+	if newMinTime < r.MinTime {
+		r.MinTime = newMinTime
+	}
+	if newMaxTime > r.MaxTime {
+		r.MaxTime = newMaxTime
+	}
+}
+
+type aggMetricData struct {
+	TimestampsToValues map[int64][]float64
+}
+type aggAllMetricsData struct {
+	CloudServiceLatency map[string]*aggMetricData // Indexed by metric names. Same below.
+	CloudServiceStats   map[string]*aggMetricData
+	CloudServiceGCE     map[string]*aggMetricData
+	NginxLoad           map[string]*aggMetricData
+	NginxGCE            map[string]*aggMetricData
 }
 
 type serviceStatusData struct {
@@ -150,6 +166,13 @@ type incidentData struct {
 	Duration int64
 	Status   string
 }
+
+type int64arr []int64
+
+func (a int64arr) Len() int           { return len(a) }
+func (a int64arr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a int64arr) Less(i, j int) bool { return a[i] < a[j] }
+func (a int64arr) Sort()              { sort.Sort(a) }
 
 func init() {
 	cmdCollect.Flags.StringVar(&binDirFlag, "bin-dir", "", "The path where all binaries are downloaded.")
@@ -203,7 +226,7 @@ func runCollect(env *cmdline.Env, _ []string) error {
 	}
 
 	// Collect service status data used in the external dashboard.
-	buildInfo := zones["us-central1-c"].CloudServices.BuildInfo["vanadium-cell-master"]
+	buildInfo := zones["us-central1-c"].Instances["vanadium-cell-master"].CloudServiceBuildInfo
 	statusData, err := collectServiceStatusData(ctx, s, now, buildInfo)
 	if err != nil {
 		return err
@@ -216,18 +239,13 @@ func runCollect(env *cmdline.Env, _ []string) error {
 	return nil
 }
 
-func collectServiceStatusData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time, buildInfo []*buildInfoData) (*serviceStatusData, error) {
+func collectServiceStatusData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time, buildInfo map[string]*buildInfoData) (*serviceStatusData, error) {
 	// Collect data for the last 8 days and aggregate data every 10 minutes.
 	resp, err := s.Timeseries.List(projectFlag, cloudServiceLatencyMetric, now.Format(time.RFC3339), &cloudmonitoring.ListTimeseriesRequest{
 		Kind: "cloudmonitoring#listTimeseriesRequest",
 	}).Window("10m").Timespan("8d").Aggregator("max").Do()
 	if err != nil {
 		return nil, fmt.Errorf("List failed: %v", err)
-	}
-
-	buildInfoByServiceName := map[string]*buildInfoData{}
-	for _, curBuildInfo := range buildInfo {
-		buildInfoByServiceName[curBuildInfo.ServiceName] = curBuildInfo
 	}
 
 	status := []statusData{}
@@ -255,14 +273,14 @@ func collectServiceStatusData(ctx *tool.Context, s *cloudmonitoring.Service, now
 		case "application repository":
 			buildInfoServiceName = "applicationd"
 		}
-		curBuildInfo := buildInfoByServiceName[buildInfoServiceName]
+		curBuildInfo := buildInfo[buildInfoServiceName]
 		if curBuildInfo != nil {
 			ts, err := strconv.ParseInt(curBuildInfo.Time, 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("ParseInt(%s) failed: %v", curBuildInfo.Time, err)
 			}
 			curStatusData.BuildTimestamp = time.Unix(ts, 0).Format(time.RFC822)
-			curStatusData.SnapshotLabel = curBuildInfo.Snapshot
+			curStatusData.SnapshotLabel = strings.Replace(curBuildInfo.Snapshot, "snapshot/labels/", "", -1)
 		}
 		status = append(status, curStatusData)
 	}
@@ -329,62 +347,87 @@ func statusForLatency(latency float64) string {
 }
 
 func collectCloudServicesData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time, zones map[string]*zoneData) error {
-	// Collect and add Latency data.
-	latencyMetrics, err := getMetricData(ctx, s, cloudServiceLatencyMetric, now, "")
+	// Collect and add latency data.
+	latencyMetrics, err := getMetricData(ctx, s, cloudServiceLatencyMetric, now, "latency")
 	if err != nil {
 		return err
 	}
-	for zone, instanceMetrics := range latencyMetrics {
-		if _, ok := zones[zone]; !ok {
+	for zone, instanceMap := range latencyMetrics {
+		if zones[zone] == nil {
 			zones[zone] = newZoneData(zone)
 		}
-		latencyMetrics := zones[zone].CloudServices.Latency
-		for instance, metrics := range instanceMetrics {
-			if _, ok := latencyMetrics[instance]; !ok {
-				latencyMetrics[instance] = []*metricData{}
+		zoneData := zones[zone]
+		aggData := map[string]*aggMetricData{}
+		for instance, metricMap := range instanceMap {
+			if zoneData.Instances[instance] == nil {
+				zoneData.Instances[instance] = newInstanceData()
 			}
-			latencyMetrics[instance] = append(latencyMetrics[instance], metrics...)
-			// Set thresholds and calculate health.
-			for _, metric := range metrics {
+			zoneData.Instances[instance].CloudServiceLatency = metricMap
+			for _, metric := range metricMap {
 				metric.Threshold = thresholdServiceLatency
-				metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdServiceLatency, thresholdHoldMinutes)
+				if metric.Threshold != -1 {
+					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdServiceLatency, thresholdHoldMinutes)
+				}
+				aggregateMetricData(aggData, metric)
 			}
 		}
+		maxData, maxRangeData, averageData, averageRangeData := calculateMaxAndAverageData(aggData, zone)
+		zoneData.Max.CloudServiceLatency, zoneData.Average.CloudServiceLatency = maxData, averageData
+		zoneData.Max.Range.update(maxRangeData.MinTime, maxRangeData.MaxTime)
+		zoneData.Average.Range.update(averageRangeData.MinTime, averageRangeData.MaxTime)
 	}
 
-	// Collect and add Stats data (counters + qps).
+	// Collect and add stats (counters + qps) data.
 	counterMetrics, err := getMetricData(ctx, s, cloudServiceCountersMetric, now, "")
 	if err != nil {
 		return err
 	}
-	qpsMetrics, err := getMetricData(ctx, s, cloudServiceQPSMetric, now, " qps")
+	qpsMetrics, err := getMetricData(ctx, s, cloudServiceQPSMetric, now, "qps")
 	if err != nil {
 		return err
 	}
-	addStatsFn := func(metrics map[string]metricsMap) {
-		for zone, instanceMetrics := range metrics {
-			if _, ok := zones[zone]; !ok {
+	aggDataByZone := map[string]map[string]*aggMetricData{}
+	addStatsFn := func(metrics metricDataMap) {
+		for zone, instanceMap := range metrics {
+			if zones[zone] == nil {
 				zones[zone] = newZoneData(zone)
 			}
-			statsMetrics := zones[zone].CloudServices.Stats
-			for instance, metrics := range instanceMetrics {
-				if _, ok := statsMetrics[instance]; !ok {
-					statsMetrics[instance] = []*metricData{}
+			zoneData := zones[zone]
+			aggData := aggDataByZone[zone]
+			if aggData == nil {
+				aggData = map[string]*aggMetricData{}
+			}
+			aggDataByZone[zone] = aggData
+			for instance, metricMap := range instanceMap {
+				if zoneData.Instances[instance] == nil {
+					zoneData.Instances[instance] = newInstanceData()
 				}
-				statsMetrics[instance] = append(statsMetrics[instance], metrics...)
-				// Set thresholds and calculate health.
-				for _, metric := range metrics {
-					switch metric.Name {
-					case "mounttable qps":
-						metric.Threshold = thresholdMounttableQPS
-						metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdMounttableQPS, thresholdHoldMinutes)
+				stats := zoneData.Instances[instance].CloudServiceStats
+				if stats == nil {
+					stats = map[string]*metricData{}
+					zoneData.Instances[instance].CloudServiceStats = stats
+				}
+				for metricName, metric := range metricMap {
+					metric.Threshold = getThreshold(metricName)
+					if metric.Threshold != -1 {
+						metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, metric.Threshold, thresholdHoldMinutes)
 					}
+					stats[metricName] = metric
+					aggregateMetricData(aggData, metric)
 				}
 			}
 		}
 	}
 	addStatsFn(counterMetrics)
 	addStatsFn(qpsMetrics)
+
+	for zone, aggData := range aggDataByZone {
+		zoneData := zones[zone]
+		maxData, maxRangeData, averageData, averageRangeData := calculateMaxAndAverageData(aggData, zone)
+		zoneData.Max.CloudServiceStats, zoneData.Average.CloudServiceStats = maxData, averageData
+		zoneData.Max.Range.update(maxRangeData.MinTime, maxRangeData.MaxTime)
+		zoneData.Average.Range.update(averageRangeData.MinTime, averageRangeData.MaxTime)
+	}
 
 	return nil
 }
@@ -396,12 +439,8 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 	}
 	zone := serviceLocation.Zone
 	instance := serviceLocation.Instance
-	if _, ok := zones[zone]; !ok {
+	if zones[zone] == nil {
 		zones[zone] = newZoneData(zone)
-	}
-	buildInfoByInstance := zones[zone].CloudServices.BuildInfo
-	if _, ok := buildInfoByInstance[instance]; !ok {
-		buildInfoByInstance[instance] = []*buildInfoData{}
 	}
 
 	// Run "debug stats read" command to query build info data.
@@ -419,13 +458,7 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 
 	// Parse output.
 	lines := strings.Split(buf.String(), "\n")
-	type buildInfo struct {
-		pristine string
-		user     string
-		time     string
-		snapshot string
-	}
-	buildInfoByServiceName := map[string]*buildInfo{}
+	buildInfoByServiceName := map[string]*buildInfoData{}
 	for _, line := range lines {
 		matches := buildInfoRE.FindStringSubmatch(line)
 		if matches != nil {
@@ -433,45 +466,37 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 			metadataName := matches[2]
 			value := matches[3]
 			if _, ok := buildInfoByServiceName[service]; !ok {
-				buildInfoByServiceName[service] = &buildInfo{}
+				buildInfoByServiceName[service] = &buildInfoData{
+					ZoneName:     zone,
+					InstanceName: instance,
+					ServiceName:  service,
+				}
 			}
 			curBuildInfo := buildInfoByServiceName[service]
 			switch metadataName {
 			case "Manifest":
 				manifestMatches := manifestRE.FindStringSubmatch(value)
 				if manifestMatches != nil {
-					curBuildInfo.snapshot = manifestMatches[1]
+					curBuildInfo.Snapshot = manifestMatches[1]
 				}
 			case "Pristine":
-				curBuildInfo.pristine = value
+				curBuildInfo.IsPristine = value
 			case "Time":
 				t, err := time.Parse(time.RFC3339, value)
 				if err != nil {
 					return fmt.Errorf("Parse(%s) failed: %v", value, err)
 				}
-				curBuildInfo.time = fmt.Sprintf("%d", t.Unix())
+				curBuildInfo.Time = fmt.Sprintf("%d", t.Unix())
 			case "User":
-				curBuildInfo.user = value
+				curBuildInfo.User = value
 			}
 		}
 	}
-	sortedServiceNames := []string{}
-	for serviceName := range buildInfoByServiceName {
-		sortedServiceNames = append(sortedServiceNames, serviceName)
+
+	if zones[zone].Instances[instance] == nil {
+		zones[zone].Instances[instance] = newInstanceData()
 	}
-	sort.Strings(sortedServiceNames)
-	for _, serviceName := range sortedServiceNames {
-		curBuildInfo := buildInfoByServiceName[serviceName]
-		buildInfoByInstance[instance] = append(buildInfoByInstance[instance], &buildInfoData{
-			ZoneName:     zone,
-			InstanceName: instance,
-			ServiceName:  serviceName,
-			IsPristine:   curBuildInfo.pristine,
-			Snapshot:     curBuildInfo.snapshot,
-			Time:         curBuildInfo.time,
-			User:         curBuildInfo.user,
-		})
-	}
+	zones[zone].Instances[instance].CloudServiceBuildInfo = buildInfoByServiceName
 
 	return nil
 }
@@ -481,23 +506,86 @@ func collectNginxData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Ti
 	if err != nil {
 		return err
 	}
-	for zone, instanceMetrics := range nginxMetrics {
-		if _, ok := zones[zone]; !ok {
+	for zone, instanceMap := range nginxMetrics {
+		if zones[zone] == nil {
 			zones[zone] = newZoneData(zone)
 		}
-		loadMetrics := zones[zone].Nginx.Load
-		for instance, metrics := range instanceMetrics {
-			if _, ok := loadMetrics[instance]; !ok {
-				loadMetrics[instance] = []*metricData{}
+		zoneData := zones[zone]
+		aggData := map[string]*aggMetricData{}
+		for instance, metricMap := range instanceMap {
+			if !strings.HasPrefix(instance, "nginx") {
+				continue
 			}
-			loadMetrics[instance] = append(loadMetrics[instance], metrics...)
+			if zoneData.Instances[instance] == nil {
+				zoneData.Instances[instance] = newInstanceData()
+			}
+			zoneData.Instances[instance].NginxLoad = metricMap
+			for _, metric := range metricMap {
+				aggregateMetricData(aggData, metric)
+			}
 		}
+		maxData, maxRangeData, averageData, averageRangeData := calculateMaxAndAverageData(aggData, zone)
+		zoneData.Max.NginxLoad, zoneData.Average.NginxLoad = maxData, averageData
+		zoneData.Max.Range.update(maxRangeData.MinTime, maxRangeData.MaxTime)
+		zoneData.Average.Range.update(averageRangeData.MinTime, averageRangeData.MaxTime)
 	}
 
 	return nil
 }
 
 func collectGCEInstancesData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time, zones map[string]*zoneData) error {
+	// Query and add GCE stats.
+	gceMetrics, err := getMetricData(ctx, s, gceStatsMetric, now, "")
+	if err != nil {
+		return err
+	}
+	for zone, instanceMap := range gceMetrics {
+		if zones[zone] == nil {
+			zones[zone] = newZoneData(zone)
+		}
+		zoneData := zones[zone]
+		aggDataCloudSerivcesGCE := map[string]*aggMetricData{}
+		aggDataNginxGCE := map[string]*aggMetricData{}
+		for instance, metricMap := range instanceMap {
+			if zoneData.Instances[instance] == nil {
+				zoneData.Instances[instance] = newInstanceData()
+			}
+			cloudServiceGCE := zoneData.Instances[instance].CloudServiceGCE
+			nginxGCE := zoneData.Instances[instance].NginxGCE
+			if cloudServiceGCE == nil {
+				cloudServiceGCE = map[string]*metricData{}
+				zoneData.Instances[instance].CloudServiceGCE = cloudServiceGCE
+			}
+			if nginxGCE == nil {
+				nginxGCE = map[string]*metricData{}
+				zoneData.Instances[instance].NginxGCE = nginxGCE
+			}
+			// Set thresholds and calculate health.
+			for metricName, metric := range metricMap {
+				metric.Threshold = getThreshold(metricName)
+				if metric.Threshold != -1 {
+					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, metric.Threshold, thresholdHoldMinutes)
+				}
+				if strings.HasPrefix(instance, "vanadium") {
+					cloudServiceGCE[metricName] = metric
+					aggregateMetricData(aggDataCloudSerivcesGCE, metric)
+				} else if strings.HasPrefix(instance, "nginx") {
+					nginxGCE[metricName] = metric
+					aggregateMetricData(aggDataNginxGCE, metric)
+				}
+			}
+		}
+
+		maxData, maxRangeData1, averageData, averageRangeData1 := calculateMaxAndAverageData(aggDataCloudSerivcesGCE, zone)
+		zoneData.Max.CloudServiceGCE, zoneData.Average.CloudServiceGCE = maxData, averageData
+		maxData, maxRangeData2, averageData, averageRangeData2 := calculateMaxAndAverageData(aggDataNginxGCE, zone)
+		zoneData.Max.NginxGCE, zoneData.Average.NginxGCE = maxData, averageData
+		zoneData.Max.Range.update(maxRangeData1.MinTime, maxRangeData1.MaxTime)
+		zoneData.Max.Range.update(maxRangeData2.MinTime, maxRangeData2.MaxTime)
+		zoneData.Average.Range.update(averageRangeData1.MinTime, averageRangeData1.MaxTime)
+		zoneData.Average.Range.update(averageRangeData2.MinTime, averageRangeData2.MaxTime)
+	}
+
 	// Use "gcloud compute instances list" to get instances status.
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
@@ -524,50 +612,14 @@ func collectGCEInstancesData(ctx *tool.Context, s *cloudmonitoring.Service, now 
 		}
 	}
 
-	// Query stats.
-	gceMetrics, err := getMetricData(ctx, s, gceStatsMetric, now, "")
-	if err != nil {
-		return err
-	}
-	for zone, instanceMetrics := range gceMetrics {
-		if _, ok := zones[zone]; !ok {
-			zones[zone] = newZoneData(zone)
-		}
-		statsMetrics := zones[zone].GCE.Stats
-		for instance, metrics := range instanceMetrics {
-			if _, ok := statsMetrics[instance]; !ok {
-				statsMetrics[instance] = []*metricData{}
-			}
-			statsMetrics[instance] = append(statsMetrics[instance], metrics...)
-			// Set thresholds and calculate health.
-			for _, metric := range metrics {
-				switch metric.Name {
-				case "cpu-usage":
-					metric.Threshold = thresholdCPU
-					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdCPU, thresholdHoldMinutes)
-				case "disk-usage":
-					metric.Threshold = thresholdDisk
-					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdDisk, thresholdHoldMinutes)
-				case "memory-usage":
-					metric.Threshold = thresholdRam
-					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdRam, thresholdHoldMinutes)
-				case "ping":
-					metric.Threshold = thresholdPing
-					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdPing, thresholdHoldMinutes)
-				case "tcpconn":
-					metric.Threshold = thresholdTCPConn
-					metric.Healthy = !overThresholdFor(metric.HistoryTimestamps, metric.HistoryValues, thresholdTCPConn, thresholdHoldMinutes)
-				}
-			}
-		}
-	}
+	// Add instance status.
 	for zone, instances := range instancesByZone {
 		curZone := zones[zone]
 		if curZone == nil {
 			continue
 		}
 		for _, instance := range instances {
-			curZone.GCE.GCEInfo[instance.Name] = gceInfoData{
+			curZone.Instances[instance.Name].GCEInfo = &gceInfoData{
 				Status: instance.Status,
 				Id:     instance.Id,
 			}
@@ -600,28 +652,34 @@ func overThresholdFor(timestamps []int64, values []float64, threshold float64, h
 
 func newZoneData(zone string) *zoneData {
 	return &zoneData{
-		CloudServices: &cloudServiceData{
-			ZoneName:  zone,
-			Latency:   metricsMap{},
-			Stats:     metricsMap{},
-			BuildInfo: buildInfoMap{},
-		},
-		Nginx: &nginxData{
-			ZoneName: zone,
-			Load:     metricsMap{},
-		},
-		GCE: &gceInstanceData{
-			ZoneName: zone,
-			GCEInfo:  map[string]gceInfoData{},
-			Stats:    metricsMap{},
-		},
+		Instances: map[string]*allMetricsData{},
+		Max:       newInstanceData(),
+		Average:   newInstanceData(),
+	}
+}
+
+func newInstanceData() *allMetricsData {
+	return &allMetricsData{
+		CloudServiceLatency:   map[string]*metricData{},
+		CloudServiceStats:     map[string]*metricData{},
+		CloudServiceGCE:       map[string]*metricData{},
+		CloudServiceBuildInfo: map[string]*buildInfoData{},
+		NginxLoad:             map[string]*metricData{},
+		NginxGCE:              map[string]*metricData{},
+		Range:                 newRangeData(),
+	}
+}
+
+func newRangeData() *rangeData {
+	return &rangeData{
+		MinTime: math.MaxInt64,
+		MaxTime: 0,
 	}
 }
 
 // getMetricData queries GCM with the given metric, and returns metric items
-// (metricData) in map that is first indexed by zone names then by
-// instance names.
-func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string, now time.Time, metricNameSuffix string) (map[string]metricsMap, error) {
+// (metricData) organized in metricDataMap.
+func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string, now time.Time, metricNameSuffix string) (metricDataMap, error) {
 	// Query the given metric.
 	resp, err := s.Timeseries.List(projectFlag, metric, now.Format(time.RFC3339), &cloudmonitoring.ListTimeseriesRequest{
 		Kind: "cloudmonitoring#listTimeseriesRequest",
@@ -630,33 +688,45 @@ func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string,
 		return nil, fmt.Errorf("List() failed: %v", err)
 	}
 
-	// Populate metric items and put them into the following zone-instance map.
-	data := map[string]metricsMap{}
+	// Populate metric items and put them into a metricDataMap.
+	data := metricDataMap{}
 	for _, t := range resp.Timeseries {
 		zone := t.TimeseriesDesc.Labels[gceZoneLabelKey]
 		instance := t.TimeseriesDesc.Labels[gceInstanceLabelKey]
 		metricName := t.TimeseriesDesc.Labels[metricNameLabelKey]
-
-		if _, ok := data[zone]; !ok {
-			data[zone] = metricsMap{}
+		if metricNameSuffix != "" {
+			metricName = fmt.Sprintf("%s %s", metricName, metricNameSuffix)
 		}
+
 		instanceMap := data[zone]
-		if _, ok := instanceMap[instance]; !ok {
-			instanceMap[instance] = []*metricData{}
+		if instanceMap == nil {
+			instanceMap = map[string]map[string]*metricData{}
+			data[zone] = instanceMap
 		}
 
-		curMetricData := &metricData{
-			ZoneName:     zone,
-			InstanceName: instance,
-			Name:         metricName + metricNameSuffix,
-			CurrentValue: t.Points[0].DoubleValue,
-			MinTime:      math.MaxInt64,
-			MaxTime:      0,
-			MinValue:     math.MaxFloat64,
-			MaxValue:     0,
-			Threshold:    -1,
-			Healthy:      true,
+		metricMap := instanceMap[instance]
+		if metricMap == nil {
+			metricMap = map[string]*metricData{}
+			instanceMap[instance] = metricMap
 		}
+
+		curMetricData := metricMap[metricName]
+		if curMetricData == nil {
+			curMetricData = &metricData{
+				ZoneName:     zone,
+				InstanceName: instance,
+				Name:         metricName,
+				CurrentValue: t.Points[0].DoubleValue,
+				MinTime:      math.MaxInt64,
+				MaxTime:      0,
+				MinValue:     math.MaxFloat64,
+				MaxValue:     0,
+				Threshold:    -1,
+				Healthy:      true,
+			}
+			metricMap[metricName] = curMetricData
+		}
+
 		numPoints := len(t.Points)
 		timestamps := []int64{}
 		values := []float64{}
@@ -679,15 +749,133 @@ func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string,
 		}
 		curMetricData.HistoryTimestamps = timestamps
 		curMetricData.HistoryValues = values
-		instanceMap[instance] = append(instanceMap[instance], curMetricData)
 	}
 	return data, nil
+}
+
+// aggregateMetricData aggregates the history values of the given metric data
+// into the given aggData map indexed by metric names.
+func aggregateMetricData(aggData map[string]*aggMetricData, metric *metricData) {
+	metricName := metric.Name
+	curAggMetricData := aggData[metricName]
+	if curAggMetricData == nil {
+		curAggMetricData = &aggMetricData{
+			TimestampsToValues: map[int64][]float64{},
+		}
+		aggData[metricName] = curAggMetricData
+	}
+	numPoints := len(metric.HistoryTimestamps)
+	for i := 0; i < numPoints; i++ {
+		t := metric.HistoryTimestamps[i]
+		v := metric.HistoryValues[i]
+		curAggMetricData.TimestampsToValues[t] = append(curAggMetricData.TimestampsToValues[t], v)
+	}
+}
+
+// calculateMaxAndAverageData calculates and returns the max and average data
+// from the given aggregated data.
+func calculateMaxAndAverageData(aggData map[string]*aggMetricData, zone string) (map[string]*metricData, *rangeData, map[string]*metricData, *rangeData) {
+	maxData := map[string]*metricData{}
+	maxRangeData := newRangeData()
+	averageData := map[string]*metricData{}
+	averageRangeData := newRangeData()
+
+	for metricName, metricAggData := range aggData {
+		sortedTimestamps := int64arr{}
+		for timestamp := range metricAggData.TimestampsToValues {
+			sortedTimestamps = append(sortedTimestamps, timestamp)
+		}
+		sortedTimestamps.Sort()
+		maxHistoryValues := []float64{}
+		averageHistoryValues := []float64{}
+		minMaxValue := math.MaxFloat64
+		maxMaxValue := 0.0
+		minAverageValue := math.MaxFloat64
+		maxAverageValue := 0.0
+		for _, timestamp := range sortedTimestamps {
+			values := metricAggData.TimestampsToValues[timestamp]
+			curMax := values[0]
+			curSum := 0.0
+			for _, v := range values {
+				if v > curMax {
+					curMax = v
+				}
+				curSum += v
+			}
+			curAverage := curSum / float64(len(values))
+			maxHistoryValues = append(maxHistoryValues, curMax)
+			averageHistoryValues = append(averageHistoryValues, curAverage)
+			minMaxValue = math.Min(minMaxValue, curMax)
+			maxMaxValue = math.Max(maxMaxValue, curMax)
+			minAverageValue = math.Min(minAverageValue, curAverage)
+			maxAverageValue = math.Max(maxAverageValue, curAverage)
+		}
+		minTime := sortedTimestamps[0]
+		maxTime := sortedTimestamps[len(sortedTimestamps)-1]
+		threshold := getThreshold(metricName)
+		maxData[metricName] = &metricData{
+			ZoneName:          zone,
+			Name:              metricName,
+			CurrentValue:      maxHistoryValues[len(maxHistoryValues)-1],
+			MinTime:           minTime,
+			MaxTime:           maxTime,
+			MinValue:          minMaxValue,
+			MaxValue:          maxMaxValue,
+			HistoryTimestamps: sortedTimestamps,
+			HistoryValues:     maxHistoryValues,
+			Threshold:         threshold,
+			Healthy:           true,
+		}
+		if threshold != -1 {
+			maxData[metricName].Healthy = !overThresholdFor(sortedTimestamps, maxHistoryValues, threshold, thresholdHoldMinutes)
+		}
+		maxRangeData.update(minTime, maxTime)
+		averageData[metricName] = &metricData{
+			ZoneName:          zone,
+			Name:              metricName,
+			CurrentValue:      averageHistoryValues[len(maxHistoryValues)-1],
+			MinTime:           minTime,
+			MaxTime:           maxTime,
+			MinValue:          minAverageValue,
+			MaxValue:          maxAverageValue,
+			HistoryTimestamps: sortedTimestamps,
+			HistoryValues:     averageHistoryValues,
+			Threshold:         threshold,
+			Healthy:           true,
+		}
+		if threshold != -1 {
+			averageData[metricName].Healthy = !overThresholdFor(sortedTimestamps, averageHistoryValues, threshold, thresholdHoldMinutes)
+		}
+		averageRangeData.update(minTime, maxTime)
+	}
+
+	return maxData, maxRangeData, averageData, averageRangeData
+}
+
+func getThreshold(metricName string) float64 {
+	if strings.HasSuffix(metricName, "latency") {
+		return thresholdServiceLatency
+	}
+	switch metricName {
+	case "mounttable qps":
+		return thresholdMounttableQPS
+	case "cpu-usage":
+		return thresholdCPU
+	case "disk-usage":
+		return thresholdDisk
+	case "memory-usage":
+		return thresholdRam
+	case "ping":
+		return thresholdPing
+	case "tcpconn":
+		return thresholdTCPConn
+	}
+	return -1.0
 }
 
 func persistOncallData(ctx *tool.Context, statusData *serviceStatusData, oncall *oncallData, now time.Time) error {
 	// Use timestamp (down to the minute part) as the main file name.
 	// We store oncall data and status data separately for efficiency.
-	curTime := now.Format("200601021504")
 	bytesStatus, err := json.MarshalIndent(statusData, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
@@ -698,6 +886,7 @@ func persistOncallData(ctx *tool.Context, statusData *serviceStatusData, oncall 
 	}
 
 	// Write data to a temporary directory.
+	curTime := now.Format("200601021504")
 	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		return err

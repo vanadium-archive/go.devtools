@@ -187,3 +187,167 @@ func TestOverThresholdFor(t *testing.T) {
 		}
 	}
 }
+
+func TestAggregateMetricData(t *testing.T) {
+	aggData := map[string]*aggMetricData{}
+	testSteps := []struct {
+		metric          *metricData
+		expectedAggData map[string]*aggMetricData
+	}{
+		{
+			metric: &metricData{
+				Name:              "metric1",
+				HistoryTimestamps: []int64{1, 2, 3},
+				HistoryValues:     []float64{100.0, 200.0, 300.0},
+			},
+			expectedAggData: map[string]*aggMetricData{
+				"metric1": &aggMetricData{
+					TimestampsToValues: map[int64][]float64{
+						1: []float64{100.0},
+						2: []float64{200.0},
+						3: []float64{300.0},
+					},
+				},
+			},
+		},
+		{
+			metric: &metricData{
+				Name:              "metric1",
+				HistoryTimestamps: []int64{1, 2},
+				HistoryValues:     []float64{101.0, 201.0},
+			},
+			expectedAggData: map[string]*aggMetricData{
+				"metric1": &aggMetricData{
+					TimestampsToValues: map[int64][]float64{
+						1: []float64{100.0, 101.0},
+						2: []float64{200.0, 201.0},
+						3: []float64{300.0},
+					},
+				},
+			},
+		},
+		{
+			metric: &metricData{
+				Name:              "metric2",
+				HistoryTimestamps: []int64{4, 5, 6},
+				HistoryValues:     []float64{10.0, 20.0, 30.0},
+			},
+			expectedAggData: map[string]*aggMetricData{
+				"metric1": &aggMetricData{
+					TimestampsToValues: map[int64][]float64{
+						1: []float64{100.0, 101.0},
+						2: []float64{200.0, 201.0},
+						3: []float64{300.0},
+					},
+				},
+				"metric2": &aggMetricData{
+					TimestampsToValues: map[int64][]float64{
+						4: []float64{10.0},
+						5: []float64{20.0},
+						6: []float64{30.0},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range testSteps {
+		aggregateMetricData(aggData, test.metric)
+		if got, want := aggData, test.expectedAggData; !reflect.DeepEqual(got, want) {
+			t.Fatalf("want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestCalculateMaxAndAverageData(t *testing.T) {
+	aggData := map[string]*aggMetricData{
+		"metric1": &aggMetricData{
+			TimestampsToValues: map[int64][]float64{
+				1: []float64{100.0, 200.0},
+				2: []float64{200.0, 300.0},
+				3: []float64{300.0},
+			},
+		},
+		"metric2": &aggMetricData{
+			TimestampsToValues: map[int64][]float64{
+				4: []float64{10.0},
+			},
+		},
+	}
+	gotMaxData, gotMaxRangeData, gotAverageData, gotAverageRangeData := calculateMaxAndAverageData(aggData, "zone1")
+	expectedMaxData := map[string]*metricData{
+		"metric1": &metricData{
+			ZoneName:          "zone1",
+			Name:              "metric1",
+			CurrentValue:      300.0,
+			MinTime:           1,
+			MaxTime:           3,
+			MinValue:          200.0,
+			MaxValue:          300.0,
+			HistoryTimestamps: []int64{1, 2, 3},
+			HistoryValues:     []float64{200.0, 300.0, 300.0},
+			Threshold:         -1,
+			Healthy:           true,
+		},
+		"metric2": &metricData{
+			ZoneName:          "zone1",
+			Name:              "metric2",
+			CurrentValue:      10.0,
+			MinTime:           4,
+			MaxTime:           4,
+			MinValue:          10.0,
+			MaxValue:          10.0,
+			HistoryTimestamps: []int64{4},
+			HistoryValues:     []float64{10.0},
+			Threshold:         -1,
+			Healthy:           true,
+		},
+	}
+	expectedMaxRangeData := &rangeData{
+		MinTime: 1,
+		MaxTime: 4,
+	}
+	expectedAverageData := map[string]*metricData{
+		"metric1": &metricData{
+			ZoneName:          "zone1",
+			Name:              "metric1",
+			CurrentValue:      300.0,
+			MinTime:           1,
+			MaxTime:           3,
+			MinValue:          150.0,
+			MaxValue:          300.0,
+			HistoryTimestamps: []int64{1, 2, 3},
+			HistoryValues:     []float64{150.0, 250.0, 300.0},
+			Threshold:         -1,
+			Healthy:           true,
+		},
+		"metric2": &metricData{
+			ZoneName:          "zone1",
+			Name:              "metric2",
+			CurrentValue:      10.0,
+			MinTime:           4,
+			MaxTime:           4,
+			MinValue:          10.0,
+			MaxValue:          10.0,
+			HistoryTimestamps: []int64{4},
+			HistoryValues:     []float64{10.0},
+			Threshold:         -1,
+			Healthy:           true,
+		},
+	}
+	expectedAverageRangeData := &rangeData{
+		MinTime: 1,
+		MaxTime: 4,
+	}
+	if !reflect.DeepEqual(gotMaxData, expectedMaxData) {
+		t.Fatalf("want %#v, got %#v", expectedMaxData, gotMaxData)
+	}
+	if !reflect.DeepEqual(gotMaxRangeData, expectedMaxRangeData) {
+		t.Fatalf("want %#v, got %#v", expectedMaxRangeData, gotMaxRangeData)
+	}
+	if !reflect.DeepEqual(gotAverageData, expectedAverageData) {
+		t.Fatalf("want %#v, got %#v", expectedAverageData, gotAverageData)
+	}
+	if !reflect.DeepEqual(gotAverageRangeData, expectedAverageRangeData) {
+		t.Fatalf("want %#v, got %#v", expectedAverageRangeData, gotAverageRangeData)
+	}
+}
