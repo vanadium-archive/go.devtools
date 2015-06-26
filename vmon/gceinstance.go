@@ -332,7 +332,7 @@ func readFloatFromFile(ctx *tool.Context, path string) (float64, error) {
 	strValue := strings.TrimSpace(string(bytes))
 	value, err := strconv.ParseFloat(strValue, 64)
 	if err != nil {
-		return -1, fmt.Errorf("ParseFloat(%s) failed: %v", strValue, err)
+		return -1, fmt.Errorf("ParseFloat(%s) failed:\nfile: %s\nerr: %v", strValue, path, err)
 	}
 	return value, nil
 }
