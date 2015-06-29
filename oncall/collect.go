@@ -70,6 +70,7 @@ var (
 type oncallData struct {
 	CollectionTimestamp int64
 	Zones               map[string]*zoneData // Indexed by zone names.
+	OncallIDs           string               // IDs separated by ",".
 }
 
 type zoneData struct {
@@ -208,6 +209,10 @@ func runCollect(env *cmdline.Env, _ []string) error {
 
 	// Collect oncall related data used in the internal oncall dashboard.
 	zones := map[string]*zoneData{}
+	oncall := &oncallData{
+		CollectionTimestamp: now.Unix(),
+		Zones:               zones,
+	}
 	if err := collectCloudServicesData(ctx, s, now, zones); err != nil {
 		return err
 	}
@@ -220,9 +225,8 @@ func runCollect(env *cmdline.Env, _ []string) error {
 	if err := collectGCEInstancesData(ctx, s, now, zones); err != nil {
 		return err
 	}
-	oncall := &oncallData{
-		CollectionTimestamp: now.Unix(),
-		Zones:               zones,
+	if err := collectOncallIDsData(ctx, oncall); err != nil {
+		return err
 	}
 
 	// Collect service status data used in the external dashboard.
@@ -626,6 +630,18 @@ func collectGCEInstancesData(ctx *tool.Context, s *cloudmonitoring.Service, now 
 		}
 	}
 
+	return nil
+}
+
+func collectOncallIDsData(ctx *tool.Context, oncall *oncallData) error {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	if err := ctx.Run().CommandWithOpts(opts, "v23", "oncall"); err != nil {
+		return err
+	}
+	oncall.OncallIDs = strings.TrimSpace(out.String())
 	return nil
 }
 
