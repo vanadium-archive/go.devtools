@@ -6,6 +6,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -53,10 +55,12 @@ func runServe(env *cmdline.Env, _ []string) (e error) {
 	}
 
 	// Start server.
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 		dataHandler(ctx, root, w, r)
-	}
-	http.HandleFunc("/data", handler)
+	})
+	http.HandleFunc("/pic", func(w http.ResponseWriter, r *http.Request) {
+		picHandler(ctx, root, w, r)
+	})
 	staticHandler := http.FileServer(http.Dir(staticDirFlag))
 	http.Handle("/", staticHandler)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), nil); err != nil {
@@ -79,7 +83,7 @@ func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.
 		}
 	}
 
-	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucket, ts+".oncall")
+	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucketData, ts+".oncall")
 	if err != nil {
 		respondWithError(ctx, err, w)
 		return
@@ -87,6 +91,43 @@ func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.
 	bytes, err := ctx.Run().ReadFile(cachedFile)
 	if err != nil {
 		respondWithError(ctx, err, w)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(bytes)
+}
+
+func picHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	// Parameter "id" specifies the id of the pic.
+	id := r.Form.Get("id")
+	if id == "" {
+		respondWithError(ctx, fmt.Errorf("parameter 'id' not found"), w)
+		return
+	}
+	// Read picture file from Google Storage.
+	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucketPics, id+".jpg")
+	if err != nil {
+		// Read "_unknown.jpg" as fallback.
+		cachedFile, err = cache.StoreGoogleStorageFile(ctx, root, bucketPics, "_unknown.jpg")
+		if err != nil {
+			respondWithError(ctx, err, w)
+			return
+		}
+	}
+	bytes, err := ctx.Run().ReadFile(cachedFile)
+	if err != nil {
+		respondWithError(ctx, err, w)
+		return
+	}
+	// Encode the picture (base64) and return the encoded content in JSON string.
+	encoded := base64.StdEncoding.EncodeToString(bytes)
+	jsonData := struct{ Data string }{
+		Data: encoded,
+	}
+	bytes, err = json.Marshal(&jsonData)
+	if err != nil {
+		respondWithError(ctx, fmt.Errorf("Marshal() failed: %v", err), w)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -103,7 +144,7 @@ func readGoogleStorageFile(ctx *tool.Context, filename string) (string, error) {
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "gsutil", "-q", "cat", bucket+"/"+filename); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "gsutil", "-q", "cat", bucketData+"/"+filename); err != nil {
 		return "", err
 	}
 	return out.String(), nil

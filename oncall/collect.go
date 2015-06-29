@@ -906,7 +906,7 @@ func persistOncallData(ctx *tool.Context, statusData *serviceStatusData, oncall 
 	}
 
 	// Upload data to Google Storage.
-	args := []string{"-q", "cp", filepath.Join(tmpDir, "*"), bucket + "/"}
+	args := []string{"-q", "cp", filepath.Join(tmpDir, "*"), bucketData + "/"}
 	if err := ctx.Run().Command("gsutil", args...); err != nil {
 		return err
 	}

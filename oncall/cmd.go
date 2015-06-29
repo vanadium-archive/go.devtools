@@ -10,7 +10,8 @@ package main
 import "v.io/x/lib/cmdline"
 
 const (
-	bucket = "gs://vanadium-oncall/data"
+	bucketData = "gs://vanadium-oncall/data"
+	bucketPics = "gs://vanadium-oncall/pics"
 )
 
 var (
