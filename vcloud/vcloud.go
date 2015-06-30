@@ -479,6 +479,16 @@ func (x nodeInfos) RunCommand(ctx *tool.Context, user string, cmdline []string) 
 
 // RunCopyAndRun implements the 'vcloud run' command.
 func (x nodeInfos) RunCopyAndRun(ctx *tool.Context, user string, files, cmds []string, outdir string) error {
+	// Check if the run file has execution permissions.
+	if len(cmds) == 0 {
+		info, err := os.Stat(files[0])
+		if err != nil {
+			return err
+		}
+		if info.Mode()&0111 == 0 {
+			return fmt.Errorf("file %v doesn't have executable permissions", files[0])
+		}
+	}
 	// 0) Pick a random number so that we use the same tmpdir on each node.
 	rand.Seed(time.Now().UnixNano())
 	tmpdir := fmt.Sprintf("./tmp_%X", rand.Int63())
