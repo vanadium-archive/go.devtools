@@ -6,11 +6,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/collect"
@@ -59,8 +56,8 @@ func runServe(env *cmdline.Env, _ []string) (e error) {
 	http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 		dataHandler(ctx, root, w, r)
 	})
-	http.HandleFunc("/pics", func(w http.ResponseWriter, r *http.Request) {
-		picsHandler(ctx, root, w, r)
+	http.HandleFunc("/pic", func(w http.ResponseWriter, r *http.Request) {
+		picHandler(ctx, root, w, r)
 	})
 	staticHandler := http.FileServer(http.Dir(staticDirFlag))
 	http.Handle("/", staticHandler)
@@ -98,41 +95,31 @@ func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.
 	w.Write(bytes)
 }
 
-func picsHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.Request) {
+func picHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	// Parameter "ids" specifies the ids of the pics (separated by ",").
-	ids := r.Form.Get("ids")
-	if ids == "" {
-		respondWithError(ctx, fmt.Errorf("parameter 'ids' not found"), w)
+	// Parameter "id" specifies the id of the pic.
+	id := r.Form.Get("id")
+	if id == "" {
+		respondWithError(ctx, fmt.Errorf("parameter 'id' not found"), w)
 		return
 	}
-	// Read picture files from Google Storage.
-	jsonData := []string{}
-	for _, id := range strings.Split(ids, ",") {
-		cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucketPics, id+".jpg")
-		if err != nil {
-			// Read "_unknown.jpg" as fallback.
-			cachedFile, err = cache.StoreGoogleStorageFile(ctx, root, bucketPics, "_unknown.jpg")
-			if err != nil {
-				respondWithError(ctx, err, w)
-				return
-			}
-		}
-		bytes, err := ctx.Run().ReadFile(cachedFile)
+	// Read picture file from Google Storage.
+	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucketPics, id+".jpg")
+	if err != nil {
+		// Read "_unknown.jpg" as fallback.
+		cachedFile, err = cache.StoreGoogleStorageFile(ctx, root, bucketPics, "_unknown.jpg")
 		if err != nil {
 			respondWithError(ctx, err, w)
 			return
 		}
-		// Encode the picture (base64) and add it to jsonData.
-		encoded := base64.StdEncoding.EncodeToString(bytes)
-		jsonData = append(jsonData, encoded)
 	}
-	bytes, err := json.Marshal(&jsonData)
+	bytes, err := ctx.Run().ReadFile(cachedFile)
 	if err != nil {
-		respondWithError(ctx, fmt.Errorf("Marshal() failed: %v", err), w)
+		respondWithError(ctx, err, w)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Cache-control", "public, max-age=2592000")
 	w.Write(bytes)
 }
 
