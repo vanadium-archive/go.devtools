@@ -53,23 +53,19 @@ type depOpts struct {
 	IncludeXTest  bool // Also include TestImports and XTestImports.
 }
 
-// paths returns the initial package paths to use when computing dependencies.
-func (x depOpts) paths(pkg *build.Package) []string {
-	uniq := map[string]bool{}
-	set.StringBool.Union(uniq, set.StringBool.FromSlice(pkg.Imports))
+// Paths returns the initial package paths to use when computing dependencies.
+func (x depOpts) Paths(pkg *build.Package) []string {
+	uniq := map[string]struct{}{}
+	set.String.Union(uniq, set.String.FromSlice(pkg.Imports))
 	if x.IncludeTest || x.IncludeXTest {
-		set.StringBool.Union(uniq, set.StringBool.FromSlice(pkg.TestImports))
+		set.String.Union(uniq, set.String.FromSlice(pkg.TestImports))
 	}
 	if x.IncludeXTest {
-		set.StringBool.Union(uniq, set.StringBool.FromSlice(pkg.XTestImports))
+		set.String.Union(uniq, set.String.FromSlice(pkg.XTestImports))
 	}
-	var paths []string
-	for u, _ := range uniq {
-		// Don't include the package itself; it was added by XTestImports.
-		if u != pkg.ImportPath {
-			paths = append(paths, u)
-		}
-	}
+	// Don't include the package itself; it was added by XTestImports.
+	delete(uniq, pkg.ImportPath)
+	paths := set.String.ToSlice(uniq)
 	sort.Strings(paths)
 	return paths
 }
@@ -77,7 +73,7 @@ func (x depOpts) paths(pkg *build.Package) []string {
 // PrintIdent prints pkg and its dependencies to w, with fancy indentation.
 func (x depOpts) PrintIndent(w io.Writer, pkg *build.Package) error {
 	fmt.Fprintln(w, "#"+pkg.ImportPath)
-	return x.printIndentHelper(w, x.paths(pkg), 0)
+	return x.printIndentHelper(w, x.Paths(pkg), 0)
 }
 
 func (x depOpts) printIndentHelper(w io.Writer, paths []string, depth int) error {
@@ -102,7 +98,7 @@ func (x depOpts) printIndentHelper(w io.Writer, paths []string, depth int) error
 // Deps fills deps with the dependencies of pkg.  If directOnly is true, only
 // direct dependencies are printed, not transitive dependencies.
 func (x depOpts) Deps(pkg *build.Package, deps map[string]*build.Package) error {
-	return x.depsHelper(x.paths(pkg), deps)
+	return x.depsHelper(x.Paths(pkg), deps)
 }
 
 func (x depOpts) depsHelper(paths []string, deps map[string]*build.Package) error {

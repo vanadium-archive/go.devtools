@@ -16,20 +16,31 @@ import (
 )
 
 var (
-	flagIndent bool
+	flagStyle  string
 	flagDirect bool
 	flagGoroot bool
 	flagTest   bool
 	flagXTest  bool
 )
 
-const descDirect = "Only show direct dependencies, rather than showing transitive dependencies."
-const descGoroot = "Show $GOROOT packages."
-const descTest = "Show imports from test files in the same package."
-const descXTest = "Show imports from test files in the same package or in the *_test package."
+const (
+	styleSet    = "set"
+	styleIndent = "indent"
+	styleDot    = "dot"
+
+	descDirect = "Only show direct dependencies, rather than showing transitive dependencies."
+	descGoroot = "Show $GOROOT packages."
+	descTest   = "Show imports from test files in the same package."
+	descXTest  = "Show imports from test files in the same package or in the *_test package."
+)
 
 func init() {
-	cmdList.Flags.BoolVar(&flagIndent, "indent", false, "List dependencies with pretty indentation.")
+	cmdList.Flags.StringVar(&flagStyle, "style", styleSet, `
+List dependencies with the given style:
+   set    - As a sorted set of unique packages.
+   indent - As a hierarchical list with pretty indentation.
+   dot    - As a DOT graph (http://www.graphviz.org)
+`)
 	cmdList.Flags.BoolVar(&flagDirect, "direct", false, descDirect)
 	cmdList.Flags.BoolVar(&flagGoroot, "goroot", false, descGoroot)
 	cmdList.Flags.BoolVar(&flagTest, "test", false, descTest)
@@ -156,9 +167,8 @@ Elides $GOROOT packages by default; set the -goroot flag to include packages in
 $GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves as
 if -goroot were set to true.
 
-Lists each imported package exactly once.  Set the -indent flag for pretty
-indentation to help visualize the dependency hierarchy.  Setting -indent may
-cause the same package to be listed multiple times.
+Lists each imported package exactly once when using the default -style=set.  See
+the -style flag for alternate output styles.
 `}
 
 func runList(env *cmdline.Env, args []string) error {
@@ -180,24 +190,29 @@ func runList(env *cmdline.Env, args []string) error {
 		}
 		pkgs = append(pkgs, pkg)
 	}
-	if flagIndent {
+	switch flagStyle {
+	case styleIndent:
 		// Print indented deps for each package.
 		for _, pkg := range pkgs {
 			if err := opts.PrintIndent(env.Stdout, pkg); err != nil {
 				return err
 			}
 		}
-		return nil
-	}
-	// Print deps for all combined packages.
-	deps := make(map[string]*build.Package)
-	for _, pkg := range pkgs {
-		if err := opts.Deps(pkg, deps); err != nil {
+	case styleDot:
+		if err := printDot(env.Stdout, pkgs, opts); err != nil {
 			return err
 		}
-	}
-	for _, dep := range sortPackages(deps) {
-		fmt.Fprintln(env.Stdout, dep.ImportPath)
+	default:
+		// Print deps for all combined packages.
+		deps := make(map[string]*build.Package)
+		for _, pkg := range pkgs {
+			if err := opts.Deps(pkg, deps); err != nil {
+				return err
+			}
+		}
+		for _, dep := range sortPackages(deps) {
+			fmt.Fprintln(env.Stdout, dep.ImportPath)
+		}
 	}
 	return nil
 }
