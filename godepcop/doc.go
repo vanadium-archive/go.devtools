@@ -78,9 +78,8 @@ Elides $GOROOT packages by default; set the -goroot flag to include packages in
 $GOROOT.  If any of the given <packages> are $GOROOT packages, list behaves as
 if -goroot were set to true.
 
-Lists each imported package exactly once.  Set the -indent flag for pretty
-indentation to help visualize the dependency hierarchy.  Setting -indent may
-cause the same package to be listed multiple times.
+Lists each imported package exactly once when using the default -style=set.  See
+the -style flag for alternate output styles.
 
 Usage:
    godepcop list [flags] <packages>
@@ -92,8 +91,11 @@ The godepcop list flags are:
    Only show direct dependencies, rather than showing transitive dependencies.
  -goroot=false
    Show $GOROOT packages.
- -indent=false
-   List dependencies with pretty indentation.
+ -style=set
+   List dependencies with the given style:
+      set    - As a sorted set of unique packages.
+      indent - As a hierarchical list with pretty indentation.
+      dot    - As a DOT graph (http://www.graphviz.org)
  -test=false
    Show imports from test files in the same package.
  -xtest=false
