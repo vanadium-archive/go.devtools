@@ -1,0 +1,15 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+div.group-title {
+  color: var(--dark-green-grey);
+  font-size: 14px;
+  border-bottom: 1px solid var(--light-grey2);
+  font-weight: var(--font-weight-medium);
+}
+
+div.historyValue {
+  color: var(--dark-green-grey) !important;
+  font-weight: normal !important;
+}

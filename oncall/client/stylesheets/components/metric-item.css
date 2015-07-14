@@ -1,0 +1,116 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+div.metric-item {
+  width: var(--metric-item-width);
+  color: var(--dark-green-grey);
+  cursor: pointer;
+  margin-right: 4px;
+  position: relative;
+}
+
+div.metric-item.unhealthy {
+  background: var(--red-stripes-background-dimmed);
+}
+
+div.metric-item:nth-child(1):before {
+  width: 0px !important;
+}
+
+div.metric-item:hover .metric-item-title {
+  background-color: var(--light-grey);
+}
+
+div.metric-item div.metric-item-title {
+  padding-top: 4px;
+  padding-bottom: 2px;
+  font-size: 12px;
+  line-height: var(--metric-item-title-height);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+div.metric-item div.metric-item-graph-container {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 4px;
+  padding-right: 2px;
+}
+
+div.metric-item div.metric-item-value {
+  font-size: 16px;
+  font-weight: var(--font-weight-medium);
+  color: var(--cyan-800);
+  height: var(--metric-item-value-height);
+  line-height: var(--metric-item-value-height);
+  margin-bottom: 4px;
+}
+
+div.metric-item div.metric-item-value.unhealthy {
+  color: var(--dark-red);
+}
+
+div.metric-item div.metric-item-graph {
+}
+
+div.metric-item-filler {
+  flex-grow: 1;
+  height: var(--metric-item-height);
+  width: var(--metric-item-width);
+  border-bottom: 1px solid white;
+}
+
+div.metric-item div.sparkline {
+  position: relative;
+  cursor: pointer;
+  height: var(--sparkline-height);
+}
+
+div.metric-item div.sparkline svg {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+
+div.metric-item div.sparkline svg.content polyline {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: var(--dark-green-grey);
+  stroke-width: 2;
+}
+
+div.metric-item div.sparkline svg.content polygon {
+  fill: WhiteSmoke;
+  stroke: none;
+}
+
+div.metric-item svg.mouse-line {
+  shape-rendering: crispedges;
+}
+
+div.metric-item div.sparkline svg.mouse-line polyline {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: #BBB;
+  stroke-width: 1;
+}
+
+div.metric-item div.sparkline svg.mouse-line polygon {
+  vector-effect: non-scaling-stroke;
+  fill: var(--dark-red);
+  stroke: none;
+}
+
+div.metric-item svg.threshold-line {
+  shape-rendering: crispedges;
+}
+
+div.metric-item div.sparkline svg.threshold-line path {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: var(--dark-red);
+  stroke-width: 1;
+}

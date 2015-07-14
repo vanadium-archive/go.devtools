@@ -1,0 +1,111 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+div.header {
+  position: fixed;
+  top: 0;
+  z-index: 900;
+  width: 100%;
+}
+
+div.header div.info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--header-height);
+  color: var(--dark-green-grey);
+  background-color: #EAEBEB;
+}
+
+div.header div.dashboard-title {
+  padding-left: 10px;
+  display: flex;
+}
+
+div.header div.info div#logo {
+  width: 36px;
+  height: 36px;
+  background-image: url('logo.svg');
+  background-size: 30px 30px;
+  background-repeat: no-repeat;
+  background-position: 0px 4px;
+  transition: opacity 1s ease;
+}
+
+div.header div.title-and-time {
+  display: flex;
+  flex-direction: column;
+  padding-top: 1px;
+}
+
+div.header div.title {
+  font-size: 16px;
+  font-weight: var(--font-weight-medium);
+  line-height: 22px;
+  height: 22px;
+}
+
+div.header div.time {
+  font-size: 10px;
+  height: 12px;
+  line-height: 12px;
+  padding-left: 1px;
+}
+
+div.header div.time.failure {
+  background-color: #AA0000;
+  color: white;
+  font-weight: var(--font-weight-medium);
+}
+
+div.header div.time.loading {
+  color: var(--deeporange-A200);
+  font-weight: var(--font-weight-medium);
+}
+
+div.header div.pics {
+  display: flex;
+  padding-right: 5px;
+}
+
+div.header div.pics img {
+  border: 1px solid #AAA;
+  margin-left: 3px;
+  width: 32px;
+  height: 38px;
+  object-fit: cover;
+}
+
+div.header div.navtitle-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: var(--summary-table-metric-names-col-width);
+}
+
+div.header div.navtitle {
+  height: var(--header-height);
+  line-height: var(--header-height);
+  text-align: center;
+  color: var(--dark-green-grey);
+  font-weight: var(--font-weight-medium);
+  font-size: 16px;
+  text-align: center;
+}
+
+div.header div.navitems-container {
+  display: flex;
+}
+
+div.header div.navitem {
+  margin-right: 6px;
+  cursor: pointer;
+  opacity: 0.8;
+  font-size: 12px;
+  color: var(--dark-green-grey);
+}
+
+div.header div.navitem:hover {
+  opacity: 1;
+}

@@ -1,0 +1,7 @@
+bundles/*/*/bin
+bundles/*/*/pkg
+public/bundles
+bundle.*
+bundle_*.json
+node_modules
+npm-debug.log

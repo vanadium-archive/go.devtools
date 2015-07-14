@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+var minimist = require('minimist');
+var assert = require('assert');
+var myth = require('myth');
+var rework = require('rework');
+var inherit = require('rework-inherit');
+var path = require('path');
+var fs = require('fs');
+var argv = minimist(process.argv.slice(2));
+var infile = argv._[0];
+
+if (! infile) {
+  var err = new Error('Missing infile, try `node rework-css.js <infile>`');
+  return exit(err);
+}
+
+read(infile, function onstring(err, string) {
+  if (err) {
+    return exit(err);
+  }
+
+  compile(string, function onCSS(err, css){
+    if (err) {
+      exit(err);
+    } else {
+      process.stdout.write(css);
+    }
+  });
+});
+
+
+// # compile-css
+//
+// This is a quick css pre-processor based on `myth`, once we start to
+// standardize the css this should get bundled up into a module.
+//
+// ## Usage
+//
+// There is no bin so right now use node to run this:
+//
+//     node rework-css.js <infile>
+//
+// This program will spit out the compiled CSS to stdout. Redirect with `>`:
+//
+//     node rework-css.js stylesheets/index.css > public/bundle.css
+//
+function compile(string, callback) {
+  assert.ok(string, 'Missing string argument');
+  assert.ok(callback, 'Missing callback argument');
+
+  var css;
+  var err;
+
+  // myth/rework has a sync api that throws :/
+  try {
+    css = preprocess(string);
+  } catch (e) {
+    err = e;
+  }
+
+  callback(err, css);
+}
+
+// wraps the call to rework with all the options and plugins
+function preprocess(string) {
+  var css = myth(string, {
+    compress: true,
+    source: infile
+  })
+
+  return rework(css)
+  .use(inherit())
+  .toString();
+}
+
+function read(file, callback) {
+  file = path.resolve(file);
+  fs.readFile(file, 'utf8', callback);
+}
+
+function exit(err) {
+  if (err) {
+    console.error(err.stack);
+  }
+
+  process.exit(1);
+}

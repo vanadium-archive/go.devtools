@@ -1,0 +1,67 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+/* Variables */
+:root {
+  /* Colors */
+  --blue-grey-800: #37474F;
+  --cyan-800: #00838F;
+  --dark-green-grey: #607D8B;
+  --deeporange-A200: #FF6E40;
+  --light-grey: #ECEFF1;
+  --light-grey2: #CFD8DC;
+  --medium-grey: #999;
+  --super-light-grey: #FAFAFA;
+  --dim-green: #339CA5;
+  --dim-green2: #80C1C7;
+  --dark-red: #AA0000;
+  --red-dimmed: rgba(255, 0, 0, 0.1);
+  --red-stripes-background: repeating-linear-gradient(
+    -45deg,
+    rgba(170, 0, 0, 0.8),
+    rgba(170, 0, 0, 0.8) 10px,
+    rgba(170, 0, 0, 1) 10px,
+    rgba(170, 0, 0, 1) 20px
+  );
+  --red-stripes-background-dimmed: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 0, 0, 0.1),
+    rgba(255, 0, 0, 0.1) 10px,
+    rgba(255, 0, 0, 0.16) 10px,
+    rgba(255, 0, 0, 0.16) 20px
+  );
+  --white-transparent: rgba(255, 255, 255, 0.4);
+  --blueish-white: #EBECEC;
+
+  /* Fonts */
+  --primary-font: Roboto;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+
+  /* Shadows */
+  --drop-shadow: rgba(0, 0, 0, 0.30) 0px 2px 5px 0px;
+  --section-shadow: rgba(0, 0, 0, 0.30) 0px 0px 4px 0px;
+
+  /* Heights */
+  --header-height: 48px;
+  --zone-title-height: 40px;
+  --full-graph-height: 240px;
+  --graph-time-div-height: 20px;
+  --metric-item-height: 58px;
+  --metric-item-title-height: 16px;
+  --metric-item-value-height: 16px;
+  --gce-instance-name-height: 30px;
+  --sparkline-height: 24px;
+  --group-title-height: 20px;
+  --subsection-margin-top: 36px;
+  --summary-table-zone-row-height: 30px;
+
+  /* Width */
+  --graph-number-div-width: 30px;
+  --metric-item-width: 20%;
+  --zone-header-width: 160px;
+  --summary-table-metric-names-col-width: 130px;
+  --zone-column-width: 130px;
+}

@@ -1,0 +1,21 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+.type-base {
+  font-family: var(--primary-font);
+  font-weight: var(--font-weight-regular);
+  font-style: normal;
+  color: var(--blue-grey-800);
+  -webkit-font-smoothing: antialiased;
+}
+
+.type-body {
+  font-size: 14px;
+  line-height: 24px;
+}
+
+body {
+  inherits: .type-base;
+  inherits: .type-body;
+}
