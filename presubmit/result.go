@@ -140,6 +140,12 @@ var multiConfigurationJobs = map[string]*axisInfo{
 		hasParts: false,
 		showOS:   true,
 	},
+	"vanadium-java-test": &axisInfo{
+		hasArch:  false,
+		hasOS:    true,
+		hasParts: false,
+		showOS:   true,
+	},
 	"vanadium-www-site": &axisInfo{
 		hasArch:  false,
 		hasOS:    true,
