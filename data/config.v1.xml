@@ -38,28 +38,38 @@
   <projectTests>
     <project name="release.go.v23">
       <test>go</test>
+      <test>java</test>
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
     </project>
     <project name="release.go.x.devtools">
       <test>go</test>
+      <test>java</test>
       <test>javascript</test>
       <test>projects</test>
       <test>third_party-go</test>
       <test>vanadium-bootstrap</test>
     </project>
+    <project name="release.go.x.jni">
+      <test>java</test>
+    </project>
     <project name="release.go.x.lib">
       <test>go</test>
+      <test>java</test>
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
     </project>
     <project name="release.go.x.ref">
       <test>go</test>
+      <test>java</test>
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
+    </project>
+    <project name="release.java">
+      <test>java</test>
     </project>
     <project name="release.js.core">
       <test>javascript</test>
