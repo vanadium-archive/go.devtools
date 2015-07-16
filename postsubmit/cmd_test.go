@@ -55,11 +55,16 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			projects: []string{"release.go.core"},
 			expectedJenkinsTest: []string{
 				"vanadium-go-build",
+				"vanadium-go-race",
+				"vanadium-go-test",
+				"vanadium-js-integration",
+				"vanadium-js-unit",
 			},
 		},
 		{
 			projects: []string{"release.js.core"},
 			expectedJenkinsTest: []string{
+				"vanadium-js-integration",
 				"vanadium-js-unit",
 			},
 		},

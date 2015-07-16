@@ -28,22 +28,6 @@ var (
 	manifestFlag    string
 	colorFlag       bool
 	verboseFlag     bool
-
-	// A root test watches changes and triggers other Jenkins targets.
-	defaultRootTests = map[string]struct{}{
-		"third_party-go-build":            struct{}{},
-		"vanadium-go-build":               struct{}{},
-		"vanadium-js-browser-integration": struct{}{},
-		"vanadium-js-build-extension":     struct{}{},
-		"vanadium-js-node-integration":    struct{}{},
-		"vanadium-js-unit":                struct{}{},
-		"vanadium-js-vdl":                 struct{}{},
-		"vanadium-js-vom":                 struct{}{},
-		"vanadium-namespace-browser-test": struct{}{},
-		"vanadium-playground-test":        struct{}{},
-		"vanadium-www-site":               struct{}{},
-		"vanadium-www-tutorials":          struct{}{},
-	}
 )
 
 func init() {
@@ -170,33 +154,7 @@ func jenkinsTestsToStart(ctx *tool.Context, projects []string) ([]string, error)
 	}
 
 	// Get all Jenkins tests for the given projects.
-	jenkinsTests := config.ProjectTests(projects)
-
-	// Only return the "root" tests.
-	rootTests := []string{}
-	for _, test := range jenkinsTests {
-		if _, ok := defaultRootTests[test]; ok {
-			rootTests = append(rootTests, test)
-		}
-	}
-
-	// If vanadium-go-build is in the root tests, remove all
-	// js tests because they will be triggered by vanadium-go-build
-	// in Jenkins.
-	filteredRootTests := []string{}
-	hasGoBuild := false
-	for _, test := range rootTests {
-		if test == "vanadium-go-build" {
-			hasGoBuild = true
-			break
-		}
-	}
-	for _, test := range rootTests {
-		if !hasGoBuild || (hasGoBuild && !strings.HasPrefix(test, "vanadium-js")) {
-			filteredRootTests = append(filteredRootTests, test)
-		}
-	}
-	return filteredRootTests, nil
+	return config.ProjectTests(projects), nil
 }
 
 // startJenkinsTests uses Jenkins API to start a build to each of the
