@@ -213,7 +213,7 @@ func initInjectorFlags() error {
 		}
 		injectPackage = injectImportTag
 	default:
-		fmt.Errorf("%q doesn't look like an import declaration", injectCallImportFlag)
+		return fmt.Errorf("%q doesn't look like an import declaration", injectCallImportFlag)
 	}
 	injectCall = injectCallFlag
 	return nil
@@ -303,7 +303,7 @@ func initRemoverFlags() error {
 		removePackage = parts[0]
 		removeCall = parts[1]
 	default:
-		fmt.Errorf("%q doesn't look like a function call on an imported package", removeCallFlag)
+		return fmt.Errorf("%q doesn't look like a function call on an imported package", removeCallFlag)
 	}
 	return nil
 }
@@ -557,7 +557,7 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 	printHeader(ctx.Stdout(), "Methods Implementing Public Interfaces in %s", tpkg.Path())
 
 	// msetCache caches information for typeutil.IntuitiveMethodSet()
-	msetCache := types.MethodSetCache{}
+	msetCache := typeutil.MethodSetCache{}
 	scope := tpkg.Scope()
 	for _, child := range scope.Names() {
 		object := scope.Lookup(child)
