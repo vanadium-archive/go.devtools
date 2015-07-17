@@ -82,7 +82,6 @@ func runGoPkg(env *cmdline.Env, args []string) error {
 	}
 	// Load packages specified in args.
 	config := loader.Config{
-		ImportFromBinary:    true,
 		TypeCheckFuncBodies: func(string) bool { return false },
 	}
 	args, err = config.FromArgs(args, flagTest)
