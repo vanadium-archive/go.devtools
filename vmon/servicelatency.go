@@ -59,6 +59,10 @@ func checkServiceLatency(ctx *tool.Context) error {
 			name:       "proxy service",
 			objectName: namespaceRootFlag + "/proxy-mon/__debug",
 		},
+		prodService{
+			name:       "groups service",
+			objectName: namespaceRootFlag + "/groups",
+		},
 	}
 
 	hasError := false
