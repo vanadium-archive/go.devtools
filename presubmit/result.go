@@ -320,8 +320,12 @@ func runResult(env *cmdline.Env, args []string) (e error) {
 		return err
 	}
 	reporter := testReporter{testResults, postSubmitResults, refs, &bytes.Buffer{}}
-	if err := reporter.postReport(ctx); err != nil {
+	if allTestsPassed, err := reporter.postReport(ctx); err != nil {
 		return err
+	} else if allTestsPassed {
+		if err := submitPresubmitCLs(ctx, refs); err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		}
 	}
 
 	return nil
@@ -397,23 +401,24 @@ type postSubmitBuildData struct {
 }
 
 // postReport generates a test report and posts it to Gerrit.
-func (r *testReporter) postReport(ctx *tool.Context) (e error) {
+// It returns whether the presubmit test is considered successful.
+func (r *testReporter) postReport(ctx *tool.Context) (bool, error) {
 	// Do not post a test report if no tests were run.
 	if len(r.testResults) == 0 {
-		return nil
+		return true, nil
 	}
 
 	printf(ctx.Stdout(), "### Preparing report\n")
 
 	if r.reportFailedPresubmitBuild(ctx) {
-		return nil
+		return false, nil
 	}
 
 	// Report possible merge conflicts.
 	// If any merge conflicts are found and reported, don't generate any
 	// further report.
 	if r.reportMergeConflicts(ctx) {
-		return nil
+		return false, nil
 	}
 
 	r.reportOncall(ctx)
@@ -424,7 +429,7 @@ func (r *testReporter) postReport(ctx *tool.Context) (e error) {
 		// Report failed test cases grouped by failure types.
 		var err error
 		if numNewFailures, err = r.reportFailedTestCases(ctx); err != nil {
-			return err
+			return false, err
 		}
 	}
 
@@ -433,9 +438,9 @@ func (r *testReporter) postReport(ctx *tool.Context) (e error) {
 	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
 	success := numNewFailures == 0
 	if err := postMessage(ctx, r.report.String(), r.refs, success); err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return success, nil
 }
 
 // reportFailedPresubmitBuild reports a failed presubmit build.
@@ -870,4 +875,49 @@ func getRefsUsingVerifiedLabel(ctx *tool.Context, gerritCred credential) (map[st
 	}
 
 	return ret, nil
+}
+
+// submitPresubmitCLs tries to submit CLs in the current presubmit test.
+func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
+	// Get Gerrit credential.
+	gerritHost, err := checkGerritBaseUrl()
+	if err != nil {
+		return err
+	}
+	gerritCred, err := gerritHostCredential(gerritHost)
+	if err != nil {
+		return err
+	}
+
+	// Query open CLs.
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	openCLs, err := gerrit.Query(defaultQueryString)
+	if err != nil {
+		return err
+	}
+
+	// Check whether all of the current CLs (refs) are in one of the
+	// submittable CL lists. If so, submit that whole CL list.
+	submittableCLs := getSubmittableCLs(ctx, openCLs)
+	for _, curCLList := range submittableCLs {
+		refsSet := map[string]struct{}{}
+		for _, cl := range curCLList {
+			refsSet[cl.Reference()] = struct{}{}
+		}
+		allRefsSubmittable := true
+		for _, ref := range refs {
+			if _, ok := refsSet[ref]; !ok {
+				allRefsSubmittable = false
+				break
+			}
+		}
+		if allRefsSubmittable {
+			if err := submitCLs(ctx, gerrit, curCLList); err != nil {
+				return err
+			}
+			break
+		}
+	}
+
+	return nil
 }

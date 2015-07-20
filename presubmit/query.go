@@ -80,7 +80,7 @@ func (s *multiPartCLSet) addCL(cl gerrit.Change) error {
 		return fmt.Errorf("inconsistent total number of cls in this set: want %d, got %d", s.expectedTotal, multiPartInfo.Total)
 	}
 	if s.expectedTopic != multiPartInfo.Topic {
-		return fmt.Errorf("inconsistent cl topics in this set: want %d, got %d", s.expectedTopic, multiPartInfo.Topic)
+		return fmt.Errorf("inconsistent cl topics in this set: want %s, got %s", s.expectedTopic, multiPartInfo.Topic)
 	}
 	if existingCL, ok := s.parts[multiPartInfo.Index]; ok {
 		return fmt.Errorf("duplicated cl part %d found:\ncl to add: %v\nexisting cl:%v", multiPartInfo.Index, cl, existingCL)
@@ -209,6 +209,17 @@ func runQuery(env *cmdline.Env, args []string) error {
 		return err
 	}
 	numSentCLs += sender.clsSent
+
+	// Get all submittable CLs and submit them.
+	submittableCLs := getSubmittableCLs(ctx, curCLs)
+	if len(submittableCLs) > 0 {
+		fmt.Fprintf(ctx.Stdout(), "Submitting CLs...\n")
+	}
+	for _, curCLList := range submittableCLs {
+		if err := submitCLs(ctx, gerrit, curCLList); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
