@@ -94,6 +94,9 @@
     <project name="release.projects.reader">
       <test>vanadium-reader-test</test>
     </project>
+    <project name="release.projects.travel">
+      <test>vanadium-travel-test</test>
+    </project>
     <project name="roadmap.go.syncbase">
       <test>go</test>
       <test>vanadium-js-syncbase-browser</test>
