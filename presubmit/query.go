@@ -140,8 +140,15 @@ func runQuery(env *cmdline.Env, args []string) error {
 		return err
 	}
 
+	// Load Jenkins matrix jobs config.
+	config, err := util.LoadConfig(ctx)
+	if err != nil {
+		return err
+	}
+	matrixJobsConf := config.JenkinsMatrixJobs()
+
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastBuildInfo, err := lastCompletedBuildStatus(ctx, presubmitTestJobFlag, axisValuesInfo{})
+	lastBuildInfo, err := lastCompletedBuildStatus(ctx, presubmitTestJobFlag, axisValuesInfo{}, matrixJobsConf)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 	} else {

@@ -96,83 +96,6 @@ summary back to the corresponding Gerrit review thread.
 	Runner: cmdline.RunnerFunc(runResult),
 }
 
-// multiConfigurationJobs is a map from Jenkins job names to their axis infos.
-var multiConfigurationJobs = map[string]*axisInfo{
-	"third_party-go-build": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"third_party-go-test": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"vanadium-bootstrap": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   false,
-	},
-	"vanadium-go-build": &axisInfo{
-		hasArch:  true,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"vanadium-go-test": &axisInfo{
-		hasArch:  true,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"vanadium-go-race": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: true,
-		showOS:   false,
-	},
-	"vanadium-integration-test": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"vanadium-java-test": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"vanadium-www-site": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-	"vanadium-www-tutorial": &axisInfo{
-		hasArch:  false,
-		hasOS:    true,
-		hasParts: false,
-		showOS:   true,
-	},
-}
-
-// axisInfo stores which axes a Jenkins job has configured.
-type axisInfo struct {
-	hasArch  bool
-	hasOS    bool
-	hasParts bool
-
-	// Whether to show OS label in summary.
-	// It is possible that a job (e.g. vanadium-go-race) has an OS axis but
-	// the axis only has a single value in order to constrain where its
-	// sub-builds run.
-	showOS bool
-}
-
 type testResultInfo struct {
 	Result           test.Result
 	TestName         string // This is the test name without the part suffix (vanadium-go-race).
@@ -196,24 +119,24 @@ type axisValuesInfo struct {
 //
 // If the main job is not a multi-configuration job, the spec will be:
 // <jobName>/<suffix>.
-func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string) string {
-	axis := multiConfigurationJobs[jobName]
+func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) string {
+	axis, ok := matrixJobsConf[jobName]
 
 	// Not a multi-configuration job.
-	if axis == nil {
+	if !ok {
 		return fmt.Sprintf("%s/%s", jobName, suffix)
 	}
 
 	// Multi-configuration job.
 	// The axis order doesn't matter.
 	parts := []string{}
-	if axis.hasArch {
+	if axis.HasArch {
 		parts = append(parts, fmt.Sprintf("ARCH=%s", axisValues.Arch))
 	}
-	if axis.hasOS {
+	if axis.HasOS {
 		parts = append(parts, fmt.Sprintf("OS=%s", axisValues.OS))
 	}
-	if axis.hasParts {
+	if axis.HasParts {
 		parts = append(parts, fmt.Sprintf("P=%d", axisValues.PartIndex))
 	}
 	return fmt.Sprintf("%s/%s/%s", jobName, strings.Join(parts, ","), suffix)
@@ -221,20 +144,20 @@ func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string) stri
 
 // genSubJobLabel returns a descriptive label for given Jenkins job's sub-job.
 // For more info, please see comments of the subJobSpec method above.
-func genSubJobLabel(jobName string, axisValues axisValuesInfo) string {
-	axis := multiConfigurationJobs[jobName]
+func genSubJobLabel(jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) string {
+	axis, ok := matrixJobsConf[jobName]
 
 	// Not a multi-configuration job.
-	if axis == nil {
+	if !ok {
 		return ""
 	}
 
 	// Multi-configuration job.
 	parts := []string{}
-	if axis.hasOS && axis.showOS {
+	if axis.HasOS && axis.ShowOS {
 		parts = append(parts, axisValues.OS)
 	}
-	if axis.hasArch {
+	if axis.HasArch {
 		parts = append(parts, axisValues.Arch)
 	}
 	// Note that we omit the part index here to make parts transparent to users.
@@ -286,6 +209,13 @@ func runResult(env *cmdline.Env, args []string) (e error) {
 		Verbose:  &verboseFlag,
 	})
 
+	// Load Jenkins matrix jobs config.
+	config, err := util.LoadConfig(ctx)
+	if err != nil {
+		return err
+	}
+	matrixJobsConf := config.JenkinsMatrixJobs()
+
 	// Find all status files and store their paths in a slice.
 	workspaceDir := os.Getenv("WORKSPACE")
 	curTestResultsDir := filepath.Join(workspaceDir, "test_results", fmt.Sprintf("%d", jenkinsBuildNumberFlag))
@@ -315,11 +245,11 @@ func runResult(env *cmdline.Env, args []string) (e error) {
 
 	// Post results.
 	refs := strings.Split(reviewTargetRefsFlag, ":")
-	postSubmitResults, err := getPostSubmitBuildData(ctx, testResults)
+	postSubmitResults, err := getPostSubmitBuildData(ctx, testResults, matrixJobsConf)
 	if err != nil {
 		return err
 	}
-	reporter := testReporter{testResults, postSubmitResults, refs, &bytes.Buffer{}}
+	reporter := testReporter{matrixJobsConf, testResults, postSubmitResults, refs, &bytes.Buffer{}}
 	if allTestsPassed, err := reporter.postReport(ctx); err != nil {
 		return err
 	} else if allTestsPassed {
@@ -334,7 +264,7 @@ func runResult(env *cmdline.Env, args []string) (e error) {
 // getPostSubmitBuildData returns a map from job names to the data of the
 // corresponding postsubmit builds that ran before the recorded test result
 // timestamps.
-func getPostSubmitBuildData(ctx *tool.Context, testResults []testResultInfo) (map[string]*postSubmitBuildData, error) {
+func getPostSubmitBuildData(ctx *tool.Context, testResults []testResultInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (map[string]*postSubmitBuildData, error) {
 	jenkinsObj, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
@@ -348,7 +278,7 @@ outer:
 		axisValues := resultInfo.AxisValues
 		fmt.Fprintf(ctx.Stdout(), "Getting postsubmit build info for %q before timestamp %d...\n", resultInfo.key(), timestamp)
 
-		buildInfo, err := lastCompletedBuildStatus(ctx, name, axisValues)
+		buildInfo, err := lastCompletedBuildStatus(ctx, name, axisValues, matrixJobsConf)
 		if err != nil {
 			test.Fail(ctx, "%v\n", err)
 			continue
@@ -361,7 +291,7 @@ outer:
 		}
 		for i := curId; i >= 0; i-- {
 			fmt.Fprintf(ctx.Stdout(), "Checking build %d...\n", i)
-			buildSpec := genBuildSpec(name, resultInfo.AxisValues, fmt.Sprintf("%d", i))
+			buildSpec := genBuildSpec(name, resultInfo.AxisValues, fmt.Sprintf("%d", i), matrixJobsConf)
 			curBuildInfo, err := jenkinsObj.BuildInfoForSpec(buildSpec)
 			if err != nil {
 				test.Fail(ctx, "%v\n", err)
@@ -384,6 +314,8 @@ outer:
 }
 
 type testReporter struct {
+	// matrixJobsConf stores configs for Jenkins matrix jobs.
+	matrixJobsConf map[string]util.JenkinsMatrixJobInfo
 	// testResults stores presubmit results to report.
 	testResults []testResultInfo
 	// postSubmitResults stores postsubmit results (indexed by test names) used to
@@ -522,7 +454,7 @@ func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]st
 			// It is ok to initialize this string using any part of the multi-part
 			// tests as the part index is not used by the initialization.
 			nameString := name
-			subJobLabel := genSubJobLabel(name, resultInfo.AxisValues)
+			subJobLabel := genSubJobLabel(name, resultInfo.AxisValues, r.matrixJobsConf)
 			if subJobLabel != "" {
 				nameString += fmt.Sprintf(" [%s]", subJobLabel)
 			}
@@ -609,13 +541,13 @@ func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *test
 
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given Jenkins job.
-func lastCompletedBuildStatus(ctx *tool.Context, jobName string, axisValues axisValuesInfo) (*jenkins.BuildInfo, error) {
+func lastCompletedBuildStatus(ctx *tool.Context, jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (*jenkins.BuildInfo, error) {
 	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
 	}
 
-	buildSpec := genBuildSpec(jobName, axisValues, "lastCompletedBuild")
+	buildSpec := genBuildSpec(jobName, axisValues, "lastCompletedBuild", matrixJobsConf)
 	buildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
 	if err != nil {
 		return nil, err
