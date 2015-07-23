@@ -31,7 +31,7 @@ div.main-container {
   bottom: 0;
   flex-grow: 1;
   justify-content: center;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 div.main-content {
