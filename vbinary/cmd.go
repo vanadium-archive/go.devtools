@@ -36,11 +36,14 @@ var (
 	verboseFlag bool
 	releaseFlag bool
 
-	osFlag         string
 	archFlag       string
+	attemptsFlag   int
 	datePrefixFlag string
 	keyFileFlag    string
+	osFlag         string
 	outputDirFlag  string
+
+	waitTimeBetweenAttempts = 3 * time.Minute
 )
 
 const (
@@ -94,6 +97,7 @@ func init() {
 
 	cmdRoot.Flags.StringVar(&keyFileFlag, "key-file", "", "Google Developers service account JSON key file.")
 	cmdRoot.Flags.StringVar(&datePrefixFlag, "date-prefix", "", "Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.")
+	cmdDownload.Flags.IntVar(&attemptsFlag, "attempts", 1, "Number of attempts before failing.")
 	cmdDownload.Flags.StringVar(&outputDirFlag, "output-dir", "", "Directory for storing downloaded binaries.")
 }
 
@@ -185,21 +189,36 @@ func runDownload(env *cmdline.Env, args []string) error {
 
 	numBinaries := len(binaries)
 	downloadBinaries := func() error {
-		errChan := make(chan error, numBinaries)
-		for _, name := range binaries {
-			go downloadBinary(ctx, client, name, errChan)
-		}
-		gotError := false
-		for i := 0; i < numBinaries; i++ {
-			if err := <-errChan; err != nil {
-				fmt.Fprintf(ctx.Stderr(), "failed to download binary: %v", err)
-				gotError = true
+		success := false
+		for i := 1; i <= attemptsFlag; i++ {
+			if i > 1 {
+				fmt.Fprintf(ctx.Stdout(), "Attempt %d/%d:\n", i, attemptsFlag)
 			}
-		}
-		if gotError {
-			if err := ctx.Run().RemoveAll(outputDirFlag); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "%v", err)
+
+			errChan := make(chan error, numBinaries)
+			for _, name := range binaries {
+				go downloadBinary(ctx, client, name, errChan)
 			}
+			gotError := false
+			for i := 0; i < numBinaries; i++ {
+				if err := <-errChan; err != nil {
+					fmt.Fprintf(ctx.Stderr(), "failed to download binary: %v", err)
+					gotError = true
+				}
+			}
+			if gotError {
+				if err := ctx.Run().RemoveAll(outputDirFlag); err != nil {
+					fmt.Fprintf(ctx.Stderr(), "%v", err)
+				}
+			} else {
+				success = true
+				break
+			}
+
+			fmt.Fprintf(ctx.Stdout(), "Waiting for %v before next attempt...\n", waitTimeBetweenAttempts)
+			time.Sleep(waitTimeBetweenAttempts)
+		}
+		if !success {
 			return fmt.Errorf("operation failed")
 		}
 		// Remove the .done file from the snapshot.
