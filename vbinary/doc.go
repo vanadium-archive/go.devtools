@@ -57,6 +57,8 @@ Usage:
    vbinary download [flags]
 
 The vbinary download flags are:
+ -attempts=1
+   Number of attempts before failing.
  -output-dir=
    Directory for storing downloaded binaries.
 
