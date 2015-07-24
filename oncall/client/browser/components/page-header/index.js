@@ -70,7 +70,7 @@ function render(state) {
   var pics = state.oncallIds.map(
     function(oncallId) {
       return h('img', {
-        'src': '/pic?id=' + oncallId,
+        'src': 'pic?id=' + oncallId,
         'title': oncallId
       });
     }

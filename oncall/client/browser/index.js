@@ -32,7 +32,7 @@ var state = hg.varhash({
   // The header panel at the top of the page.
   pageHeader: pageHeaderComponent({
     collectionTimestamp: -1,
-    oncallIds: [],
+    oncallIds: ['_unknown', '_unknown'],
     loadingData: false,
     hasLoadingFailure: false
   }),
@@ -66,8 +66,9 @@ function loadData() {
   state.pageHeader.loadingData.set(true);
 
   // Get json dashboard data from "/data" endpoint.
+  var dataEndpoint = window.location.origin + window.location.pathname + 'data';
   request
-      .get('data')
+      .get(dataEndpoint)
       .accept('json')
       .end(function(err, res) {
     if (!res.ok || err) {

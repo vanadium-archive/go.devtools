@@ -81,7 +81,7 @@ div.header div.navtitle-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-right: var(--summary-table-metric-names-col-width);
+  margin-right: 105px;
 }
 
 div.header div.navtitle {

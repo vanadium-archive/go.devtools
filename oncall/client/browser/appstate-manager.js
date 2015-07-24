@@ -67,7 +67,8 @@ function init(stateChangedListener) {
   appState(function(data) {
     if (pushHistoryState) {
       var str = qs.stringify(data);
-      window.history.pushState(undefined, '', '/?' + str);
+      window.history.pushState(undefined, '',
+          window.location.origin + window.location.pathname + '?' + str);
     }
     stateChangedListener(getCurState());
   });
