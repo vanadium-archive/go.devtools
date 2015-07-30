@@ -16,14 +16,14 @@ import (
 )
 
 var (
+	addressFlag   string
 	cacheFlag     string
-	portFlag      int
 	staticDirFlag string
 )
 
 func init() {
+	cmdServe.Flags.StringVar(&addressFlag, "address", ":8000", "Listening address for the server.")
 	cmdServe.Flags.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
-	cmdServe.Flags.IntVar(&portFlag, "port", 8000, "Port for the server.")
 	cmdServe.Flags.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
 }
 
@@ -61,8 +61,8 @@ func runServe(env *cmdline.Env, _ []string) (e error) {
 	})
 	staticHandler := http.FileServer(http.Dir(staticDirFlag))
 	http.Handle("/", staticHandler)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), nil); err != nil {
-		return fmt.Errorf("ListenAndServe(%d) failed: %v", portFlag, err)
+	if err := http.ListenAndServe(addressFlag, nil); err != nil {
+		return fmt.Errorf("ListenAndServe(%s) failed: %v", addressFlag, err)
 	}
 
 	return nil

@@ -56,10 +56,10 @@ Usage:
    oncall serve [flags]
 
 The oncall serve flags are:
+ -address=:8000
+   Listening address for the server.
  -cache=
    Directory to use for caching files.
- -port=8000
-   Port for the server.
  -static=
    Directory to use for serving static files.
 
