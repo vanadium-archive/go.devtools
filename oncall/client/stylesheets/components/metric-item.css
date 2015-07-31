@@ -74,7 +74,6 @@ div.metric-item-filler {
   flex-grow: 1;
   height: var(--metric-item-height);
   width: var(--metric-item-width);
-  border-bottom: 1px solid white;
 }
 
 div.metric-item div.sparkline {
