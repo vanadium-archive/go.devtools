@@ -10,6 +10,10 @@ div.metric-item {
   position: relative;
 }
 
+.darkTheme div.metric-item {
+  color: var(--light-green-grey);
+}
+
 div.metric-item.unhealthy {
   background: var(--red-stripes-background-dimmed);
 }
@@ -20,6 +24,10 @@ div.metric-item:nth-child(1):before {
 
 div.metric-item:hover .metric-item-title {
   background-color: var(--light-grey);
+}
+
+.darkTheme div.metric-item:hover .metric-item-title {
+  background-color: var(--dark-highlight);
 }
 
 div.metric-item div.metric-item-title {
@@ -47,8 +55,16 @@ div.metric-item div.metric-item-value {
   margin-bottom: 4px;
 }
 
+.darkTheme div.metric-item div.metric-item-value {
+  color: var(--light-green);
+}
+
 div.metric-item div.metric-item-value.unhealthy {
   color: var(--dark-red);
+}
+
+.darkTheme div.metric-item div.metric-item-value.unhealthy {
+  color: var(--light-red);
 }
 
 div.metric-item div.metric-item-graph {
@@ -82,9 +98,17 @@ div.metric-item div.sparkline svg.content polyline {
   stroke-width: 2;
 }
 
+.darkTheme div.metric-item div.sparkline svg.content polyline {
+  stroke: var(--light-green-grey);
+}
+
 div.metric-item div.sparkline svg.content polygon {
   fill: WhiteSmoke;
   stroke: none;
+}
+
+.darkTheme div.metric-item div.sparkline svg.content polygon {
+  fill: #333;
 }
 
 div.metric-item svg.mouse-line {

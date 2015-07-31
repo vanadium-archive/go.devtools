@@ -5,10 +5,12 @@
 var hg = require('mercury');
 var h = require('mercury').h;
 var request = require('superagent');
+var cookie = require('cookie');
 
 var AppStateMgr = require('./appstate-manager');
 var instanceViewComponent = require('./components/instance-view');
 var pageHeaderComponent = require('./components/page-header');
+var settingsPanelComponent = require('./components/settings');
 var summaryTableComponent = require('./components/summary-table');
 
 /**
@@ -27,8 +29,11 @@ hg.Delegator().listenTo('mousemove');
 hg.Delegator().listenTo('mouseout');
 hg.Delegator().listenTo('mouseover');
 
+// Parse cookie.
+var cookies = cookie.parse(document.cookie);
+
 /** Top level state. */
-var state = hg.varhash({
+var state = hg.state({
   // The header panel at the top of the page.
   pageHeader: pageHeaderComponent({
     collectionTimestamp: -1,
@@ -36,28 +41,72 @@ var state = hg.varhash({
     loadingData: false,
     hasLoadingFailure: false
   }),
-  // The summary table showing data on the "global" and "zone" level.
-  summaryTable: summaryTableComponent(null),
-  // The view showing data on the "instance" level.
-  instanceView: instanceViewComponent(null),
+
+  components: hg.varhash({
+    // The summary table showing data on the "global" and "zone" level.
+    summaryTable: summaryTableComponent(null),
+
+    // The view showing data on the "instance" level.
+    instanceView: instanceViewComponent(null),
+  }),
+
+  // Whether to show settings panel.
+  showSettingsPanel: hg.value(false),
+
+  // Settings stored in cookies.
+  settings: hg.varhash({
+    darkTheme: hg.value(cookies.darkTheme === 'true')
+  }),
+
+  channels: {
+    changeTheme: changeTheme,
+    clickOnSettingsGear: clickOnSettingsGear,
+    closeSettingsPanel: closeSettingsPanel
+  }
 });
+
+/** Callback when user clicks on the settings gear. */
+function clickOnSettingsGear(state) {
+  state.showSettingsPanel.set(true);
+}
+
+/** Callback when user closes the settings panel. */
+function closeSettingsPanel(state) {
+  state.showSettingsPanel.set(false);
+}
+
+/** Callback when user changes theme. */
+function changeTheme(state, data) {
+  document.cookie = cookie.serialize('darkTheme', data.darkTheme, {
+    maxAge: '315360000' // ten years.
+  });
+  state.settings.darkTheme.set(data.darkTheme);
+}
 
 /** The main render function. */
 var render = function(state) {
   var mainContent = [
     pageHeaderComponent.render(state.pageHeader),
   ];
-  if (state.summaryTable) {
+  if (state.components.summaryTable) {
     mainContent.push(
         h('div.main-container',
-          summaryTableComponent.render(state.summaryTable)));
+          summaryTableComponent.render(state.components.summaryTable)));
   }
-  if (state.instanceView) {
+  if (state.components.instanceView) {
     mainContent.push(
         h('div.main-container',
-          instanceViewComponent.render(state.instanceView)));
+          instanceViewComponent.render(state.components.instanceView)));
   }
-  return h('div.main', mainContent);
+  mainContent.push(h('div.settings-gear', {
+    'ev-click': hg.send(state.channels.clickOnSettingsGear)
+  }));
+  if (state.showSettingsPanel) {
+    mainContent.push(hg.partial(settingsPanelComponent.render, state));
+  }
+
+  var className = state.settings.darkTheme ? 'main.darkTheme' : 'main';
+  return h('div.' + className, mainContent);
 };
 
 /** Loads dashboard data from backend server. */
@@ -119,7 +168,7 @@ function updateComponents(curAppState) {
       data: curData
     });
   }
-  state.put('summaryTable', summaryTableData);
+  state.components.put('summaryTable', summaryTableData);
 
   // Update instance view when the current view level is "instance".
   var instanceViewData = null;
@@ -131,8 +180,15 @@ function updateComponents(curAppState) {
       appState: curAppState
     });
   }
-  state.put('instanceView', instanceViewData);
+  state.components.put('instanceView' ,instanceViewData);
 }
+
+// Add an event handler for closing settings panel when esc key is pressed.
+document.onkeydown = function(evt) {
+  if (evt.keyCode === 27 && state.showSettingsPanel()) {
+    state.showSettingsPanel.set(false);
+  }
+};
 
 hg.app(document.body, state, render);
 loadData();

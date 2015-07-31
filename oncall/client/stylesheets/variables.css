@@ -8,9 +8,12 @@
   --blue-grey-800: #37474F;
   --cyan-800: #00838F;
   --dark-green-grey: #607D8B;
+  --light-green-grey: #CFD8DC;
   --deeporange-A200: #FF6E40;
+  --light-green: #80B280;
   --light-grey: #ECEFF1;
   --light-grey2: #CFD8DC;
+  --light-red: #FF9999;
   --medium-grey: #999;
   --super-light-grey: #FAFAFA;
   --dim-green: #339CA5;
@@ -24,6 +27,13 @@
     rgba(170, 0, 0, 1) 10px,
     rgba(170, 0, 0, 1) 20px
   );
+  --light-red-stripes-background: repeating-linear-gradient(
+    -45deg,
+    rgba(220, 0, 0, 0.8),
+    rgba(220, 0, 0, 0.8) 10px,
+    rgba(220, 0, 0, 1) 10px,
+    rgba(220, 0, 0, 1) 20px
+  );
   --red-stripes-background-dimmed: repeating-linear-gradient(
     -45deg,
     rgba(255, 0, 0, 0.1),
@@ -31,8 +41,17 @@
     rgba(255, 0, 0, 0.16) 10px,
     rgba(255, 0, 0, 0.16) 20px
   );
+  --light-red-stripes-background-dimmed: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 0, 0, 0.2),
+    rgba(255, 0, 0, 0.2) 10px,
+    rgba(255, 0, 0, 0.3) 10px,
+    rgba(255, 0, 0, 0.3) 20px
+  );
   --white-transparent: rgba(255, 255, 255, 0.4);
   --blueish-white: #EBECEC;
+  --dark-background: #222;
+  --dark-highlight: #333;
 
   /* Fonts */
   --primary-font: Roboto;

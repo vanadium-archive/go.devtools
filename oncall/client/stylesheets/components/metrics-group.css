@@ -21,8 +21,16 @@ div.metrics-group a {
   text-align: center;
 }
 
+.darkTheme div.metrics-group a {
+  color: var(--light-green-grey);
+}
+
 div.metrics-group a:hover {
   background-color: #DDD;
+}
+
+.darkTheme div.metrics-group a:hover {
+  background-color: var(--dark-highlight);
 }
 
 div.metrics-group-title-container {

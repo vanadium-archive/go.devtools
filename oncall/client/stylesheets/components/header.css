@@ -18,6 +18,11 @@ div.header div.info {
   background-color: #EAEBEB;
 }
 
+.darkTheme div.header div.info {
+  background-color: black;
+  color: var(--light-green-grey);
+}
+
 div.header div.dashboard-title {
   padding-left: 10px;
   display: flex;
@@ -31,6 +36,10 @@ div.header div.info div#logo {
   background-repeat: no-repeat;
   background-position: 0px 4px;
   transition: opacity 1s ease;
+}
+
+.darkTheme div.header div.info div#logo {
+  background-image: url('light-logo.svg');
 }
 
 div.header div.title-and-time {
@@ -77,6 +86,10 @@ div.header div.pics img {
   object-fit: cover;
 }
 
+.darkTheme div.header div.pics img {
+  border: 1px solid #666;
+}
+
 div.header div.navtitle-container {
   display: flex;
   justify-content: center;
@@ -94,6 +107,10 @@ div.header div.navtitle {
   text-align: center;
 }
 
+.darkTheme div.header div.navtitle {
+  color: var(--light-green-grey);
+}
+
 div.header div.navitems-container {
   display: flex;
 }
@@ -104,6 +121,10 @@ div.header div.navitem {
   opacity: 0.8;
   font-size: 12px;
   color: var(--dark-green-grey);
+}
+
+.darkTheme div.header div.navitem {
+  color: var(--light-green);
 }
 
 div.header div.navitem:hover {

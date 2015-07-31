@@ -22,6 +22,10 @@ div.main {
   overflow: hidden;
 }
 
+div.main.darkTheme {
+  background-color: var(--dark-background);
+}
+
 div.main-container {
   position: absolute;
   display: flex;
@@ -39,4 +43,25 @@ div.main-content {
   width: 100%;
   height: 100%;
   flex-grow: 1;
+}
+
+div.settings-gear {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  width: 16px;
+  height: 16px;
+  background-image: url('gear.svg');
+  background-size: 16px 16px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.darkTheme div.settings-gear {
+  background-image: url('light-gear.svg');
+}
+
+div.settings-gear:hover {
+  opacity: 1;
 }

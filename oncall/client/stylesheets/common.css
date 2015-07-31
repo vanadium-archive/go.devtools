@@ -9,6 +9,11 @@ div.group-title {
   font-weight: var(--font-weight-medium);
 }
 
+.darkTheme div.group-title {
+  color: var(--light-green-grey);
+  border-bottom: 1px solid #666;
+}
+
 div.historyValue {
   color: var(--dark-green-grey) !important;
   font-weight: normal !important;

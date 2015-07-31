@@ -32,6 +32,14 @@ div.data-table table {
   margin-top: 4px;
 }
 
+.darkTheme div.data-table table {
+  color: var(--light-green-grey);
+}
+
+.darkTheme div.data-table a {
+  color: LightBlue;
+}
+
 div.data-table tr:first-child td {
   font-weight: var(--font-weight-medium);
 }

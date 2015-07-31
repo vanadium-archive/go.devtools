@@ -1,0 +1,60 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+div.settings-container {
+  z-index: 999;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+div.settings-container div.settings-content {
+  background-color: white;
+  border: 1px black solid;
+  width: 400px;
+  padding: 12px;
+}
+
+div.settings-container div.settings-title {
+  font-weight: var(--font-weight-medium);
+  padding: 4px 0px 16px 0px;
+}
+
+div.settings-container div.settings-item {
+  display: flex;
+  align-items: center;
+}
+
+div.settings-container div.settings-item input {
+  margin-right: 4px;
+}
+
+div.settings-container div.settings-item {
+  display: flex;
+  align-items: center;
+}
+
+div.settings-container div.settings-item label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+div.settings-container div.settings-item input {
+  cursor: pointer;
+}
+
+div.settings-container div.btn-close {
+  padding-top: 14px;
+  padding-bottom: 4px;
+  color: #999;
+  cursor: pointer;
+}
+
+div.settings-container div.btn-close:hover {
+  color: #444;
+}

@@ -12,6 +12,10 @@ div.summary-table {
   margin-left: -var(--summary-table-metric-names-col-width);
 }
 
+.darkTheme div.summary-table {
+  color: var(--light-green-grey);
+}
+
 div.summary-table .columns-container {
   display: flex;
   flex-grow: 1;
@@ -38,6 +42,10 @@ div.summary-table .cell {
 
 div.summary-table .cell.healthy {
   background: var(--cyan-800);
+}
+
+.darkTheme div.summary-table .cell.healthy {
+  background: DarkGreen;
 }
 
 div.summary-table .cell.unhealthy {
@@ -73,8 +81,16 @@ div.summary-table .section-label {
   text-align: left;
 }
 
+.darkTheme div.summary-table .section-label {
+  color: #666;
+}
+
 div.summary-table .section-label.highlight-section {
   color: var(--dark-green-grey);
+}
+
+.darkTheme div.summary-table .section-label.highlight-section {
+  color: #999;
 }
 
 div.summary-table .metric-name-cell.unhealthy {
@@ -84,6 +100,10 @@ div.summary-table .metric-name-cell.unhealthy {
 
 div.summary-table .highlight {
   background-color: var(--light-grey) !important;
+}
+
+.darkTheme div.summary-table .highlight {
+  background-color: var(--dark-highlight) !important;
 }
 
 div.summary-table .minor-divider {
@@ -131,6 +151,10 @@ div.summary-table .view-type div {
 div.summary-table .view-type div.selected {
   color: var(--cyan-800) !important;
   cursor: default !important;
+}
+
+.darkTheme div.summary-table .view-type div.selected {
+  color: var(--light-green) !important;
 }
 
 div.summary-table .view-type div:hover {
@@ -199,6 +223,10 @@ div.summary-table div.zone-col-cell div.value.history {
   color: #B2DADD !important;
 }
 
+.darkTheme div.summary-table div.zone-col-cell div.value.history {
+  color: #AAA !important;
+}
+
 div.summary-table div.zone-col-cell.unhealthy div.value.history {
   color: #EECCCC !important;
 }
@@ -230,6 +258,10 @@ div.summary-table div.zone-col-cell svg.mouse-line polyline {
   fill: none;
   stroke: #339CA5;
   stroke-width: 1;
+}
+
+.darkTheme div.summary-table div.zone-col-cell svg.mouse-line polyline {
+  stroke: #338333;
 }
 
 div.summary-table div.zone-col-cell.unhealthy svg.mouse-line polyline {
