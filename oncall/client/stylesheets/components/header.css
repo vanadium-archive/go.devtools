@@ -81,8 +81,7 @@ div.header div.pics {
 div.header div.pics img {
   border: 1px solid #AAA;
   margin-left: 3px;
-  width: 32px;
-  height: 38px;
+  height: 48px;
   object-fit: cover;
 }
 
@@ -94,7 +93,7 @@ div.header div.navtitle-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-right: 105px;
+  margin-right: 92px;
 }
 
 div.header div.navtitle {
@@ -103,7 +102,7 @@ div.header div.navtitle {
   text-align: center;
   color: var(--dark-green-grey);
   font-weight: var(--font-weight-medium);
-  font-size: 16px;
+  font-size: 20px;
   text-align: center;
 }
 

@@ -113,8 +113,8 @@ function checkMetricsHealthForHeader(state, header) {
   if (level === 'global') {
     var zone = header;
     var aggData = data[zone][aggType];
-    for (i = 0; i < Consts.metrics.length; i++) {
-      curMetric = Consts.metrics[i];
+    for (i = 0; i < Consts.mainMetrics.length; i++) {
+      curMetric = Consts.mainMetrics[i];
       if (!Util.isEmptyObj(aggData[curMetric.dataKey])) {
         if (!aggData[curMetric.dataKey][curMetric.metricKey].Healthy) {
           isHealthy = false;

@@ -5,11 +5,12 @@
 div.summary-table {
   display: flex;
   flex-direction: column;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--dark-green-grey);
   margin-top: 12px;
   margin-bottom: 12px;
-  margin-left: -var(--summary-table-metric-names-col-width);
+  margin-right: var(--summary-table-metric-names-col-width);
+  width: 100%;
 }
 
 .darkTheme div.summary-table {
@@ -19,6 +20,7 @@ div.summary-table {
 div.summary-table .columns-container {
   display: flex;
   flex-grow: 1;
+  justify-content: center;
 }
 
 div.summary-table .subtable-title {
@@ -34,7 +36,7 @@ div.summary-table .subtable-title {
 div.summary-table .cell {
   flex-grow: 1;
   min-height: 24px;
-  max-height: 30px;
+  max-height: 50px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -52,17 +54,13 @@ div.summary-table .cell.unhealthy {
   background: #AA0000;
 }
 
-div.summary-table .data-cols {
-  display: flex;
-}
-
-
 div.summary-table .metric-names-col {
   display: flex;
   flex-direction: column;
   font-weight: var(--font-weight-medium);
   text-align: right;
   width: var(--summary-table-metric-names-col-width);
+  font-size: 15px;
 }
 
 div.summary-table .metric-name-cell {
@@ -107,8 +105,8 @@ div.summary-table .highlight {
 }
 
 div.summary-table .minor-divider {
-  min-height: 22px;
-  max-height: 22px;
+  min-height: 30px;
+  max-height: 30px;
   flex-grow: 0;
 }
 
@@ -128,6 +126,7 @@ div.summary-table .zone-names-row {
   display: flex;
   min-height: var(--summary-table-zone-row-height);
   margin-bottom: 20px;
+  justify-content: center;
 }
 
 div.summary-table .zone-names-col {
@@ -141,6 +140,7 @@ div.summary-table .view-type {
   width: var(--summary-table-metric-names-col-width) !important;
   padding-right: 10px;
   font-size: 12px !important;
+  flex-grow: 0 !important;
 }
 
 div.summary-table .view-type div {
@@ -171,9 +171,11 @@ div.summary-table .zone-name-cell {
   line-height: var(--summary-table-zone-row-height);
   text-transform: uppercase;
   font-weight: var(--font-weight-medium);
-  font-size: 14px;
-  width: var(--zone-column-width);
+  min-width: var(--zone-column-min-width);
+  max-width: var(--zone-column-max-width);
   text-align: center;
+  flex-grow: 1;
+  font-size: 16px;
 }
 
 div.summary-table .zone-name-cell.unhealthy {
@@ -184,7 +186,9 @@ div.summary-table .zone-name-cell.unhealthy {
 div.summary-table .zone-col {
   display: flex;
   flex-direction: column;
-  width: var(--zone-column-width);
+  min-width: var(--zone-column-min-width);
+  max-width: var(--zone-column-max-width);
+  flex-grow: 1;
 }
 
 div.summary-table div.zone-col-cell {
@@ -210,13 +214,13 @@ div.summary-table div.zone-col-cell div.value {
   position: absolute;
   height: 100%;
   top: 0px;
-  left: 89px;
-  font-size: 1em;
+  right: 6px;
+  font-size: 18px;
   color: white;
-  font-weight: var(--font-weight-medium);
   display: flex;
   flex-direction: column;
   justify-content: center;
+  width: 48px;
 }
 
 div.summary-table div.zone-col-cell div.value.history {
@@ -234,8 +238,8 @@ div.summary-table div.zone-col-cell.unhealthy div.value.history {
 div.summary-table div.zone-col-cell div.sparkline {
   position: absolute;
   top: 0px;
-  right: 45px;
-  left: 15px;
+  right: 60px;
+  left: 10px;
   bottom: 0px;
   display: flex;
 }

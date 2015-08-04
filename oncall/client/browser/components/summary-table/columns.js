@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /**
- * Data columns of the summary table.
+ * Columns of the summary table.
  */
 
 var hg = require('mercury');
@@ -14,6 +14,7 @@ var AppStateMgr = require('../../appstate-manager');
 var Consts = require('../../constants');
 var MouseMoveHandler = require('../../mousemove-handler.js');
 var Util = require('../../util');
+var summaryTableMetricNamesColumnComponent = require('./metricnames-column');
 
 module.exports = {
   render: render
@@ -24,13 +25,13 @@ function render(state) {
   var data = state.data.Zones;
   var level = AppStateMgr.getAppState('level');
 
-  var cols = [];
+  var cols = [hg.partial(summaryTableMetricNamesColumnComponent.render, state)];
   if (level === 'global') {
-    cols = genCellsInGlobalLevel(state, data);
+    cols = cols.concat(genCellsInGlobalLevel(state, data));
   } else if (level === 'zone') {
-    cols = genCellsInZoneLevel(state, data);
+    cols = cols.concat(genCellsInZoneLevel(state, data));
   }
-  return h('div.data-cols', cols);
+  return h('div.columns-container', cols);
 }
 
 /** Generates data cells in the "globel" level. */
@@ -41,7 +42,7 @@ function genCellsInGlobalLevel(state, data) {
   }).map(function(zone) {
     var aggData = data[zone][aggType];
     var rows = [];
-    Consts.metrics.forEach(function(curMetric, index) {
+    Consts.mainMetrics.forEach(function(curMetric, index) {
       var dataKey = curMetric.dataKey;
       var metricKey = curMetric.metricKey;
       if (!Util.isEmptyObj(aggData[dataKey])) {
@@ -70,7 +71,8 @@ function genCellsInZoneLevel(state, data) {
 
   // Filter metrics and instances by zone level type (CloudService or Nginx).
   var metrics = (zoneLevelType === 'CloudService' ?
-      Consts.cloudServiceMetrics : Consts.nginxMetrics);
+      Consts.cloudServiceMetrics.concat(Consts.cloudServiceGCEMetrics) :
+      Consts.nginxMetrics.concat(Consts.nginxGCEMetrics));
   var instancePrefix = (zoneLevelType === 'CloudService' ?
       'vanadium-' : 'nginx-');
   var instanceNames = Object.keys(data[zoneLevelZone].Instances);

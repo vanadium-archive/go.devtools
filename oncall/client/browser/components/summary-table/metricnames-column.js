@@ -26,11 +26,12 @@ function render(state) {
   // In the "zone" level, we only show either cloud services metrics or nginx
   // metrics.
   var metricNameRows = [];
-  var metrics = Consts.metrics;
+  var metrics = Consts.mainMetrics;
   if (level === 'zone') {
     var zoneLevelType = AppStateMgr.getAppState('zoneLevelType');
     metrics = (zoneLevelType === 'CloudService' ?
-        Consts.cloudServiceMetrics : Consts.nginxMetrics);
+        Consts.cloudServiceMetrics.concat(Consts.cloudServiceGCEMetrics) :
+        Consts.nginxMetrics.concat(Consts.nginxGCEMetrics));
   }
 
   metrics.forEach(function(curMetric, index) {

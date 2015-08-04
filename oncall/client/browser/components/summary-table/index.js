@@ -25,8 +25,7 @@ var h = require('mercury').h;
 
 var AppStateMgr = require('../../appstate-manager');
 var summaryTableHeaderComponent = require('./header');
-var summaryTableDataColumnsComponent = require('./data-columns');
-var summaryTableMetricNamesColumnComponent = require('./metricnames-column');
+var summaryTableColumnsComponent = require('./columns');
 
 module.exports = create;
 module.exports.render = render;
@@ -152,9 +151,6 @@ function render(state) {
   // Delegate rendering to sub-components.
   return h('div.summary-table', [
     hg.partial(summaryTableHeaderComponent.render, state),
-    h('div.columns-container', [
-      hg.partial(summaryTableMetricNamesColumnComponent.render, state),
-      hg.partial(summaryTableDataColumnsComponent.render, state)
-    ])
+    hg.partial(summaryTableColumnsComponent.render, state)
   ]);
 }

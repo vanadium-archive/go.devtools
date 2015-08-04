@@ -64,7 +64,7 @@
   --section-shadow: rgba(0, 0, 0, 0.30) 0px 0px 4px 0px;
 
   /* Heights */
-  --header-height: 48px;
+  --header-height: 60px;
   --zone-title-height: 40px;
   --full-graph-height: 240px;
   --graph-time-div-height: 20px;
@@ -81,6 +81,7 @@
   --graph-number-div-width: 30px;
   --metric-item-width: 20%;
   --zone-header-width: 160px;
-  --summary-table-metric-names-col-width: 130px;
-  --zone-column-width: 130px;
+  --summary-table-metric-names-col-width: 150px;
+  --zone-column-min-width: 130px;
+  --zone-column-max-width: 240px;
 }

@@ -110,7 +110,11 @@ var cloudServiceMetrics = [
   createMetric('MOUNTED SERVERS', 'CloudServiceStats', metricKeys.stats[0],
       false, false, 'V STATS'),
   createMetric('MOUNTED NODES', 'CloudServiceStats', metricKeys.stats[1]),
-  createMetric('MTB QPS', 'CloudServiceStats', metricKeys.stats[2], true),
+  createMetric('MTB QPS', 'CloudServiceStats', metricKeys.stats[2], true)
+];
+
+/** Metric objects for cloud services GCE. */
+var cloudServiceGCEMetrics = [
   createMetric('CPU%', 'CloudServiceGCE', metricKeys.gce[0],
       false, false, 'V GCE'),
   createMetric('RAM%', 'CloudServiceGCE', metricKeys.gce[1]),
@@ -126,7 +130,11 @@ var nginxMetrics = [
   createMetric('ACTIVE CONN', 'NginxLoad', metricKeys.nginxLoad[1]),
   createMetric('READING CONN', 'NginxLoad', metricKeys.nginxLoad[2]),
   createMetric('WRITING CONN', 'NginxLoad', metricKeys.nginxLoad[3]),
-  createMetric('WAITING CONN', 'NginxLoad', metricKeys.nginxLoad[4], true),
+  createMetric('WAITING CONN', 'NginxLoad', metricKeys.nginxLoad[4], true)
+];
+
+/** Metric objects for Nginx GCE. */
+var nginxGCEMetrics = [
   createMetric('CPU%', 'NginxGCE', metricKeys.gce[0],
       false, false, 'NGINX GCE'),
   createMetric('RAM%', 'NginxGCE', metricKeys.gce[1]),
@@ -136,7 +144,7 @@ var nginxMetrics = [
 ];
 
 /** All available metric objects. */
-var metrics = cloudServiceMetrics.concat(nginxMetrics);
+var mainMetrics = cloudServiceMetrics.concat(nginxMetrics);
 
 /**
  * Creates a metric.
@@ -196,6 +204,8 @@ module.exports = {
   getDisplayName: getDisplayName,
   metricKeys: metricKeys,
   cloudServiceMetrics: cloudServiceMetrics,
+  cloudServiceGCEMetrics: cloudServiceGCEMetrics,
   nginxMetrics: nginxMetrics,
-  metrics: metrics
+  nginxGCEMetrics: nginxGCEMetrics,
+  mainMetrics: mainMetrics
 };
