@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 
 	"v.io/x/devtools/internal/gerrit"
@@ -43,7 +42,7 @@ func TestMultiPartCLSet(t *testing.T) {
 
 	// Test incomplete.
 	if expected, got := false, set.complete(); expected != got {
-		t.Fatalf("want %s, got %s", expected, got)
+		t.Fatalf("want %v, got %v", expected, got)
 	}
 
 	// Add another multi part cl with the wrong "Total" number.
@@ -100,55 +99,6 @@ func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[
 	}
 	if !reflect.DeepEqual(expectedCLsByPart, set.parts) {
 		t.Fatalf("clsByPart: want %+v, got %+v", expectedCLsByPart, set.parts)
-	}
-}
-
-func TestParseValidNetRcFile(t *testing.T) {
-	// Valid content.
-	netrcFileContent := `
-machine vanadium.googlesource.com login git-jingjin.google.com password 12345
-machine vanadium-review.googlesource.com login git-jingjin.google.com password 54321
-	`
-	got, err := parseNetRcFile(strings.NewReader(netrcFileContent))
-	expected := map[string]credential{
-		"vanadium.googlesource.com": credential{
-			username: "git-jingjin.google.com",
-			password: "12345",
-		},
-		"vanadium-review.googlesource.com": credential{
-			username: "git-jingjin.google.com",
-			password: "54321",
-		},
-	}
-	if err != nil {
-		t.Fatalf("want no errors, got: %v", err)
-	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Fatalf("want: %#v, got: %#v", expected, got)
-	}
-}
-
-func TestParseInvalidNetRcFile(t *testing.T) {
-	// Content with invalid entries which should be skipped.
-	netRcFileContentWithInvalidEntries := `
-machine vanadium.googlesource.com login git-jingjin.google.com password
-machine_blah vanadium3.googlesource.com login git-jingjin.google.com password 12345
-machine vanadium2.googlesource.com login_blah git-jingjin.google.com password 12345
-machine vanadium4.googlesource.com login git-jingjin.google.com password_blah 12345
-machine vanadium-review.googlesource.com login git-jingjin.google.com password 54321
-	`
-	got, err := parseNetRcFile(strings.NewReader(netRcFileContentWithInvalidEntries))
-	expected := map[string]credential{
-		"vanadium-review.googlesource.com": credential{
-			username: "git-jingjin.google.com",
-			password: "54321",
-		},
-	}
-	if err != nil {
-		t.Fatalf("want no errors, got: %v", err)
-	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Fatalf("want: %#v, got: %#v", expected, got)
 	}
 }
 
