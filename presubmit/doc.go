@@ -27,8 +27,6 @@ The presubmit flags are:
    The name of the Jenkins job to add presubmit-test builds to.
  -n=false
    Show what commands will run but do not execute them.
- -netrc=${HOME}/.netrc
-   The path to the .netrc file that stores Gerrit's credentials.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false

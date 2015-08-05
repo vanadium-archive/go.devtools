@@ -5,10 +5,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -159,7 +157,7 @@ func runQuery(env *cmdline.Env, args []string) error {
 	}
 
 	// Parse .netrc file to get Gerrit credential.
-	gerritCred, err := gerritHostCredential(gerritHost)
+	cred, err := gerrit.HostCredential(ctx.Run(), gerritHost)
 	if err != nil {
 		return err
 	}
@@ -171,7 +169,7 @@ func runQuery(env *cmdline.Env, args []string) error {
 	}
 
 	// Query Gerrit.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
 	curCLs, err := gerrit.Query(queryStringFlag)
 	if err != nil {
 		return fmt.Errorf("Query(%q) failed: %v", queryStringFlag, err)
@@ -243,47 +241,6 @@ func checkGerritBaseUrl() (string, error) {
 		return "", fmt.Errorf("%q has no host", gerritBaseUrlFlag)
 	}
 	return gerritHost, nil
-}
-
-// gerritHostCredential returns credential for the given gerritHost.
-func gerritHostCredential(gerritHost string) (_ credential, e error) {
-	path := netRcFilePathFlag
-	fdNetRc, err := os.Open(path)
-	if err != nil {
-		return credential{}, fmt.Errorf("Open(%q) failed: %v", path, err)
-	}
-	defer collect.Error(func() error { return fdNetRc.Close() }, &e)
-	creds, err := parseNetRcFile(fdNetRc)
-	if err != nil {
-		return credential{}, err
-	}
-	gerritCred, ok := creds[gerritHost]
-	if !ok {
-		return credential{}, fmt.Errorf("cannot find credential for %q in %q", gerritHost, path)
-	}
-	return gerritCred, nil
-}
-
-// parseNetRcFile parses the content of the .netrc file and returns
-// credentials stored in the file indexed by hosts.
-func parseNetRcFile(reader io.Reader) (map[string]credential, error) {
-	creds := make(map[string]credential)
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.Split(line, " ")
-		if len(parts) != 6 || parts[0] != "machine" || parts[2] != "login" || parts[4] != "password" {
-			continue
-		}
-		creds[parts[1]] = credential{
-			username: parts[3],
-			password: parts[5],
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("Scan() failed: %v", err)
-	}
-	return creds, nil
 }
 
 // readLog returns CLs indexed by thier refs stored in the log file.

@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/x/devtools/internal/gerrit"
 	"v.io/x/devtools/internal/jenkins"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
@@ -790,25 +791,6 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 	}
 }
 
-func getRefsUsingVerifiedLabel(ctx *tool.Context, gerritCred credential) (map[string]struct{}, error) {
-	// Query all open CLs.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
-	cls, err := gerrit.Query(defaultQueryString)
-	if err != nil {
-		return nil, err
-	}
-
-	// Identify the refs that use the "Verified" label.
-	ret := map[string]struct{}{}
-	for _, cl := range cls {
-		if _, ok := cl.Labels["Verified"]; ok {
-			ret[cl.Reference()] = struct{}{}
-		}
-	}
-
-	return ret, nil
-}
-
 // submitPresubmitCLs tries to submit CLs in the current presubmit test.
 func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
 	// Get Gerrit credential.
@@ -816,13 +798,13 @@ func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
 	if err != nil {
 		return err
 	}
-	gerritCred, err := gerritHostCredential(gerritHost)
+	cred, err := gerrit.HostCredential(ctx.Run(), gerritHost)
 	if err != nil {
 		return err
 	}
 
 	// Query open CLs.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
 	openCLs, err := gerrit.Query(defaultQueryString)
 	if err != nil {
 		return err

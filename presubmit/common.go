@@ -32,13 +32,13 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 	}
 
 	// Parse .netrc file to get Gerrit credential.
-	gerritCred, err := gerritHostCredential(gerritHost)
+	cred, err := gerrit.HostCredential(ctx.Run(), gerritHost)
 	if err != nil {
 		return err
 	}
 
 	// Construct and post the reviews.
-	refsUsingVerifiedLabel, err := getRefsUsingVerifiedLabel(ctx, gerritCred)
+	refsUsingVerifiedLabel, err := getRefsUsingVerifiedLabel(ctx, cred)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 	if !success {
 		value = "-" + value
 	}
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, gerritCred.username, gerritCred.password)
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
 	for _, ref := range refs {
 		labels := map[string]string{}
 		if _, ok := refsUsingVerifiedLabel[ref]; ok {
@@ -58,6 +58,25 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 		test.Pass(ctx, "review posted for %q with labels %v.\n", ref, labels)
 	}
 	return nil
+}
+
+func getRefsUsingVerifiedLabel(ctx *tool.Context, cred *gerrit.Credential) (map[string]struct{}, error) {
+	// Query all open CLs.
+	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
+	cls, err := gerrit.Query(defaultQueryString)
+	if err != nil {
+		return nil, err
+	}
+
+	// Identify the refs that use the "Verified" label.
+	ret := map[string]struct{}{}
+	for _, cl := range cls {
+		if _, ok := cl.Labels["Verified"]; ok {
+			ret[cl.Reference()] = struct{}{}
+		}
+	}
+
+	return ret, nil
 }
 
 // getSubmittableCLs extracts CLs that have the AutoSubmit label in the commit
