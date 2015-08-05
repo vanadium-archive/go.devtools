@@ -132,12 +132,6 @@ func runQuery(env *cmdline.Env, args []string) error {
 		printf(ctx.Stdout(), "%d sent.\n", numSentCLs)
 	}()
 
-	// Basic sanity check for the Gerrit base url.
-	gerritHost, err := checkGerritBaseUrl()
-	if err != nil {
-		return err
-	}
-
 	// Load Jenkins matrix jobs config.
 	config, err := util.LoadConfig(ctx)
 	if err != nil {
@@ -156,8 +150,8 @@ func runQuery(env *cmdline.Env, args []string) error {
 		}
 	}
 
-	// Parse .netrc file to get Gerrit credential.
-	cred, err := gerrit.HostCredential(ctx.Run(), gerritHost)
+	// Get Gerrit host credential.
+	cred, err := gerrit.HostCredential(ctx.Run(), gerritBaseUrlFlag)
 	if err != nil {
 		return err
 	}
@@ -227,20 +221,6 @@ func runQuery(env *cmdline.Env, args []string) error {
 	}
 
 	return nil
-}
-
-// checkGerritBaseUrl performs basic sanity checks for Gerrit base
-// url. It returns the gerrit host.
-func checkGerritBaseUrl() (string, error) {
-	gerritURL, err := url.Parse(gerritBaseUrlFlag)
-	if err != nil {
-		return "", fmt.Errorf("Parse(%q) failed: %v", gerritBaseUrlFlag, err)
-	}
-	gerritHost := gerritURL.Host
-	if gerritHost == "" {
-		return "", fmt.Errorf("%q has no host", gerritBaseUrlFlag)
-	}
-	return gerritHost, nil
 }
 
 // readLog returns CLs indexed by thier refs stored in the log file.

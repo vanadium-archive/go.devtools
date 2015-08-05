@@ -25,14 +25,8 @@ func genStartPresubmitBuildLink(strRefs, strProjects, strTests string) string {
 
 // postMessage posts the given message to Gerrit.
 func postMessage(ctx *tool.Context, message string, refs []string, success bool) error {
-	// Basic sanity check for the Gerrit base URL.
-	gerritHost, err := checkGerritBaseUrl()
-	if err != nil {
-		return err
-	}
-
 	// Parse .netrc file to get Gerrit credential.
-	cred, err := gerrit.HostCredential(ctx.Run(), gerritHost)
+	cred, err := gerrit.HostCredential(ctx.Run(), gerritBaseUrlFlag)
 	if err != nil {
 		return err
 	}

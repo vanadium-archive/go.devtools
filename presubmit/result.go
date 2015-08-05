@@ -793,12 +793,8 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 
 // submitPresubmitCLs tries to submit CLs in the current presubmit test.
 func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
-	// Get Gerrit credential.
-	gerritHost, err := checkGerritBaseUrl()
-	if err != nil {
-		return err
-	}
-	cred, err := gerrit.HostCredential(ctx.Run(), gerritHost)
+	// Get Gerrit host credential.
+	cred, err := gerrit.HostCredential(ctx.Run(), gerritBaseUrlFlag)
 	if err != nil {
 		return err
 	}
