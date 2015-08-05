@@ -123,6 +123,7 @@ function loadData() {
     if (!res.ok || err) {
       state.pageHeader.hasLoadingFailure.set(true);
     } else {
+      state.pageHeader.hasLoadingFailure.set(false);
       processData(res.body);
     }
   });
