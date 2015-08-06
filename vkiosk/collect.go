@@ -107,7 +107,7 @@ func runCollect(env *cmdline.Env, args []string) error {
 }
 
 func checkPreRequisites() error {
-	programs := []string{"Xvfb", "fluxbox", "google-chrome"}
+	programs := []string{"Xvfb", "fluxbox", "google-chrome", "scrot"}
 	notInstalled := []string{}
 	for _, p := range programs {
 		if _, err := exec.LookPath(p); err != nil {
@@ -174,13 +174,11 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 		return fmt.Errorf("ParseDuration(%s) failed: %v", screenshotIntervalFlag, err)
 	}
 	screenshotFile := filepath.Join(tmpDir, screenshotNameFlag)
-	importArgs := []string{
-		"-window",
-		"root",
+	scrotArgs := []string{
 		screenshotFile,
 	}
-	importOpts := ctx.Run().Opts()
-	importOpts.Env = map[string]string{"DISPLAY": displayFlag}
+	scrotOpts := ctx.Run().Opts()
+	scrotOpts.Env = map[string]string{"DISPLAY": displayFlag}
 	gsutilArgs := []string{
 		"-q",
 		"cp",
@@ -189,9 +187,9 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 	}
 	ticker := time.NewTicker(d)
 	for range ticker.C {
-		// Use "import" command to take screenshots.
+		// Use "scrot" command to take screenshots.
 		fmt.Fprintf(ctx.Stdout(), "[%s]: take screenshot to %q...\n", nowTimestamp(), screenshotFile)
-		if err := ctx.Run().CommandWithOpts(importOpts, "import", importArgs...); err != nil {
+		if err := ctx.Run().CommandWithOpts(scrotOpts, "scrot", scrotArgs...); err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			continue
 		}
