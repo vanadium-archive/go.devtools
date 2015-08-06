@@ -62,7 +62,7 @@ var (
 	keyFileFlag         string
 	projectFlag         string
 	serviceAccountFlag  string
-	debugCommandTimeout = time.Second * 5
+	debugCommandTimeout = time.Second * 10
 	buildInfoRE         = regexp.MustCompile(`devmgr/apps/([^/]*)/.*/stats/system/metadata/build.(Pristine|Time|User|Manifest):\s*(.*)`)
 	manifestRE          = regexp.MustCompile(`.*label="(.*)">`)
 )
