@@ -96,6 +96,10 @@ div.summary-table .metric-name-cell.unhealthy {
   color: #AA0000;
 }
 
+.darkTheme div.summary-table .metric-name-cell.unhealthy {
+  background-color: var(--dark-background);
+}
+
 div.summary-table .highlight {
   background-color: var(--light-grey) !important;
 }
@@ -181,6 +185,10 @@ div.summary-table .zone-name-cell {
 div.summary-table .zone-name-cell.unhealthy {
   background-color: white;
   color: #AA0000;
+}
+
+.darkTheme div.summary-table .zone-name-cell.unhealthy {
+  background-color: var(--dark-background);
 }
 
 div.summary-table .zone-col {
