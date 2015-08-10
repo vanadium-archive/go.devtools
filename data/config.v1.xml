@@ -195,10 +195,7 @@
       <test>vanadium-go-test</test>
       <test>vanadium-go-vdl</test>
       <test>vanadium-integration-test</test>
-      <!-- TODO(caprita): Restore this project once
-	   https://github.com/vanadium/issues/issues/640 is resolved.
       <test>vanadium-regression-test</test>
-      -->
       <test>vanadium-prod-services-test</test>
       <test>vanadium-www-tutorials-core</test>
     </group>
