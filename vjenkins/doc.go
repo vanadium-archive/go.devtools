@@ -23,12 +23,12 @@ The vjenkins flags are:
 The global flags are:
  -color=false
    Format output in color.
+ -metadata=<just specify -metadata to activate>
+   Displays metadata for the program and exits.
  -n=false
    Show what commands will run, but do not execute them.
  -v=false
    Print verbose output.
- -v23.metadata=<just specify -v23.metadata to activate>
-   Displays metadata for the program and exits.
 
 Vjenkins node - Manage Jenkins slave nodes
 

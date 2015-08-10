@@ -59,7 +59,7 @@ The gopkg flags are:
    Filter out type descriptions that don't match this regexp.
 
 The global flags are:
- -v23.metadata=<just specify -v23.metadata to activate>
+ -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 */
 package main
