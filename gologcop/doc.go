@@ -44,7 +44,7 @@ The gologcop flags are:
    Print verbose output.
 
 The global flags are:
- -v23.metadata=<just specify -v23.metadata to activate>
+ -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
 Gologcop check - Check for log statements in public API implementations

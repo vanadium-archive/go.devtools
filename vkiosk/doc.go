@@ -33,7 +33,7 @@ The vkiosk flags are:
    Print verbose output.
 
 The global flags are:
- -v23.metadata=<just specify -v23.metadata to activate>
+ -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
 Vkiosk collect - Takes screenshots of a given URL in Chrome and stores them in the given export dir

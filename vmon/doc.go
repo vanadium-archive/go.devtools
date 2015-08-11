@@ -29,7 +29,7 @@ The vmon flags are:
    Print verbose output.
 
 The global flags are:
- -v23.metadata=<just specify -v23.metadata to activate>
+ -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
 Vmon md - Manage metric descriptors in the given GCM instance
