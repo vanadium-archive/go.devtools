@@ -190,6 +190,7 @@
   <testGroups>
     <group name="go">
       <test>vanadium-go-build</test>
+      <test>vanadium-go-depcop</test>
       <test>vanadium-go-generate</test>
       <test>vanadium-go-race</test>
       <test>vanadium-go-test</test>
