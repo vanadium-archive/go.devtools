@@ -189,6 +189,7 @@
   </testDependencies>
   <testGroups>
     <group name="go">
+      <test>vanadium-go-api</test>
       <test>vanadium-go-build</test>
       <test>vanadium-go-depcop</test>
       <test>vanadium-go-generate</test>
