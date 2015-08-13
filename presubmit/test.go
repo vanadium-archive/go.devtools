@@ -86,7 +86,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	})
 
 	// Basic sanity checks.
-	if err := sanityChecks(cmdlineEnv); err != nil {
+	if err := sanityChecks(ctx, cmdlineEnv); err != nil {
 		return err
 	}
 
@@ -261,27 +261,27 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 		return err
 	}
 	xUnitFile := xunit.ReportPath(testName)
-	if _, err := os.Stat(xUnitFile); err == nil {
+	if _, err := ctx.Run().Stat(xUnitFile); err == nil {
 		args := []string{"-q", "cp", xUnitFile, dstDir + "/" + "xunit.xml"}
 		if err := ctx.Run().Command("gsutil", args...); err != nil {
 			return err
 		}
 	} else {
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("Stat(%v) failed: %v", xUnitFile, err)
+			return err
 		}
 	}
 	return nil
 }
 
 // sanityChecks performs basic sanity checks for various flags.
-func sanityChecks(env *cmdline.Env) error {
+func sanityChecks(ctx *tool.Context, env *cmdline.Env) error {
 	manifestFilePath, err := util.ManifestFile(manifestFlag)
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(manifestFilePath); err != nil {
-		return fmt.Errorf("Stat(%q) failed: %v", manifestFilePath, err)
+	if _, err := ctx.Run().Stat(manifestFilePath); err != nil {
+		return err
 	}
 	if projectsFlag == "" {
 		return env.UsageErrorf("-projects flag is required")

@@ -481,7 +481,7 @@ func (x nodeInfos) RunCommand(ctx *tool.Context, user string, cmdline []string) 
 func (x nodeInfos) RunCopyAndRun(ctx *tool.Context, user string, files, cmds []string, outdir string) error {
 	// Check if the run file has execution permissions.
 	if len(cmds) == 0 {
-		info, err := os.Stat(files[0])
+		info, err := ctx.Run().Stat(files[0])
 		if err != nil {
 			return err
 		}

@@ -44,9 +44,9 @@ func checkRPCLoadTest(ctx *tool.Context) error {
 	if err != nil {
 		return err
 	}
-	fi, err := os.Stat(resultFile)
+	fi, err := ctx.Run().Stat(resultFile)
 	if err != nil {
-		return fmt.Errorf("os.Stat(%q) failed: %v", resultFile, err)
+		return err
 	}
 	timeStr := fi.ModTime().Format(time.RFC3339)
 	for label, value := range items {
