@@ -18,6 +18,7 @@
     <project>release.projects.pipe2browser</project>
     <project>release.projects.playground</project>
     <project>release.projects.reader</project>
+    <project>release.projects.todos</project>
     <project>roadmap.go.syncbase</project>
     <project>roadmap.js.syncbase</project>
     <project>www</project>
