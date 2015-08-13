@@ -18,6 +18,7 @@
     <project>release.projects.pipe2browser</project>
     <project>release.projects.playground</project>
     <project>release.projects.reader</project>
+    <project>release.projects.travel</project>
     <project>release.projects.todos</project>
     <project>roadmap.go.syncbase</project>
     <project>roadmap.js.syncbase</project>
@@ -55,6 +56,7 @@
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.go.x.devtools">
       <test>go</test>
@@ -63,6 +65,7 @@
       <test>projects</test>
       <test>third_party-go</test>
       <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.go.x.jni">
       <test>java</test>
@@ -73,6 +76,7 @@
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.go.x.ref">
       <test>go</test>
@@ -80,6 +84,7 @@
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.java">
       <test>java</test>
@@ -87,35 +92,45 @@
     <project name="release.js.core">
       <test>javascript</test>
       <test>projects</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.browser">
       <test>vanadium-browser-test</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.chat">
       <test>vanadium-chat-shell-test</test>
       <test>vanadium-chat-web-test</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.media-sharing">
       <test>go</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.pipe2browser">
+      <test>vanadium-copyright</test>
       <test>vanadium-pipe2browser-test</test>
     </project>
     <project name="release.projects.playground">
+      <test>vanadium-copyright</test>
       <test>vanadium-playground-test</test>
     </project>
     <project name="release.projects.reader">
+      <test>vanadium-copyright</test>
       <test>vanadium-reader-test</test>
     </project>
     <project name="release.projects.travel">
+      <test>vanadium-copyright</test>
       <test>vanadium-travel-test</test>
     </project>
     <project name="roadmap.go.syncbase">
       <test>go</test>
+      <test>vanadium-copyright</test>
       <test>vanadium-js-syncbase-browser</test>
       <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="roadmap.js.syncbase">
+      <test>vanadium-copyright</test>
       <test>vanadium-js-syncbase-browser</test>
       <test>vanadium-js-syncbase-node</test>
     </project>
@@ -127,6 +142,7 @@
     </project>
     <project name="www">
       <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
       <test>vanadium-www-site</test>
       <test>vanadium-www-tutorials-core</test>
       <test>vanadium-www-tutorials-js-node</test>
@@ -193,6 +209,7 @@
       <test>vanadium-go-api</test>
       <test>vanadium-go-build</test>
       <test>vanadium-go-depcop</test>
+      <test>vanadium-go-format</test>
       <test>vanadium-go-generate</test>
       <test>vanadium-go-race</test>
       <test>vanadium-go-test</test>
