@@ -9,6 +9,10 @@
     <alias>asadovsky@gmail.com</alias>
   </email>
   <email>
+    <canonical>nevenag@google.com</canonical>
+    <alias>nevena.golubovic@gmail.com</alias>
+  </email>
+  <email>
     <canonical>jregan@google.com</canonical>
     <alias>git-jregan.google.com</alias>
   </email>
@@ -33,8 +37,9 @@
     <alias>Benj Prosnitz</alias>
   </name>
   <name>
-    <canonical>David Presotto</canonical>
+    <canonical>Dave Presotto</canonical>
     <alias>David Why Use Two When One Will Do Presotto</alias>
+    <alias>David Presotto</alias>
   </name>
   <name>
     <canonical>Gautham Thambidorai</canonical>
