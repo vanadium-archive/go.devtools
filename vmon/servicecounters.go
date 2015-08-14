@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
+
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/runutil"
 	"v.io/x/devtools/internal/test"
@@ -69,16 +70,17 @@ func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64,
 		if err != runutil.CommandTimedOutErr {
 			return 0, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}
-		return 0, err
-	}
-	parts := strings.Split(strings.TrimSpace(buf.String()), " ")
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid debug output: %s", buf.String())
-	}
-	var err error
-	value, err = strconv.ParseFloat(parts[1], 64)
-	if err != nil {
-		return 0, fmt.Errorf("ParseFloat(%s) failed: %v", parts[1], err)
+		// On command timeout, use the default value 0.0.
+	} else {
+		parts := strings.Split(strings.TrimSpace(buf.String()), " ")
+		if len(parts) != 2 {
+			return 0, fmt.Errorf("invalid debug output: %s", buf.String())
+		}
+		var err error
+		value, err = strconv.ParseFloat(parts[1], 64)
+		if err != nil {
+			return 0, fmt.Errorf("ParseFloat(%s) failed: %v", parts[1], err)
+		}
 	}
 
 	// Add the counter as a custom metric to GCM.
