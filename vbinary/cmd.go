@@ -189,12 +189,7 @@ func runDownload(env *cmdline.Env, args []string) error {
 
 	numBinaries := len(binaries)
 	downloadBinaries := func() error {
-		success := false
-		for i := 1; i <= attemptsFlag; i++ {
-			if i > 1 {
-				fmt.Fprintf(ctx.Stdout(), "Attempt %d/%d:\n", i, attemptsFlag)
-			}
-
+		downloadFn := func() error {
 			errChan := make(chan error, numBinaries)
 			for _, name := range binaries {
 				go downloadBinary(ctx, client, name, errChan)
@@ -210,15 +205,11 @@ func runDownload(env *cmdline.Env, args []string) error {
 				if err := ctx.Run().RemoveAll(outputDirFlag); err != nil {
 					fmt.Fprintf(ctx.Stderr(), "%v", err)
 				}
-			} else {
-				success = true
-				break
+				return fmt.Errorf("Failed to download some binaries")
 			}
-
-			fmt.Fprintf(ctx.Stdout(), "Waiting for %v before next attempt...\n", waitTimeBetweenAttempts)
-			time.Sleep(waitTimeBetweenAttempts)
+			return nil
 		}
-		if !success {
+		if err := util.Retry(ctx, downloadFn, util.AttemptsOpt(attemptsFlag), util.IntervalOpt(waitTimeBetweenAttempts)); err != nil {
 			return fmt.Errorf("operation failed")
 		}
 		// Remove the .done file from the snapshot.
