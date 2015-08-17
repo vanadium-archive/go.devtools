@@ -214,6 +214,7 @@
       <test>vanadium-go-race</test>
       <test>vanadium-go-test</test>
       <test>vanadium-go-vdl</test>
+      <test>vanadium-go-vet</test>
       <test>vanadium-integration-test</test>
       <test>vanadium-regression-test</test>
       <test>vanadium-prod-services-test</test>
