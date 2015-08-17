@@ -4,6 +4,41 @@
 -->
 <rotation>
   <shift>
+    <primary>bprosnitz</primary>
+    <secondary>jhahn</secondary>
+    <startDate>Jul 13, 2015 01:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>ataly</primary>
+    <secondary>jhahn</secondary>
+    <startDate>Jul 17, 2015 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>ataly</primary>
+    <secondary>bjornick</secondary>
+    <startDate>Jul 20, 2015 01:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>ataly</primary>
+    <secondary>bjornick</secondary>
+    <startDate>Jul 24, 2015 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>cierniak</primary>
+    <secondary>jsimsa</secondary>
+    <startDate>Jul 27, 2015 01:00:00 PM</startDate>
+  </shift>
+  <shift>
+    <primary>cierniak</primary>
+    <secondary>jsimsa</secondary>
+    <startDate>Jul 31, 2015 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>herbertc</primary>
+    <secondary>gauthamt</secondary>
+    <startDate>Aug 03, 2015 08:00:00 AM</startDate>
+  </shift>
+  <shift>
     <primary>herbertc</primary>
     <secondary>gauthamt</secondary>
     <startDate>Aug 07, 2015 01:00:00 PM</startDate>
