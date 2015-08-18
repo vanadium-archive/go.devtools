@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -23,7 +23,7 @@ const (
 	defaultGerritBaseUrl    = "https://vanadium-review.googlesource.com"
 	defaultPresubmitTestJob = "vanadium-presubmit-test"
 	defaultQueryString      = "(status:open -project:experimental)"
-	jenkinsBaseJobUrl       = "http://veyron-linux1.mtv.corp.google.com:8001/jenkins/job"
+	jenkinsBaseJobUrl       = "https://veyron.corp.google.com/jenkins/job"
 	outputPrefix            = "[VANADIUM PRESUBMIT]"
 )
 
@@ -55,7 +55,7 @@ var (
 
 func main() {
 	var err error
-	vroot, err = util.V23Root()
+	vroot, err = project.V23Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)

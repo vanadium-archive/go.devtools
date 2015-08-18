@@ -17,6 +17,7 @@ import (
 
 	"v.io/x/devtools/internal/collect"
 	"v.io/x/devtools/internal/gerrit"
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
@@ -192,7 +193,7 @@ func runQuery(env *cmdline.Env, args []string) error {
 
 	// Send the new open CLs one by one to the given Jenkins
 	// project to run presubmit-test builds.
-	projects, _, err := util.ReadManifest(ctx)
+	projects, _, err := project.ReadManifest(ctx)
 	if err != nil {
 		return err
 	}
@@ -342,7 +343,7 @@ func newOpenCLs(ctx *tool.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 
 type clsSender struct {
 	clLists          []clList
-	projects         map[string]util.Project
+	projects         map[string]project.Project
 	clsSent          int
 	removeOutdatedFn func(*tool.Context, clNumberToPatchsetMap) []error
 	addPresubmitFn   func(*tool.Context, clList, []string) error
@@ -506,7 +507,7 @@ func (s *clsSender) handleNonGoogleOwner(ctx *tool.Context, refs, projects, test
 
 // isKnownProject checks whether the given cl's project is in the
 // given set of projects.
-func isKnowProject(ctx *tool.Context, cl gerrit.Change, projects map[string]util.Project) bool {
+func isKnowProject(ctx *tool.Context, cl gerrit.Change, projects map[string]project.Project) bool {
 	if _, ok := projects[cl.Project]; !ok {
 		printf(ctx.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
 		return false

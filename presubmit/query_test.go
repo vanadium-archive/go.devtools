@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"v.io/x/devtools/internal/gerrit"
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 )
@@ -256,9 +257,9 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 	})
 	sender := clsSender{
 		clLists: clLists,
-		projects: map[string]util.Project{
-			"release.go.core": util.Project{},
-			"release.js.core": util.Project{},
+		projects: map[string]project.Project{
+			"release.go.core": project.Project{},
+			"release.js.core": project.Project{},
 		},
 
 		// Mock out the removeOutdatedBuilds function.
@@ -303,7 +304,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 func TestGetTestsToRun(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	root, err := util.NewFakeV23Root(ctx)
+	root, err := project.NewFakeV23Root(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -312,7 +313,9 @@ func TestGetTestsToRun(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 	}()
-	oldRoot, err := util.V23Root()
+
+	// Point the V23_ROOT environment variable to the fake.
+	oldRoot, err := project.V23Root()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -321,6 +324,7 @@ func TestGetTestsToRun(t *testing.T) {
 	}
 	defer os.Setenv("V23_ROOT", oldRoot)
 
+	// Create a fake configuration file.
 	config := util.NewConfig(
 		util.ProjectTestsOpt(map[string][]string{
 			"release.go.core": []string{"go", "javascript"},
@@ -332,7 +336,7 @@ func TestGetTestsToRun(t *testing.T) {
 			"vanadium-go-race": []string{"v.io/x/ref/services/device/...", "v.io/x/ref/runtime/..."},
 		}),
 	)
-	if err := root.WriteLocalToolsConfig(ctx, config); err != nil {
+	if err := util.SaveConfig(ctx, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 

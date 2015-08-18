@@ -9,13 +9,14 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	root, err := util.NewFakeV23Root(ctx)
+	root, err := project.NewFakeV23Root(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -24,6 +25,18 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 	}()
+
+	// Point the V23_ROOT environment variable to the fake.
+	oldRoot, err := project.V23Root()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer os.Setenv("V23_ROOT", oldRoot)
+
+	// Create a fake configuration file.
 	config := util.NewConfig(
 		util.ProjectTestsOpt(map[string][]string{
 			"release.go.core": []string{"go", "javascript"},
@@ -34,18 +47,9 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			"javascript": []string{"vanadium-js-integration", "vanadium-js-unit"},
 		}),
 	)
-	if err := root.WriteLocalToolsConfig(ctx, config); err != nil {
+	if err := util.SaveConfig(ctx, config); err != nil {
 		t.Fatalf("%v", err)
 	}
-
-	oldRoot, err := util.V23Root()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer os.Setenv("V23_ROOT", oldRoot)
 
 	testCases := []struct {
 		projects            []string

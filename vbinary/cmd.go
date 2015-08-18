@@ -25,6 +25,7 @@ import (
 	storage "google.golang.org/api/storage/v1"
 
 	"v.io/x/devtools/internal/collect"
+	"v.io/x/devtools/internal/retry"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
@@ -209,7 +210,7 @@ func runDownload(env *cmdline.Env, args []string) error {
 			}
 			return nil
 		}
-		if err := util.Retry(ctx, downloadFn, util.AttemptsOpt(attemptsFlag), util.IntervalOpt(waitTimeBetweenAttempts)); err != nil {
+		if err := retry.Function(ctx, downloadFn, retry.AttemptsOpt(attemptsFlag), retry.IntervalOpt(waitTimeBetweenAttempts)); err != nil {
 			return fmt.Errorf("operation failed")
 		}
 		// Remove the .done file from the snapshot.
