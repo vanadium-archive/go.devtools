@@ -23,7 +23,7 @@ const (
 	defaultGerritBaseUrl    = "https://vanadium-review.googlesource.com"
 	defaultPresubmitTestJob = "vanadium-presubmit-test"
 	defaultQueryString      = "(status:open -project:experimental)"
-	jenkinsBaseJobUrl       = "http://veyron-linux1.mtv.corp.google.com:8001/jenkins/job"
+	jenkinsBaseJobUrl       = "https://veyron.corp.google.com/jenkins/job"
 	outputPrefix            = "[VANADIUM PRESUBMIT]"
 )
 
