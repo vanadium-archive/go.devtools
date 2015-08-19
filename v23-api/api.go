@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -12,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"v.io/x/devtools/internal/collect"
@@ -22,12 +26,23 @@ import (
 )
 
 var (
+	colorFlag          bool
 	detailedOutputFlag bool
+	dryRunFlag         bool
 	gotoolsBinPathFlag string
-	commentRE          = regexp.MustCompile("^($|[:space:]*#)")
+	manifestFlag       string
+	verboseFlag        bool
+
+	commentRE = regexp.MustCompile("^($|[:space:]*#)")
 )
 
 func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	cmdAPI.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
+	cmdAPI.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
+	cmdAPI.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	cmdAPI.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdAPICheck.Flags.BoolVar(&detailedOutputFlag, "detailed", true, "If true, shows each API change in an expanded form. Otherwise, only a summary is shown.")
 	cmdAPI.Flags.StringVar(&gotoolsBinPathFlag, "gotools-bin", "", "The path to the gotools binary to use. If empty, gotools will be built if necessary.")
 }
@@ -183,18 +198,17 @@ func packageName(path string) string {
 }
 
 func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, args []string) (changes []packageChange, e error) {
-	projects, _, err := project.ReadManifest(ctx)
-	if err != nil {
-		return nil, err
-	}
 	gotoolsBin, cleanup, err := buildGotools(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(cleanup, &e)
-
-	for _, projectName := range parseProjectNames(ctx, args, projects, apiCheckProjects) {
-		path := projects[projectName].Path
+	projects, err := project.ParseNames(ctx, args, apiCheckProjects)
+	if err != nil {
+		return nil, err
+	}
+	for name, project := range projects {
+		path := project.Path
 		branch, err := ctx.Git(tool.RootDirOpt(path)).CurrentBranchName()
 		if err != nil {
 			return nil, err
@@ -229,7 +243,7 @@ func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, 
 					// is empty anyway.
 					continue
 				}
-				if !isFailedAPICheckFatal(projectName, apiCheckProjects, apiFileError) {
+				if !isFailedAPICheckFatal(name, apiCheckProjects, apiFileError) {
 					// We couldn't read the API file, but this project doesn't
 					// require one.  Just warn the user.
 					fmt.Fprintf(ctx.Stderr(), "WARNING: could not read public API from %s: %v\n", apiFilePath, err)
@@ -247,7 +261,7 @@ func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, 
 				// place.
 				changes = append(changes, packageChange{
 					name:          pkgName,
-					projectName:   projectName,
+					projectName:   name,
 					apiFilePath:   apiFilePath,
 					oldAPI:        splitLinesToSet(apiFileContents),
 					newAPI:        splitLinesToSet(currentAPI),
@@ -366,4 +380,8 @@ func runAPIFix(env *cmdline.Env, args []string) error {
 		fmt.Fprintf(ctx.Stdout(), "Updated %s.\n", change.apiFilePath)
 	}
 	return nil
+}
+
+func main() {
+	cmdline.Main(cmdAPI)
 }
