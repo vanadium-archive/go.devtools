@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"sort"
 
-	"v.io/x/devtools/internal/gerrit"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 )
@@ -25,14 +24,7 @@ func genStartPresubmitBuildLink(strRefs, strProjects, strTests string) string {
 
 // postMessage posts the given message to Gerrit.
 func postMessage(ctx *tool.Context, message string, refs []string, success bool) error {
-	// Parse .netrc file to get Gerrit credential.
-	cred, err := gerrit.HostCredential(ctx.Run(), gerritBaseUrlFlag)
-	if err != nil {
-		return err
-	}
-
-	// Construct and post the reviews.
-	refsUsingVerifiedLabel, err := getRefsUsingVerifiedLabel(ctx, cred)
+	refsUsingVerifiedLabel, err := getRefsUsingVerifiedLabel(ctx)
 	if err != nil {
 		return err
 	}
@@ -40,13 +32,12 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 	if !success {
 		value = "-" + value
 	}
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
 	for _, ref := range refs {
 		labels := map[string]string{}
 		if _, ok := refsUsingVerifiedLabel[ref]; ok {
 			labels["Verified"] = value
 		}
-		if err := gerrit.PostReview(ref, message, labels); err != nil {
+		if err := ctx.Gerrit(gerritBaseUrlFlag).PostReview(ref, message, labels); err != nil {
 			return err
 		}
 		test.Pass(ctx, "review posted for %q with labels %v.\n", ref, labels)
@@ -54,10 +45,9 @@ func postMessage(ctx *tool.Context, message string, refs []string, success bool)
 	return nil
 }
 
-func getRefsUsingVerifiedLabel(ctx *tool.Context, cred *gerrit.Credential) (map[string]struct{}, error) {
+func getRefsUsingVerifiedLabel(ctx *tool.Context) (map[string]struct{}, error) {
 	// Query all open CLs.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
-	cls, err := gerrit.Query(defaultQueryString)
+	cls, err := ctx.Gerrit(gerritBaseUrlFlag).Query(defaultQueryString)
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +136,11 @@ func getSubmittableCLs(ctx *tool.Context, cls clList) []clList {
 }
 
 // submitCLs submits the given CLs.
-func submitCLs(ctx *tool.Context, gerrit *gerrit.Gerrit, cls clList) error {
+func submitCLs(ctx *tool.Context, cls clList) error {
 	for _, cl := range cls {
 		curRef := cl.Reference()
 		msg := fmt.Sprintf("submit CL: %s\n", curRef)
-		if err := gerrit.Submit(cl.Change_id); err != nil {
+		if err := ctx.Gerrit(gerritBaseUrlFlag).Submit(cl.Change_id); err != nil {
 			test.Fail(ctx, msg)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			if err := postMessage(ctx, fmt.Sprintf("Failed to submit CL:\n%v\n", err), []string{curRef}, true); err != nil {
