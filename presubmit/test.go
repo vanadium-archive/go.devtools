@@ -392,27 +392,15 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error
 // V23_ROOT/devtools/bin in the PATH.
 func rebuildDeveloperTools(ctx *tool.Context, projects project.Projects, tools project.Tools, tmpBinDir string) (map[string]string, []error) {
 	errs := []error{}
-	toolsProject, ok := projects["release.go.x.devtools"]
-	env := map[string]string{}
-	if !ok {
-		errs = append(errs, fmt.Errorf("tools project not found, not rebuilding tools."))
-	} else {
-		// Find target Tools.
-		targetTools := []project.Tool{}
-		for name, tool := range tools {
-			if name == "v23" || name == "vdl" || name == "godepcop" {
-				targetTools = append(targetTools, tool)
-			}
+	for _, tool := range tools {
+		if err := project.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, projects[tool.Project]); err != nil {
+			errs = append(errs, err)
 		}
-		// Rebuild.
-		for _, tool := range targetTools {
-			if err := project.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, toolsProject); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		// Create a new PATH that replaces V23_ROOT/devtools/bin with the
-		// temporary directory in which the tools were rebuilt.
-		env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "devtools", "bin"), tmpBinDir, -1)
+	}
+	// Create a new PATH that replaces V23_ROOT/devtools/bin with the
+	// temporary directory in which the tools were rebuilt.
+	env := map[string]string{
+		"PATH": strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "devtools", "bin"), tmpBinDir, -1),
 	}
 	return env, errs
 }
