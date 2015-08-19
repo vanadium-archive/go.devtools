@@ -151,12 +151,6 @@ func runQuery(env *cmdline.Env, args []string) error {
 		}
 	}
 
-	// Get Gerrit host credential.
-	cred, err := gerrit.HostCredential(ctx.Run(), gerritBaseUrlFlag)
-	if err != nil {
-		return err
-	}
-
 	// Read previous CLs from the log file.
 	prevCLsMap, err := readLog()
 	if err != nil {
@@ -164,8 +158,7 @@ func runQuery(env *cmdline.Env, args []string) error {
 	}
 
 	// Query Gerrit.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
-	curCLs, err := gerrit.Query(queryStringFlag)
+	curCLs, err := ctx.Gerrit(gerritBaseUrlFlag).Query(queryStringFlag)
 	if err != nil {
 		return fmt.Errorf("Query(%q) failed: %v", queryStringFlag, err)
 	}
@@ -216,7 +209,7 @@ func runQuery(env *cmdline.Env, args []string) error {
 		fmt.Fprintf(ctx.Stdout(), "Submitting CLs...\n")
 	}
 	for _, curCLList := range submittableCLs {
-		if err := submitCLs(ctx, gerrit, curCLList); err != nil {
+		if err := submitCLs(ctx, curCLList); err != nil {
 			return err
 		}
 	}

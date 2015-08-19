@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/internal/gerrit"
 	"v.io/x/devtools/internal/jenkins"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
@@ -793,15 +792,8 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 
 // submitPresubmitCLs tries to submit CLs in the current presubmit test.
 func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
-	// Get Gerrit host credential.
-	cred, err := gerrit.HostCredential(ctx.Run(), gerritBaseUrlFlag)
-	if err != nil {
-		return err
-	}
-
 	// Query open CLs.
-	gerrit := ctx.Gerrit(gerritBaseUrlFlag, cred.Username, cred.Password)
-	openCLs, err := gerrit.Query(defaultQueryString)
+	openCLs, err := ctx.Gerrit(gerritBaseUrlFlag).Query(defaultQueryString)
 	if err != nil {
 		return err
 	}
@@ -822,7 +814,7 @@ func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
 			}
 		}
 		if allRefsSubmittable {
-			if err := submitCLs(ctx, gerrit, curCLList); err != nil {
+			if err := submitCLs(ctx, curCLList); err != nil {
 				return err
 			}
 			break
