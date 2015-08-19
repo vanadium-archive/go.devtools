@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"v.io/x/devtools/internal/collect"
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
 	"v.io/x/lib/cmdline"
 )
@@ -100,7 +100,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		return err
 	}
 
-	projects, tools, err := util.ReadManifest(ctx)
+	projects, tools, err := project.ReadManifest(ctx)
 	if err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 
 // sanityChecks performs basic sanity checks for various flags.
 func sanityChecks(ctx *tool.Context, env *cmdline.Env) error {
-	manifestFilePath, err := util.ManifestFile(manifestFlag)
+	manifestFilePath, err := project.ManifestFile(manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func presubmitTestBranchName(ref string) string {
 
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
-func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string]util.Project) (_ *cl, e error) {
+func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string]project.Project) (_ *cl, e error) {
 	strCLs := []string{}
 	for _, cl := range cls {
 		strCLs = append(strCLs, cl.String())
@@ -353,7 +353,7 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 		if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
 			return err
 		}
-		if err := ctx.Git().Pull(util.VanadiumGitHost()+localRepo.Name, curCL.ref); err != nil {
+		if err := ctx.Git().Pull(project.VanadiumGitHost()+localRepo.Name, curCL.ref); err != nil {
 			return err
 		}
 		return nil
@@ -390,7 +390,7 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error
 // rebuildDeveloperTools rebuilds developer tools (e.g. v23, vdl..) in
 // a temporary directory, which is used to replace
 // V23_ROOT/devtools/bin in the PATH.
-func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util.Tools, tmpBinDir string) (map[string]string, []error) {
+func rebuildDeveloperTools(ctx *tool.Context, projects project.Projects, tools project.Tools, tmpBinDir string) (map[string]string, []error) {
 	errs := []error{}
 	toolsProject, ok := projects["release.go.x.devtools"]
 	env := map[string]string{}
@@ -398,7 +398,7 @@ func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util
 		errs = append(errs, fmt.Errorf("tools project not found, not rebuilding tools."))
 	} else {
 		// Find target Tools.
-		targetTools := []util.Tool{}
+		targetTools := []project.Tool{}
 		for name, tool := range tools {
 			if name == "v23" || name == "vdl" || name == "godepcop" {
 				targetTools = append(targetTools, tool)
@@ -406,7 +406,7 @@ func rebuildDeveloperTools(ctx *tool.Context, projects util.Projects, tools util
 		}
 		// Rebuild.
 		for _, tool := range targetTools {
-			if err := util.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, toolsProject); err != nil {
+			if err := project.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, toolsProject); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -437,9 +437,9 @@ func processTestPartSuffix(testName string) (string, int, error) {
 }
 
 // cleanupPresubmitTestBranch removes the presubmit test branch.
-func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects util.Projects) (e error) {
+func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects project.Projects) (e error) {
 	printf(ctx.Stdout(), "### Cleaning up\n")
-	if err := util.CleanupProjects(ctx, projects, true); err != nil {
+	if err := project.CleanupProjects(ctx, projects, true); err != nil {
 		return err
 	}
 	return nil

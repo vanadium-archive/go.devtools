@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -55,7 +55,7 @@ var (
 
 func main() {
 	var err error
-	vroot, err = util.V23Root()
+	vroot, err = project.V23Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)

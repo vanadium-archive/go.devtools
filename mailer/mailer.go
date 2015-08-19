@@ -12,8 +12,8 @@ import (
 
 	gomail "gopkg.in/gomail.v1"
 	"v.io/x/devtools/internal/cache"
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 )
 
 type link struct {
@@ -81,7 +81,7 @@ var m = message{
 func main() {
 	ctx := tool.NewDefaultContext()
 
-	root, err := util.V23Root()
+	root, err := project.V23Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

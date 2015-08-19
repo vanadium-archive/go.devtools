@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
@@ -67,7 +68,7 @@ func runPoll(env *cmdline.Env, _ []string) error {
 		Manifest: &manifestFlag,
 		Verbose:  &verboseFlag,
 	})
-	root, err := util.V23Root()
+	root, err := project.V23Root()
 	if err != nil {
 		return err
 	}
@@ -119,7 +120,7 @@ func runPoll(env *cmdline.Env, _ []string) error {
 // master branches.
 func getChangedProjectsFromSnapshot(ctx *tool.Context, vroot string, snapshotContent []byte) ([]string, error) {
 	// Parse snapshot.
-	snapshot := util.Manifest{}
+	snapshot := project.Manifest{}
 	if err := xml.Unmarshal(snapshotContent, &snapshot); err != nil {
 		return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(snapshotContent))
 	}
