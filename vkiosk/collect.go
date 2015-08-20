@@ -48,12 +48,7 @@ Google Chrome,Xvfb, and Fluxbox.
 }
 
 func runCollect(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
-
+	ctx := tool.NewContextFromEnv(env)
 	if err := checkPreRequisites(); err != nil {
 		return err
 	}

@@ -62,12 +62,7 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(env *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	root, err := project.V23Root()
 	if err != nil {
 		return err

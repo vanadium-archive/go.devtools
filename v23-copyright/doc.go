@@ -6,21 +6,29 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Command vjenkins implements Vanadium-specific utilities for interacting with
-Jenkins.
+This command can be used to check if all source code files of Vanadium projects
+contain the appropriate copyright header and also if all projects contains the
+appropriate licensing files. Optionally, the command can be used to fix the
+appropriate copyright headers and licensing files.
+
+In order to ignore checked in third-party assets which have their own copyright
+and licensing headers a ".v23ignore" file can be added to a project. The
+".v23ignore" file is expected to contain a single regular expression pattern per
+line.
 
 Usage:
-   vjenkins [flags] <command>
+   copyright [flags] <command>
 
-The vjenkins commands are:
-   node        Manage Jenkins slave nodes
+The copyright commands are:
+   check       Check copyright headers and licensing files
+   fix         Fix copyright headers and licensing files
    help        Display help for commands or topics
 
-The vjenkins flags are:
+The copyright flags are:
  -color=true
    Use color to format output.
- -jenkins=http://localhost:8080/jenkins
-   The host of the Jenkins master.
+ -manifest=
+   Name of the project manifest.
  -n=false
    Show what commands will run but do not execute them.
  -v=false
@@ -30,46 +38,25 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Vjenkins node - Manage Jenkins slave nodes
+Copyright check - Check copyright headers and licensing files
 
-Manage Jenkins slave nodes.
-
-Usage:
-   vjenkins node <command>
-
-The vjenkins node commands are:
-   create      Create Jenkins slave nodes
-   delete      Delete Jenkins slave nodes
-
-Vjenkins node create - Create Jenkins slave nodes
-
-Create Jenkins nodes. Uses the Jenkins REST API to create new slave nodes.
+Check copyright headers and licensing files.
 
 Usage:
-   vjenkins node create [flags] <names>
+   copyright check <projects>
 
-<names> is a list of names identifying nodes to be created.
+<projects> is a list of projects to check.
 
-The vjenkins node create flags are:
- -credentials-id=73f76f53-8332-4259-bc08-d6f0b8521a5b
-   The credentials ID used to connect the master to the node.
- -description=
-   Node description.
- -project=vanadium-internal
-   GCE project of the machine.
- -zone=us-central1-f
-   GCE zone of the machine.
+Copyright fix - Fix copyright headers and licensing files
 
-Vjenkins node delete - Delete Jenkins slave nodes
-
-Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
+Fix copyright headers and licensing files.
 
 Usage:
-   vjenkins node delete <names>
+   copyright fix <projects>
 
-<names> is a list of names identifying nodes to be deleted.
+<projects> is a list of projects to fix.
 
-Vjenkins help - Display help for commands or topics
+Copyright help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -78,11 +65,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   vjenkins help [flags] [command/topic ...]
+   copyright help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The vjenkins help flags are:
+The copyright help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

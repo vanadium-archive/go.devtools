@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
 // TODO(jsimsa):
 // - Add support for shell files without the .sh suffix.
 // - Decide what to do with the contents of the testdata directory.
+
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
+package main
 
 import (
 	"bufio"
@@ -26,7 +29,8 @@ import (
 )
 
 func init() {
-	cmdCopyright.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
+	tool.InitializeProjectFlags(&cmdCopyright.Flags)
+	tool.InitializeRunFlags(&cmdCopyright.Flags)
 }
 
 const (
@@ -137,10 +141,10 @@ func runCopyrightFix(env *cmdline.Env, args []string) error {
 // copyrightHelper implements the logic of "v23 copyright {check,fix}".
 func copyrightHelper(stdout, stderr io.Writer, args []string, fix bool) error {
 	ctx := tool.NewContext(tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag,
+		Color:    &tool.ColorFlag,
+		DryRun:   &tool.DryRunFlag,
+		Manifest: &tool.ManifestFlag,
+		Verbose:  &tool.VerboseFlag,
 		Stdout:   stdout,
 		Stderr:   stderr,
 	})
@@ -422,4 +426,8 @@ func readV23Ignore(ctx *tool.Context, project project.Project) ([]*regexp.Regexp
 	}
 
 	return expressions, nil
+}
+
+func main() {
+	cmdline.Main(cmdCopyright)
 }

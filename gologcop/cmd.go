@@ -22,10 +22,7 @@ func main() {
 var (
 	interfacesFlag       string
 	progressFlag         bool
-	verboseFlag          bool
 	gofmtFlag            bool
-	dryRunFlag           bool
-	colorFlag            bool
 	diffOnlyFlag         bool
 	useContextFlag       bool
 	removeCallFlag       string
@@ -55,11 +52,10 @@ func init() {
 	cmdRemove.Flags.BoolVar(&diffOnlyFlag, "diff-only", false, "Show changes that would be made without actually making them.")
 	cmdRemove.Flags.StringVar(&removeCallFlag, "call", apilogRemoveCall, "The function call to be removed. Note, that the package selector must be included. No attempt is made to remove the import declaration if the package is no longer used as a result of the removal.")
 
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 	cmdRoot.Flags.BoolVar(&useContextFlag, "use-v23-context", true, "Pass a context.T argument (which must be of type v.io/v23/context.T), if available, to the injected call as its first parameter.")
+
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 var cmdRoot = &cmdline.Command{
@@ -122,11 +118,7 @@ func runCheck(env *cmdline.Env, args []string) error {
 	if len(implementationPackageList) == 0 {
 		return env.UsageErrorf("no implementation package listed")
 	}
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	return runInjector(ctx, interfacePackageList, implementationPackageList, true)
 }
 
@@ -147,11 +139,7 @@ you can see the diff or revert the changes.
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
 func runInject(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	return runInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 
@@ -171,11 +159,7 @@ you can see the diff or revert the changes.
 
 // runRemove handles the "remove" command.
 func runRemove(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	return runRemover(ctx, args)
 }
 

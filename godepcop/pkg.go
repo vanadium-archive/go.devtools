@@ -28,8 +28,7 @@ func isPseudoPackage(p *build.Package) bool {
 }
 
 func listPackagePaths(env *cmdline.Env, args ...string) ([]string, error) {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{Verbose: new(bool)})
-	return goutil.List(ctx, args...)
+	return goutil.List(tool.NewContextFromEnv(env), args...)
 }
 
 // importPackage loads and returns the package with the given package path.

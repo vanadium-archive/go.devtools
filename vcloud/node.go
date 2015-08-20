@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 
@@ -107,7 +108,7 @@ func runNodeAuthorize(env *cmdline.Env, args []string) error {
 		return fmt.Errorf("TempDir() failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(tmpDir)
-	allNodes, err := listAll(ctx, *flagDryRun)
+	allNodes, err := listAll(ctx, tool.DryRunFlag)
 	if err != nil {
 		return err
 	}
@@ -147,7 +148,7 @@ func runNodeDeauthorize(env *cmdline.Env, args []string) error {
 	// Remove all keys for <userA>@<hostA> from the set of authorized
 	// keys of <userB> on <hostB>.
 	ctx := newContext(env)
-	allNodes, err := listAll(ctx, *flagDryRun)
+	allNodes, err := listAll(ctx, tool.DryRunFlag)
 	if err != nil {
 		return err
 	}
@@ -214,7 +215,7 @@ func runNodeCreate(env *cmdline.Env, args []string) error {
 	}
 
 	// Create in-memory representation of node information.
-	allNodes, err := listAll(ctx, *flagDryRun)
+	allNodes, err := listAll(ctx, tool.DryRunFlag)
 	if err != nil {
 		return err
 	}

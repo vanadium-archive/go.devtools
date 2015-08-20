@@ -173,9 +173,6 @@ func (f *fieldsFlag) Set(from string) error {
 
 var (
 	// Global flags.
-	flagColor   = flag.Bool("color", false, "Format output in color.")
-	flagDryRun  = flag.Bool("n", false, "Show what commands will run, but do not execute them.")
-	flagVerbose = flag.Bool("v", false, "Print verbose output.")
 	flagProject = flag.String("project", "vanadium-internal", "Specify the gcloud project.")
 	flagUser    = flag.String("user", "veyron", "Run operations as the given user on each node.")
 	// Command-specific flags.
@@ -207,6 +204,8 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to create the machine in.")
 	cmdNodeCreate.Flags.StringVar(&flagSetupScript, "setup-script", "", "Script to set up the machine.")
 	cmdNodeDelete.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to delete the machine in.")
+
+	tool.InitializeRunFlags(&cmdVCloud.Flags)
 }
 
 // nodeInfo represents the node info returned by 'gcloud compute instances list'
@@ -260,11 +259,7 @@ func addUser(user, suffix string) string {
 }
 
 func newContext(env *cmdline.Env) *tool.Context {
-	return tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   flagColor,
-		DryRun:  flagDryRun,
-		Verbose: flagVerbose,
-	})
+	return tool.NewContextFromEnv(env)
 }
 
 // StartShell starts a shell on node n.
@@ -672,7 +667,7 @@ func listMatching(ctx *tool.Context, exprlist string) (nodeInfos, error) {
 
 func runList(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
-	all, err := listAll(ctx, *flagDryRun)
+	all, err := listAll(ctx, tool.DryRunFlag)
 	if err != nil {
 		return err
 	}

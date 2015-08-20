@@ -73,13 +73,10 @@ func runCheckRun(env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("no checks provided")
 	}
+	ctx := tool.NewContextFromEnv(env)
 
 	// Run checks.
 	hasError := false
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		Verbose: &verboseFlag,
-	})
 	for _, check := range args {
 		// We already checked the given checks all exist.
 		checkFn, _ := checkFunctions[check]

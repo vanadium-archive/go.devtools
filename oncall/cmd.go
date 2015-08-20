@@ -7,23 +7,18 @@
 
 package main
 
-import "v.io/x/lib/cmdline"
+import (
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/lib/cmdline"
+)
 
 const (
 	bucketData = "gs://vanadium-oncall/data"
 	bucketPics = "gs://vanadium-oncall/pics"
 )
 
-var (
-	colorFlag   bool
-	dryrunFlag  bool
-	verboseFlag bool
-)
-
 func init() {
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdRoot.Flags.BoolVar(&dryrunFlag, "n", false, "Show what commands will run, but do not execute them.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 func main() {

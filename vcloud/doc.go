@@ -10,7 +10,7 @@ Command vcloud is a wrapper over the Google Compute Engine gcloud tool.  It
 simplifies common usage scenarios and provides some Vanadium-specific support.
 
 Usage:
-   vcloud <command>
+   vcloud [flags] <command>
 
 The vcloud commands are:
    list        List GCE node information
@@ -20,19 +20,21 @@ The vcloud commands are:
    sh          Start a shell or run a command on GCE node(s)
    help        Display help for commands or topics
 
+The vcloud flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 The global flags are:
- -color=false
-   Format output in color.
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
- -n=false
-   Show what commands will run, but do not execute them.
  -project=vanadium-internal
    Specify the gcloud project.
  -user=veyron
    Run operations as the given user on each node.
- -v=false
-   Print verbose output.
 
 Vcloud list - List GCE node information
 

@@ -28,23 +28,18 @@ const (
 )
 
 var (
-	dryRunFlag             bool
 	gerritBaseUrlFlag      string
 	jenkinsHostFlag        string
 	jenkinsBuildNumberFlag int
-	manifestFlag           string
-	colorFlag              bool
 	presubmitTestJobFlag   string
-	verboseFlag            bool
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
 	cmdRoot.Flags.StringVar(&gerritBaseUrlFlag, "url", defaultGerritBaseUrl, "The base url of the gerrit instance.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.StringVar(&presubmitTestJobFlag, "job", defaultPresubmitTestJob, "The name of the Jenkins job to add presubmit-test builds to.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 var (

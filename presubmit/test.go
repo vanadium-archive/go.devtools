@@ -41,10 +41,11 @@ var (
 
 func init() {
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build-number", -1, "The number of the Jenkins build.")
-	cmdTest.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
+
+	tool.InitializeProjectFlags(&cmdTest.Flags)
 }
 
 // cmdTest represents the 'test' command of the presubmit tool.
@@ -78,12 +79,7 @@ func (c cl) String() string {
 
 // runTest implements the 'test' subcommand.
 func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
-	ctx := tool.NewContextFromEnv(cmdlineEnv, tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(cmdlineEnv)
 
 	// Basic sanity checks.
 	if err := sanityChecks(ctx, cmdlineEnv); err != nil {
@@ -276,7 +272,7 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 
 // sanityChecks performs basic sanity checks for various flags.
 func sanityChecks(ctx *tool.Context, env *cmdline.Env) error {
-	manifestFilePath, err := project.ManifestFile(manifestFlag)
+	manifestFilePath, err := project.ManifestFile(tool.ManifestFlag)
 	if err != nil {
 		return err
 	}

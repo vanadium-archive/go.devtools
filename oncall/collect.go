@@ -195,12 +195,7 @@ processed data to Google Storage.
 }
 
 func runCollect(env *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		Verbose: &verboseFlag,
-		DryRun:  &dryrunFlag,
-	})
-
+	ctx := tool.NewContextFromEnv(env)
 	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
 	if err != nil {
 		return err

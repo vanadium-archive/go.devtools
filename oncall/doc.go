@@ -20,7 +20,7 @@ The oncall flags are:
  -color=true
    Use color to format output.
  -n=false
-   Show what commands will run, but do not execute them.
+   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

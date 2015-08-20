@@ -15,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"v.io/x/devtools/internal/collect"
@@ -26,35 +25,25 @@ import (
 )
 
 var (
-	colorFlag          bool
 	detailedOutputFlag bool
-	dryRunFlag         bool
 	gotoolsBinPathFlag string
-	manifestFlag       string
-	verboseFlag        bool
 
 	commentRE = regexp.MustCompile("^($|[:space:]*#)")
 )
 
 func init() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	cmdAPI.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdAPI.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdAPI.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdAPI.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdAPICheck.Flags.BoolVar(&detailedOutputFlag, "detailed", true, "If true, shows each API change in an expanded form. Otherwise, only a summary is shown.")
 	cmdAPI.Flags.StringVar(&gotoolsBinPathFlag, "gotools-bin", "", "The path to the gotools binary to use. If empty, gotools will be built if necessary.")
+
+	tool.InitializeProjectFlags(&cmdAPI.Flags)
+	tool.InitializeRunFlags(&cmdAPI.Flags)
 }
 
 // cmdAPI represents the "v23 api" command.
 var cmdAPI = &cmdline.Command{
-	Name:  "api",
-	Short: "Work with Vanadium's public API",
-	Long: `
-Use this command to ensure that no unintended changes are made to Vanadium's
-public API.
-`,
+	Name:     "api",
+	Short:    "Manage vanadium public API",
+	Long:     "Use this command to ensure that no unintended changes are made to the vanadium public API.",
 	Children: []*cmdline.Command{cmdAPICheck, cmdAPIUpdate},
 }
 
@@ -65,7 +54,7 @@ var cmdAPICheck = &cmdline.Command{
 	Short:    "Check if any changes have been made to the public API",
 	Long:     "Check if any changes have been made to the public API.",
 	ArgsName: "<projects>",
-	ArgsLong: "<projects> is a list of Vanadium projects to check. If none are specified, all projects that require a public API check upon presubmit are checked.",
+	ArgsLong: "<projects> is a list of vanadium projects to check. If none are specified, all projects that require a public API check upon presubmit are checked.",
 }
 
 func readAPIFileContents(ctx *tool.Context, path string) (_ []byte, e error) {
@@ -312,10 +301,10 @@ func printChangeSummary(out io.Writer, change packageChange, detailedOutput bool
 
 func doAPICheck(stdout, stderr io.Writer, args []string, detailedOutput bool) error {
 	ctx := tool.NewContext(tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag,
+		Color:    &tool.ColorFlag,
+		DryRun:   &tool.DryRunFlag,
+		Manifest: &tool.ManifestFlag,
+		Verbose:  &tool.VerboseFlag,
 		Stdout:   stdout,
 		Stderr:   stderr,
 	})
@@ -346,15 +335,11 @@ var cmdAPIUpdate = &cmdline.Command{
 	Short:    "Update .api files to reflect changes to the public API",
 	Long:     "Update .api files to reflect changes to the public API.",
 	ArgsName: "<projects>",
-	ArgsLong: "<projects> is a list of Vanadium projects to update. If none are specified, all project APIs are updated.",
+	ArgsLong: "<projects> is a list of vanadium projects to update. If none are specified, all project APIs are updated.",
 }
 
 func runAPIFix(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag})
+	ctx := tool.NewContextFromEnv(env)
 	config, err := util.LoadConfig(ctx)
 	if err != nil {
 		return err

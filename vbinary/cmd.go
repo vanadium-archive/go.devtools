@@ -32,17 +32,13 @@ import (
 )
 
 var (
-	colorFlag   bool
-	dryRunFlag  bool
-	verboseFlag bool
-	releaseFlag bool
-
 	archFlag       string
 	attemptsFlag   int
 	datePrefixFlag string
 	keyFileFlag    string
 	osFlag         string
 	outputDirFlag  string
+	releaseFlag    bool
 
 	waitTimeBetweenAttempts = 3 * time.Minute
 )
@@ -86,9 +82,6 @@ func stripOsArchDir(name string) string {
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdRoot.Flags.BoolVar(&releaseFlag, "release", false, "Operate on vanadium-release bucket instead of vanadium-binaries.")
 
 	cmdRoot.Flags.StringVar(&archFlag, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
@@ -100,6 +93,8 @@ func init() {
 	cmdRoot.Flags.StringVar(&datePrefixFlag, "date-prefix", "", "Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.")
 	cmdDownload.Flags.IntVar(&attemptsFlag, "attempts", 1, "Number of attempts before failing.")
 	cmdDownload.Flags.StringVar(&outputDirFlag, "output-dir", "", "Directory for storing downloaded binaries.")
+
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 func main() {
@@ -130,11 +125,7 @@ can be limited with the --date-prefix flag.
 }
 
 func runList(env *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	client, err := createClient(ctx)
 	if err != nil {
 		return err
@@ -167,11 +158,7 @@ downloaded.
 }
 
 func runDownload(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	client, err := createClient(ctx)
 	if err != nil {
 		return err

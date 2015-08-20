@@ -36,10 +36,7 @@ var cmdServe = &cmdline.Command{
 }
 
 func runServe(env *cmdline.Env, _ []string) (e error) {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   &colorFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 
 	// Set up the root/cache directory.
 	root := cacheFlag

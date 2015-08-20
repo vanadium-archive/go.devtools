@@ -9,7 +9,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"regexp"
 	"strings"
@@ -67,11 +66,6 @@ Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
 }
 
 var (
-	// Global flags.
-	flagColor   = flag.Bool("color", false, "Format output in color.")
-	flagDryRun  = flag.Bool("n", false, "Show what commands will run, but do not execute them.")
-	flagVerbose = flag.Bool("v", false, "Print verbose output.")
-	// Command-specific flags.
 	flagCredentialsId string
 	flagDescription   string
 	flagJenkinsHost   string
@@ -87,14 +81,12 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagDescription, "description", "", "Node description.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "GCE zone of the machine.")
 	cmdNodeCreate.Flags.StringVar(&flagProject, "project", "vanadium-internal", "GCE project of the machine.")
+
+	tool.InitializeRunFlags(&cmdVJenkins.Flags)
 }
 
 func newContext(env *cmdline.Env) *tool.Context {
-	return tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:   flagColor,
-		DryRun:  flagDryRun,
-		Verbose: flagVerbose,
-	})
+	return tool.NewContextFromEnv(env)
 }
 
 // lookupIPAddress looks up the IP address for the given GCE node.

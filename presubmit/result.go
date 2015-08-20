@@ -78,10 +78,11 @@ var (
 
 func init() {
 	cmdResult.Flags.StringVar(&dashboardHostFlag, "dashboard-host", "https://dashboard.staging.v.io", "The host of the dashboard server.")
-	cmdResult.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
 	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdResult.Flags.IntVar(&jenkinsBuildNumberFlag, "build-number", -1, "The number of the Jenkins build.")
+
+	tool.InitializeProjectFlags(&cmdResult.Flags)
 }
 
 // cmdResult represents the 'result' command of the presubmit tool.
@@ -202,12 +203,7 @@ func (ri testResultInfo) key() string {
 // at the end of their run, and the presubmit "master" job is configured to
 // collect all those files and store them in the above directory structure.
 func runResult(env *cmdline.Env, args []string) (e error) {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 
 	// Load Jenkins matrix jobs config.
 	config, err := util.LoadConfig(ctx)

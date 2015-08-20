@@ -36,7 +36,8 @@ func init() {
 	cmdQuery.Flags.StringVar(&queryStringFlag, "query", defaultQueryString, "The string used to query Gerrit for open CLs.")
 	cmdQuery.Flags.StringVar(&logFilePathFlag, "log-file", os.ExpandEnv(defaultLogFilePath), "The file that stores the refs from the previous Gerrit query.")
 	cmdQuery.Flags.Lookup("log-file").DefValue = defaultLogFilePath
-	cmdQuery.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
+
+	tool.InitializeProjectFlags(&cmdQuery.Flags)
 }
 
 type clList []gerrit.Change
@@ -122,12 +123,7 @@ review with test results.
 
 // runQuery implements the "query" subcommand.
 func runQuery(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env, tool.ContextOpts{
-		Color:    &colorFlag,
-		DryRun:   &dryRunFlag,
-		Manifest: &manifestFlag,
-		Verbose:  &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	numSentCLs := 0
 	defer func() {
 		printf(ctx.Stdout(), "%d sent.\n", numSentCLs)

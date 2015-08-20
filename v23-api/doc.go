@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Use this command to ensure that no unintended changes are made to Vanadium's
+Use this command to ensure that no unintended changes are made to the vanadium
 public API.
 
 Usage:
@@ -41,7 +41,7 @@ Check if any changes have been made to the public API.
 Usage:
    api check [flags] <projects>
 
-<projects> is a list of Vanadium projects to check. If none are specified, all
+<projects> is a list of vanadium projects to check. If none are specified, all
 projects that require a public API check upon presubmit are checked.
 
 The api check flags are:
@@ -56,7 +56,7 @@ Update .api files to reflect changes to the public API.
 Usage:
    api fix <projects>
 
-<projects> is a list of Vanadium projects to update. If none are specified, all
+<projects> is a list of vanadium projects to update. If none are specified, all
 project APIs are updated.
 
 Api help - Display help for commands or topics
