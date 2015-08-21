@@ -82,11 +82,7 @@ var cmdServe = &cmdline.Command{
 }
 
 func runServe(env *cmdline.Env, _ []string) (e error) {
-	ctx := tool.NewContext(tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	// Start server.
 	http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 		dataHandler(ctx, w, r)
