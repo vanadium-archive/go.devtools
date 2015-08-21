@@ -7,7 +7,7 @@ package internal_transitive_external_test
 import (
 	"testing"
 
-	"v.io/x/devtools/v23/testdata/generate/internal_transitive_external"
+	"v.io/x/devtools/v23-test/testdata/generate/internal_transitive_external"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
