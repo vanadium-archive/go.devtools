@@ -136,10 +136,15 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
 func getCurrentAPI(ctx *tool.Context, gotoolsBin, dir string) ([]byte, error) {
+	env, err := util.VanadiumEnvironment(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var output bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &output
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "run", gotoolsBin, "goapi", dir); err != nil {
+	opts.Env = env.ToMap()
+	if err := ctx.Run().CommandWithOpts(opts, gotoolsBin, "goapi", dir); err != nil {
 		return nil, err
 	}
 	return output.Bytes(), nil
