@@ -28,7 +28,7 @@ The vkiosk flags are:
    Directory for storing/retrieving screenshots. Dirs that start with 'gs://'
    point to Google Storage buckets.
  -n=false
-   Show what commands will run but do not execute them.
+   Show what commands will run, but do not execute them.
  -v=false
    Print verbose output.
 
