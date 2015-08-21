@@ -19,22 +19,18 @@ var (
 	resultsBucketFlag string
 	statusBucketFlag  string
 	cacheFlag         string
-	dryRunFlag        bool
-	colorFlag         bool
 	portFlag          int
 	staticDirFlag     string
-	verboseFlag       bool
 )
 
 func init() {
 	cmdDashboard.Flags.StringVar(&resultsBucketFlag, "results-bucket", resultsBucket, "Google Storage bucket to use for fetching test results.")
 	cmdDashboard.Flags.StringVar(&statusBucketFlag, "status-bucket", statusBucket, "Google Storage bucket to use for fetching service status data.")
 	cmdDashboard.Flags.StringVar(&cacheFlag, "cache", "", "Directory to use for caching files.")
-	cmdDashboard.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdDashboard.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
 	cmdDashboard.Flags.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
-	cmdDashboard.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdDashboard.Flags.IntVar(&portFlag, "port", 8000, "Port for the server.")
+
+	tool.InitializeRunFlags(&cmdDashboard.Flags)
 }
 
 func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
@@ -88,11 +84,7 @@ var cmdDashboard = &cmdline.Command{
 }
 
 func runDashboard(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContext(tool.ContextOpts{
-		Color:   &colorFlag,
-		DryRun:  &dryRunFlag,
-		Verbose: &verboseFlag,
-	})
+	ctx := tool.NewContextFromEnv(env)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		helper(ctx, w, r)
 	}

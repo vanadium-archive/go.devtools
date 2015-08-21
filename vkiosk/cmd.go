@@ -4,21 +4,20 @@
 
 package main
 
-import "v.io/x/lib/cmdline"
+import (
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/lib/cmdline"
+)
 
 var (
-	colorFlag     bool
-	dryRunFlag    bool
 	exportDirFlag string
-	verboseFlag   bool
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run, but do not execute them.")
 	cmdRoot.Flags.StringVar(&exportDirFlag, "export-dir", "gs://vanadium-kiosk",
 		"Directory for storing/retrieving screenshots. Dirs that start with 'gs://' point to Google Storage buckets.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
+
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 func root() *cmdline.Command {
