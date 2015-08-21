@@ -97,6 +97,11 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	}
 	opts := ctx.Run().Opts()
 	opts.Env = env.ToMap()
+	// TODO(toddw): The following hack is needed to avoid introducing
+	// "v23" as a prefix in documentation for cmdline tools generated
+	// through "v23 go generate ...". Think of a better way to handle
+	// this.
+	opts.Env["CMDLINE_PREFIX"] = ""
 	return util.TranslateExitCode(ctx.Run().CommandWithOpts(opts, goBin, args...))
 }
 
