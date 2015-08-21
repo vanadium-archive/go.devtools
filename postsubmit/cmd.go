@@ -29,7 +29,7 @@ var (
 func init() {
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
 
-	tool.InitializeProjectFlags(&cmdRoot.Flags)
+	tool.InitializeProjectFlags(&cmdPoll.Flags)
 	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
