@@ -23,20 +23,14 @@ import (
 )
 
 var (
-	// flags
-	dryRunFlag      bool
 	jenkinsHostFlag string
-	manifestFlag    string
-	colorFlag       bool
-	verboseFlag     bool
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&dryRunFlag, "n", false, "Show what commands will run but do not execute them.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&jenkinsHostFlag, "host", "", "The Jenkins host. Presubmit will not send any CLs to an empty host.")
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdPoll.Flags.StringVar(&manifestFlag, "manifest", "", "Name of the project manifest.")
+
+	tool.InitializeProjectFlags(&cmdRoot.Flags)
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 func main() {
