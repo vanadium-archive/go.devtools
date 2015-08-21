@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"v.io/x/devtools/v23/testdata/generate/transitive/lib"
+	"v.io/x/devtools/v23-test/testdata/generate/transitive/lib"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/modules"
 )

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/x/devtools/internal/tool"
+	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -134,13 +136,21 @@ func copyAll(dstdir, srcdir, prefix string) error {
 	return nil
 }
 
-// TestV23TestGenerateTestdata runs "go test" against all packages under
-// testdata/generate.  These are normally skipped since they're under a testdata
-// directory.
+// TestV23TestGenerateTestdata runs "go test" against all packages
+// under testdata/generate. These are normally skipped since they're
+// under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
+	ctx := tool.NewDefaultContext()
+	env, err := util.VanadiumEnvironment(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	opts := ctx.Run().Opts()
 	var out bytes.Buffer
-	env := &cmdline.Env{Stdout: &out, Stderr: &out}
-	if err := runGo(env, []string{"test", "./testdata/generate/...", "-v", "-v23.tests"}); err != nil {
+	opts.Stdout = &out
+	opts.Stderr = &out
+	opts.Env = env.ToMap()
+	if err := ctx.Run().CommandWithOpts(opts, "go", "test", "./testdata/generate/...", "-v", "-v23.tests"); err != nil {
 		t.Log(out.String())
 		t.Errorf("tests under testdata/generate failed: %v", err)
 	}

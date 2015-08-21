@@ -123,10 +123,10 @@ var (
 	wantBuild = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Build",
 					},
 				},
@@ -137,30 +137,30 @@ var (
 	wantTest = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test1",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test2",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test3",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23B",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23Hello",
 					},
 				},
@@ -172,18 +172,18 @@ var (
 	wantV23Test = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23B",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23Hello",
 					},
 				},
@@ -195,14 +195,14 @@ var (
 	wantV23TestWithExcludedTests = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23Hello",
 					},
 				},
@@ -214,10 +214,10 @@ var (
 	wantRegressionTest = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23Hello",
 					},
 				},
@@ -229,30 +229,30 @@ var (
 	wantTestWithSuffix = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test1 [Suffix]",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test2 [Suffix]",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test3 [Suffix]",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23 [Suffix]",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23B [Suffix]",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23Hello [Suffix]",
 					},
 				},
@@ -264,22 +264,22 @@ var (
 	wantTestWithExcludedTests = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "Test1",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23B",
 					},
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 						Name:      "TestV23Hello",
 					},
 				},
@@ -296,14 +296,14 @@ var (
 		BranchRate: 0,
 		Packages: []testCoveragePkg{
 			testCoveragePkg{
-				Name:       "v.io/x/devtools/v23/internal/test/testdata/foo",
+				Name:       "v.io/x/devtools/v23-test/internal/test/testdata/foo",
 				LineRate:   0,
 				BranchRate: 0,
 				Complexity: 0,
 				Classes: []testCoverageClass{
 					testCoverageClass{
 						Name:       "-",
-						Filename:   "v.io/x/devtools/v23/internal/test/testdata/foo/foo.go",
+						Filename:   "v.io/x/devtools/v23-test/internal/test/testdata/foo/foo.go",
 						LineRate:   0,
 						BranchRate: 0,
 						Complexity: 0,
@@ -330,7 +330,7 @@ var (
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	testName, pkgName := "test-go-build", "v.io/x/devtools/v23/internal/test/testdata/foo"
+	testName, pkgName := "test-go-build", "v.io/x/devtools/v23-test/internal/test/testdata/foo"
 
 	cleanup, err := initTest(ctx, testName, []string{})
 	if err != nil {
@@ -365,7 +365,7 @@ func TestGoBuild(t *testing.T) {
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	testName, pkgName := "test-go-coverage", "v.io/x/devtools/v23/internal/test/testdata/foo"
+	testName, pkgName := "test-go-coverage", "v.io/x/devtools/v23-test/internal/test/testdata/foo"
 
 	cleanup, err := initTest(ctx, testName, []string{})
 	if err != nil {
@@ -426,22 +426,22 @@ func TestGoTestWithSuffix(t *testing.T) {
 // test based test logic.
 func TestGoTestWithExcludedTests(t *testing.T) {
 	exclusions := []exclusion{
-		newExclusion("v.io/x/devtools/v23/internal/test/testdata/foo", "Test2", true),
-		newExclusion("v.io/x/devtools/v23/internal/test/testdata/foo", "Test3", true),
+		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "Test2", true),
+		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "Test3", true),
 	}
 	runGoTest(t, "", exclusions, wantTestWithExcludedTests)
 }
 
 func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 	exclusions := []exclusion{
-		newExclusion("v.io/x/devtools/v23/internal/test/testdata/foo", "Test[23]$", true),
+		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "Test[23]$", true),
 	}
 	runGoTest(t, "", exclusions, wantTestWithExcludedTests)
 }
 
 func TestGoTestExcludedPackage(t *testing.T) {
 	exclusions := []exclusion{
-		newExclusion("v.io/x/devtools/v23/internal/test/testdata/foo", ".*", true),
+		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", ".*", true),
 	}
 	runGoTest(t, "", exclusions, wantExcludedPackage)
 }
@@ -452,7 +452,7 @@ func TestGoTestV23(t *testing.T) {
 
 func TestGoTestV23WithExcludedTests(t *testing.T) {
 	exclusions := []exclusion{
-		newExclusion("v.io/x/devtools/v23/internal/test/testdata/foo", "TestV23B", true),
+		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "TestV23B", true),
 	}
 	runGoTest(t, "", exclusions, wantV23TestWithExcludedTests, funcMatcherOpt{&matchV23TestFunc{testNameRE: integrationTestNameRE}}, nonTestArgsOpt([]string{"--v23.tests"}))
 }
@@ -464,7 +464,7 @@ func TestRegressionTest(t *testing.T) {
 
 func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTestSuite xunit.TestSuites, testOpts ...goTestOpt) {
 	ctx := tool.NewDefaultContext()
-	testName, pkgName := "test-go-test", "v.io/x/devtools/v23/internal/test/testdata/foo"
+	testName, pkgName := "test-go-test", "v.io/x/devtools/v23-test/internal/test/testdata/foo"
 
 	cleanup, err := initTest(ctx, testName, []string{})
 	if err != nil {

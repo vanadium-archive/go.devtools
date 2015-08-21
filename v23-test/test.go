@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -11,7 +14,7 @@ import (
 
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
-	v23test "v.io/x/devtools/v23/internal/test"
+	v23test "v.io/x/devtools/v23-test/internal/test"
 	"v.io/x/lib/cmdline"
 )
 
@@ -38,6 +41,8 @@ func init() {
 	cmdTestRun.Flags.IntVar(&partFlag, "part", -1, "Specify which part of the test to run.")
 	cmdTestRun.Flags.StringVar(&pkgsFlag, "pkgs", "", "Comma-separated list of Go package expressions that identify a subset of tests to run; only relevant for Go-based tests")
 	cmdTestRun.Flags.BoolVar(&cleanGoFlag, "clean-go", true, "Specify whether to remove Go object files and binaries before running the tests. Setting this flag to 'false' may lead to faster Go builds, but it may also result in some source code changes not being reflected in the tests (e.g., if the change was made in a different Go workspace).")
+
+	tool.InitializeRunFlags(&cmdTest.Flags)
 }
 
 // cmdTest represents the "v23 test" command.
@@ -170,4 +175,8 @@ func runTestList(env *cmdline.Env, _ []string) error {
 		fmt.Fprintf(ctx.Stdout(), "%v\n", test)
 	}
 	return nil
+}
+
+func main() {
+	cmdline.Main(cmdTest)
 }
