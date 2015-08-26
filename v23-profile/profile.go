@@ -14,6 +14,9 @@
 // <knownProfiles> and implementation of both the install and
 // uninstall logic is provided.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -106,6 +109,10 @@ const (
 	defaultFileMode         = os.FileMode(0644)
 	numRetries              = 3 // Number of retries for profile installation
 )
+
+func init() {
+	tool.InitializeRunFlags(&cmdProfile.Flags)
+}
 
 // cmdProfile represents the "v23 profile" command.
 var cmdProfile = &cmdline.Command{
@@ -1616,4 +1623,8 @@ func runProfileUpdate(env *cmdline.Env, args []string) error {
 		}
 	}
 	return nil
+}
+
+func main() {
+	cmdline.Main(cmdProfile)
 }
