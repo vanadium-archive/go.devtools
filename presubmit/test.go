@@ -182,7 +182,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	defer collect.Error(func() error { return ctx.Run().RemoveAll(outputDir) }, &e)
 
 	v23Args := []string{
-		"test", "run",
+		"run",
 		"-output-dir", outputDir,
 	}
 	if partIndex != -1 {
@@ -192,7 +192,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 
 	opts := ctx.Run().Opts()
 	opts.Env = env
-	if err := ctx.Run().CommandWithOpts(opts, "v23", v23Args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "v23-test", v23Args...); err != nil {
 		// Check the error status to differentiate failed test errors.
 		exiterr, ok := err.(*exec.ExitError)
 		if !ok {
