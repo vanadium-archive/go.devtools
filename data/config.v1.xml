@@ -23,6 +23,7 @@
     <project>roadmap.go.syncbase</project>
     <project>roadmap.js.syncbase</project>
     <project>roadmap.mojo.syncbase</project>
+    <project>roadmap.projects.croupier</project>
     <project>www</project>
   </copyrightCheckProjects>
   <goWorkspaces>
