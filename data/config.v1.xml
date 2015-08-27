@@ -22,6 +22,7 @@
     <project>release.projects.todos</project>
     <project>roadmap.go.syncbase</project>
     <project>roadmap.js.syncbase</project>
+    <project>roadmap.mojo.syncbase</project>
     <project>www</project>
   </copyrightCheckProjects>
   <goWorkspaces>
