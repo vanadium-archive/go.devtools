@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -12,6 +15,10 @@ import (
 	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
+
+func init() {
+	tool.InitializeRunFlags(&cmdOncall.Flags)
+}
 
 // cmdOncall represents the "v23 oncall" command.
 var cmdOncall = &cmdline.Command{
@@ -73,4 +80,8 @@ func runOncallList(env *cmdline.Env, _ []string) error {
 		fmt.Fprintf(ctx.Stdout(), "%s%25s: %s\n", prefix, shift.Date, shift.Primary)
 	}
 	return nil
+}
+
+func main() {
+	cmdline.Main(cmdOncall)
 }
