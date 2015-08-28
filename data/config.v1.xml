@@ -200,7 +200,12 @@
       <test>vanadium-go-race</test>
       <test>vanadium-go-test</test>
       <test>vanadium-go-vdl</test>
+      <!-- TODO(sjr) figure out what to do with go vet. It currently produces
+           false positives which we can't workaround with CLs like
+           https://vanadium.googlesource.com/third_party/+/5e07c533eb2dfa525b5d0f3782112a2a5c4b6912,
+           because go vet moved back into core go as of Go1.5.
       <test>vanadium-go-vet</test>
+      -->
       <test>vanadium-integration-test</test>
       <test>vanadium-regression-test</test>
       <test>vanadium-prod-services-test</test>
