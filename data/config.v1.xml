@@ -11,6 +11,7 @@
     <project>release.go.x.lib</project>
     <project>release.go.x.ref</project>
     <project>release.js.core</project>
+    <project>release.js.syncbase</project>
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
     <project>release.projects.media-sharing</project>
