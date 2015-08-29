@@ -18,7 +18,6 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -187,36 +186,6 @@ func processBuildOutput(pkg, output string, suite *xunit.TestSuite, seenPkgs map
 	suite.Tests++
 	suite.Failures++
 	suite.Cases = append(suite.Cases, c)
-}
-
-// buildWorker builds packages.
-func buildWorker(ctx *tool.Context, args []string, pkgs <-chan string, results chan<- buildResult) {
-	opts := ctx.Run().Opts()
-	opts.Verbose = false
-	for pkg := range pkgs {
-		var out bytes.Buffer
-		// The "leveldb" tag is needed to compile the levelDB-based
-		// storage engine for the groups service. See v.io/i/632 for more
-		// details.
-		args := append([]string{"go", "build", "-tags=leveldb", "-o", filepath.Join(binDirPath(), path.Base(pkg))}, args...)
-		args = append(args, pkg)
-		opts.Stdout = &out
-		opts.Stderr = &out
-		start := time.Now()
-		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
-		duration := time.Now().Sub(start)
-		result := buildResult{
-			pkg:    pkg,
-			time:   duration,
-			output: out.String(),
-		}
-		if err != nil {
-			result.status = buildFailed
-		} else {
-			result.status = buildPassed
-		}
-		results <- result
-	}
 }
 
 type coverageResult struct {
