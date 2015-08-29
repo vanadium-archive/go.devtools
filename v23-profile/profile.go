@@ -1042,7 +1042,13 @@ func installSyncbaseDarwin(ctx *tool.Context, target profileTarget) error {
 func installSyncbaseLinux(ctx *tool.Context, target profileTarget) error {
 	// Install dependencies.
 	pkgs := []string{
-		"autoconf", "automake", "g++", "g++-multilib", "gcc-multilib", "libtool", "pkg-config",
+		// libssl-dev is technically not specific to syncbase, it is
+		// required for all vanadium on linux/amd64. However, at the
+		// time this was added here, "syncbase" was the only "required"
+		// profile, so inserting it here to ensure that it is
+		// installed.
+		// TODO(ashankar): Figure this out!
+		"autoconf", "automake", "g++", "g++-multilib", "gcc-multilib", "libtool", "libssl-dev", "pkg-config",
 	}
 	if err := installDeps(ctx, pkgs); err != nil {
 		return err
