@@ -48,7 +48,8 @@ func caseMatch(c1, c2 xunit.TestCase) bool {
 	if !reflect.DeepEqual(c1.Errors, c2.Errors) {
 		return false
 	}
-	if !reflect.DeepEqual(c1.Failures, c2.Failures) {
+	// We only compare number of failures.
+	if len(c1.Failures) != len(c2.Failures) {
 		return false
 	}
 	return true
@@ -123,14 +124,21 @@ var (
 	wantBuild = xunit.TestSuites{
 		Suites: []xunit.TestSuite{
 			xunit.TestSuite{
-				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo2",
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
-						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo",
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo2",
 						Name:      "Build",
+						Failures: []xunit.Failure{
+							xunit.Failure{
+								Message: "build",
+								Data:    "...missing return at end of the function",
+							},
+						},
 					},
 				},
-				Tests: 1,
+				Tests:    1,
+				Failures: 1,
 			},
 		},
 	}
@@ -330,35 +338,56 @@ var (
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	testName, pkgName := "test-go-build", "v.io/x/devtools/v23-test/internal/test/testdata/foo"
-
+	testName := "test-go-build"
 	cleanup, err := initTest(ctx, testName, []string{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer cleanup()
 
-	result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if got, want := result.Status, test.Passed; got != want {
-		t.Fatalf("unexpected result: got %s, want %s", got, want)
+	// This package will pass.
+	{
+		pkgName := "v.io/x/devtools/v23-test/internal/test/testdata/foo"
+		result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if got, want := result.Status, test.Passed; got != want {
+			t.Fatalf("unexpected result: got %s, want %s", got, want)
+		}
+
+		// When test passes, there shouldn't be any xunit report.
+		xUnitFile := xunit.ReportPath(testName)
+		if _, err := os.Stat(xUnitFile); err == nil {
+			t.Fatalf("want no xunit report, but got one %q", xUnitFile)
+		}
 	}
 
-	// Check the xUnit report.
-	xUnitFile := xunit.ReportPath(testName)
-	data, err := ioutil.ReadFile(xUnitFile)
-	if err != nil {
-		t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
-	}
-	defer os.RemoveAll(xUnitFile)
-	var gotBuild xunit.TestSuites
-	if err := xml.Unmarshal(data, &gotBuild); err != nil {
-		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
-	}
-	if !suitesMatch(gotBuild, wantBuild) {
-		t.Fatalf("unexpected result:\ngot\n%v\nwant\n%v", gotBuild, wantBuild)
+	// This package will fail.
+	{
+		pkgName := "v.io/x/devtools/v23-test/internal/test/testdata/foo2"
+		result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if got, want := result.Status, test.Failed; got != want {
+			t.Fatalf("unexpected result: got %s, want %s", got, want)
+		}
+
+		// Check the xUnit report.
+		xUnitFile := xunit.ReportPath(testName)
+		data, err := ioutil.ReadFile(xUnitFile)
+		if err != nil {
+			t.Fatalf("ReadFile(%v) failed: %v", xUnitFile, err)
+		}
+		defer os.RemoveAll(xUnitFile)
+		var gotBuild xunit.TestSuites
+		if err := xml.Unmarshal(data, &gotBuild); err != nil {
+			t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
+		}
+		if !suitesMatch(gotBuild, wantBuild) {
+			t.Fatalf("unexpected result:\ngot\n%#v\nwant\n%#v", gotBuild, wantBuild)
+		}
 	}
 }
 

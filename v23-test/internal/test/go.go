@@ -5,6 +5,7 @@
 package test
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -110,62 +112,81 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 		}
 	}
 
-	// Enumerate the packages to be built.
-	pkgList, err := goutil.List(ctx, pkgs...)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a pool of workers.
-	numPkgs := len(pkgList)
-	tasks := make(chan string, numPkgs)
-	taskResults := make(chan buildResult, numPkgs)
-	for i := 0; i < runtime.NumCPU(); i++ {
-		go buildWorker(ctx, args, tasks, taskResults)
-	}
-
-	// Distribute work to workers.
-	for _, pkg := range pkgList {
-		tasks <- pkg
-	}
-	close(tasks)
-
-	// Collect the results.
+	// For better performance, we don't call goutil.List to get all packages and
+	// distribute those packages to build workers. Instead, we use "go build"
+	// to build "top level" packages stored in "pkgs" which is much faster.
 	allPassed, suites := true, []xunit.TestSuite{}
-	for i := 0; i < numPkgs; i++ {
-		result := <-taskResults
-		s := xunit.TestSuite{Name: result.pkg}
-		c := xunit.TestCase{
-			Classname: result.pkg,
-			Name:      "Build",
-			Time:      fmt.Sprintf("%.2f", result.time.Seconds()),
+	for _, pkg := range pkgs {
+		// Build package.
+		var out bytes.Buffer
+		// The "leveldb" tag is needed to compile the levelDB-based
+		// storage engine for the groups service. See v.io/i/632 for more
+		// details.
+		args := append([]string{"go", "build", "-v", "-tags=leveldb"}, args...)
+		args = append(args, pkg)
+		opts := ctx.Run().Opts()
+		opts.Stdout = io.MultiWriter(&out, opts.Stdout)
+		opts.Stderr = io.MultiWriter(&out, opts.Stdout)
+		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
+		if err == nil {
+			continue
 		}
-		if result.status != buildPassed {
-			test.Fail(ctx, "%s\n%v\n", result.pkg, result.output)
-			f := xunit.Failure{
-				Message: "build",
-				Data:    result.output,
+
+		// Parse build output to get failed packages and generate xunit test cases
+		// for them.
+		allPassed = false
+		s := xunit.TestSuite{Name: pkg}
+		curPkg := ""
+		curOutputLines := []string{}
+		seenPkgs := map[string]struct{}{}
+		scanner := bufio.NewScanner(bytes.NewReader(out.Bytes()))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "# ") {
+				if curPkg != "" {
+					curOutput := strings.Join(curOutputLines, "\n")
+					processBuildOutput(curPkg, curOutput, &s, seenPkgs)
+				}
+				curPkg = line[2:]
+				curOutputLines = nil
+			} else {
+				curOutputLines = append(curOutputLines, line)
 			}
-			c.Failures = append(c.Failures, f)
-			allPassed = false
-			s.Failures++
-		} else {
-			test.Pass(ctx, "%s\n", result.pkg)
 		}
-		s.Tests++
-		s.Cases = append(s.Cases, c)
+		curOutput := strings.Join(curOutputLines, "\n")
+		processBuildOutput(curPkg, curOutput, &s, seenPkgs)
 		suites = append(suites, s)
 	}
-	close(taskResults)
 
-	// Create the xUnit report.
-	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
-		return nil, err
-	}
+	// Create the xUnit report when some builds failed.
 	if !allPassed {
+		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+			return nil, err
+		}
 		return &test.Result{Status: test.Failed}, nil
 	}
 	return &test.Result{Status: test.Passed}, nil
+}
+
+func processBuildOutput(pkg, output string, suite *xunit.TestSuite, seenPkgs map[string]struct{}) {
+	if strings.HasPrefix(output, "link: warning") {
+		return
+	}
+	if _, ok := seenPkgs[pkg]; ok {
+		return
+	}
+	seenPkgs[pkg] = struct{}{}
+	c := xunit.TestCase{
+		Classname: pkg,
+		Name:      "Build",
+	}
+	c.Failures = append(c.Failures, xunit.Failure{
+		Message: "build",
+		Data:    output,
+	})
+	suite.Tests++
+	suite.Failures++
+	suite.Cases = append(suite.Cases, c)
 }
 
 // buildWorker builds packages.
@@ -1071,11 +1092,24 @@ func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test
 	if err != nil {
 		return nil, err
 	}
-	validatedPkgs, err := validateAgainstDefaultPackages(ctx, opts, pkgs)
+	_, err = validateAgainstDefaultPackages(ctx, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
-	return goBuild(ctx, testName, validatedPkgs)
+
+	// Get packages options. If unset, use "pkgs" above as the default.
+	optPkgs := []string{}
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case PkgsOpt:
+			optPkgs = []string(v)
+		}
+	}
+	if len(optPkgs) == 0 {
+		optPkgs = pkgs
+	}
+
+	return goBuild(ctx, testName, pkgsOpt(optPkgs))
 }
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
@@ -1231,13 +1265,25 @@ func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 		return nil, internalTestError{err, "Init"}
 	}
 
-	// Build the Vanadium Go packages.
+	// Validate packages.
 	defer collect.Error(func() error { return cleanup() }, &e)
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	_, err = validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
-	return goBuild(ctx, testName, pkgs)
+
+	// Get packages options. If unset, use "v.io/..." as the default.
+	optPkgs := []string{}
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case PkgsOpt:
+			optPkgs = []string(v)
+		}
+	}
+	if len(optPkgs) == 0 {
+		optPkgs = []string{"v.io/..."}
+	}
+	return goBuild(ctx, testName, pkgsOpt(optPkgs))
 }
 
 // vanadiumGoCoverage runs Go coverage tests for vanadium projects.
