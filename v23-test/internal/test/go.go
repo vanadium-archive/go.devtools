@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -47,6 +48,11 @@ const (
 	testPassed
 	testFailed
 	testTimedout
+)
+
+const (
+	escNewline = "&#xA;"
+	escTab     = "&#x9;"
 )
 
 type buildResult struct {
@@ -670,13 +676,26 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 					// graphing.
 					fmt.Fprintf(ctx.Stdout(), result.output)
 				}
-				ss, err := xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
-				if err != nil {
-					// Token too long error.
-					if !strings.HasSuffix(err.Error(), "token too long") {
-						return nil, suites, err
+				var ss *xunit.TestSuite
+				// Escape test output to make sure go2xunit can process it.
+				var escapedOutput bytes.Buffer
+				if err := xml.EscapeText(&escapedOutput, []byte(result.output)); err != nil {
+					msg := fmt.Sprintf("failed to escape test output:\n%s\n", result.output)
+					ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", msg, "", result.time)
+				} else {
+					// xml.EscapeTest also escapes newlines and tabs.
+					// We want to keep them unescaped so that go2xunit can correctly parse
+					// the output.
+					output := strings.Replace(escapedOutput.String(), escNewline, "\n", -1)
+					output = strings.Replace(output, escTab, "\t", -1)
+					var err error
+					if ss, err = xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(output)); err != nil {
+						// Token too long error.
+						if !strings.HasSuffix(err.Error(), "token too long") {
+							return nil, suites, err
+						}
+						ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 					}
-					ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 				}
 				if ss.Skip > 0 {
 					for _, c := range ss.Cases {
