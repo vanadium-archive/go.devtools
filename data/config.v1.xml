@@ -242,12 +242,13 @@
   </testGroups>
   <testParts>
     <test name="vanadium-go-race">
-      <part>v.io/x/ref/services/device/internal/...</part>
+      <part>v.io/x/ref/services/device/...</part>
+      <part>v.io/x/ref/services/internal/...</part>
+      <part>v.io/x/ref/services/...</part>
       <part>v.io/x/ref/runtime/internal/rpc/...</part>
       <part>v.io/x/ref/runtime/...</part>
-      <part>v.io/x/ref/services/device/deviced/internal/impl/...</part>
-      <part>v.io/x/ref/services/...</part>
       <part>v.io/syncbase/...</part>
+      <part>v.io/x/devtools/...</part>
     </test>
   </testParts>
   <vdlWorkspaces>
