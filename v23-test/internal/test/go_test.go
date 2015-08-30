@@ -20,10 +20,23 @@ import (
 	"v.io/x/devtools/internal/xunit"
 )
 
+// failuresMatch checks whether the given test failures match modulo their
+// data field.
+func failuresMatch(fs1, fs2 []xunit.Failure) bool {
+	if len(fs1) != len(fs2) {
+		return false
+	}
+	for i := 0; i < len(fs1); i++ {
+		if fs1[i].Message != fs2[i].Message {
+			return false
+		}
+	}
+	return true
+}
+
 // caseMatch checks whether the given test cases match modulo their
 // execution time.
 func caseMatch(c1, c2 xunit.TestCase) bool {
-
 	// Test names can have a CPU count appended to them (e.g. TestFoo-12)
 	// so we take care to strip that out when comparing with
 	// expected results.
@@ -48,8 +61,7 @@ func caseMatch(c1, c2 xunit.TestCase) bool {
 	if !reflect.DeepEqual(c1.Errors, c2.Errors) {
 		return false
 	}
-	// We only compare number of failures.
-	if len(c1.Failures) != len(c2.Failures) {
+	if !failuresMatch(c1.Failures, c2.Failures) {
 		return false
 	}
 	return true
@@ -131,7 +143,7 @@ var (
 						Name:      "Build",
 						Failures: []xunit.Failure{
 							xunit.Failure{
-								Message: "build",
+								Message: "build failure",
 								Data:    "...missing return at end of the function",
 							},
 						},
@@ -299,6 +311,26 @@ var (
 	wantExcludedPackage = xunit.TestSuites{
 		Suites: []xunit.TestSuite{},
 	}
+	wantTestWithTimeout = xunit.TestSuites{
+		Suites: []xunit.TestSuite{
+			xunit.TestSuite{
+				Name: "v.io/x/devtools/v23-test/internal/test/testdata/foo_timeout",
+				Cases: []xunit.TestCase{
+					xunit.TestCase{
+						Classname: "v.io/x/devtools/v23-test/internal/test/testdata/foo_timeout",
+						Name:      "Test",
+						Failures: []xunit.Failure{
+							xunit.Failure{
+								Message: "test timed out after 1s",
+							},
+						},
+					},
+				},
+				Tests:    1,
+				Failures: 1,
+			},
+		},
+	}
 	wantCoverage = testCoverage{
 		LineRate:   0,
 		BranchRate: 0,
@@ -442,13 +474,13 @@ func TestGoCoverage(t *testing.T) {
 
 // TestGoTest checks the Go test based test logic.
 func TestGoTest(t *testing.T) {
-	runGoTest(t, "", nil, wantTest)
+	runGoTest(t, "", nil, wantTest, test.Passed, "foo")
 }
 
 // TestGoTestWithSuffix checks the suffix mode of Go test based test
 // logic.
 func TestGoTestWithSuffix(t *testing.T) {
-	runGoTest(t, "[Suffix]", nil, wantTestWithSuffix)
+	runGoTest(t, "[Suffix]", nil, wantTestWithSuffix, test.Passed, "foo")
 }
 
 // TestGoTestWithExcludedTests checks the excluded test mode of Go
@@ -458,42 +490,46 @@ func TestGoTestWithExcludedTests(t *testing.T) {
 		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "Test2", true),
 		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "Test3", true),
 	}
-	runGoTest(t, "", exclusions, wantTestWithExcludedTests)
+	runGoTest(t, "", exclusions, wantTestWithExcludedTests, test.Passed, "foo")
 }
 
 func TestGoTestWithExcludedTestsWithWildcards(t *testing.T) {
 	exclusions := []exclusion{
 		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "Test[23]$", true),
 	}
-	runGoTest(t, "", exclusions, wantTestWithExcludedTests)
+	runGoTest(t, "", exclusions, wantTestWithExcludedTests, test.Passed, "foo")
 }
 
 func TestGoTestExcludedPackage(t *testing.T) {
 	exclusions := []exclusion{
 		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", ".*", true),
 	}
-	runGoTest(t, "", exclusions, wantExcludedPackage)
+	runGoTest(t, "", exclusions, wantExcludedPackage, test.Passed, "foo")
+}
+
+func TestGoTestWithTimeout(t *testing.T) {
+	runGoTest(t, "", nil, wantTestWithTimeout, test.Failed, "foo_timeout", timeoutOpt("1s"))
 }
 
 func TestGoTestV23(t *testing.T) {
-	runGoTest(t, "", nil, wantV23Test, funcMatcherOpt{&matchV23TestFunc{testNameRE: integrationTestNameRE}}, nonTestArgsOpt([]string{"--v23.tests"}))
+	runGoTest(t, "", nil, wantV23Test, test.Passed, "foo", funcMatcherOpt{&matchV23TestFunc{testNameRE: integrationTestNameRE}}, nonTestArgsOpt([]string{"--v23.tests"}))
 }
 
 func TestGoTestV23WithExcludedTests(t *testing.T) {
 	exclusions := []exclusion{
 		newExclusion("v.io/x/devtools/v23-test/internal/test/testdata/foo", "TestV23B", true),
 	}
-	runGoTest(t, "", exclusions, wantV23TestWithExcludedTests, funcMatcherOpt{&matchV23TestFunc{testNameRE: integrationTestNameRE}}, nonTestArgsOpt([]string{"--v23.tests"}))
+	runGoTest(t, "", exclusions, wantV23TestWithExcludedTests, test.Passed, "foo", funcMatcherOpt{&matchV23TestFunc{testNameRE: integrationTestNameRE}}, nonTestArgsOpt([]string{"--v23.tests"}))
 }
 
 func TestRegressionTest(t *testing.T) {
 	config := defaultRegressionConfig()
-	runGoTest(t, "", nil, wantRegressionTest, funcMatcherOpt{&matchV23TestFunc{testNameRE: regexp.MustCompile(config.Tests)}}, nonTestArgsOpt([]string{"--v23.tests"}))
+	runGoTest(t, "", nil, wantRegressionTest, test.Passed, "foo", funcMatcherOpt{&matchV23TestFunc{testNameRE: regexp.MustCompile(config.Tests)}}, nonTestArgsOpt([]string{"--v23.tests"}))
 }
 
-func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTestSuite xunit.TestSuites, testOpts ...goTestOpt) {
+func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTestSuite xunit.TestSuites, expectedStatus test.Status, subPkg string, testOpts ...goTestOpt) {
 	ctx := tool.NewDefaultContext()
-	testName, pkgName := "test-go-test", "v.io/x/devtools/v23-test/internal/test/testdata/foo"
+	testName, pkgName := "test-go-test", fmt.Sprintf("v.io/x/devtools/v23-test/internal/test/testdata/%s", subPkg)
 
 	cleanup, err := initTest(ctx, testName, []string{})
 	if err != nil {
@@ -511,7 +547,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if got, want := result.Status, test.Passed; got != want {
+	if got, want := result.Status, expectedStatus; got != want {
 		t.Fatalf("unexpected result: got %s, want %s", got, want)
 	}
 

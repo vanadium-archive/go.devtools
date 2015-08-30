@@ -186,7 +186,7 @@ func processBuildOutput(pkg, output string, suite *xunit.TestSuite, seenPkgs map
 		Name:      "Build",
 	}
 	c.Failures = append(c.Failures, xunit.Failure{
-		Message: "build",
+		Message: "build failure",
 		Data:    output,
 	})
 	suite.Tests++
@@ -663,6 +663,8 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 		switch result.status {
 		case buildFailed:
 			s = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time)
+		case testTimedout:
+			s = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", fmt.Sprintf("test timed out after %s", timeout), "", result.time)
 		case testFailed, testPassed:
 			if strings.Index(result.output, "no test files") == -1 &&
 				strings.Index(result.output, "package excluded") == -1 {
@@ -713,7 +715,11 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 		if s != nil {
 			if s.Failures > 0 {
 				allPassed = false
-				test.Fail(ctx, "%s\n%v\n", result.pkg, result.output)
+				if result.status == testTimedout {
+					test.Fail(ctx, "[TIMED OUT after %s] %s\n", timeout, result.pkg)
+				} else {
+					test.Fail(ctx, "%s\n%v\n", result.pkg, result.output)
+				}
 			} else {
 				test.Pass(ctx, "%s\n", result.pkg)
 			}
@@ -743,6 +749,12 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 		SkippedTests:  skippedTests,
 	}
 	if !allPassed {
+		// We don't set testResult.Status to TimedOut when any pkgs timed out so
+		// that the final test report contains individual test failures/timeouts.
+		// If testResult.Status is set to TimedOut, the upstream code will generate
+		// a test report that only has a single failed test case saying the whole
+		// test timed out. This behavior is useful for other tests (e.g. js tests)
+		// but not here.
 		testResult.Status = test.Failed
 	}
 	return testResult, suites, nil

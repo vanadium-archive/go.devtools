@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package foo
+package foo_timeout_test
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
-func Test2(t *testing.T) {}
-
-func Test3(f *testing.T) {}
+func TestWithSleep(t *testing.T) {
+	time.Sleep(3 * time.Second)
+}
