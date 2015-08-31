@@ -237,6 +237,7 @@
   <testParts>
     <test name="vanadium-go-race">
       <part>v.io/x/ref/services/device/...</part>
+      <part>v.io/x/ref/services/agent/...,v.io/x/ref/services/internal/...,v.io/x/ref/services/syncbase/...</part>
       <part>v.io/x/ref/services/...</part>
       <part>v.io/x/ref/runtime/...</part>
       <part>v.io/x/ref/...</part>

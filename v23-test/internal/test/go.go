@@ -1501,15 +1501,11 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 	// Get packages specified in test-parts before the current index.
 	existingPartsPkgs := map[string]struct{}{}
 	for i := 0; i < index; i++ {
-		pkgSpec := parts[i]
-		pkgs := strings.Split(pkgSpec, ",")
-		for _, pkg := range pkgs {
-			curPkgs, err := goutil.List(ctx, pkg)
-			if err != nil {
-				return nil, err
-			}
-			set.String.Union(existingPartsPkgs, set.String.FromSlice(curPkgs))
+		curPkgs, err := getPkgsFromSpec(ctx, parts[i])
+		if err != nil {
+			return nil, err
 		}
+		set.String.Union(existingPartsPkgs, set.String.FromSlice(curPkgs))
 	}
 
 	// Get packages for the current index.
@@ -1518,10 +1514,11 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 		return nil, err
 	}
 	if index < len(parts) {
-		pkgs, err = goutil.List(ctx, parts[index])
+		curPkgs, err := getPkgsFromSpec(ctx, parts[index])
 		if err != nil {
 			return nil, err
 		}
+		pkgs = curPkgs
 	}
 
 	// Exclude "existingPartsPkgs" from "pkgs".
@@ -1532,6 +1529,22 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 		}
 	}
 	return pkgsOpt(rest), nil
+}
+
+// getPkgsFromSpec parses the given pkgSpec (a common-separated pkg names) and
+// returns a union of all expanded packages.
+// TODO(jingjin): test this function.
+func getPkgsFromSpec(ctx *tool.Context, pkgSpec string) ([]string, error) {
+	expandedPkgs := map[string]struct{}{}
+	pkgs := strings.Split(pkgSpec, ",")
+	for _, pkg := range pkgs {
+		curPkgs, err := goutil.List(ctx, pkg)
+		if err != nil {
+			return nil, err
+		}
+		set.String.Union(expandedPkgs, set.String.FromSlice(curPkgs))
+	}
+	return set.String.ToSlice(expandedPkgs), nil
 }
 
 // vanadiumGoVet runs go vet checks for vanadium projects.
