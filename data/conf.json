@@ -17,7 +17,6 @@
       "release/projects/chat/clients/shell/go",
       "release/projects/pipe2browser/go",
       "roadmap/go",
-      "roadmap/go/src/v.io/syncbase/third_party/go",
       "third_party/go"
   ],
   "vdl-workspaces" : [

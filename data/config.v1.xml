@@ -11,6 +11,7 @@
     <project>release.go.x.lib</project>
     <project>release.go.x.ref</project>
     <project>release.js.core</project>
+    <project>release.js.syncbase</project>
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
     <project>release.projects.media-sharing</project>
@@ -20,8 +21,6 @@
     <project>release.projects.reader</project>
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
-    <project>roadmap.go.syncbase</project>
-    <project>roadmap.js.syncbase</project>
     <project>roadmap.mojo.syncbase</project>
     <project>roadmap.projects.croupier</project>
     <project>www</project>
@@ -36,7 +35,6 @@
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/pipe2browser/go</workspace>
     <workspace>roadmap/go</workspace>
-    <workspace>roadmap/go/src/v.io/syncbase/third_party/go</workspace>
     <workspace>third_party/go</workspace>
   </goWorkspaces>
   <jenkinsMatrixJobs>
@@ -87,6 +85,8 @@
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
+      <test>vanadium-js-syncbase-browser</test>
+      <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="release.java">
       <test>java</test>
@@ -95,6 +95,11 @@
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-copyright</test>
+    </project>
+    <project name="release.js.syncbase">
+      <test>vanadium-copyright</test>
+      <test>vanadium-js-syncbase-browser</test>
+      <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="release.projects.browser">
       <test>vanadium-browser-test</test>
@@ -124,17 +129,6 @@
     <project name="release.projects.travel">
       <test>vanadium-copyright</test>
       <test>vanadium-travel-test</test>
-    </project>
-    <project name="roadmap.go.syncbase">
-      <test>go</test>
-      <test>vanadium-copyright</test>
-      <test>vanadium-js-syncbase-browser</test>
-      <test>vanadium-js-syncbase-node</test>
-    </project>
-    <project name="roadmap.js.syncbase">
-      <test>vanadium-copyright</test>
-      <test>vanadium-js-syncbase-browser</test>
-      <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="third_party">
       <test>go</test>
