@@ -183,7 +183,7 @@ func vanadiumJSSyncbaseBrowser(ctx *tool.Context, testName string, _ ...Opt) (*t
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "roadmap", "javascript", "syncbase")
+	testDir := filepath.Join(root, "release", "javascript", "syncbase")
 	target := "test-integration-browser"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -197,7 +197,7 @@ func vanadiumJSSyncbaseNode(ctx *tool.Context, testName string, _ ...Opt) (*test
 	if err != nil {
 		return nil, err
 	}
-	testDir := filepath.Join(root, "roadmap", "javascript", "syncbase")
+	testDir := filepath.Join(root, "release", "javascript", "syncbase")
 	target := "test-integration-node"
 	env := map[string]string{}
 	setCommonJSEnv(env)
