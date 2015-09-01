@@ -12,6 +12,8 @@
     <project>release.go.x.ref</project>
     <project>release.js.core</project>
     <project>release.js.syncbase</project>
+    <project>release.mojo.shared</project>
+    <project>release.mojo.syncbase</project>
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
     <project>release.projects.media-sharing</project>
@@ -21,7 +23,6 @@
     <project>release.projects.reader</project>
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
-    <project>roadmap.mojo.syncbase</project>
     <project>roadmap.projects.croupier</project>
     <project>www</project>
   </copyrightCheckProjects>
