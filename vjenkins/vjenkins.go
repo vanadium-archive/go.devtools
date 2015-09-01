@@ -9,9 +9,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"v.io/x/devtools/internal/tool"
@@ -96,23 +96,25 @@ func lookupIPAddress(ctx *tool.Context, node string) (string, error) {
 	opts.Stdout = &out
 	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "compute", "instances",
 		"--project", flagProject,
-		"list", "--zones", flagZone, "-r", node); err != nil {
+		"list", "--zones", flagZone, "-r", node, "--format=json"); err != nil {
 		return "", err
 	}
-	// The expected output is two lines, the first one is a header and
-	// the second one is a node description.
-	output := strings.TrimSpace(out.String())
-	lines := strings.Split(output, "\n")
-	if got, want := len(lines), 2; got != want {
-		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", lines, got, want)
+	var instances []struct {
+		Name              string
+		NetworkInterfaces []struct {
+			AccessConfigs []struct {
+				NatIP string
+			}
+		}
 	}
-	// Parse the node information.
-	matches := ipAddressRE.FindStringSubmatch(lines[1])
-	if got, want := len(matches), 7; got != want {
-		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", matches, got, want)
+	if err := json.Unmarshal(out.Bytes(), &instances); err != nil {
+		return "", fmt.Errorf("Unmarshal() failed: %v", err)
 	}
-	// The external IP address is the fifth column.
-	return matches[5], nil
+	if len(instances) != 1 {
+		return "", fmt.Errorf("unexpected output:\n%v", out.String())
+	}
+	instance := instances[0]
+	return instance.NetworkInterfaces[0].AccessConfigs[0].NatIP, nil
 }
 
 // runNodeCreate adds slave node(s) to Jenkins configuration.
