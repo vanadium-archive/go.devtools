@@ -50,6 +50,14 @@
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-www-tutorial</job>
   </jenkinsMatrixJobs>
   <projectTests>
+    <project name="release.go.jiri">
+      <test>go</test>
+      <test>java</test>
+      <test>javascript</test>
+      <test>projects</test>
+      <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
+    </project>
     <project name="release.go.v23">
       <test>go</test>
       <test>java</test>
