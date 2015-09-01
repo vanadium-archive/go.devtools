@@ -33,6 +33,9 @@ var cmdRoot = &cmdline.Command{
 Command v23 is a multi-purpose tool for Vanadium development.
 `,
 	LookPath: true,
+	// TODO(nlacasse): Remove LookPathPrefixes once v23->jiri transition is
+	// complete.
+	LookPathPrefixes: []string{"jiri", "v23"},
 	Children: []*cmdline.Command{
 		cmdCL,
 		cmdContributors,
