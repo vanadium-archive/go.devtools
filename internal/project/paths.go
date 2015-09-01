@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"v.io/x/devtools/internal/tool"
 )
@@ -28,6 +29,10 @@ func DataDirPath(ctx *tool.Context, toolName string) (string, error) {
 		// If the tool name is not set, use "v23" as the default. As a
 		// consequence, any manifest is assumed to specify a "v23" tool.
 		toolName = "v23"
+	}
+	// TODO(jingjin): remove this after the v23->jiri transition.
+	if strings.HasPrefix(toolName, "v23-") {
+		toolName = strings.Replace(toolName, "v23-", "jiri-", -1)
 	}
 	tool, ok := tools[toolName]
 	if !ok {
