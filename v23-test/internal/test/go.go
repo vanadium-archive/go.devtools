@@ -1254,7 +1254,8 @@ func vanadiumGoBench(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 	}
 	args := argsOpt([]string{"-bench", "."})
 	matcher := funcMatcherOpt{&matchGoTestFunc{testNameRE: goBenchNameRE}}
-	return goTestAndReport(ctx, testName, args, matcher, pkgs)
+	timeout := timeoutOpt("1h")
+	return goTestAndReport(ctx, testName, args, matcher, timeout, pkgs)
 }
 
 // vanadiumGoBuild runs Go build for the vanadium projects.
