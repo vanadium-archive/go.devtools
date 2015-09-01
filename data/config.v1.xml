@@ -253,7 +253,6 @@
       <part>v.io/x/ref/services/...</part>
       <part>v.io/x/ref/runtime/...</part>
       <part>v.io/x/ref/...</part>
-      <part>v.io/syncbase/...</part>
       <part>v.io/x/devtools/...</part>
     </test>
   </testParts>
