@@ -14,7 +14,7 @@ import (
 
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/tool"
-	v23test "v.io/x/devtools/v23-test/internal/test"
+	jiriTest "v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
 )
 
@@ -74,7 +74,7 @@ func runTestProject(env *cmdline.Env, args []string) error {
 	}
 	ctx := tool.NewContextFromEnv(env)
 	project := args[0]
-	results, err := v23test.RunProjectTests(ctx, nil, []string{project}, optsFromFlags()...)
+	results, err := jiriTest.RunProjectTests(ctx, nil, []string{project}, optsFromFlags()...)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func runTestRun(env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("unexpected number of arguments")
 	}
 	ctx := tool.NewContextFromEnv(env)
-	results, err := v23test.RunTests(ctx, nil, args, optsFromFlags()...)
+	results, err := jiriTest.RunTests(ctx, nil, args, optsFromFlags()...)
 	if err != nil {
 		return err
 	}
@@ -115,9 +115,9 @@ func runTestRun(env *cmdline.Env, args []string) error {
 	return nil
 }
 
-func optsFromFlags() (opts []v23test.Opt) {
+func optsFromFlags() (opts []jiriTest.Opt) {
 	if partFlag >= 0 {
-		opt := v23test.PartOpt(partFlag)
+		opt := jiriTest.PartOpt(partFlag)
 		opts = append(opts, opt)
 	}
 	pkgs := []string{}
@@ -126,15 +126,15 @@ func optsFromFlags() (opts []v23test.Opt) {
 			pkgs = append(pkgs, pkg)
 		}
 	}
-	opts = append(opts, v23test.PkgsOpt(pkgs))
+	opts = append(opts, jiriTest.PkgsOpt(pkgs))
 	opts = append(opts,
-		v23test.BlessingsRootOpt(blessingsRootFlag),
-		v23test.AdminCredDirOpt(adminCredDirFlag),
-		v23test.NamespaceRootOpt(namespaceRootFlag),
-		v23test.NumWorkersOpt(numWorkersFlag),
-		v23test.OutputDirOpt(outputDirFlag),
-		v23test.PublisherCredDirOpt(publisherCredDirFlag),
-		v23test.CleanGoOpt(cleanGoFlag),
+		jiriTest.BlessingsRootOpt(blessingsRootFlag),
+		jiriTest.AdminCredDirOpt(adminCredDirFlag),
+		jiriTest.NamespaceRootOpt(namespaceRootFlag),
+		jiriTest.NumWorkersOpt(numWorkersFlag),
+		jiriTest.OutputDirOpt(outputDirFlag),
+		jiriTest.PublisherCredDirOpt(publisherCredDirFlag),
+		jiriTest.CleanGoOpt(cleanGoFlag),
 	)
 	return
 }
@@ -166,7 +166,7 @@ var cmdTestList = &cmdline.Command{
 
 func runTestList(env *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(env)
-	testList, err := v23test.ListTests()
+	testList, err := jiriTest.ListTests()
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 		return err

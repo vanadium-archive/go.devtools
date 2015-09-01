@@ -173,7 +173,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		}
 	}
 
-	// Run the tests via "v23 test run" and collect the test results.
+	// Run the tests via "jiri test run" and collect the test results.
 	printf(ctx.Stdout(), "### Running the presubmit test\n")
 	outputDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
@@ -181,18 +181,18 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	}
 	defer collect.Error(func() error { return ctx.Run().RemoveAll(outputDir) }, &e)
 
-	v23Args := []string{
+	jiriArgs := []string{
 		"run",
 		"-output-dir", outputDir,
 	}
 	if partIndex != -1 {
-		v23Args = append(v23Args, "-part", fmt.Sprintf("%d", partIndex))
+		jiriArgs = append(jiriArgs, "-part", fmt.Sprintf("%d", partIndex))
 	}
-	v23Args = append(v23Args, testName)
+	jiriArgs = append(jiriArgs, testName)
 
 	opts := ctx.Run().Opts()
 	opts.Env = env
-	if err := ctx.Run().CommandWithOpts(opts, "v23-test", v23Args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri-test", jiriArgs...); err != nil {
 		// Check the error status to differentiate failed test errors.
 		exiterr, ok := err.(*exec.ExitError)
 		if !ok {
@@ -383,7 +383,7 @@ func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error
 	return nil
 }
 
-// rebuildDeveloperTools rebuilds developer tools (e.g. v23, vdl..) in
+// rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in
 // a temporary directory, which is used to replace
 // V23_ROOT/devtools/bin in the PATH.
 func rebuildDeveloperTools(ctx *tool.Context, projects project.Projects, tools project.Tools, tmpBinDir string) (map[string]string, []error) {

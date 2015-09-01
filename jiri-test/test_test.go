@@ -13,7 +13,7 @@ import (
 	"v.io/x/devtools/internal/project"
 	"v.io/x/devtools/internal/tool"
 	"v.io/x/devtools/internal/util"
-	"v.io/x/devtools/v23-test/internal/test"
+	"v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
 )
 
