@@ -525,7 +525,7 @@ type testResult struct {
 	time     time.Duration
 }
 
-const defaultTestTimeout = "5m"
+const defaultTestTimeout = "20m"
 
 type goTestTask struct {
 	pkg string
@@ -1155,7 +1155,7 @@ func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	args := argsOpt([]string{"-race"})
 	exclusions := append(goExclusions, goRaceExclusions...)
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
-	return goTestAndReport(ctx, testName, suffix, args, exclusionsOpt(exclusions), validatedPkgs)
+	return goTestAndReport(ctx, testName, suffix, args, timeoutOpt("1h"), exclusionsOpt(exclusions), validatedPkgs)
 }
 
 // thirdPartyPkgs returns a list of Go expressions that describe all
@@ -1461,7 +1461,7 @@ func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Re
 	}
 	exclusions := append(goExclusions, goRaceExclusions...)
 	args := argsOpt([]string{"-race"})
-	timeout := timeoutOpt("15m")
+	timeout := timeoutOpt("1h")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
 	return goTestAndReport(ctx, testName, args, timeout, suffix, exclusionsOpt(exclusions), partPkgs)
 }
