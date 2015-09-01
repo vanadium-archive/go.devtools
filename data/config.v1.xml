@@ -12,6 +12,7 @@
     <project>release.go.x.ref</project>
     <project>release.js.core</project>
     <project>release.js.syncbase</project>
+    <project>release.mojo.discovery</project>
     <project>release.mojo.shared</project>
     <project>release.mojo.syncbase</project>
     <project>release.projects.browser</project>
