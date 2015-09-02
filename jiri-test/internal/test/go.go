@@ -1406,8 +1406,12 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 		if err != nil {
 			return nil, err
 		}
+		// Take a copy, otherwise the defer below will refer to 'project' by
+		// reference, causing all the defer blocks to refer to the same
+		// project.
+		localProject := project
 		defer collect.Error(func() error {
-			if err := ctx.Run().Chdir(project.Path); err != nil {
+			if err := ctx.Run().Chdir(localProject.Path); err != nil {
 				return err
 			}
 			if err := ctx.Git().Reset("HEAD"); err != nil {
