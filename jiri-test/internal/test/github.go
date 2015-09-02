@@ -81,7 +81,7 @@ var (
 		Mirror{
 			name:         "todos",
 			googlesource: "https://vanadium.googlesource.com/release.projects.todos",
-			github:       "git@github.com:vanadium/todos",
+			github:       "git@github.com:vanadium/todos.git",
 		},
 		Mirror{
 			name:         "third_party",
