@@ -167,10 +167,11 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	// Rebuild developer tools and override V23_ROOT/devtools/bin.
 	env, errs := rebuildDeveloperTools(ctx, projects, tools, tmpBinDir)
 	if len(errs) > 0 {
-		// Don't fail on errors.
+		errMsgLines := []string{}
 		for _, err := range errs {
-			printf(ctx.Stderr(), "%v\n", err)
+			errMsgLines = append(errMsgLines, err.Error())
 		}
+		return fmt.Errorf("failed to build tools:\n%v", strings.Join(errMsgLines, "\n"))
 	}
 
 	// Run the tests via "jiri test run" and collect the test results.
