@@ -633,7 +633,7 @@ func collectOncallIDsData(ctx *tool.Context, oncall *oncallData) error {
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "oncall"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "oncall"); err != nil {
 		return err
 	}
 	oncall.OncallIDs = strings.TrimSpace(out.String())
