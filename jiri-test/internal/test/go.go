@@ -1372,6 +1372,11 @@ To resolve this problem, run "gofmt -w <file>" for each of them and commit the c
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
 func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+	root, err := project.V23Root()
+	if err != nil {
+		return nil, err
+	}
+
 	// Initialize the test.
 	cleanup, err := initTest(ctx, testName, []string{})
 	if err != nil {
@@ -1426,7 +1431,11 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 		if err != nil {
 			return nil, err
 		}
-		dirtyFiles = append(dirtyFiles, files...)
+		for _, file := range files {
+			path := filepath.Join(project.Path, file)
+			path = strings.TrimPrefix(path, root+string(filepath.Separator))
+			dirtyFiles = append(dirtyFiles, path)
+		}
 	}
 	if len(dirtyFiles) != 0 {
 		output := strings.Join(dirtyFiles, "\n")
