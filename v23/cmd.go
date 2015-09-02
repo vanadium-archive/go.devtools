@@ -2,59 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The following enables go generate to generate the doc.go file.
-//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+// THIS FILE IS DEPRECATED!!!
+// Please edit the new "jiri" tool in release/go/src/v.io/jiri.
 
 package main
 
 import (
-	"fmt"
-	"runtime"
-
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/lib/cmdline"
+	"log"
+	"os"
+	"os/exec"
 )
 
-func init() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	tool.InitializeRunFlags(&cmdRoot.Flags)
-}
-
+// main calls "jiri" tool with whatever arguments it was called with.
 func main() {
-	cmdline.Main(cmdRoot)
-}
-
-// cmdRoot represents the root of the v23 tool.
-var cmdRoot = &cmdline.Command{
-	Name:  "v23",
-	Short: "Multi-purpose tool for Vanadium development",
-	Long: `
-Command v23 is a multi-purpose tool for Vanadium development.
-`,
-	LookPath: true,
-	// TODO(nlacasse): Remove LookPathPrefixes once v23->jiri transition is
-	// complete.
-	LookPathPrefixes: []string{"jiri"},
-	Children: []*cmdline.Command{
-		cmdCL,
-		cmdContributors,
-		cmdProject,
-		cmdSnapshot,
-		cmdUpdate,
-		cmdVersion,
-	},
-}
-
-// cmdVersion represents the "v23 version" command.
-var cmdVersion = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runVersion),
-	Name:   "version",
-	Short:  "Print version",
-	Long:   "Print version of the v23 tool.",
-}
-
-func runVersion(env *cmdline.Env, _ []string) error {
-	fmt.Fprintf(env.Stdout, "v23 tool version %v\n", tool.Version)
-	return nil
+	args := os.Args[1:]
+	cmd := exec.Command("jiri", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Error running %v %v: %v", cmd.Path, args, err)
+	}
 }
