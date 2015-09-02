@@ -79,6 +79,11 @@ var (
 			github:       "git@github.com:vanadium/reader.git",
 		},
 		Mirror{
+			name:         "todos",
+			googlesource: "https://vanadium.googlesource.com/release.projects.todos",
+			github:       "git@github.com:vanadium/todos",
+		},
+		Mirror{
 			name:         "third_party",
 			googlesource: "https://vanadium.googlesource.com/third_party",
 			github:       "git@github.com:vanadium/third_party.git",
