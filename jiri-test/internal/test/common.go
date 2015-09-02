@@ -101,6 +101,13 @@ func initTest(ctx *tool.Context, testName string, profiles []string) (func() err
 		}
 	}
 
+	// Update profiles.
+	for _, profile := range profiles {
+		if err := ctx.Run().Command("v23", "profile", "update", profile); err != nil {
+			return nil, err
+		}
+	}
+
 	// Descend into the working directory (unless doing a "dry
 	// run" in which case the working directory does not exist).
 	cwd, err := os.Getwd()
