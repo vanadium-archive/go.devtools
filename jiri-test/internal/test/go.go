@@ -149,8 +149,7 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 			line := scanner.Text()
 			if strings.HasPrefix(line, "# ") {
 				if curPkg != "" {
-					curOutput := strings.Join(curOutputLines, "\n")
-					processBuildOutput(curPkg, curOutput, &s, seenPkgs)
+					processBuildOutput(curPkg, curOutputLines, &s, seenPkgs)
 				}
 				curPkg = line[2:]
 				curOutputLines = nil
@@ -158,8 +157,7 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 				curOutputLines = append(curOutputLines, line)
 			}
 		}
-		curOutput := strings.Join(curOutputLines, "\n")
-		processBuildOutput(curPkg, curOutput, &s, seenPkgs)
+		processBuildOutput(curPkg, curOutputLines, &s, seenPkgs)
 		suites = append(suites, s)
 	}
 
@@ -173,8 +171,8 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func processBuildOutput(pkg, output string, suite *xunit.TestSuite, seenPkgs map[string]struct{}) {
-	if strings.HasPrefix(output, "link: warning") {
+func processBuildOutput(pkg string, outputLines []string, suite *xunit.TestSuite, seenPkgs map[string]struct{}) {
+	if len(outputLines) == 1 && strings.HasPrefix(outputLines[0], "link: warning") {
 		return
 	}
 	if _, ok := seenPkgs[pkg]; ok {
@@ -187,7 +185,7 @@ func processBuildOutput(pkg, output string, suite *xunit.TestSuite, seenPkgs map
 	}
 	c.Failures = append(c.Failures, xunit.Failure{
 		Message: "build failure",
-		Data:    output,
+		Data:    strings.Join(outputLines, "\n"),
 	})
 	suite.Tests++
 	suite.Failures++
