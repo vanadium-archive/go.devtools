@@ -24,7 +24,7 @@ import (
 // vanadiumJavaTest runs all Java tests.
 func vanadiumJavaTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"java"})
+	cleanup, err := initTest(ctx, testName, []string{"java", "syncbase"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
