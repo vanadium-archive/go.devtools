@@ -1369,6 +1369,13 @@ To resolve this problem, run "gofmt -w <file>" for each of them and commit the c
 	return &test.Result{Status: test.Passed}, nil
 }
 
+// goGenerateDiff represents a file in a CL whose content does not match that
+// expected by vanadiumGoGenerate.
+type goGenerateDiff struct {
+	path string
+	diff string
+}
+
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
 func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
@@ -1429,25 +1436,55 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 	if err := ctx.Run().Command("v23", args...); err != nil {
 		return nil, internalTestError{err, "Go Generate"}
 	}
-	dirtyFiles := []string{}
+	dirtyFiles := []goGenerateDiff{}
+	if currentDir, err := os.Getwd(); err != nil {
+		return nil, err
+	} else {
+		defer collect.Error(func() error {
+			return ctx.Run().Chdir(currentDir)
+		}, &e)
+	}
 	for _, project := range projects {
 		files, err := ctx.Git(tool.RootDirOpt(project.Path)).FilesWithUncommittedChanges()
 		if err != nil {
 			return nil, err
 		}
-		for _, file := range files {
-			path := filepath.Join(project.Path, file)
-			path = strings.TrimPrefix(path, root+string(filepath.Separator))
-			dirtyFiles = append(dirtyFiles, path)
+		if len(files) > 0 {
+			if err := ctx.Run().Chdir(project.Path); err != nil {
+				return nil, err
+			}
+			for _, file := range files {
+				var diff string
+				var out bytes.Buffer
+				opts := ctx.Run().Opts()
+				opts.Stdout = &out
+				if err := ctx.Run().CommandWithOpts(opts, "git", "diff", file); err != nil {
+					fmt.Fprintf(ctx.Stderr(), "git diff failed, no diff will be available for %s: %v\n", file, err)
+					diff = fmt.Sprintf("<not available: %v>", err)
+				} else {
+					diff = out.String()
+				}
+				fullPath := filepath.Join(project.Path, file)
+				fullPath = strings.TrimPrefix(fullPath, root+string(filepath.Separator))
+				dirtyFile := goGenerateDiff{
+					path: fullPath,
+					diff: diff,
+				}
+				dirtyFiles = append(dirtyFiles, dirtyFile)
+			}
 		}
 	}
 	if len(dirtyFiles) != 0 {
-		output := strings.Join(dirtyFiles, "\n")
-		fmt.Fprintf(ctx.Stdout(), "The following go generated files are not up-to-date:\n%v\n", output)
+		fmt.Fprintf(ctx.Stdout(), "\nThe following go generated files are not up-to-date:\n")
+		for _, dirtyFile := range dirtyFiles {
+			fmt.Fprintf(ctx.Stdout(), "\t* %s\n", dirtyFile.path)
+		}
+		fmt.Fprintln(ctx.Stdout())
 		// Generate xUnit report.
 		suites := []xunit.TestSuite{}
 		for _, dirtyFile := range dirtyFiles {
-			s := xunit.CreateTestSuiteWithFailure("GoGenerate", dirtyFile, "go generate failure", "Outdated file:\n"+dirtyFile, 0)
+			fmt.Fprintf(ctx.Stdout(), "Diff for %s:\n%s\n", dirtyFile.path, dirtyFile.diff)
+			s := xunit.CreateTestSuiteWithFailure("GoGenerate", dirtyFile.path, "go generate failure", fmt.Sprintf("Outdated file: %s\nDiff: %s\n", dirtyFile.path, dirtyFile.diff), 0)
 			suites = append(suites, *s)
 		}
 		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
