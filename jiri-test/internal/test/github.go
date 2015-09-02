@@ -49,6 +49,11 @@ var (
 			github:       "git@github.com:vanadium/js.git",
 		},
 		Mirror{
+			name:         "js.syncbase",
+			googlesource: "https://vanadium.googlesource.com/release.js.syncbase",
+			github:       "git@github.com:vanadium/js.syncbase.git",
+		},
+		Mirror{
 			name:         "chat",
 			googlesource: "https://vanadium.googlesource.com/release.projects.chat",
 			github:       "git@github.com:vanadium/chat.git",
