@@ -19,10 +19,10 @@ import (
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
-	"v.io/x/devtools/internal/collect"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 const localCheckScript = `#!/bin/bash

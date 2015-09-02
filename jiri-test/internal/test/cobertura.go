@@ -12,8 +12,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 )
 
 type testCoverage struct {

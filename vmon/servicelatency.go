@@ -13,10 +13,10 @@ import (
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
+	"v.io/jiri/lib/runutil"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/monitoring"
-	"v.io/x/devtools/internal/runutil"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 var (

@@ -17,10 +17,10 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/project"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/project"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 	"v.io/x/lib/cmdline"
 )
 

@@ -17,9 +17,9 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 	"v.io/x/devtools/internal/goutil"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 )
 

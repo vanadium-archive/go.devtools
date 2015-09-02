@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 )
 
 // DefaultTimeout identifies the maximum time each test is allowed to

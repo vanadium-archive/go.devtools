@@ -11,10 +11,10 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/x/devtools/internal/gerrit"
-	"v.io/x/devtools/internal/project"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
+	"v.io/jiri/lib/gerrit"
+	"v.io/jiri/lib/project"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 )
 
 func TestMultiPartCLSet(t *testing.T) {

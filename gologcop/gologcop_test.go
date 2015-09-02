@@ -20,8 +20,8 @@ import (
 
 	"golang.org/x/tools/go/types"
 
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 )
 
 const (

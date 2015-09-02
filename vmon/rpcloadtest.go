@@ -13,9 +13,9 @@ import (
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 // checkRPCLoadTest checks the result of RPC load test and sends the result to GCM.

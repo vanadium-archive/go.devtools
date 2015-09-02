@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/x/devtools/internal/jenkins"
+	"v.io/jiri/lib/jenkins"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 func TestGenFailedTestCasesGroupsForOneTest(t *testing.T) {

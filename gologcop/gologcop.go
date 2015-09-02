@@ -25,9 +25,9 @@ import (
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 
-	"v.io/x/devtools/internal/collect"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/goutil"
-	"v.io/x/devtools/internal/tool"
 )
 
 const (

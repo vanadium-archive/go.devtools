@@ -19,8 +19,8 @@ import (
 
 	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
 
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/monitoring"
-	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 

@@ -12,8 +12,8 @@ import (
 	"runtime"
 	"strings"
 
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
 )

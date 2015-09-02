@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	gomail "gopkg.in/gomail.v1"
+	"v.io/jiri/lib/project"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/cache"
-	"v.io/x/devtools/internal/project"
-	"v.io/x/devtools/internal/tool"
 )
 
 type link struct {

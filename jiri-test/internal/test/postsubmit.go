@@ -5,9 +5,9 @@
 package test
 
 import (
-	"v.io/x/devtools/internal/collect"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 // vanadiumPostsubmitPoll polls for new changes in all projects' master branches,

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"v.io/jiri/lib/runutil"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 	"v.io/x/devtools/internal/buildinfo"
-	"v.io/x/devtools/internal/runutil"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
 	"v.io/x/lib/set"
