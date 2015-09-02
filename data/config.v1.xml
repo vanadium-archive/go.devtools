@@ -16,6 +16,7 @@
     <project>release.mojo.syncbase</project>
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
+    <project>release.projects.croupier</project>
     <project>release.projects.media-sharing</project>
     <project>release.projects.physical-lock</project>
     <project>release.projects.pipe2browser</project>
@@ -23,7 +24,6 @@
     <project>release.projects.reader</project>
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
-    <project>roadmap.projects.croupier</project>
     <project>www</project>
   </copyrightCheckProjects>
   <goWorkspaces>
