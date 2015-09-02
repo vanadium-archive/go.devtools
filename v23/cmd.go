@@ -19,6 +19,7 @@ func main() {
 	cmd := exec.Command("jiri", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Error running %v %v: %v", cmd.Path, args, err)
 	}
