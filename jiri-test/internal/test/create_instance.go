@@ -71,7 +71,11 @@ func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt)
 	// Run script.
 	printBanner(ctx, fmt.Sprintf("Running instance creation script: %s", script))
 	instanceName := fmt.Sprintf("%s-%s", testInstancePrefix, time.Now().Format("20060102150405"))
-	defer collect.Error(func() error { return cleanupTestInstances(ctx) }, &e)
+	defer collect.Error(func() error {
+		// TODO(caprita): Commenting this out so we can debug failures.
+		// return cleanupTestInstances(ctx)
+		return nil
+	}, &e)
 	go func() {
 		sigchan := make(chan os.Signal, 1)
 		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
