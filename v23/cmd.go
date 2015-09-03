@@ -8,7 +8,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/exec"
 )
@@ -21,6 +20,9 @@ func main() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("Error running %v %v: %v", cmd.Path, args, err)
+		// The jiri tool should have reported an error in its output.  Don't
+		// print an error here because it can be confusing and makes it harder
+		// to spot the real error.
+		os.Exit(1)
 	}
 }
