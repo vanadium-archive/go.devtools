@@ -99,7 +99,7 @@ var (
 		},
 		"syncbase": profileInfo{
 			Name:    "syncbase",
-			version: 1,
+			version: 2,
 		},
 	}
 )
