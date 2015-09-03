@@ -83,7 +83,7 @@ var (
 		},
 		"android": profileInfo{
 			Name:    "android",
-			version: 2,
+			version: 3,
 		},
 		"java": profileInfo{
 			Name:    "java",
@@ -795,6 +795,7 @@ func installAndroidCommon(ctx *tool.Context, target profileTarget) (e error) {
 		unsetGoEnv(makeEnv)
 		makeEnv.Set("CGO_ENABLED", "1")
 		makeEnv.Set("CC_FOR_TARGET", filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc"))
+		makeEnv.Set("CXX", filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++"))
 		makeEnv.Set("GOOS", "android")
 		makeEnv.Set("GOARCH", "arm")
 		makeEnv.Set("GOARM", "7")
