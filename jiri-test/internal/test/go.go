@@ -488,7 +488,7 @@ func filterExcludedTests(pkg string, testNames []string, exclusions []exclusion)
 	excluded := []string{}
 	for _, name := range testNames {
 		for _, exclusion := range exclusions {
-			if exclusion.pkgRE.MatchString(pkg) && exclusion.nameRE.MatchString(name) {
+			if exclusion.exclude && exclusion.pkgRE.MatchString(pkg) && exclusion.nameRE.MatchString(name) {
 				excluded = append(excluded, name)
 				break
 			}
@@ -990,7 +990,7 @@ func init() {
 	goIntegrationExclusions = []exclusion{
 		// TODO(jingjin): re-enable this test when the following issue is resolved.
 		// https://github.com/vanadium/issues/issues/639
-		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", isDarwin()),
+		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", true),
 	}
 }
 

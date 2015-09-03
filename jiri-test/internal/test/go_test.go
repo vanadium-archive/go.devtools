@@ -487,6 +487,7 @@ func TestGoTestWithSuffix(t *testing.T) {
 // test based test logic.
 func TestGoTestWithExcludedTests(t *testing.T) {
 	exclusions := []exclusion{
+		newExclusion("v.io/x/devtools/jiri-test/internal/test/testdata/foo", "Test1", false),
 		newExclusion("v.io/x/devtools/jiri-test/internal/test/testdata/foo", "Test2", true),
 		newExclusion("v.io/x/devtools/jiri-test/internal/test/testdata/foo", "Test3", true),
 	}
