@@ -980,8 +980,10 @@ func init() {
 	goRaceExclusions = []exclusion{
 		// This test takes too long in --race mode.
 		newExclusion("v.io/x/devtools/v23", "TestV23Generate", true),
-		// This test appears to be flaky.
+		// These third_party tests are flaky on Go1.5 with -race
 		newExclusion("golang.org/x/crypto/ssh", ".*", true),
+		newExclusion("github.com/steveyen/gkvlite", "TestStoreConcurrentInsertDuringVisits", true),
+		newExclusion("github.com/paypal/gatt", "TestServing", true),
 	}
 
 	// Tests excluded only when running integration tests (with --v23.tests flag).
