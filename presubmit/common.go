@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"sort"
 
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 func genStartPresubmitBuildLink(strRefs, strProjects, strTests string) string {

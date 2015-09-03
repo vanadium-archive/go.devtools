@@ -19,10 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/internal/jenkins"
+	"v.io/jiri/lib/jenkins"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 	"v.io/x/devtools/internal/xunit"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/set"

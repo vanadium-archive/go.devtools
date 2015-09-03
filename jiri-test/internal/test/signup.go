@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/gitutil"
-	"v.io/x/devtools/internal/project"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/gitutil"
+	"v.io/jiri/lib/project"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 func vanadiumSignupProxy(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
@@ -276,9 +276,9 @@ func fetchFieldValues(ctx *tool.Context, credentials, field, schema, sheetID str
 	schemaSrc := filepath.Join(root, "infrastructure", "signup", schema)
 	opts := ctx.Run().Opts()
 	opts.Stdout = &buffer
-	args := []string{"go", "run", fetchSrc, schemaSrc, "-credentials="+credentials, "-field="+field, "-sheet-id="+sheetID}
+	args := []string{"go", "run", fetchSrc, schemaSrc, "-credentials=" + credentials, "-field=" + field, "-sheet-id=" + sheetID}
 	if discussOnly {
-	  args = append(args, "-discuss-only")
+		args = append(args, "-discuss-only")
 	}
 	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
 		return nil, err

@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/x/devtools/internal/gerrit"
-	"v.io/x/devtools/internal/tool"
+	"v.io/jiri/lib/gerrit"
+	"v.io/jiri/lib/tool"
 )
 
 func TestGenStartPresubmitBuildLink(t *testing.T) {

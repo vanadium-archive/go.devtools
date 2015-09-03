@@ -24,10 +24,10 @@ import (
 	"google.golang.org/api/googleapi"
 	storage "google.golang.org/api/storage/v1"
 
-	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/retry"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/retry"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 	"v.io/x/lib/cmdline"
 )
 

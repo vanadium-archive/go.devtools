@@ -5,10 +5,10 @@
 package test
 
 import (
-	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/retry"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/retry"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
 )
 
 // vanadiumGoSnapshot create a snapshot of Vanadium Go code base.

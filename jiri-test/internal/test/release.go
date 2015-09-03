@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/project"
-	"v.io/x/devtools/internal/runutil"
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/project"
+	"v.io/jiri/lib/runutil"
+	"v.io/jiri/lib/tool"
+	"v.io/jiri/lib/util"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/devtools/internal/tool"
-	"v.io/x/devtools/internal/util"
 )
 
 const (

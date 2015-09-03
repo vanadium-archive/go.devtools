@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/devtools/internal/tool"
+	"v.io/jiri/lib/tool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/set"
 )

@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"v.io/jiri/lib/collect"
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/cache"
-	"v.io/x/devtools/internal/collect"
-	"v.io/x/devtools/internal/tool"
 	"v.io/x/lib/cmdline"
 )
 

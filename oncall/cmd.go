@@ -8,7 +8,7 @@
 package main
 
 import (
-	"v.io/x/devtools/internal/tool"
+	"v.io/jiri/lib/tool"
 	"v.io/x/lib/cmdline"
 )
 

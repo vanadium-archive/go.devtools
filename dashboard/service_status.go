@@ -15,8 +15,8 @@ import (
 	"text/template"
 	"time"
 
+	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/cache"
-	"v.io/x/devtools/internal/tool"
 )
 
 const (
