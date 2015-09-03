@@ -93,7 +93,7 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 		"-test", name,
 	)
 	if err := ctx.Run().Command("presubmit", args...); err != nil {
-		return nil, err
+		return nil, internalTestError{err, "Presubmit"}
 	}
 
 	// Remove any test result files that are empty.
