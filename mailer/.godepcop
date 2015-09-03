@@ -1,4 +1,5 @@
 <godepcop>
+  <pkg allow="v.io/jiri/lib/..."/>
   <pkg allow="v.io/x/devtools/..."/>
   <pkg allow="v.io/x/lib/..."/>
   <pkg allow="gopkg.in/gomail.v1/..."/>
