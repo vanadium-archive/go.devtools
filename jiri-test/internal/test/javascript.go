@@ -99,7 +99,14 @@ func vanadiumJSDocDeploy(ctx *tool.Context, testName string, _ ...Opt) (*test.Re
 	return jsDocDeployHelper(ctx, testName, "core")
 }
 
-func jsDocDeployHelper(ctx *tool.Context, testName, projectName string) (*test.Result, error) {
+func jsDocDeployHelper(ctx *tool.Context, testName, projectName string) (_ *test.Result, e error) {
+	// Initialize the test.
+	cleanup, err := initTest(ctx, testName, []string{"nodejs"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
 	root, err := project.V23Root()
 	if err != nil {
 		return nil, err
