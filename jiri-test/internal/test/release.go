@@ -383,6 +383,7 @@ func updateDeviceManagerEnvelope(ctx *tool.Context, root, credentialsArg, nsArg 
 		credentialsArg,
 		nsArg,
 		"put",
+		"--overwrite",
 		appName,
 		appProfile,
 		filename,
