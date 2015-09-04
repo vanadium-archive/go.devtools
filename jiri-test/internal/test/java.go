@@ -24,7 +24,21 @@ import (
 // vanadiumJavaTest runs all Java tests.
 func vanadiumJavaTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"java", "syncbase"})
+	cleanup, err := initTest(ctx, testName, []string{"android", "java", "syncbase"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
+	// Also install the syncbase android profile
+	armEnv := envvar.VarsFromOS()
+	armEnv.Set("GOOS", "android")
+	armEnv.Set("GOARCH", "arm")
+	envOpt := tool.ContextOpts{
+		Env: armEnv.ToMap(),
+	}
+	newCtx := ctx.Clone(envOpt)
+	cleanup, err = initTest(newCtx, testName, []string{"syncbase"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
