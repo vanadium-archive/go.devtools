@@ -990,7 +990,7 @@ func init() {
 	goIntegrationExclusions = []exclusion{
 		// TODO(jingjin): re-enable this test when the following issue is resolved.
 		// https://github.com/vanadium/issues/issues/639
-		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", true),
+		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", isDarwin()),
 	}
 }
 
