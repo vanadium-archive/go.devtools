@@ -102,6 +102,8 @@ var testFunctions = map[string]func(*tool.Context, string, ...Opt) (*test.Result
 	"vanadium-js-build-extension":         vanadiumJSBuildExtension,
 	"vanadium-js-doc":                     vanadiumJSDoc,
 	"vanadium-js-doc-deploy":              vanadiumJSDocDeploy,
+	"vanadium-js-doc-syncbase":            vanadiumJSDocSyncbase,
+	"vanadium-js-doc-syncbase-deploy":     vanadiumJSDocSyncbaseDeploy,
 	"vanadium-js-browser-integration":     vanadiumJSBrowserIntegration,
 	"vanadium-js-node-integration":        vanadiumJSNodeIntegration,
 	"vanadium-js-syncbase-browser":        vanadiumJSSyncbaseBrowser,

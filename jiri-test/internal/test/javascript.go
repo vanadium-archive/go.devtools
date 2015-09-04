@@ -93,10 +93,34 @@ func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 	return result, nil
 }
 
+// vanadiumJSDocSyncbase (re)generates the content of the vanadium syncbase
+// javascript documentation server.
+func vanadiumJSDocSyncbase(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
+	root, err := project.V23Root()
+	if err != nil {
+		return nil, err
+	}
+	testDir := filepath.Join(root, "release", "javascript", "syncbase")
+	target := "docs"
+
+	result, err := runJSTest(ctx, testName, testDir, target, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // vanadiumJSDocDeploy (re)generates core jsdocs and deploys them to staging
 // and production.
 func vanadiumJSDocDeploy(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
 	return jsDocDeployHelper(ctx, testName, "core")
+}
+
+// vanadiumJSDocSyncbaseDeploy (re)generates syncbase jsdocs and deploys them to
+// staging and production.
+func vanadiumJSDocSyncbaseDeploy(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
+	return jsDocDeployHelper(ctx, testName, "syncbase")
 }
 
 func jsDocDeployHelper(ctx *tool.Context, testName, projectName string) (_ *test.Result, e error) {
