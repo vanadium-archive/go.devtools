@@ -1151,6 +1151,8 @@ func installSyncbaseCommon(ctx *tool.Context, target profileTarget) (e error) {
 			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
+			env["AR"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-ar")
+			env["RANLIB"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-ranlib")
 		}
 		if err := run(ctx, "make", []string{"clean"}, env); err != nil {
 			return err
