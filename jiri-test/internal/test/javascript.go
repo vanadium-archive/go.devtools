@@ -75,7 +75,7 @@ func vanadiumJSBuildExtension(ctx *tool.Context, testName string, _ ...Opt) (*te
 	return runJSTest(ctx, testName, testDir, target, nil, nil, []string{"nacl"})
 }
 
-// vanadiumJSDoc (re)generates the content of the vanadium javascript
+// vanadiumJSDoc (re)generates the content of the vanadium core javascript
 // documentation server.
 func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
 	root, err := project.V23Root()
@@ -91,6 +91,38 @@ func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 	}
 
 	return result, nil
+}
+
+// vanadiumJSDocDeploy (re)generates core jsdocs and deploys them to staging
+// and production.
+func vanadiumJSDocDeploy(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
+	return jsDocDeployHelper(ctx, testName, "core")
+}
+
+func jsDocDeployHelper(ctx *tool.Context, testName, projectName string) (*test.Result, error) {
+	root, err := project.V23Root()
+	if err != nil {
+		return nil, err
+	}
+	testDir := filepath.Join(root, "release", "javascript", projectName)
+	if err := ctx.Run().Chdir(testDir); err != nil {
+		return nil, err
+	}
+
+	for _, target := range []string{"deploy-docs-staging", "deploy-docs-production"} {
+		if err := ctx.Run().TimedCommand(defaultJSTestTimeout, "make", target); err != nil {
+			if err == runutil.CommandTimedOutErr {
+				return &test.Result{
+					Status:       test.TimedOut,
+					TimeoutValue: defaultJSTestTimeout,
+				}, nil
+			} else {
+				return nil, internalTestError{err, "Make " + target}
+			}
+		}
+	}
+
+	return &test.Result{Status: test.Passed}, nil
 }
 
 // vanadiumJSBrowserIntegration runs the vanadium javascript integration test in a browser environment using nacl plugin.
