@@ -89,26 +89,6 @@ func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 	if err != nil {
 		return nil, err
 	}
-	if result.Status != test.Passed {
-		return result, nil
-	}
-
-	// Deploy to staging and production.
-	if err := ctx.Run().Chdir(testDir); err != nil {
-		return nil, err
-	}
-	for _, target := range []string{"deploy-docs-staging", "deploy-docs-production"} {
-		if err := ctx.Run().TimedCommand(defaultJSTestTimeout, "make", target); err != nil {
-			if err == runutil.CommandTimedOutErr {
-				return &test.Result{
-					Status:       test.TimedOut,
-					TimeoutValue: defaultJSTestTimeout,
-				}, nil
-			} else {
-				return nil, internalTestError{err, "Make " + target}
-			}
-		}
-	}
 
 	return result, nil
 }
