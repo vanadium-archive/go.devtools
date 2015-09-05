@@ -23,11 +23,12 @@ const FailedExitCode = 3
 type Status int
 
 type Result struct {
-	Status          Status
-	TimeoutValue    time.Duration       // Used when Status == TimedOut
-	MergeConflictCL string              // Used when Status == MergeConflict
-	ExcludedTests   map[string][]string // Tests that are excluded within packages keyed by package name
-	SkippedTests    map[string][]string // Tests that are skipped within packages keyed by package name
+	Status               Status
+	TimeoutValue         time.Duration       // Used when Status == TimedOut
+	MergeConflictCL      string              // Used when Status == MergeConflict
+	ToolsBuildFailureMsg string              // Used when Status == ToolsBuildFailure
+	ExcludedTests        map[string][]string // Tests that are excluded within packages keyed by package name
+	SkippedTests         map[string][]string // Tests that are skipped within packages keyed by package name
 }
 
 const (
@@ -36,6 +37,7 @@ const (
 	Passed
 	Failed
 	MergeConflict
+	ToolsBuildFailure
 	TimedOut
 )
 
