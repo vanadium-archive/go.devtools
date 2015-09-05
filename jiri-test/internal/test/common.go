@@ -40,6 +40,14 @@ func (e internalTestError) Error() string {
 
 var testTmpDir = ""
 
+type initTestOpt interface {
+	initTestOpt()
+}
+
+type rootDirOpt string
+
+func (rootDirOpt) initTestOpt() {}
+
 // binDirPath returns the path to the directory for storing temporary
 // binaries.
 func binDirPath() string {
@@ -59,7 +67,7 @@ func regTestBinDirPath() string {
 }
 
 // initTest carries out the initial actions for the given test.
-func initTest(ctx *tool.Context, testName string, profiles []string) (func() error, error) {
+func initTest(ctx *tool.Context, testName string, profiles []string, opts ...initTestOpt) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -70,6 +78,12 @@ func initTest(ctx *tool.Context, testName string, profiles []string) (func() err
 	// Create a working test directory under $HOME/tmp and set the
 	// TMPDIR environment variable to it.
 	rootDir := filepath.Join(os.Getenv("HOME"), "tmp", testName)
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case rootDirOpt:
+			rootDir = string(typedOpt)
+		}
+	}
 	if err := ctx.Run().MkdirAll(rootDir, os.FileMode(0755)); err != nil {
 		return nil, err
 	}
