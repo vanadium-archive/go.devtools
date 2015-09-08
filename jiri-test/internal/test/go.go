@@ -982,7 +982,6 @@ func init() {
 		newExclusion("v.io/x/devtools/v23", "TestV23Generate", true),
 		// These third_party tests are flaky on Go1.5 with -race
 		newExclusion("golang.org/x/crypto/ssh", ".*", true),
-		newExclusion("github.com/steveyen/gkvlite", "TestStoreConcurrentInsertDuringVisits", true),
 		newExclusion("github.com/paypal/gatt", "TestServing", true),
 	}
 
