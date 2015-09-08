@@ -224,6 +224,7 @@
       <test>vanadium-js-browser-integration</test>
       <test>vanadium-js-build-extension</test>
       <test>vanadium-js-doc</test>
+      <test>vanadium-js-doc-syncbase</test>
       <test>vanadium-js-node-integration</test>
       <test>vanadium-js-syncbase-browser</test>
       <test>vanadium-js-syncbase-node</test>
