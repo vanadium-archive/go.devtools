@@ -342,10 +342,9 @@ func (r *testReporter) postReport(ctx *tool.Context) (bool, error) {
 		return false, nil
 	}
 
-	// Report possible merge conflicts.
-	// If any merge conflicts are found and reported, don't generate any
-	// further report.
-	if r.reportMergeConflicts(ctx) {
+	// Report failures from presubmit itself.
+	// If any failures are found and reported, don't generate any further report.
+	if r.reportPresubmitFailure(ctx) {
 		return false, nil
 	}
 
@@ -396,12 +395,19 @@ func (r *testReporter) reportFailedPresubmitBuild(ctx *tool.Context) bool {
 	return false
 }
 
-// reportMergeConflicts posts a review about possible merge conflicts.
-// It returns whether any merge conflicts are found in the given testResults.
-func (r *testReporter) reportMergeConflicts(ctx *tool.Context) bool {
+// reportPresubmitFailure posts a review about failure from presubmit itself
+// (not from the test it runs).
+func (r *testReporter) reportPresubmitFailure(ctx *tool.Context) bool {
 	for _, resultInfo := range r.testResults {
-		if resultInfo.Result.Status == test.MergeConflict {
-			message := fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.Result.MergeConflictCL)
+		message := ""
+		switch resultInfo.Result.Status {
+		case test.MergeConflict:
+			message = fmt.Sprintf(mergeConflictMessageTmpl, resultInfo.Result.MergeConflictCL)
+		case test.ToolsBuildFailure:
+			message = fmt.Sprintf(toolsBuildFailureMessageTmpl, resultInfo.Result.ToolsBuildFailureMsg)
+		}
+
+		if message != "" {
 			if err := postMessage(ctx, message, r.refs, false); err != nil {
 				printf(ctx.Stderr(), "%v\n", err)
 			}

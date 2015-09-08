@@ -60,10 +60,10 @@ file, and posts test results back to the corresponding Gerrit review thread.
 }
 
 const (
-	mergeConflictTestClass    = "merge conflict"
-	mergeConflictMessageTmpl  = "Possible merge conflict detected in %s.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted."
-	nanoToMiliSeconds         = 1000000
-	prepareTestBranchAttempts = 3
+	mergeConflictMessageTmpl     = "Possible merge conflict detected in %s.\nPresubmit tests will be executed after a new patchset that resolves the conflicts is submitted."
+	toolsBuildFailureMessageTmpl = "Failed to build required tools. This is likely caused by your changes.\n%s"
+	nanoToMiliSeconds            = 1000000
+	prepareTestBranchAttempts    = 3
 )
 
 type cl struct {
@@ -154,7 +154,12 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 			}
 			if strings.Contains(errMsg, "git pull") {
 				// Possible merge conflict.
-				if err := recordMergeConflict(ctx, failedCL, testName); err != nil {
+				message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
+				result := test.Result{
+					Status:          test.MergeConflict,
+					MergeConflictCL: failedCL.String(),
+				}
+				if err := recordPresubmitFailure(ctx, "MergeConflict", message, testName, result); err != nil {
 					return err
 				}
 				return nil
@@ -171,7 +176,17 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		for _, err := range errs {
 			errMsgLines = append(errMsgLines, err.Error())
 		}
-		return fmt.Errorf("failed to build tools:\n%v", strings.Join(errMsgLines, "\n"))
+		errMsg := strings.Join(errMsgLines, "\n")
+		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, errMsg)
+		result := test.Result{
+			Status:               test.ToolsBuildFailure,
+			ToolsBuildFailureMsg: errMsg,
+		}
+		if err := recordPresubmitFailure(ctx, "BuildTools", message, testName, result); err != nil {
+			return err
+		}
+		fmt.Fprintf(ctx.Stderr(), "failed to build tools:\n%s\n", errMsg)
+		return nil
 	}
 
 	// Run the tests via "jiri test run" and collect the test results.
@@ -365,16 +380,11 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 	return nil, nil
 }
 
-// recordMergeConflict records possible merge conflict in the test status file
-// and xUnit report.
-func recordMergeConflict(ctx *tool.Context, failedCL *cl, testName string) error {
-	message := fmt.Sprintf(mergeConflictMessageTmpl, failedCL.String())
-	if err := xunit.CreateFailureReport(ctx, testName, testName, "MergeConflict", message, message); err != nil {
+// recordPresubmitFailure records failure from presubmit binary itself
+// (not from the test it runs) in the test status file and xUnit report.
+func recordPresubmitFailure(ctx *tool.Context, testCaseName, message, testName string, result test.Result) error {
+	if err := xunit.CreateFailureReport(ctx, testName, testName, testCaseName, message, message); err != nil {
 		return nil
-	}
-	result := test.Result{
-		Status:          test.MergeConflict,
-		MergeConflictCL: failedCL.String(),
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest
 	// build before the given timestamp terminates after the first iteration.
