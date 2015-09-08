@@ -86,6 +86,16 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		return err
 	}
 
+	// Warn users that presubmit will delete all non-master branches when
+	// running on their local machines.
+	if os.Getenv("USER") != "veyron" {
+		fmt.Printf("WARNING: Presubmit will delete all non-master branches.\nContinue? y/N:")
+		var response string
+		if _, err := fmt.Scanf("%s\n", &response); err != nil || response != "y" {
+			return fmt.Errorf("Test aborted by user.")
+		}
+	}
+
 	// Record the current timestamp so we can get the correct postsubmit build
 	// when processing the results.
 	curTimestamp := time.Now().UnixNano() / nanoToMiliSeconds
