@@ -1652,7 +1652,10 @@ func vanadiumGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Re
 // projects.
 func vanadiumIntegrationTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	// We need a shorter root/tmp dir to keep the length of unix domain socket
+	// path under limit (108 for linux and 104 for darwin).
+	shorterRootDir := filepath.Join(os.Getenv("HOME"), "tmp", "vit")
+	cleanup, err := initTest(ctx, testName, []string{"syncbase"}, rootDirOpt(shorterRootDir))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
