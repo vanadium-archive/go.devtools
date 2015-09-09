@@ -690,11 +690,19 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 					output = strings.Replace(output, escTab, "\t", -1)
 					var err error
 					if ss, err = xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(output)); err != nil {
-						// Token too long error.
-						if !strings.HasSuffix(err.Error(), "token too long") {
+						errMsg := ""
+						if strings.Contains(err.Error(), "package build failed") {
+							// Package build failure.
+							errMsg = "failed to build package"
+						} else if strings.HasSuffix(err.Error(), "token too long") {
+							// Token too long error.
+							errMsg = "test output contains lines that are too long to parse"
+						}
+						if errMsg != "" {
+							ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", errMsg, output, result.time)
+						} else {
 							return nil, suites, err
 						}
-						ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
 					}
 				}
 				if ss.Skip > 0 {
