@@ -952,6 +952,8 @@ func init() {
 		// by default on linux.
 		newExclusion("golang.org/x/net/icmp", "TestPingGoogle", isCI()),
 		newExclusion("golang.org/x/net/icmp", "TestNonPrivilegedPing", isCI()),
+		// This test has proven flaky under go1.5
+		newExclusion("golang.org/x/net/netutil", "TestLimitListener", isCI()),
 		// Don't run this test on mac systems prior to Yosemite since it
 		// can crash some machines.
 		newExclusion("golang.org/x/net/ipv6", ".*", !isYosemite()),
