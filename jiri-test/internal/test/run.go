@@ -17,10 +17,10 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/jiri/lib/collect"
-	"v.io/jiri/lib/runutil"
-	"v.io/jiri/lib/tool"
-	"v.io/jiri/lib/util"
+	"v.io/jiri/collect"
+	"v.io/jiri/runutil"
+	"v.io/jiri/tool"
+	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )

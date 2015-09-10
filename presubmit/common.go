@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"sort"
 
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 

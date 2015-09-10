@@ -12,8 +12,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/jiri/lib/tool"
-	"v.io/jiri/lib/util"
+	"v.io/jiri/tool"
+	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )

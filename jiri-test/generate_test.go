@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/jiri/lib/tool"
-	"v.io/jiri/lib/util"
+	"v.io/jiri/tool"
+	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
 )
 

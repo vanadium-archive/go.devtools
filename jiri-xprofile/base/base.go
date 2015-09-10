@@ -8,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 
-	"v.io/jiri/lib/profiles"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/profiles"
+	"v.io/jiri/tool"
 )
 
 var profileName = "base"

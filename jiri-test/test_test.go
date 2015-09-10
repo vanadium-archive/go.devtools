@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/jiri/lib/project"
-	"v.io/jiri/lib/tool"
-	"v.io/jiri/lib/util"
+	"v.io/jiri/project"
+	"v.io/jiri/tool"
+	"v.io/jiri/util"
 	"v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
 )

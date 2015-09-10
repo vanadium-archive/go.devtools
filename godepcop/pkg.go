@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/set"

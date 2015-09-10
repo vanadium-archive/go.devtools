@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )

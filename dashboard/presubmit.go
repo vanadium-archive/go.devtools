@@ -19,8 +19,8 @@ import (
 	"strings"
 	"text/template"
 
-	"v.io/jiri/lib/collect"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/collect"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"

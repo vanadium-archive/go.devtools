@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/tool"
 )
 
 // List inputs a list of Go package expressions and returns a list of

@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/jiri/lib/jenkins"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/jenkins"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 

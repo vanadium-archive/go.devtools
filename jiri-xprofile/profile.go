@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/jiri/lib/profiles"
-	"v.io/jiri/lib/project"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/profiles"
+	"v.io/jiri/project"
+	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/envvar"
 )

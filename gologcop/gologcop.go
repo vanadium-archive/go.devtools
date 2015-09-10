@@ -25,8 +25,8 @@ import (
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 
-	"v.io/jiri/lib/collect"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/collect"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
 )
 

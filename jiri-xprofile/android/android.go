@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/jiri/lib/collect"
-	"v.io/jiri/lib/profiles"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/collect"
+	"v.io/jiri/profiles"
+	"v.io/jiri/tool"
 )
 
 const (

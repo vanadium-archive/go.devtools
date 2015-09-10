@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"v.io/jiri/lib/project"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/project"
+	"v.io/jiri/tool"
 )
 
 var (

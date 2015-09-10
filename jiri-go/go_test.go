@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/jiri/lib/runutil"
-	"v.io/jiri/lib/tool"
-	"v.io/jiri/lib/util"
+	"v.io/jiri/runutil"
+	"v.io/jiri/tool"
+	"v.io/jiri/util"
 	"v.io/x/devtools/internal/buildinfo"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"

@@ -6,7 +6,7 @@
 
        Most packages follow the strict rule of only allowing dependencies on
        devtools itself and v.io/x/lib, to reduce the exposure to breakage. -->
-  <pkg allow="v.io/jiri/lib/..."/>
+  <pkg allow="v.io/jiri/..."/>
   <pkg allow="v.io/x/devtools/..."/>
   <pkg allow="v.io/x/lib/..."/>
   <pkg deny="..."/>

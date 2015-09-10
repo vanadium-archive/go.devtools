@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"v.io/jiri/lib/profiles"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/profiles"
+	"v.io/jiri/tool"
 )
 
 const (

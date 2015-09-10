@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/jiri/lib/collect"
-	"v.io/jiri/lib/retry"
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/collect"
+	"v.io/jiri/retry"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )

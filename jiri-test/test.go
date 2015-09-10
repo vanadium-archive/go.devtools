@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/jiri/lib/tool"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"

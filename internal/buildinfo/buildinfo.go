@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/jiri/lib/project"
+	"v.io/jiri/project"
 	"v.io/x/lib/metadata"
 )
 
