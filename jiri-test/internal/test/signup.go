@@ -14,6 +14,7 @@ import (
 	"v.io/jiri/lib/collect"
 	"v.io/jiri/lib/gitutil"
 	"v.io/jiri/lib/project"
+	"v.io/jiri/lib/retry"
 	"v.io/jiri/lib/tool"
 	"v.io/x/devtools/internal/test"
 )
@@ -182,7 +183,10 @@ func vanadiumSignupWelcomeStepTwoNew(ctx *tool.Context, testName string, _ ...Op
 	}
 
 	mailer := filepath.Join(root, "release", "go", "src", "v.io", "x", "devtools", "mailer", "mailer.go")
-	if err := ctx.Run().Command("v23", "go", "run", mailer); err != nil {
+	mailerFunc := func() error {
+		return ctx.Run().Command("v23", "go", "run", mailer)
+	}
+	if err := retry.Function(ctx, mailerFunc); err != nil {
 		return nil, internalTestError{err, "mailer"}
 	}
 
