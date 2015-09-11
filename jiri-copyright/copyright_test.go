@@ -250,10 +250,10 @@ func TestCopyright(t *testing.T) {
 		t.Fatalf("unexpected error message: %q", errOut.String())
 	}
 
-	// Test .v23ignore functionality.
+	// Test .jiriignore functionality.
 	errOut.Reset()
-	// Add .v23ignore file.
-	ignoreFile := filepath.Join(projectPath, v23Ignore)
+	// Add .jiriignore file.
+	ignoreFile := filepath.Join(projectPath, jiriIgnore)
 	if err := ctx.Run().WriteFile(ignoreFile, []byte("public/fancy.js"), os.FileMode(0600)); err != nil {
 		t.Fatalf("%v", err)
 	}
