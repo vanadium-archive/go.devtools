@@ -4,6 +4,7 @@
 
 // TODO(jsimsa):
 // - Add support for shell files without the .sh suffix.
+// - Add support for Makefiles.
 // - Decide what to do with the contents of the testdata directory.
 
 // The following enables go generate to generate the doc.go file.
@@ -65,6 +66,10 @@ var languages map[string]languageSpec = map[string]languageSpec{
 		CommentSuffix: " */",
 		FileExtension: ".css",
 	},
+	"dart": languageSpec{
+		CommentPrefix: "// ",
+		FileExtension: ".dart",
+	},
 	"go": languageSpec{
 		CommentPrefix: "// ",
 		FileExtension: ".go",
@@ -76,6 +81,10 @@ var languages map[string]languageSpec = map[string]languageSpec{
 	"javascript": languageSpec{
 		CommentPrefix: "// ",
 		FileExtension: ".js",
+	},
+	"mojom": languageSpec{
+		CommentPrefix: "// ",
+		FileExtension: ".mojom",
 	},
 	"shell": languageSpec{
 		CommentPrefix: "# ",
