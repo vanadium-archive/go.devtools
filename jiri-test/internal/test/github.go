@@ -19,9 +19,9 @@ import (
 var (
 	mirrors = []Mirror{
 		Mirror{
-			name:         "browser",
-			googlesource: "https://vanadium.googlesource.com/release.projects.browser",
-			github:       "git@github.com:vanadium/browser.git",
+			name:         "go.jiri",
+			googlesource: "https://vanadium.googlesource.com/release.go.jiri",
+			github:       "git@github.com:vanadium/go.jiri.git",
 		},
 		Mirror{
 			name:         "go.v23",
@@ -54,14 +54,19 @@ var (
 			github:       "git@github.com:vanadium/js.syncbase.git",
 		},
 		Mirror{
+			name:         "mojo.syncbase",
+			googlesource: "https://vanadium.googlesource.com/release.mojo.syncbase",
+			github:       "git@github.com:vanadium/mojo.syncbase.git",
+		},
+		Mirror{
+			name:         "browser",
+			googlesource: "https://vanadium.googlesource.com/release.projects.browser",
+			github:       "git@github.com:vanadium/browser.git",
+		},
+		Mirror{
 			name:         "chat",
 			googlesource: "https://vanadium.googlesource.com/release.projects.chat",
 			github:       "git@github.com:vanadium/chat.git",
-		},
-		Mirror{
-			name:         "media-sharing",
-			googlesource: "https://vanadium.googlesource.com/release.projects.media-sharing",
-			github:       "git@github.com:vanadium/media-sharing.git",
 		},
 		Mirror{
 			name:         "pipe2browser",
@@ -72,11 +77,6 @@ var (
 			name:         "playground",
 			googlesource: "https://vanadium.googlesource.com/release.projects.playground",
 			github:       "git@github.com:vanadium/playground.git",
-		},
-		Mirror{
-			name:         "physical-lock",
-			googlesource: "https://vanadium.googlesource.com/release.projects.physical-lock",
-			github:       "git@github.com:vanadium/physical-lock.git",
 		},
 		Mirror{
 			name:         "reader",
