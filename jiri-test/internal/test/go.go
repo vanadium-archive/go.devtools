@@ -1159,10 +1159,14 @@ func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	if err != nil {
 		return nil, err
 	}
+	partPkgs, err := identifyPackagesToTest(ctx, testName, opts, validatedPkgs)
+	if err != nil {
+		return nil, err
+	}
 	args := argsOpt([]string{"-race"})
 	exclusions := append(goExclusions, goRaceExclusions...)
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
-	return goTestAndReport(ctx, testName, suffix, args, timeoutOpt("1h"), exclusionsOpt(exclusions), validatedPkgs)
+	return goTestAndReport(ctx, testName, suffix, args, timeoutOpt("1h"), exclusionsOpt(exclusions), partPkgs)
 }
 
 // thirdPartyPkgs returns a list of Go expressions that describe all
