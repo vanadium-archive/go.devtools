@@ -259,8 +259,9 @@
       <part>v.io/x/devtools/...</part>
     </test>
     <test name="third_party-go-race">
-      <part>golang.org/x/tools/go/ssa/interp/...</part>
+      <part>golang.org/x/tools/go/ssa/...,golang.org/x/tools/go/pointer/...</part>
       <part>golang.org/x/tools/...</part>
+      <part>golang.org/x/crypto/...</part>
     </test>
   </testParts>
   <vdlWorkspaces>
