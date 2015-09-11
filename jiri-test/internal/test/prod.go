@@ -91,11 +91,11 @@ func vanadiumProdServicesTest(ctx *tool.Context, testName string, opts ...Opt) (
 	}
 
 	// Install the vrpc tool.
-	if err := ctx.Run().Command("v23", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
 		return nil, internalTestError{err, "Install VRPC"}
 	}
 	// Install the principal tool.
-	if err := ctx.Run().Command("v23", "go", "install", "v.io/x/ref/cmd/principal"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/principal"); err != nil {
 		return nil, internalTestError{err, "Install Principal"}
 	}
 	tmpdir, err := ctx.Run().TempDir("", "prod-services-test")

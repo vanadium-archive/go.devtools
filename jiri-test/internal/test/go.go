@@ -132,7 +132,7 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 		opts := ctx.Run().Opts()
 		opts.Stdout = io.MultiWriter(&out, opts.Stdout)
 		opts.Stderr = io.MultiWriter(&out, opts.Stdout)
-		err := ctx.Run().CommandWithOpts(opts, "v23", args...)
+		err := ctx.Run().CommandWithOpts(opts, "jiri", args...)
 		if err == nil {
 			continue
 		}
@@ -218,13 +218,13 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 	}
 
 	// Install required tools.
-	if err := ctx.Run().Command("v23", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
 		return nil, internalTestError{err, "install-go-cover"}
 	}
-	if err := ctx.Run().Command("v23", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
 		return nil, internalTestError{err, "install-gocover-cobertura"}
 	}
-	if err := ctx.Run().Command("v23", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 		return nil, internalTestError{err, "install-go2xunit"}
 	}
 
@@ -353,7 +353,7 @@ func coverageWorker(ctx *tool.Context, timeout string, args []string, pkgs <-cha
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
-		err = ctx.Run().CommandWithOpts(opts, "v23", args...)
+		err = ctx.Run().CommandWithOpts(opts, "jiri", args...)
 		result := coverageResult{
 			pkg:      pkg,
 			coverage: coverageFile,
@@ -579,7 +579,7 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 	}
 
 	// Install required tools.
-	if err := ctx.Run().Command("v23", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 		return nil, nil, internalTestError{err, "install-go2xunit"}
 	}
 
@@ -814,7 +814,7 @@ func testWorker(ctx *tool.Context, timeout string, args, nonTestArgs []string, t
 			}
 			continue
 		}
-		err = ctx.Run().TimedCommandWithOpts(timeoutDuration, opts, "v23", taskArgs...)
+		err = ctx.Run().TimedCommandWithOpts(timeoutDuration, opts, "jiri", taskArgs...)
 		result := testResult{
 			pkg:      task.pkg,
 			time:     time.Now().Sub(start),
@@ -845,7 +845,7 @@ func buildTestDeps(ctx *tool.Context, pkgs []string) error {
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", args...); err != nil {
 		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", out.String())
 		return fmt.Errorf("%v\n%s", err, out.String())
 	}
@@ -1201,15 +1201,15 @@ func vanadiumCopyright(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	// Run the v23 copyright check.
+	// Run the jiri copyright check.
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "copyright", "check"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "copyright", "check"); err != nil {
 		report := fmt.Sprintf(`%v
 
-To fix the above copyright violations run "v23 copyright fix" and commit the changes.
+To fix the above copyright violations run "jiri copyright fix" and commit the changes.
 `, out.String())
 		if err := xunit.CreateFailureReport(ctx, testName, "RunCopyright", "CheckCopyright", "copyright check failure", report); err != nil {
 			return nil, err
@@ -1229,15 +1229,15 @@ func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	// Run the v23 api check.
+	// Run the jiri api check.
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "api", "check"); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "api", "check"); err != nil {
 		report := fmt.Sprintf(`%v
 
-If the above changes to public Go API are intentional, run "v23 api fix",
+If the above changes to public Go API are intentional, run "jiri api fix",
 to update the corresponding .api files and commit the changes.
 `, out.String())
 		if err := xunit.CreateFailureReport(ctx, testName, "RunV23API", "CheckGoAPI", "public api check failure", report); err != nil {
@@ -1331,7 +1331,7 @@ func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Res
 	}
 	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 	binary := filepath.Join(tmpDir, "godepcop")
-	if err := ctx.Run().Command("v23", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
 		return nil, internalTestError{err, "godepcop-build"}
 	}
 
@@ -1340,7 +1340,7 @@ func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Res
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "run", binary, "check", "v.io/..."); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "run", binary, "check", "v.io/..."); err != nil {
 		if err := xunit.CreateFailureReport(ctx, testName, "RunGoDepcop", "CheckDependencies", "dependencies check failure", out.String()); err != nil {
 			return nil, err
 		}
@@ -1364,7 +1364,7 @@ func vanadiumGoFormat(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Res
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "fmt", "v.io/..."); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "fmt", "v.io/..."); err != nil {
 		report := fmt.Sprintf(`The following files do not adhere to the Go formatting conventions:
 %v
 To resolve this problem, run "gofmt -w <file>" for each of them and commit the changes.
@@ -1405,7 +1405,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 		return nil, err
 	}
 	pkgStr := strings.Join([]string(pkgs), " ")
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'v23 go generate %s'.\n", pkgStr)
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'jiri go generate %s'.\n", pkgStr)
 
 	// Stash any uncommitted changes and defer functions that undo any
 	// changes created by this function and then unstash the original
@@ -1442,7 +1442,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 
 	// Check if 'go generate' creates any changes.
 	args := append([]string{"go", "generate"}, []string(pkgs)...)
-	if err := ctx.Run().Command("v23", args...); err != nil {
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return nil, internalTestError{err, "Go Generate"}
 	}
 	dirtyFiles := []goGenerateDiff{}
@@ -1619,7 +1619,7 @@ func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the go vet tool.
-	if err := ctx.Run().Command("v23", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
 		return nil, internalTestError{err, "install-go-vet"}
 	}
 
@@ -1628,7 +1628,7 @@ func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "vet", "v.io/..."); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "vet", "v.io/..."); err != nil {
 		if err := xunit.CreateFailureReport(ctx, testName, "RunGoVet", "GoVetChecks", "go vet check failure", out.String()); err != nil {
 			return nil, err
 		}
@@ -1804,7 +1804,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	if err := ctx.Run().Command("v23", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
 		return nil, internalTestError{err, "Install"}
 	}
 	root, err := project.V23Root()
@@ -1820,7 +1820,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	}
 	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 	vbinaryBin := filepath.Join(tmpDir, "vbinary")
-	if err := ctx.Run().Command("v23", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
 		return nil, err
 	}
 

@@ -45,7 +45,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdTest.Flags)
 }
 
-// cmdTest represents the "v23 test" command.
+// cmdTest represents the "jiri test" command.
 var cmdTest = &cmdline.Command{
 	Name:     "test",
 	Short:    "Manage vanadium tests",
@@ -53,7 +53,7 @@ var cmdTest = &cmdline.Command{
 	Children: []*cmdline.Command{cmdTestGenerate, cmdTestProject, cmdTestRun, cmdTestList},
 }
 
-// cmdTestProject represents the "v23 test project" command.
+// cmdTestProject represents the "jiri test project" command.
 var cmdTestProject = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runTestProject),
 	Name:   "project",
@@ -87,7 +87,7 @@ func runTestProject(env *cmdline.Env, args []string) error {
 	return nil
 }
 
-// cmdTestRun represents the "v23 test run" command.
+// cmdTestRun represents the "jiri test run" command.
 var cmdTestRun = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runTestRun),
 	Name:     "run",
@@ -156,7 +156,7 @@ func printSummary(ctx *tool.Context, results map[string]*test.Result) {
 	}
 }
 
-// cmdTestList represents the "v23 test list" command.
+// cmdTestList represents the "jiri test list" command.
 var cmdTestList = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runTestList),
 	Name:   "list",

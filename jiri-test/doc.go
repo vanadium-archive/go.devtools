@@ -33,9 +33,9 @@ The global flags are:
 Test generate - Generate supporting code for v23 integration tests
 
 The generate command supports the vanadium integration test framework and unit
-tests by generating go files that contain supporting code.  v23 test generate is
-intended to be invoked via the 'go generate' mechanism and the resulting files
-are to be checked in.
+tests by generating go files that contain supporting code.  jiri test generate
+is intended to be invoked via the 'go generate' mechanism and the resulting
+files are to be checked in.
 
 Integration tests are functions of the following form:
 

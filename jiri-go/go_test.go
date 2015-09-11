@@ -23,7 +23,7 @@ import (
 )
 
 // TestGoVanadiumEnvironment checks that the implementation of the
-// "v23 go" command sets up the vanadium environment and then
+// "jiri go" command sets up the vanadium environment and then
 // dispatches calls to the go tool.
 func TestGoVanadiumEnvironment(t *testing.T) {
 	ctx := tool.NewDefaultContext()
@@ -46,7 +46,7 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	}
 }
 
-// TestGoVDLGeneration checks that the implementation of the "v23
+// TestGoVDLGeneration checks that the implementation of the "jiri
 // go" command generates up-to-date VDL files for select go tool
 // commands before dispatching these commands to the go tool.
 func TestGoVDLGeneration(t *testing.T) {
@@ -333,17 +333,17 @@ func TestGoBuildWithMetaData(t *testing.T) {
 		t.Fatalf("TempDir failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(dir)
-	// Build the v23 binary itself.
+	// Build the jiri binary itself.
 	var buf bytes.Buffer
 	opts := runutil.Opts{Stdout: &buf, Stderr: &buf, Verbose: true}
 	testbin := filepath.Join(dir, "testbin")
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "build", "-o", testbin); err != nil {
-		t.Fatalf("build of v23 failed: %v\n%s", err, buf.String())
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "build", "-o", testbin); err != nil {
+		t.Fatalf("build of jiri failed: %v\n%s", err, buf.String())
 	}
-	// Run the v23 binary.
+	// Run the jiri binary.
 	buf.Reset()
 	if err := ctx.Run().CommandWithOpts(opts, testbin, "-metadata"); err != nil {
-		t.Errorf("run of v23 -metadata failed: %v\n%s", err, buf.String())
+		t.Errorf("run of jiri -metadata failed: %v\n%s", err, buf.String())
 	}
 	// Decode the output metadata and spot-check some values.
 	outData := buf.Bytes()

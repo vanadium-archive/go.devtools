@@ -11,7 +11,7 @@ Print vanadium environment variables.
 If no arguments are given, prints all variables in NAME="VALUE" format, each on
 a separate line ordered by name.  This format makes it easy to set all vars by
 running the following bash command (or similar for other shells):
-   eval $(v23 env)
+   eval $(jiri env)
 
 If arguments are given, prints only the value of each named variable, each on a
 separate line in the same order as the arguments.

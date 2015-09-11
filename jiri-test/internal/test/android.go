@@ -183,7 +183,7 @@ func buildAndroidLibs(ctx *tool.Context, appDir string) error {
 	buildArgs := []string{"go", "build", "-o", jniLibPath, "-ldflags=\"-shared\"", "-tags", "android", "v.io/jni"}
 	opts := ctx.Run().Opts()
 	opts.Env["V23_ENV"] = "android"
-	if err := ctx.Run().CommandWithOpts(opts, "v23", buildArgs...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", buildArgs...); err != nil {
 		return err
 	}
 	// Link vanadium android library into the app native lib dir.

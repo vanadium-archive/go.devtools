@@ -20,7 +20,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdOncall.Flags)
 }
 
-// cmdOncall represents the "v23 oncall" command.
+// cmdOncall represents the "jiri oncall" command.
 var cmdOncall = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runOncall),
 	Name:   "oncall",
@@ -32,7 +32,7 @@ of the current oncall.
 	Children: []*cmdline.Command{cmdOncallList},
 }
 
-// cmdOncallList represents the "v23 oncall list" command.
+// cmdOncallList represents the "jiri oncall list" command.
 var cmdOncallList = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runOncallList),
 	Name:   "list",

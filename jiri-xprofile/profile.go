@@ -29,7 +29,7 @@ func main() {
 	cmdline.Main(profileDriver)
 }
 
-// profileDriver represents the "v23 profile" command.
+// profileDriver represents the "jiri profile" command.
 var profileDriver = &cmdline.Command{
 	Name:  "xprofile",
 	Short: "Manage profiles",

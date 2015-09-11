@@ -34,7 +34,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdGo.Flags)
 }
 
-// cmdGo represents the "v23 go" command.
+// cmdGo represents the "jiri go" command.
 var cmdGo = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runGo),
 	Name:   "go",
@@ -245,7 +245,7 @@ func reportOutdatedBranches(ctx *tool.Context) (e error) {
 				fmt.Fprintf(ctx.Stderr(), "NOTE: project=%q path=%q\n", project.Name, project.Path)
 				fmt.Fprintf(ctx.Stderr(), "This project is on a non-master branch that is out of date.\n")
 				fmt.Fprintf(ctx.Stderr(), "Please update this branch using %q.\n", "git merge master")
-				fmt.Fprintf(ctx.Stderr(), "Until then the %q tool might not function properly.\n", "v23")
+				fmt.Fprintf(ctx.Stderr(), "Until then the %q tool might not function properly.\n", "jiri")
 			}
 		}
 	}

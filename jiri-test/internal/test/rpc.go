@@ -80,7 +80,7 @@ func runRPCTest(ctx *tool.Context, testName, nodeName string, numServerNodes, nu
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install binaries.
-	if err := ctx.Run().Command("v23", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
 		return nil, internalTestError{err, "Install Binaries"}
 	}
 
