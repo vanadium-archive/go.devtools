@@ -37,7 +37,7 @@ func init() {
 const (
 	defaultFileMode = os.FileMode(0644)
 	hashbang        = "#!"
-	v23Ignore       = ".v23ignore"
+	jiriIgnore      = ".jiriignore"
 )
 
 var (
@@ -112,8 +112,8 @@ command can be used to fix the appropriate copyright headers and
 licensing files.
 
 In order to ignore checked in third-party assets which have their own copyright
-and licensing headers a ".v23ignore" file can be added to a project. The
-".v23ignore" file is expected to contain a single regular expression pattern per
+and licensing headers a ".jiriignore" file can be added to a project. The
+".jiriignore" file is expected to contain a single regular expression pattern per
 line.
 `,
 	Children: []*cmdline.Command{cmdCopyrightCheck, cmdCopyrightFix},
@@ -391,7 +391,7 @@ func loadAssets(ctx *tool.Context, dir string) (*copyrightAssets, error) {
 	return &result, nil
 }
 
-// isIgnored checks a path against patterns extracted from the .v23ignore file.
+// isIgnored checks a path against patterns extracted from the .jiriignore file.
 func isIgnored(path string, expressions []*regexp.Regexp) bool {
 	for _, expression := range expressions {
 		if ok := expression.MatchString(path); ok {
@@ -403,9 +403,9 @@ func isIgnored(path string, expressions []*regexp.Regexp) bool {
 }
 
 func readV23Ignore(ctx *tool.Context, project project.Project) ([]*regexp.Regexp, error) {
-	// Grab the .v23ignore in from project.Path. Ignore file not found errors, not
+	// Grab the .jiriignore in from project.Path. Ignore file not found errors, not
 	// all projects will have one of these ignore files.
-	path := filepath.Join(project.Path, v23Ignore)
+	path := filepath.Join(project.Path, jiriIgnore)
 	file, err := ctx.Run().Open(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
