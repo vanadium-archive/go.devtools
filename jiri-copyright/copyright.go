@@ -61,6 +61,10 @@ type languageSpec struct {
 }
 
 var languages map[string]languageSpec = map[string]languageSpec{
+	"c_source": languageSpec{
+		CommentPrefix: "// ",
+		FileExtension: ".c",
+	},
 	"css": languageSpec{
 		CommentPrefix: "/* ",
 		CommentSuffix: " */",
@@ -73,6 +77,10 @@ var languages map[string]languageSpec = map[string]languageSpec{
 	"go": languageSpec{
 		CommentPrefix: "// ",
 		FileExtension: ".go",
+	},
+	"c_header": languageSpec{
+		CommentPrefix: "// ",
+		FileExtension: ".h",
 	},
 	"java": languageSpec{
 		CommentPrefix: "// ",
