@@ -6,10 +6,14 @@
     <project>release.go.x.lib</project>
   </apiCheckProjects>
   <copyrightCheckProjects>
+    <project>docs</project>
+    <project>release.go.jiri</project>
     <project>release.go.v23</project>
     <project>release.go.x.devtools</project>
+    <project>release.go.x.jni</project>
     <project>release.go.x.lib</project>
     <project>release.go.x.ref</project>
+    <project>release.java</project>
     <project>release.js.core</project>
     <project>release.js.syncbase</project>
     <project>release.mojo.discovery</project>
