@@ -589,10 +589,8 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 		if len(suffix) != 0 {
 			testName += " " + suffix
 		}
-		if err := xunit.CreateFailureReport(ctx, originalTestName, "BuildTestDependencies", testName, "dependencies build failure", err.Error()); err != nil {
-			return nil, nil, err
-		}
-		return &test.Result{Status: test.Failed}, nil, nil
+		failureSuite := xunit.CreateTestSuiteWithFailure("BuildTestDependencies", originalTestName, "dependencies build failure", err.Error(), 0)
+		return &test.Result{Status: test.Failed}, []xunit.TestSuite{*failureSuite}, nil
 	}
 
 	// Enumerate the packages to be built and tests to be executed.
@@ -602,10 +600,8 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 		if len(suffix) != 0 {
 			testName += " " + suffix
 		}
-		if err := xunit.CreateFailureReport(ctx, originalTestName, "ListPackagesAndFuncs", testName, "package parsing failure", err.Error()); err != nil {
-			return nil, nil, err
-		}
-		return &test.Result{Status: test.Failed}, nil, nil
+		failureSuite := xunit.CreateTestSuiteWithFailure("goListPackagesAndFuncs", originalTestName, "package pasing failure", err.Error(), 0)
+		return &test.Result{Status: test.Failed}, []xunit.TestSuite{*failureSuite}, nil
 	}
 
 	// Create a pool of workers.
