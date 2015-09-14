@@ -19,9 +19,9 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
-// TestV23TestGenerate tests that "v23 test generate" works as expected.  For
+// TestV23TestGenerate tests that "jiri test generate" works as expected.  For
 // each "golden" source directory under ./testdata/generate/* we copy the
-// contents into a tmpdir, then run "v23 test generate" against that tmpdir, and
+// contents into a tmpdir, then run "jiri test generate" against that tmpdir, and
 // finally compare the generated files against the golden source directory.
 func TestV23TestGenerate(t *testing.T) {
 	// Create a tmpdir where all generated files will go.

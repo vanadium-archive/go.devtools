@@ -21,7 +21,7 @@ import (
 // vanadiumGoVDL checks that all VDL-based Go source files are
 // up-to-date.
 func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'v23 run vdl generate --lang=go all'.\n")
+	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'jiri run vdl generate --lang=go all'.\n")
 
 	root, err := project.V23Root()
 	if err != nil {
@@ -35,7 +35,7 @@ func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vdl tool.
-	if err := ctx.Run().Command("v23", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
 		return nil, internalTestError{err, "Install VDL"}
 	}
 

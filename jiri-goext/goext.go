@@ -21,7 +21,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdGoExt.Flags)
 }
 
-// cmdGoExt represents the "v23 goext" command.
+// cmdGoExt represents the "jiri goext" command.
 var cmdGoExt = &cmdline.Command{
 	Name:     "goext",
 	Short:    "Vanadium extensions of the go tool",
@@ -29,7 +29,7 @@ var cmdGoExt = &cmdline.Command{
 	Children: []*cmdline.Command{cmdGoExtDistClean},
 }
 
-// cmdGoExtDistClean represents the "v23 goext distclean" command.
+// cmdGoExtDistClean represents the "jiri goext distclean" command.
 var cmdGoExtDistClean = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runGoExtDistClean),
 	Name:   "distclean",

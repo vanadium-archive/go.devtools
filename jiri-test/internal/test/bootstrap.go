@@ -47,12 +47,12 @@ func vanadiumBootstrap(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 	opts := ctx.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
-	// Find the PATH element containing the "v23" binary and remove it.
-	v23Path, err := exec.LookPath("v23")
+	// Find the PATH element containing the "jiri" binary and remove it.
+	jiriPath, err := exec.LookPath("jiri")
 	if err != nil {
 		return nil, internalTestError{err, "LookPath"}
 	}
-	opts.Env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Dir(v23Path), "", -1)
+	opts.Env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Dir(jiriPath), "", -1)
 	fn := func() error {
 		return ctx.Run().CommandWithOpts(opts, filepath.Join(oldRoot, "www", "public", "bootstrap"))
 	}

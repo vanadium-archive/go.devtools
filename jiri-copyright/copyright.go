@@ -108,7 +108,7 @@ var languages map[string]languageSpec = map[string]languageSpec{
 	},
 }
 
-// cmdCopyright represents the "v23 copyright" command.
+// cmdCopyright represents the "jiri copyright" command.
 var cmdCopyright = &cmdline.Command{
 	Name:  "copyright",
 	Short: "Manage vanadium copyright",
@@ -127,7 +127,7 @@ line.
 	Children: []*cmdline.Command{cmdCopyrightCheck, cmdCopyrightFix},
 }
 
-// cmdCopyrightCheck represents the "v23 copyright check" command.
+// cmdCopyrightCheck represents the "jiri copyright check" command.
 var cmdCopyrightCheck = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runCopyrightCheck),
 	Name:     "check",
@@ -141,7 +141,7 @@ func runCopyrightCheck(env *cmdline.Env, args []string) error {
 	return copyrightHelper(env.Stdout, env.Stderr, args, false)
 }
 
-// cmdCopyrightFix represents the "v23 copyright fix" command.
+// cmdCopyrightFix represents the "jiri copyright fix" command.
 var cmdCopyrightFix = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runCopyrightFix),
 	Name:     "fix",
@@ -155,7 +155,7 @@ func runCopyrightFix(env *cmdline.Env, args []string) error {
 	return copyrightHelper(env.Stdout, env.Stderr, args, true)
 }
 
-// copyrightHelper implements the logic of "v23 copyright {check,fix}".
+// copyrightHelper implements the logic of "jiri copyright {check,fix}".
 func copyrightHelper(stdout, stderr io.Writer, args []string, fix bool) error {
 	ctx := tool.NewContext(tool.ContextOpts{
 		Color:    &tool.ColorFlag,
@@ -165,7 +165,7 @@ func copyrightHelper(stdout, stderr io.Writer, args []string, fix bool) error {
 		Stdout:   stdout,
 		Stderr:   stderr,
 	})
-	dataDir, err := project.DataDirPath(ctx, "v23")
+	dataDir, err := project.DataDirPath(ctx, "jiri")
 	if err != nil {
 		return err
 	}

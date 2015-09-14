@@ -110,14 +110,14 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 
 	// Install profiles.
 	for _, profile := range profiles {
-		if err := ctx.Run().Command("v23", "profile", "install", profile); err != nil {
+		if err := ctx.Run().Command("jiri", "profile", "install", profile); err != nil {
 			return nil, err
 		}
 	}
 
 	// Update profiles.
 	for _, profile := range profiles {
-		if err := ctx.Run().Command("v23", "profile", "update", profile); err != nil {
+		if err := ctx.Run().Command("jiri", "profile", "update", profile); err != nil {
 			return nil, err
 		}
 	}
@@ -136,7 +136,7 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 
 	// Remove all stale Go object files and binaries.
 	if cleanGo {
-		if err := ctx.Run().Command("v23", "goext", "distclean"); err != nil {
+		if err := ctx.Run().Command("jiri", "goext", "distclean"); err != nil {
 			return nil, err
 		}
 	}

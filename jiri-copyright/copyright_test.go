@@ -24,7 +24,7 @@ func TestCopyright(t *testing.T) {
 	})
 
 	// Load assets.
-	dataDir, err := project.DataDirPath(ctx, "v23")
+	dataDir, err := project.DataDirPath(ctx, "jiri")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

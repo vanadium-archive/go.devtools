@@ -173,7 +173,7 @@ func deleteInstance(ctx *tool.Context, instanceName, instanceZone string) error 
 func runScript(ctx *tool.Context, script, instanceName string) error {
 	// Build all binaries.
 	args := []string{"go", "install", "v.io/..."}
-	if err := ctx.Run().Command("v23", args...); err != nil {
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return err
 	}
 

@@ -26,7 +26,7 @@ func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Fetch the latest stable Go snapshot.
-	if err := ctx.Run().Command("v23", "update", "-manifest=snapshot/stable-go"); err != nil {
+	if err := ctx.Run().Command("jiri", "update", "-manifest=snapshot/stable-go"); err != nil {
 		return nil, internalTestError{err, "Update"}
 	}
 
@@ -34,7 +34,7 @@ func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	if err := ctx.Run().Command("v23", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
+	if err := ctx.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
 		return nil, internalTestError{err, "Install"}
 	}
 

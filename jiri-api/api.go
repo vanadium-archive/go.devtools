@@ -39,7 +39,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdAPI.Flags)
 }
 
-// cmdAPI represents the "v23 api" command.
+// cmdAPI represents the "jiri api" command.
 var cmdAPI = &cmdline.Command{
 	Name:     "api",
 	Short:    "Manage vanadium public API",
@@ -47,7 +47,7 @@ var cmdAPI = &cmdline.Command{
 	Children: []*cmdline.Command{cmdAPICheck, cmdAPIUpdate},
 }
 
-// cmdAPICheck represents the "v23 api check" command.
+// cmdAPICheck represents the "jiri api check" command.
 var cmdAPICheck = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runAPICheck),
 	Name:     "check",
@@ -333,7 +333,7 @@ func doAPICheck(stdout, stderr io.Writer, args []string, detailedOutput bool) er
 	return nil
 }
 
-// cmdAPIUpdate represents the "v23 api fix" command.
+// cmdAPIUpdate represents the "jiri api fix" command.
 var cmdAPIUpdate = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runAPIFix),
 	Name:     "fix",

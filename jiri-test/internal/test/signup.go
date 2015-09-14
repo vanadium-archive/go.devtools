@@ -64,7 +64,7 @@ func vanadiumSignupProxyHelper(ctx *tool.Context, schema, testName string) (_ *t
 		for _, whitelist := range whitelists {
 			opts := ctx.Run().Opts()
 			opts.Stdin = bytes.NewReader(data)
-			if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "run", mergeSrc, "-whitelist="+whitelist); err != nil {
+			if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "run", mergeSrc, "-whitelist="+whitelist); err != nil {
 				return nil, internalTestError{err, "merge"}
 			}
 			if err := ctx.Git(infraDir).Add(whitelist); err != nil {
@@ -111,7 +111,7 @@ func vanadiumSignupWelcomeStepOneNew(ctx *tool.Context, testName string, _ ...Op
 	welcomeOpts.Stdin = bytes.NewReader(data)
 	welcomeOpts.Stdout = &emails
 	sentlist := filepath.Join(root, "infrastructure", "signup", "sentlist.json")
-	if err := ctx.Run().CommandWithOpts(welcomeOpts, "v23", "go", "run", welcome, "-sentlist="+sentlist); err != nil {
+	if err := ctx.Run().CommandWithOpts(welcomeOpts, "jiri", "go", "run", welcome, "-sentlist="+sentlist); err != nil {
 		return nil, internalTestError{err, "welcome"}
 	}
 
@@ -184,7 +184,7 @@ func vanadiumSignupWelcomeStepTwoNew(ctx *tool.Context, testName string, _ ...Op
 
 	mailer := filepath.Join(root, "release", "go", "src", "v.io", "x", "devtools", "mailer", "mailer.go")
 	mailerFunc := func() error {
-		return ctx.Run().Command("v23", "go", "run", mailer)
+		return ctx.Run().Command("jiri", "go", "run", mailer)
 	}
 	if err := retry.Function(ctx, mailerFunc); err != nil {
 		return nil, internalTestError{err, "mailer"}
@@ -220,7 +220,7 @@ func vanadiumSignupGithubHelper(ctx *tool.Context, schema, testName string) (_ *
 	github := filepath.Join(root, "infrastructure", "signup", "github.go")
 	githubOpts := ctx.Run().Opts()
 	githubOpts.Stdin = bytes.NewReader(data)
-	if err := ctx.Run().CommandWithOpts(githubOpts, "v23", "go", "run", github, "-token="+githubToken); err != nil {
+	if err := ctx.Run().CommandWithOpts(githubOpts, "jiri", "go", "run", github, "-token="+githubToken); err != nil {
 		return nil, internalTestError{err, "github"}
 	}
 
@@ -261,7 +261,7 @@ func vanadiumSignupGroupHelper(ctx *tool.Context, schema, testName string, discu
 	opts := ctx.Run().Opts()
 	opts.Stdin = bytes.NewReader(data)
 	groupSrc := filepath.Join(root, "infrastructure", "signup", "group.go")
-	if err := ctx.Run().CommandWithOpts(opts, "v23", "go", "run", groupSrc, "-keyFile="+keyFile, "-account="+serviceAccount, "-groupEmail="+groupEmail); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "run", groupSrc, "-keyFile="+keyFile, "-account="+serviceAccount, "-groupEmail="+groupEmail); err != nil {
 		return nil, internalTestError{err, "group"}
 	}
 
@@ -284,7 +284,7 @@ func fetchFieldValues(ctx *tool.Context, credentials, field, schema, sheetID str
 	if discussOnly {
 		args = append(args, "-discuss-only")
 	}
-	if err := ctx.Run().CommandWithOpts(opts, "v23", args...); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", args...); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil

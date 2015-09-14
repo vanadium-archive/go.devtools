@@ -20,7 +20,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
 }
 
-// cmdRun represents the "v23 run" command.
+// cmdRun represents the "jiri run" command.
 var cmdRun = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runRun),
 	Name:     "run",
@@ -48,7 +48,7 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 	// warn the user that they might want to use the specialized wrapper.
 	switch args[0] {
 	case "go":
-		fmt.Fprintln(cmdlineEnv.Stderr, `WARNING: using "v23 run go" instead of "v23 go" skips vdl generation`)
+		fmt.Fprintln(cmdlineEnv.Stderr, `WARNING: using "jiri run go" instead of "jiri go" skips vdl generation`)
 	}
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = cmdlineEnv.Stdout

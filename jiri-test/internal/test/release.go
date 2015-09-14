@@ -184,7 +184,7 @@ func prepareBinaries(ctx *tool.Context, root, rcLabel string) error {
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
 	args := []string{"go", "install", "-tags=leveldb", "v.io/..."}
-	if err := ctx.Run().Command("v23", args...); err != nil {
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return err
 	}
 
@@ -425,7 +425,7 @@ func waitForMounttable(ctx *tool.Context, root, credentialsArg, mounttableRoot, 
 	return nil
 }
 
-// checkServices runs "v23 test run vanadium-prod-services-test" against
+// checkServices runs "jiri test run vanadium-prod-services-test" against
 // staging.
 func checkServices(ctx *tool.Context) error {
 	args := []string{
@@ -435,7 +435,7 @@ func checkServices(ctx *tool.Context) error {
 		fmt.Sprintf("--blessings-root=%s", stagingBlessingsRoot),
 		"vanadium-prod-services-test",
 	}
-	if err := ctx.Run().TimedCommand(defaultReleaseTestTimeout, "v23", args...); err != nil {
+	if err := ctx.Run().TimedCommand(defaultReleaseTestTimeout, "jiri", args...); err != nil {
 		return err
 	}
 	return nil
@@ -450,7 +450,7 @@ func createSnapshot(ctx *tool.Context) (e error) {
 		"--time-format=2006-01-02", // Only include date in label names
 		"release",
 	}
-	if err := ctx.Run().Command("v23", args...); err != nil {
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return err
 	}
 	return nil
@@ -500,7 +500,7 @@ func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts .
 		"--time-format=2006-01-02.15:04",
 		snapshotName,
 	}
-	if err := ctx.Run().Command("v23", args...); err != nil {
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return nil, internalTestError{err, "Snapshot"}
 	}
 

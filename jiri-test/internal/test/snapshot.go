@@ -22,7 +22,7 @@ func vanadiumGoSnapshot(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 
 	// Create a new snapshot.
 	fn := func() error {
-		return ctx.Run().Command("v23", "snapshot", "-remote", "create", "stable-go")
+		return ctx.Run().Command("jiri", "snapshot", "-remote", "create", "stable-go")
 	}
 	if err := retry.Function(ctx, fn); err != nil {
 		return nil, internalTestError{err, "Snapshot"}

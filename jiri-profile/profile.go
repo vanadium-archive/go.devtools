@@ -114,7 +114,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdProfile.Flags)
 }
 
-// cmdProfile represents the "v23 profile" command.
+// cmdProfile represents the "jiri profile" command.
 var cmdProfile = &cmdline.Command{
 	Name:  "profile",
 	Short: "Manage vanadium profiles",
@@ -206,7 +206,7 @@ func lookupVersion(profiles map[string]profileInfo, target profileTarget, name s
 	return -1
 }
 
-// readV23Profiles reads information about installed v23 profiles into
+// readV23Profiles reads information about installed jiri profiles into
 // memory.
 func readV23Profiles(ctx *tool.Context) (map[string]profileInfo, error) {
 	file, err := project.V23ProfilesFile()
@@ -233,7 +233,7 @@ func readV23Profiles(ctx *tool.Context) (map[string]profileInfo, error) {
 	return result, nil
 }
 
-// writeV23Profiles writes information about installed v23 profiles to
+// writeV23Profiles writes information about installed jiri profiles to
 // disk.
 func writeV23Profiles(ctx *tool.Context, profiles map[string]profileInfo) error {
 	var schema profilesSchema
@@ -255,7 +255,7 @@ func writeV23Profiles(ctx *tool.Context, profiles map[string]profileInfo) error 
 	return nil
 }
 
-// cmdProfileInstall represents the "v23 profile install" command.
+// cmdProfileInstall represents the "jiri profile install" command.
 var cmdProfileInstall = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runProfileInstall),
 	Name:     "install",
@@ -1021,7 +1021,7 @@ func installSyncbaseAndroid(ctx *tool.Context, target profileTarget) error {
 	// Make sure android profile is installed.
 	androidRoot := filepath.Join(root, "third_party", "android")
 	if !directoryExists(ctx, androidRoot) {
-		return fmt.Errorf("Android profile is required.  Please run 'v23 profile install android'.")
+		return fmt.Errorf("Android profile is required.  Please run 'jiri profile install android'.")
 	}
 
 	return installSyncbaseCommon(ctx, target)
@@ -1281,7 +1281,7 @@ func gitCloneRepo(ctx *tool.Context, remote, revision, outDir string) (e error) 
 	return nil
 }
 
-// cmdProfileList represents the "v23 profile list" command.
+// cmdProfileList represents the "jiri profile list" command.
 //
 // TODO(jsimsa): Add support for listing installed profiles.
 var cmdProfileList = &cmdline.Command{
@@ -1303,8 +1303,8 @@ func runProfileList(env *cmdline.Env, _ []string) error {
 	return nil
 }
 
-// cmdProfileSetup represents the "v23 profile setup" command. This
-// command is identical to "v23 profile install" and is provided for
+// cmdProfileSetup represents the "jiri profile setup" command. This
+// command is identical to "jiri profile install" and is provided for
 // backwards compatibility.
 var cmdProfileSetup = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runProfileInstall),
@@ -1315,7 +1315,7 @@ var cmdProfileSetup = &cmdline.Command{
 	ArgsLong: "<profiles> is a list of profiles to set up.",
 }
 
-// cmdProfileUninstall represents the "v23 profile uninstall" command.
+// cmdProfileUninstall represents the "jiri profile uninstall" command.
 var cmdProfileUninstall = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runProfileUninstall),
 	Name:     "uninstall",
@@ -1466,7 +1466,7 @@ func uninstallJavaLinux(ctx *tool.Context, target profileTarget, version int) er
 
 // uninstallJavaCommon uninstalls the java profile. Currently this means
 // uninstalling Gradle, in the future we will take care of removing any JDK
-// installed by `v23 profile install java`.
+// installed by `jiri profile install java`.
 func uninstallJavaCommon(ctx *tool.Context, target profileTarget, version int) error {
 	// TODO(spetrovic): Implement JDK removal.
 	root, err := project.V23Root()
@@ -1555,7 +1555,7 @@ func uninstallSyncbaseCommon(ctx *tool.Context, target profileTarget, version in
 	return nil
 }
 
-// cmdProfileUpdate represents the "v23 profile update" command.
+// cmdProfileUpdate represents the "jiri profile update" command.
 var cmdProfileUpdate = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runProfileUpdate),
 	Name:     "update",
