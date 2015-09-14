@@ -28,7 +28,7 @@ func vanadiumSignupProxyNew(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 }
 
 func vanadiumSignupProxyHelper(ctx *tool.Context, schema, testName string) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
@@ -91,7 +91,7 @@ func vanadiumSignupProxyHelper(ctx *tool.Context, schema, testName string) (_ *t
 }
 
 func vanadiumSignupWelcomeStepOneNew(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
@@ -177,7 +177,7 @@ func vanadiumSignupWelcomeStepOneNew(ctx *tool.Context, testName string, _ ...Op
 }
 
 func vanadiumSignupWelcomeStepTwoNew(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
@@ -202,7 +202,7 @@ func vanadiumSignupGithubNew(ctx *tool.Context, testName string, _ ...Opt) (_ *t
 }
 
 func vanadiumSignupGithubHelper(ctx *tool.Context, schema, testName string) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
@@ -240,7 +240,7 @@ func vanadiumSignupDiscussNew(ctx *tool.Context, testName string, _ ...Opt) (_ *
 }
 
 func vanadiumSignupGroupHelper(ctx *tool.Context, schema, testName string, discussOnly bool) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
@@ -269,7 +269,7 @@ func vanadiumSignupGroupHelper(ctx *tool.Context, schema, testName string, discu
 }
 
 func fetchFieldValues(ctx *tool.Context, credentials, field, schema, sheetID string, discussOnly bool) ([]byte, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}

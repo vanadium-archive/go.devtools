@@ -136,7 +136,7 @@ func clientNodeName(nodeName string, n int) string {
 }
 
 func createNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNodes int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func createNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNo
 }
 
 func deleteNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNodes int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func deleteNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNo
 }
 
 func startServers(ctx *tool.Context, nodeName string, numServerNodes int) (<-chan error, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func startServers(ctx *tool.Context, nodeName string, numServerNodes int) (<-cha
 }
 
 func stopServers(ctx *tool.Context, nodeName string, numServerNodes int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func stopServers(ctx *tool.Context, nodeName string, numServerNodes int) error {
 }
 
 func runStressTest(ctx *tool.Context, testName string) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ func writeStressStats(w io.Writer, title string, stats *stressStats) {
 }
 
 func runLoadTest(ctx *tool.Context, testName string) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

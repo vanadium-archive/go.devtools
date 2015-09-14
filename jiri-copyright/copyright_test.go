@@ -34,7 +34,7 @@ func TestCopyright(t *testing.T) {
 	}
 
 	// Setup a fake V23_ROOT.
-	root, err := project.NewFakeV23Root(ctx)
+	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -57,7 +57,7 @@ func TestCopyright(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	oldRoot, err := project.V23Root()
+	oldRoot, err := project.JiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

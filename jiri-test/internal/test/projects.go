@@ -30,7 +30,7 @@ func runProjectTest(ctx *tool.Context, testName, projectName, target string, env
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Navigate to project directory.
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

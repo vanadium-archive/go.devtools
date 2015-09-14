@@ -209,7 +209,7 @@ func lookupVersion(profiles map[string]profileInfo, target profileTarget, name s
 // readV23Profiles reads information about installed jiri profiles into
 // memory.
 func readV23Profiles(ctx *tool.Context) (map[string]profileInfo, error) {
-	file, err := project.V23ProfilesFile()
+	file, err := project.JiriProfilesFile()
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func writeV23Profiles(ctx *tool.Context, profiles map[string]profileInfo) error 
 	if err != nil {
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
 	}
-	file, err := project.V23ProfilesFile()
+	file, err := project.JiriProfilesFile()
 	if err != nil {
 		return err
 	}
@@ -523,7 +523,7 @@ func run(ctx *tool.Context, bin string, args []string, env map[string]string) er
 // For more on Go cross-compilation for arm/linux information see:
 // http://www.bootc.net/archives/2012/05/26/how-to-build-a-cross-compiler-for-your-raspberry-pi/
 func installArmLinux(ctx *tool.Context, target profileTarget) (e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -670,7 +670,7 @@ func installArmLinux(ctx *tool.Context, target profileTarget) (e error) {
 
 // installAndroidCommon prepares the shared cross-platform parts of the android setup.
 func installAndroidCommon(ctx *tool.Context, target profileTarget) (e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -834,7 +834,7 @@ func installGradle(ctx *tool.Context, targetDir string) (e error) {
 // installJavaCommon contains cross-platform actions to install the
 // java profile.
 func installJavaCommon(ctx *tool.Context, target profileTarget) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -921,7 +921,7 @@ func installNodeJSLinux(ctx *tool.Context, target profileTarget) error {
 
 // installNodeJSCommon installs the nodejs profile.
 func installNodeJSCommon(ctx *tool.Context, target profileTarget) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -969,7 +969,7 @@ func installNaclLinux(ctx *tool.Context, target profileTarget) error {
 
 // installNaclCommon installs the nacl profile.
 func installNaclCommon(ctx *tool.Context, target profileTarget) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1009,7 +1009,7 @@ func installNaclCommon(ctx *tool.Context, target profileTarget) error {
 
 // installSyncbaseAndroid installs the syncbase profile for android.
 func installSyncbaseAndroid(ctx *tool.Context, target profileTarget) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1059,7 +1059,7 @@ func installSyncbaseLinux(ctx *tool.Context, target profileTarget) error {
 
 // installSyncbaseCommon installs the syncbase profile.
 func installSyncbaseCommon(ctx *tool.Context, target profileTarget) (e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1429,7 +1429,7 @@ func uninstallAndroidLinux(ctx *tool.Context, target profileTarget, version int)
 
 // uninstallAndroidCommon uninstalls the android profile.
 func uninstallAndroidCommon(ctx *tool.Context, target profileTarget, version int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1439,7 +1439,7 @@ func uninstallAndroidCommon(ctx *tool.Context, target profileTarget, version int
 
 // uninstallArmLinux uninstalls the arm profile for linux.
 func uninstallArmLinux(ctx *tool.Context, target profileTarget, version int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1469,7 +1469,7 @@ func uninstallJavaLinux(ctx *tool.Context, target profileTarget, version int) er
 // installed by `jiri profile install java`.
 func uninstallJavaCommon(ctx *tool.Context, target profileTarget, version int) error {
 	// TODO(spetrovic): Implement JDK removal.
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1489,7 +1489,7 @@ func uninstallNaclLinux(ctx *tool.Context, target profileTarget, version int) er
 
 // uninstallNaclCommon uninstalls the nacl profile.
 func uninstallNaclCommon(ctx *tool.Context, target profileTarget, version int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}
@@ -1512,7 +1512,7 @@ func uninstallNodeJSLinux(ctx *tool.Context, target profileTarget, version int) 
 
 // uninstallNodeJSCommon uninstalls the nodejs profile.
 func uninstallNodeJSCommon(ctx *tool.Context, target profileTarget, version int) error {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}

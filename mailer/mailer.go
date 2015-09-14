@@ -81,7 +81,7 @@ var m = message{
 func main() {
 	ctx := tool.NewDefaultContext()
 
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

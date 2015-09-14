@@ -115,9 +115,9 @@ func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
-		return nil, internalTestError{err, "V23Root"}
+		return nil, internalTestError{err, "JiriRoot"}
 	}
 
 	projects := filepath.Join(root, "projects")

@@ -45,7 +45,7 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}

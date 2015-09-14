@@ -25,7 +25,7 @@ func writeFileOrDie(t *testing.T, ctx *tool.Context, path, contents string) {
 
 type testEnv struct {
 	oldRoot        string
-	fakeRoot       *project.FakeV23Root
+	fakeRoot       *project.FakeJiriRoot
 	ctx            *tool.Context
 	gotoolsPath    string
 	gotoolsCleanup func() error
@@ -34,7 +34,7 @@ type testEnv struct {
 // setupAPITest sets up the test environment and returns a testEnv
 // representing the environment that was created.
 func setupAPITest(t *testing.T, ctx *tool.Context) testEnv {
-	root, err := project.NewFakeV23Root(ctx)
+	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -53,7 +53,7 @@ func setupAPITest(t *testing.T, ctx *tool.Context) testEnv {
 	}
 	// The code under test wants to build visualfc/gotools, but this won't
 	// exist in our fake environment unless we copy it in there.
-	oldRoot, err := project.V23Root()
+	oldRoot, err := project.JiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -85,7 +85,7 @@ func vanadiumProdServicesTest(ctx *tool.Context, testName string, opts ...Opt) (
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	vroot, err := project.V23Root()
+	vroot, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

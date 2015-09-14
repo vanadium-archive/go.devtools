@@ -57,7 +57,7 @@ var cmdPoll = &cmdline.Command{
 
 func runPoll(env *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(env)
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return err
 	}

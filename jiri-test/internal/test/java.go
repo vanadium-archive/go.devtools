@@ -67,7 +67,7 @@ func vanadiumJavaTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	}
 
 	// Run tests.
-	rootDir, err := project.V23Root()
+	rootDir, err := project.JiriRoot()
 	javaDir := filepath.Join(rootDir, "release", "java")
 	if err := ctx.Run().Chdir(javaDir); err != nil {
 		return nil, err

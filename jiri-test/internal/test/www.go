@@ -22,7 +22,7 @@ const (
 
 // Runs specified make target in WWW Makefile as a test.
 func commonVanadiumWWW(ctx *tool.Context, testName, makeTarget string, timeout time.Duration, extraDeps []string) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +99,9 @@ func vanadiumWWWConfigDeployHelper(ctx *tool.Context, testName string, env strin
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Change dir to infrastructure/nginx.
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
-		return nil, internalTestError{err, "V23Root"}
+		return nil, internalTestError{err, "JiriRoot"}
 	}
 
 	dir := filepath.Join(root, "infrastructure", "nginx")

@@ -20,7 +20,7 @@ import (
 func TestTestProject(t *testing.T) {
 	// Setup a fake V23_ROOT.
 	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeV23Root(ctx)
+	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -69,7 +69,7 @@ ignore-this PASSED
 func TestTestRun(t *testing.T) {
 	// Setup a fake V23_ROOT.
 	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeV23Root(ctx)
+	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -111,7 +111,7 @@ ignore-this PASSED
 func TestTestList(t *testing.T) {
 	// Setup a fake V23_ROOT.
 	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeV23Root(ctx)
+	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

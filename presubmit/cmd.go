@@ -50,7 +50,7 @@ var (
 
 func main() {
 	var err error
-	vroot, err = project.V23Root()
+	vroot, err = project.JiriRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)

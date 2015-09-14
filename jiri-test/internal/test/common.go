@@ -161,7 +161,7 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 // findTestResultFiles returns a slice of paths to test result related files.
 func findTestResultFiles(ctx *tool.Context, testName string) ([]string, error) {
 	result := []string{}
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

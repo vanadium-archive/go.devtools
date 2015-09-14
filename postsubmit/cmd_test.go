@@ -16,7 +16,7 @@ import (
 
 func TestJenkinsTestsToStart(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeV23Root(ctx)
+	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -27,7 +27,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 	}()
 
 	// Point the V23_ROOT environment variable to the fake.
-	oldRoot, err := project.V23Root()
+	oldRoot, err := project.JiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
