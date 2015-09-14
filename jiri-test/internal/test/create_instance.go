@@ -46,7 +46,7 @@ type instance struct {
 // create_instance.sh script (specified in the CREATE_INSTANCE_SCRIPT
 // environment variable) and run prod service test and load test againest it.
 func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

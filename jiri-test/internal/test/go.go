@@ -1172,7 +1172,7 @@ func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 // thirdPartyPkgs returns a list of Go expressions that describe all
 // third-party packages.
 func thirdPartyPkgs() ([]string, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -1388,7 +1388,7 @@ type goGenerateDiff struct {
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
 func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -1807,7 +1807,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	if err := ctx.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
 		return nil, internalTestError{err, "Install"}
 	}
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

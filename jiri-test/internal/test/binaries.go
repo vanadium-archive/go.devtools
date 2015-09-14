@@ -51,9 +51,9 @@ func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 
 	// Upload all v.io binaries to Google Storage.
 	bucket := fmt.Sprintf("gs://vanadium-binaries/%s_%s/", runtime.GOOS, runtime.GOARCH)
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
-		return nil, internalTestError{err, "V23Root"}
+		return nil, internalTestError{err, "JiriRoot"}
 	}
 	binaries := filepath.Join(root, "release", "go", "bin", "*")
 	if err := ctx.Run().Command("gsutil", "-m", "-q", "cp", binaries, bucket+timestamp); err != nil {

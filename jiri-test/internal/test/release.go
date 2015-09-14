@@ -65,7 +65,7 @@ var (
 
 // vanadiumReleaseCandidate updates binaries of staging cloud services and run tests for them.
 func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func updateLatestFile(ctx *tool.Context, rcLabel string) error {
 // in the form of "<manifestEnvVar>=<symlinkTarget>" to
 // "V23_ROOT/<snapshotManifestFile>".
 func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}

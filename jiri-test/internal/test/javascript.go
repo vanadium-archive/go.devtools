@@ -66,7 +66,7 @@ func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func
 
 // vanadiumJSBuildExtension tests the vanadium javascript build extension.
 func vanadiumJSBuildExtension(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func vanadiumJSBuildExtension(ctx *tool.Context, testName string, _ ...Opt) (*te
 // vanadiumJSDoc (re)generates the content of the vanadium core javascript
 // documentation server.
 func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 // vanadiumJSDocSyncbase (re)generates the content of the vanadium syncbase
 // javascript documentation server.
 func vanadiumJSDocSyncbase(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func jsDocDeployHelper(ctx *tool.Context, testName, projectName string) (_ *test
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func jsDocDeployHelper(ctx *tool.Context, testName, projectName string) (_ *test
 
 // vanadiumJSBrowserIntegration runs the vanadium javascript integration test in a browser environment using nacl plugin.
 func vanadiumJSBrowserIntegration(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func vanadiumJSBrowserIntegration(ctx *tool.Context, testName string, _ ...Opt) 
 
 // vanadiumJSNodeIntegration runs the vanadium javascript integration test in NodeJS environment using wspr.
 func vanadiumJSNodeIntegration(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func vanadiumJSNodeIntegration(ctx *tool.Context, testName string, _ ...Opt) (*t
 
 // vanadiumJSUnit runs the vanadium javascript unit test.
 func vanadiumJSUnit(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func vanadiumJSUnit(ctx *tool.Context, testName string, _ ...Opt) (*test.Result,
 
 // vanadiumJSVdl runs the vanadium javascript vdl test.
 func vanadiumJSVdl(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func vanadiumJSVdl(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 
 // vanadiumJSVDLAudit checks that all VDL-based JS source files are up-to-date.
 func vanadiumJSVdlAudit(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func vanadiumJSVdlAudit(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 
 // vanadiumJSVom runs the vanadium javascript vom test.
 func vanadiumJSVom(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func vanadiumJSVom(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 
 // vanadiumJSSyncbaseBrowser runs the vanadium javascript syncbase test in a browser.
 func vanadiumJSSyncbaseBrowser(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +256,7 @@ func vanadiumJSSyncbaseBrowser(ctx *tool.Context, testName string, _ ...Opt) (*t
 
 // vanadiumJSSyncbaseNode runs the vanadium javascript syncbase test in nodejs.
 func vanadiumJSSyncbaseNode(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.V23Root()
+	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
