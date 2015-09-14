@@ -19,19 +19,29 @@ import (
 var (
 	mirrors = []Mirror{
 		Mirror{
-			name:         "go.jiri",
-			googlesource: "https://vanadium.googlesource.com/release.go.jiri",
-			github:       "git@github.com:vanadium/go.jiri.git",
+			name:         "browser",
+			googlesource: "https://vanadium.googlesource.com/release.projects.browser",
+			github:       "git@github.com:vanadium/browser.git",
 		},
 		Mirror{
-			name:         "go.v23",
-			googlesource: "https://vanadium.googlesource.com/release.go.v23",
-			github:       "git@github.com:vanadium/go.v23.git",
+			name:         "chat",
+			googlesource: "https://vanadium.googlesource.com/release.projects.chat",
+			github:       "git@github.com:vanadium/chat.git",
+		},
+		Mirror{
+			name:         "docs",
+			googlesource: "https://vanadium.googlesource.com/docs",
+			github:       "git@github.com:vanadium/docs.git",
 		},
 		Mirror{
 			name:         "go.devtools",
 			googlesource: "https://vanadium.googlesource.com/release.go.x.devtools",
 			github:       "git@github.com:vanadium/go.devtools.git",
+		},
+		Mirror{
+			name:         "go.jiri",
+			googlesource: "https://vanadium.googlesource.com/release.go.jiri",
+			github:       "git@github.com:vanadium/go.jiri.git",
 		},
 		Mirror{
 			name:         "go.lib",
@@ -42,6 +52,11 @@ var (
 			name:         "go.ref",
 			googlesource: "https://vanadium.googlesource.com/release.go.x.ref",
 			github:       "git@github.com:vanadium/go.ref.git",
+		},
+		Mirror{
+			name:         "go.v23",
+			googlesource: "https://vanadium.googlesource.com/release.go.v23",
+			github:       "git@github.com:vanadium/go.v23.git",
 		},
 		Mirror{
 			name:         "js",
@@ -59,16 +74,6 @@ var (
 			github:       "git@github.com:vanadium/mojo.syncbase.git",
 		},
 		Mirror{
-			name:         "browser",
-			googlesource: "https://vanadium.googlesource.com/release.projects.browser",
-			github:       "git@github.com:vanadium/browser.git",
-		},
-		Mirror{
-			name:         "chat",
-			googlesource: "https://vanadium.googlesource.com/release.projects.chat",
-			github:       "git@github.com:vanadium/chat.git",
-		},
-		Mirror{
 			name:         "pipe2browser",
 			googlesource: "https://vanadium.googlesource.com/release.projects.pipe2browser",
 			github:       "git@github.com:vanadium/pipe2browser.git",
@@ -84,14 +89,14 @@ var (
 			github:       "git@github.com:vanadium/reader.git",
 		},
 		Mirror{
-			name:         "todos",
-			googlesource: "https://vanadium.googlesource.com/release.projects.todos",
-			github:       "git@github.com:vanadium/todos.git",
-		},
-		Mirror{
 			name:         "third_party",
 			googlesource: "https://vanadium.googlesource.com/third_party",
 			github:       "git@github.com:vanadium/third_party.git",
+		},
+		Mirror{
+			name:         "todos",
+			googlesource: "https://vanadium.googlesource.com/release.projects.todos",
+			github:       "git@github.com:vanadium/todos.git",
 		},
 		Mirror{
 			name:         "www",
