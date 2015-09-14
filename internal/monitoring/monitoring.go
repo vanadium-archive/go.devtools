@@ -34,6 +34,10 @@ var ServiceLocationMap = map[string]*ServiceLocation{
 		Instance: "vanadium-cell-master",
 		Zone:     "us-central1-c",
 	},
+	"/ns.dev.staging.v.io:8151": &ServiceLocation{
+		Instance: "vanadium-cell-master",
+		Zone:     "us-central1-c",
+	},
 }
 
 type labelData struct {
@@ -49,6 +53,14 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 
 	// Custom metric for recording various counters of vanadium production services.
 	"service-counters": createMetric("service/counters", "Various counters of vanadium production services.", "double", true, nil),
+
+	// Custom metric for recording service metadata of vanadium production services.
+	"service-metadata": createMetric("service/metadata", "Various metadata of vanadium production services.", "double", true, []labelData{
+		labelData{
+			key:         "metadata-name",
+			description: "The metadata name",
+		},
+	}),
 
 	// Custom metric for recording total rpc qps for a service.
 	"service-qps-total": createMetric("service/qps/total", "Total service QPS.", "double", true, nil),
