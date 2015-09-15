@@ -255,8 +255,8 @@ div.summary-table div.zone-col-cell div.sparkline {
 div.summary-table div.zone-col-cell div.mouse-line {
   position: absolute;
   top: 0px;
-  right: 45px;
-  left: 15px;
+  right: 60px;
+  left: 10px;
   bottom: 0px;
   display: flex;
 }
