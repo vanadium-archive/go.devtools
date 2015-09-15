@@ -309,9 +309,6 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 	// Update Device Manager.
 	{
 		fmt.Fprintln(ctx.Stdout(), "\n\n### Updating device manager ###")
-		if err := updateDeviceManagerEnvelope(ctx, root, publisherCredentialsArg, nsArg); err != nil {
-			return err
-		}
 		args := []string{
 			adminCredentialsArg,
 			fmt.Sprintf("--v23.namespace.root=%s", globalMountTable),
@@ -340,56 +337,6 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 		if err := checkManifestLabelFn(mounttableName); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// updateDeviceManagerEnvelope updates the envelope's title from "deviced" to
-// "device manager".
-func updateDeviceManagerEnvelope(ctx *tool.Context, root, credentialsArg, nsArg string) (e error) {
-	applicationBin := filepath.Join(root, "release", "go", "bin", "application")
-	appName := "applications/deviced/0"
-	appProfile := "linux-amd64"
-	// Get current envelope.
-	args := []string{
-		credentialsArg,
-		nsArg,
-		"match",
-		appName,
-		appProfile,
-	}
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
-	if err := ctx.Run().CommandWithOpts(opts, applicationBin, args...); err != nil {
-		return err
-	}
-
-	// Replace title.
-	strEnvelope := strings.Replace(out.String(), `"Title": "deviced"`, `"Title": "device manager"`, -1)
-	tmpDir, err := ctx.Run().TempDir("", "")
-	if err != nil {
-		return err
-	}
-	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-	filename := filepath.Join(tmpDir, "envelope")
-	if err := ctx.Run().WriteFile(filename, []byte(strEnvelope), os.FileMode(0600)); err != nil {
-		return err
-	}
-
-	// Update envelope.
-	args = []string{
-		credentialsArg,
-		nsArg,
-		"put",
-		"--overwrite",
-		appName,
-		appProfile,
-		filename,
-	}
-	if err := ctx.Run().Command(applicationBin, args...); err != nil {
-		return err
 	}
 	return nil
 }
