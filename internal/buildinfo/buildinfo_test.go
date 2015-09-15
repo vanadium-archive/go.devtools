@@ -29,6 +29,7 @@ var (
 			MetaData: metadata.FromMap(map[string]string{
 				"build.Manifest": `<manifest label="foo">
   <hooks></hooks>
+  <hosts></hosts>
   <imports></imports>
   <projects></projects>
   <tools></tools>
@@ -50,6 +51,7 @@ var (
 			MetaData: metadata.FromMap(map[string]string{
 				"build.Manifest": `<manifest label="bar">
   <hooks></hooks>
+  <hosts></hosts>
   <imports></imports>
   <projects></projects>
   <tools></tools>

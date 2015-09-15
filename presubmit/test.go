@@ -375,7 +375,11 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 		if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
 			return err
 		}
-		if err := ctx.Git().Pull(project.VanadiumGitHost()+localRepo.Name, curCL.ref); err != nil {
+		gitHost, err := project.GitHost(ctx)
+		if err != nil {
+			return err
+		}
+		if err := ctx.Git().Pull(gitHost+localRepo.Name, curCL.ref); err != nil {
 			return err
 		}
 		return nil
