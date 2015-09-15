@@ -127,7 +127,8 @@ var (
 
 func init() {
 	targetFlag = profiles.NativeTarget()
-	rootDir, err := project.JiriRoot()
+	var err error
+	rootDir, err = project.JiriRoot()
 	if err != nil {
 		panic(err)
 	}
