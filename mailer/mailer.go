@@ -72,7 +72,7 @@ var m = message{
 			name: "vanadium-discuss@v.io",
 		},
 		"[[3]]": link{
-			url:  "https://docs.google.com/a/google.com/forms/d/1IYq3fkmgqToqzVp0EAg3Oxv_7mtDzn6VCyMiiTdPNDY/viewform",
+			url:  "https://goo.gl/SzPXqd",
 			name: "here to sign up",
 		},
 	},
