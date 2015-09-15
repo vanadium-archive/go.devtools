@@ -1,3 +1,0 @@
-<godepcop>
-  <pkg allow="golang.org/x/tools/go/..."/>
-</godepcop>

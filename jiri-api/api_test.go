@@ -65,7 +65,7 @@ func setupAPITest(t *testing.T, ctx *tool.Context) testEnv {
 		t.Fatalf("buildGotools failed: %v", err)
 	}
 	gotoolsBinPathFlag = gotoolsPath
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("Setenv() failed: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func setupAPITest(t *testing.T, ctx *tool.Context) testEnv {
 }
 
 func teardownAPITest(t *testing.T, env testEnv) {
-	os.Setenv("V23_ROOT", env.oldRoot)
+	os.Setenv("JIRI_ROOT", env.oldRoot)
 	if err := env.fakeRoot.Cleanup(env.ctx); err != nil {
 		t.Fatalf("%v", err)
 	}

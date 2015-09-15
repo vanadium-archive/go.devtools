@@ -10,20 +10,16 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"golang.org/x/tools/go/gcimporter"
-	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/go/types/typeutil"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/tool"
@@ -59,20 +55,21 @@ var (
 // type checking. It makes sure that any give file or package
 // is parsed or type checked once and only once.
 type parseState struct {
-	ctx    *tool.Context
-	config *types.Config
-	fset   *token.FileSet
-	info   *types.Info
-	asts   map[string][]*ast.File // keyed by package path, as per config.Packages.
+	ctx      *tool.Context
+	config   *types.Config
+	fset     *token.FileSet
+	info     *types.Info
+	packages map[string]*types.Package // keyed by the package path name.
+	asts     map[string][]*ast.File    // keyed by the package path name
 }
 
 func newState(ctx *tool.Context) *parseState {
 	ps := &parseState{
-		ctx:  ctx,
-		fset: token.NewFileSet(),
-		asts: make(map[string][]*ast.File),
+		ctx:      ctx,
+		fset:     token.NewFileSet(),
+		packages: make(map[string]*types.Package),
+		asts:     make(map[string][]*ast.File),
 		config: &types.Config{
-			Packages:         make(map[string]*types.Package),
 			IgnoreFuncBodies: true,
 		},
 		info: &types.Info{
@@ -81,15 +78,16 @@ func newState(ctx *tool.Context) *parseState {
 			Uses:  make(map[*ast.Ident]types.Object),
 		},
 	}
-	ps.config.Import = func(imports map[string]*types.Package, path string) (*types.Package, error) {
-		return ps.gcOrSourceImporter(ps.config.Packages, path)
-	}
+	ps.config.Importer = ps
 	return ps
 }
 
+func (ps *parseState) Import(path string) (*types.Package, error) {
+	return ps.sourceImporter(path)
+}
+
 func (ps *parseState) parsedPackage(path string) (*types.Package, []*ast.File) {
-	_, id := gcimporter.FindPkg(path, "")
-	return ps.config.Packages[id], ps.asts[id]
+	return ps.packages[path], ps.asts[path]
 }
 
 func (ps *parseState) addParsedPackage(path string, pkg *types.Package, asts []*ast.File) {
@@ -97,27 +95,15 @@ func (ps *parseState) addParsedPackage(path string, pkg *types.Package, asts []*
 		fmt.Fprintf(ps.ctx.Stdout(), "Warning: %s is already cached\n", path)
 		return
 	}
-	_, id := gcimporter.FindPkg(path, "")
-	ps.config.Packages[id] = pkg
-	ps.asts[id] = asts
+	ps.packages[path] = pkg
+	ps.asts[path] = asts
 }
 
-// gcOrSourceImporter will use gcimporter to attempt to import from
-// a .a file, but if one doesn't exist it will import from source code.
-func (ps *parseState) gcOrSourceImporter(imports map[string]*types.Package, path string) (*types.Package, error) {
+// sourceImporter will always import from source code.
+func (ps *parseState) sourceImporter(path string) (*types.Package, error) {
 	// It seems that we need to special case the unsafe package.
 	if path == "unsafe" {
 		return types.Unsafe, nil
-	}
-	filename, _ := gcimporter.FindPkg(path, "")
-	// Only import system packages, we always want to parse application
-	// packages to ensure we have complete position information.
-	if strings.HasPrefix(filename, runtime.GOROOT()) {
-		// gcimporter can only handle .a files and if there is no .a file it will
-		// return without checking the contents of imports.
-		if p, err := gcimporter.Import(imports, path); err == nil {
-			return p, err
-		}
 	}
 	if pkg, _ := ps.parsedPackage(path); pkg != nil {
 		return pkg, nil
@@ -556,8 +542,6 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 
 	printHeader(ctx.Stdout(), "Methods Implementing Public Interfaces in %s", tpkg.Path())
 
-	// msetCache caches information for typeutil.IntuitiveMethodSet()
-	msetCache := typeutil.MethodSetCache{}
 	scope := tpkg.Scope()
 	for _, child := range scope.Names() {
 		object := scope.Lookup(child)
@@ -575,7 +559,12 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 		if len(apiMethodSet) > 0 {
 			// find all the methods explicitly declared or implicitly
 			// inherited through embedding on type t or *t.
-			for _, method := range typeutil.IntuitiveMethodSet(typ, &msetCache) {
+			methodSet := types.NewMethodSet(typ)
+			if methodSet.Len() == 0 {
+				methodSet = types.NewMethodSet(types.NewPointer(typ))
+			}
+			for i := 0; i < methodSet.Len(); i++ {
+				method := methodSet.At(i)
 				fn := method.Obj().(*types.Func)
 				// t may have a method that is not declared in any of
 				// the interfaces we care about. No need to log that.

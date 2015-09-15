@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/types"
+	"go/types"
 
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
