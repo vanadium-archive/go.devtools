@@ -56,7 +56,7 @@ Usage:
 
 <names> is a list of metric descriptor names to create. Available: gce-instance,
 nginx, rpc-load-test, service-counters, service-latency, service-metadata,
-service-qps-method, service-qps-total
+service-permethod-latency, service-qps-method, service-qps-total
 
 Vmon md delete - Delete the given metric descriptor from GCM
 
@@ -67,7 +67,7 @@ Usage:
 
 <names> is a list of metric descriptor names to delete. Available: gce-instance,
 nginx, rpc-load-test, service-counters, service-latency, service-metadata,
-service-qps-method, service-qps-total
+service-permethod-latency, service-qps-method, service-qps-total
 
 Vmon md list - List known custom metric descriptors
 
@@ -124,7 +124,7 @@ Usage:
 
 <names> is a list of names identifying the checks to run. Available:
 gce-instance, rpc-load-test, service-counters, service-latency,
-service-metadata, service-qps
+service-metadata, service-permethod-latency, service-qps
 
 Vmon help - Display help for commands or topics
 

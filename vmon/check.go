@@ -15,12 +15,13 @@ import (
 
 // checkFunctions is a map from check names to the corresponding check functions.
 var checkFunctions = map[string]func(*tool.Context) error{
-	"service-latency":  checkServiceLatency,
-	"service-counters": checkServiceCounters,
-	"service-metadata": checkServiceMetadata,
-	"service-qps":      checkAllServiceQPS,
-	"gce-instance":     checkGCEInstances,
-	"rpc-load-test":    checkRPCLoadTest,
+	"service-latency":           checkServiceLatency,
+	"service-permethod-latency": checkAllServicePerMethodLatency,
+	"service-counters":          checkServiceCounters,
+	"service-metadata":          checkServiceMetadata,
+	"service-qps":               checkAllServiceQPS,
+	"gce-instance":              checkGCEInstances,
+	"rpc-load-test":             checkRPCLoadTest,
 }
 
 // cmdCheck represents the "check" command of the vmon tool.

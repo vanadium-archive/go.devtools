@@ -51,6 +51,14 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 	// Custom metric for recording check latency of vanadium production services.
 	"service-latency": createMetric("service/latency", "The check latency (ms) of vanadium production services.", "double", true, nil),
 
+	// Custom metric for recording per-method rpc latency for a service.
+	"service-permethod-latency": createMetric("service/latency/method", "Service latency (ms) per method.", "double", true, []labelData{
+		labelData{
+			key:         "method-name",
+			description: "The method name",
+		},
+	}),
+
 	// Custom metric for recording various counters of vanadium production services.
 	"service-counters": createMetric("service/counters", "Various counters of vanadium production services.", "double", true, nil),
 
