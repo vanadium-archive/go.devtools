@@ -66,10 +66,36 @@ func checkServiceMetadata(ctx *tool.Context) error {
 		return err
 	}
 	mdMetadata := monitoring.CustomMetricDescriptors["service-metadata"]
-	timeStr := time.Now().Format(time.RFC3339)
+	now := time.Now()
+	nowStr := now.Format(time.RFC3339)
 	lines := strings.Split(buf.String(), "\n")
+	sendTimeseriesFn := func(value float64, serviceName, metadataName string) error {
+		if _, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
+			Timeseries: []*cloudmonitoring.TimeseriesPoint{
+				&cloudmonitoring.TimeseriesPoint{
+					Point: &cloudmonitoring.Point{
+						DoubleValue: value,
+						Start:       nowStr,
+						End:         nowStr,
+					},
+					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
+						Metric: mdMetadata.Name,
+						Labels: map[string]string{
+							mdMetadata.Labels[0].Key: serviceLocation.Instance,
+							mdMetadata.Labels[1].Key: serviceLocation.Zone,
+							mdMetadata.Labels[2].Key: serviceName,
+							mdMetadata.Labels[3].Key: metadataName,
+						},
+					},
+				},
+			},
+		}).Do(); err != nil {
+			return fmt.Errorf("Timeseries Write failed for service %q, metadata %q: %v", serviceName, metadataName, err)
+		}
+		return nil
+	}
 	for _, line := range lines {
-		// Build time.
+		// Build time and build age (in hours).
 		matches := buildTimeRE.FindStringSubmatch(line)
 		if matches == nil {
 			continue
@@ -81,27 +107,11 @@ func checkServiceMetadata(ctx *tool.Context) error {
 			fmt.Fprintf(ctx.Stderr(), "Parse(%v) failed: %v\n", strTime, err)
 			continue
 		}
-		if _, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-			Timeseries: []*cloudmonitoring.TimeseriesPoint{
-				&cloudmonitoring.TimeseriesPoint{
-					Point: &cloudmonitoring.Point{
-						DoubleValue: float64(buildTime.Unix()),
-						Start:       timeStr,
-						End:         timeStr,
-					},
-					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-						Metric: mdMetadata.Name,
-						Labels: map[string]string{
-							mdMetadata.Labels[0].Key: serviceLocation.Instance,
-							mdMetadata.Labels[1].Key: serviceLocation.Zone,
-							mdMetadata.Labels[2].Key: serviceName,
-							mdMetadata.Labels[3].Key: "build timestamp",
-						},
-					},
-				},
-			},
-		}).Do(); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "Timeseries Write failed: %v\n", err)
+		if err := sendTimeseriesFn(float64(buildTime.Unix()), serviceName, "build time"); err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		}
+		if err := sendTimeseriesFn(now.Sub(buildTime).Hours(), serviceName, "build age"); err != nil {
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 		}
 	}
 	return nil
