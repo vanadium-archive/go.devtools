@@ -1231,6 +1231,14 @@ func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	opts.Stdout = &out
 	opts.Stderr = &out
 	if err := ctx.Run().CommandWithOpts(opts, "jiri", "api", "check"); err != nil {
+		report := fmt.Sprintf("error running 'jiri api check': %v", err)
+		if err := xunit.CreateFailureReport(ctx, testName, "RunV23API", "CheckGoAPI", "failed to run the api check tool", report); err != nil {
+			return &test.Result{Status: test.Failed}, nil
+		}
+	}
+
+	output := out.String()
+	if len(output) != 0 {
 		report := fmt.Sprintf(`%v
 
 If the above changes to public Go API are intentional, run "jiri api fix",
