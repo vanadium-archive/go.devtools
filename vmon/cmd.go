@@ -7,26 +7,25 @@
 
 package main
 
-import "v.io/x/lib/cmdline"
+import (
+	"v.io/jiri/tool"
+	"v.io/x/lib/cmdline"
+)
 
 var (
 	binDirFlag         string
 	blessingsRootFlag  string
 	credentialsFlag    string
-	colorFlag          bool
 	keyFileFlag        string
 	namespaceRootFlag  string
 	queryFilterFlag    string
 	projectFlag        string
 	serviceAccountFlag string
-	verboseFlag        bool
 
 	defaultQueryFilter = "custom.cloudmonitoring.googleapis.com"
 )
 
 func init() {
-	cmdRoot.Flags.BoolVar(&colorFlag, "color", true, "Use color to format output.")
-	cmdRoot.Flags.BoolVar(&verboseFlag, "v", false, "Print verbose output.")
 	cmdRoot.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's key file.")
 	cmdRoot.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
 	cmdRoot.Flags.StringVar(&serviceAccountFlag, "account", "", "The service account used to communicate with GCM.")
@@ -35,6 +34,8 @@ func init() {
 	cmdCheck.Flags.StringVar(&blessingsRootFlag, "root", "dev.v.io", "The blessings root.")
 	cmdCheck.Flags.StringVar(&namespaceRootFlag, "v23.namespace.root", "/ns.dev.v.io:8101", "The namespace root.")
 	cmdCheck.Flags.StringVar(&credentialsFlag, "v23.credentials", "", "The path to v23 credentials.")
+
+	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 
 func main() {

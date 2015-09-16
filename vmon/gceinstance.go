@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,6 +102,7 @@ type gceInstanceStat struct {
 }
 
 type nginxStat struct {
+	healthCheckLatency float64
 	qps                float64
 	activeConnections  float64
 	readingConnections float64
@@ -123,6 +125,10 @@ func checkGCEInstances(ctx *tool.Context) error {
 	}
 
 	if err := invoker(ctx, "Check machine stats\n", instances, checkInstanceStats); err != nil {
+		return err
+	}
+
+	if err := invoker(ctx, "Check nginx health\n", instances, checkNginxHealth); err != nil {
 		return err
 	}
 
@@ -188,6 +194,7 @@ func getInstances(ctx *tool.Context) ([]*gceInstanceData, error) {
 					tcpconn:     -1,
 				},
 				nginxStat: &nginxStat{
+					healthCheckLatency: -1,
 					qps:                -1,
 					activeConnections:  -1,
 					readingConnections: -1,
@@ -341,6 +348,43 @@ func readFloatFromFile(ctx *tool.Context, path string) (float64, error) {
 	return value, nil
 }
 
+func checkNginxHealth(ctx *tool.Context, instances []*gceInstanceData) error {
+	timeout := time.Duration(5 * time.Second)
+	client := http.Client{
+		Timeout: timeout,
+	}
+	hasError := false
+	for _, instance := range instances {
+		if !strings.HasPrefix(instance.name, "nginx-worker") {
+			continue
+		}
+		// Check the latency of worker's /health endpoint.
+		lat := 5000.0 // default to 5s
+		url := fmt.Sprintf("http://%s/health", instance.ip)
+		start := time.Now()
+		if resp, err := client.Get(url); err != nil {
+			hasError = true
+			fmt.Fprintf(ctx.Stderr(), "client.Get(%s) failed: %v\n", url, err)
+		} else if resp.StatusCode != http.StatusOK {
+			hasError = true
+			resp.Body.Close()
+			fmt.Fprintf(ctx.Stderr(), "got status code %v while checking %s, expected 200", resp.StatusCode, url)
+		} else {
+			resp.Body.Close()
+			// Convert to ms.
+			lat = float64(time.Now().Sub(start).Nanoseconds()) / 1000000.0
+			if ctx.Verbose() {
+				fmt.Fprintf(ctx.Stdout(), "/health latency for %s: %f ms\n", url, lat)
+			}
+		}
+		instance.nginxStat.healthCheckLatency = lat
+	}
+	if hasError {
+		return fmt.Errorf("some checks failed")
+	}
+	return nil
+}
+
 // sendToGCM sends instance stats data to GCM.
 func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
@@ -379,9 +423,11 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 
 		msg = fmt.Sprintf("Send nginx data for %s (%s)\n", instance.name, instance.zone)
 		for _, metricName := range nginxMetricNames {
-			nginxMetricNames = []string{"qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
+			nginxMetricNames = []string{"healthCheckLatency", "qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
 			value := -1.0
 			switch metricName {
+			case "healthCheckLatency":
+				value = instance.nginxStat.healthCheckLatency
 			case "qps":
 				value = instance.nginxStat.qps
 			case "active-connections":

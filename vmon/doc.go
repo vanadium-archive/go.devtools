@@ -23,6 +23,8 @@ The vmon flags are:
    Use color to format output.
  -key=
    The path to the service account's key file.
+ -n=false
+   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
