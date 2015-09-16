@@ -430,7 +430,7 @@ var (
 func goListPackagesAndFuncs(ctx *tool.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
 
-	env, err := util.VanadiumEnvironment(ctx)
+	env, err := util.JiriEnvironment(ctx)
 	if err != nil {
 		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
 		return nil, nil, err

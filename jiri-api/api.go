@@ -136,7 +136,7 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
 func getCurrentAPI(ctx *tool.Context, gotoolsBin, dir string) ([]byte, error) {
-	env, err := util.VanadiumEnvironment(ctx)
+	env, err := util.JiriEnvironment(ctx)
 	if err != nil {
 		return nil, err
 	}
