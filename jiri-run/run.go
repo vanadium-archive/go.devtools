@@ -38,7 +38,7 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("no command to run")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	env, err := util.VanadiumEnvironment(ctx)
+	env, err := util.JiriEnvironment(ctx)
 	if err != nil {
 		return err
 	}

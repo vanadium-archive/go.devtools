@@ -141,7 +141,7 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	env, err := util.VanadiumEnvironment(ctx)
+	env, err := util.JiriEnvironment(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

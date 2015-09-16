@@ -49,7 +49,7 @@ func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	if err != nil {
 		return err
 	}
-	env, err := util.VanadiumEnvironment(ctx)
+	env, err := util.JiriEnvironment(ctx)
 	if err != nil {
 		return err
 	}

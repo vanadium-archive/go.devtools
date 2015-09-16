@@ -43,7 +43,7 @@ each on a separate line in the same order as the arguments.
 
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	env, err := util.VanadiumEnvironment(ctx)
+	env, err := util.JiriEnvironment(ctx)
 	if err != nil {
 		return err
 	}
