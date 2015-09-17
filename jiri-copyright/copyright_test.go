@@ -33,7 +33,7 @@ func TestCopyright(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	// Setup a fake V23_ROOT.
+	// Setup a fake JIRI_ROOT.
 	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -61,10 +61,10 @@ func TestCopyright(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("Setenv() failed: %v", err)
 	}
-	defer os.Setenv("V23_ROOT", oldRoot)
+	defer os.Setenv("JIRI_ROOT", oldRoot)
 
 	allFiles := map[string]string{}
 	for file, data := range assets.MatchFiles {

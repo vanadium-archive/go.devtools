@@ -26,17 +26,11 @@ func TestJenkinsTestsToStart(t *testing.T) {
 		}
 	}()
 
-	// Point the V23_ROOT and JIRI_ROOT environment variables to the fake.
-	// TODO(nlacasse): Get rid of V23_ROOT once the v23->jiri transition is
-	// complete.
+	// Point the JIRI_ROOT environment variable to the fake.
 	oldRoot, err := project.JiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer os.Setenv("V23_ROOT", oldRoot)
 	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}

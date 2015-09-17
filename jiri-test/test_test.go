@@ -18,7 +18,7 @@ import (
 )
 
 func TestTestProject(t *testing.T) {
-	// Setup a fake V23_ROOT.
+	// Setup a fake JIRI_ROOT.
 	ctx := tool.NewDefaultContext()
 	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
@@ -30,13 +30,13 @@ func TestTestProject(t *testing.T) {
 		}
 	}()
 
-	// Point the V23_ROOT and WORKSPACE environment variables to
+	// Point the JIRI_ROOT and WORKSPACE environment variables to
 	// the fake.
-	oldRoot := os.Getenv("V23_ROOT")
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+	oldRoot := os.Getenv("JIRI_ROOT")
+	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("V23_ROOT", oldRoot)
+	defer os.Setenv("JIRI_ROOT", oldRoot)
 	oldWorkspace := os.Getenv("WORKSPACE")
 	if err := os.Setenv("WORKSPACE", root.Dir); err != nil {
 		t.Fatalf("%v", err)
@@ -67,7 +67,7 @@ ignore-this PASSED
 }
 
 func TestTestRun(t *testing.T) {
-	// Setup a fake V23_ROOT.
+	// Setup a fake JIRI_ROOT.
 	ctx := tool.NewDefaultContext()
 	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
@@ -79,13 +79,13 @@ func TestTestRun(t *testing.T) {
 		}
 	}()
 
-	// Point the V23_ROOT and WORKSPACE environment variables to
+	// Point the JIRI_ROOT and WORKSPACE environment variables to
 	// the fake.
-	oldRoot := os.Getenv("V23_ROOT")
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+	oldRoot := os.Getenv("JIRI_ROOT")
+	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("V23_ROOT", oldRoot)
+	defer os.Setenv("JIRI_ROOT", oldRoot)
 	oldWorkspace := os.Getenv("WORKSPACE")
 	if err := os.Setenv("WORKSPACE", root.Dir); err != nil {
 		t.Fatalf("%v", err)
@@ -109,7 +109,7 @@ ignore-this PASSED
 }
 
 func TestTestList(t *testing.T) {
-	// Setup a fake V23_ROOT.
+	// Setup a fake JIRI_ROOT.
 	ctx := tool.NewDefaultContext()
 	root, err := project.NewFakeJiriRoot(ctx)
 	if err != nil {
@@ -121,13 +121,13 @@ func TestTestList(t *testing.T) {
 		}
 	}()
 
-	// Point the V23_ROOT and WORKSPACE environment variables to
+	// Point the JIRI_ROOT and WORKSPACE environment variables to
 	// the fake.
-	oldRoot := os.Getenv("V23_ROOT")
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+	oldRoot := os.Getenv("JIRI_ROOT")
+	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("V23_ROOT", oldRoot)
+	defer os.Setenv("JIRI_ROOT", oldRoot)
 	oldWorkspace := os.Getenv("WORKSPACE")
 	if err := os.Setenv("WORKSPACE", root.Dir); err != nil {
 		t.Fatalf("%v", err)

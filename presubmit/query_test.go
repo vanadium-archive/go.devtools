@@ -314,15 +314,15 @@ func TestGetTestsToRun(t *testing.T) {
 		}
 	}()
 
-	// Point the V23_ROOT environment variable to the fake.
+	// Point the JIRI_ROOT  environment variable to the fake.
 	oldRoot, err := project.JiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := os.Setenv("V23_ROOT", root.Dir); err != nil {
+	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Setenv("V23_ROOT", oldRoot)
+	defer os.Setenv("JIRI_ROOT", oldRoot)
 
 	// Create a fake configuration file.
 	config := util.NewConfig(
