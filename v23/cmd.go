@@ -19,6 +19,15 @@ func main() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+
+	// If JIRI_ROOT is not set, set it to $V23_ROOT.
+	jiriRoot := os.Getenv("JIRI_ROOT")
+	if jiriRoot == "" {
+		if err := os.Setenv("JIRI_ROOT", os.Getenv("V23_ROOT")); err != nil {
+			panic(err)
+		}
+	}
+
 	if err := cmd.Run(); err != nil {
 		// The jiri tool should have reported an error in its output.  Don't
 		// print an error here because it can be confusing and makes it harder
