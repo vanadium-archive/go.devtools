@@ -83,7 +83,7 @@ var (
 		},
 		"android": profileInfo{
 			Name:    "android",
-			version: 3,
+			version: 4,
 		},
 		"java": profileInfo{
 			Name:    "java",
@@ -690,75 +690,6 @@ func installAndroidCommon(ctx *tool.Context, target profileTarget) (e error) {
 	}
 
 	androidRoot := filepath.Join(root, "third_party", "android")
-	var sdkRoot string
-	switch target.OS {
-	case "linux":
-		sdkRoot = filepath.Join(androidRoot, "android-sdk-linux")
-	case "darwin":
-		sdkRoot = filepath.Join(androidRoot, "android-sdk-macosx")
-	default:
-		return fmt.Errorf("unsupported OS: %s", target.OS)
-	}
-
-	// Download Android SDK.
-	installSdkFn := func() error {
-		if err := ctx.Run().MkdirAll(androidRoot, defaultDirPerm); err != nil {
-			return err
-		}
-		tmpDir, err := ctx.Run().TempDir("", "")
-		if err != nil {
-			return fmt.Errorf("TempDir() failed: %v", err)
-		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-		var filename string
-		switch target.OS {
-		case "linux":
-			filename = "android-sdk_r23-linux.tgz"
-		case "darwin":
-			filename = "android-sdk_r23-macosx.zip"
-		default:
-			return fmt.Errorf("unsupported OS: %s", target.OS)
-		}
-		remote, local := "https://dl.google.com/android/"+filename, filepath.Join(tmpDir, filename)
-		if err := run(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
-			return err
-		}
-		switch target.OS {
-		case "linux":
-			if err := run(ctx, "tar", []string{"-C", androidRoot, "-xzf", local}, nil); err != nil {
-				return err
-			}
-		case "darwin":
-			if err := run(ctx, "unzip", []string{"-d", androidRoot, local}, nil); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported OS: %s", target.OS)
-		}
-		return nil
-	}
-	if err := atomicAction(ctx, installSdkFn, sdkRoot, "Download Android SDK"); err != nil {
-		return err
-	}
-
-	// Install Android SDK packagess.
-	androidPkgs := []androidPkg{
-		androidPkg{"Android SDK Platform-tools", filepath.Join(sdkRoot, "platform-tools")},
-		androidPkg{"SDK Platform Android 4.4.2, API 19, revision 4", filepath.Join(sdkRoot, "platforms", "android-19")},
-		androidPkg{"Android SDK Build-tools, revision 21.0.2", filepath.Join(sdkRoot, "build-tools")},
-		androidPkg{"ARM EABI v7a System Image, Android API 19, revision 3", filepath.Join(sdkRoot, "system-images", "android-19")},
-	}
-	for _, pkg := range androidPkgs {
-		if err := installAndroidPkg(ctx, sdkRoot, pkg); err != nil {
-			return err
-		}
-	}
-
-	// Update Android SDK tools.
-	toolPkg := androidPkg{"Android SDK Tools", ""}
-	if err := installAndroidPkg(ctx, sdkRoot, toolPkg); err != nil {
-		return err
-	}
 
 	// Download Android NDK.
 	ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
