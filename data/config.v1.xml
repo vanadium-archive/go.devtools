@@ -206,10 +206,7 @@
       <test>vanadium-go-depcop</test>
       <test>vanadium-go-format</test>
       <test>vanadium-go-generate</test>
-      <!-- TODO(suharshs): go1.5 race detector is ~50% slower. For now we remove
-      it from the presubmit.
       <test>vanadium-go-race</test>
-      -->
       <test>vanadium-go-test</test>
       <test>vanadium-go-vdl</test>
       <!-- TODO(sjr) figure out what to do with go vet. It currently produces
