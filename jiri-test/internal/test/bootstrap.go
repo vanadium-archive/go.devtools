@@ -53,6 +53,8 @@ func vanadiumBootstrap(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 		return nil, internalTestError{err, "LookPath"}
 	}
 	opts.Env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Dir(jiriPath), "", -1)
+	opts.Env["V23_ROOT"] = root
+	opts.Env["JIRI_ROOT"] = root
 	fn := func() error {
 		return ctx.Run().CommandWithOpts(opts, filepath.Join(oldRoot, "www", "public", "bootstrap"))
 	}
