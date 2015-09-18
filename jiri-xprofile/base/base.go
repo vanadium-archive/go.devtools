@@ -10,6 +10,7 @@ import (
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/lib/envvar"
 )
 
 var profileName = "base"
@@ -43,7 +44,34 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
+	// Install packages
+	pkgs := []string{}
+	if target.OS == "linux" {
+		pkgs = []string{"libssl-dev"}
+
+	}
+	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
+		return err
+	}
+
+	// Install profiles.
+	for _, profile := range []string{"go", "syncbase"} {
+		if !profiles.HasTarget(profile, target) {
+			syncbaseMgr := profiles.LookupManager(profile)
+			if syncbaseMgr == nil {
+				return fmt.Errorf("syncbase profile is not available")
+			}
+			syncbaseMgr.SetRoot(m.root)
+			if err := syncbaseMgr.Install(ctx, target); err != nil {
+				return err
+			}
+		}
+	}
+	goTarget := profiles.LookupProfileTarget("go", target)
+	syncbaseTarget := profiles.LookupProfileTarget("syncbase", target)
 	target.Version = profileVersion
+	// Merge the environments for the base target, go and syncbase.
+	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, goTarget.Env.Vars, syncbaseTarget.Env.Vars)
 	return profiles.AddProfileTarget(profileName, target)
 }
 
@@ -53,5 +81,8 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
+	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+		return nil
+	}
 	return profiles.ErrNoIncrementalUpdate
 }

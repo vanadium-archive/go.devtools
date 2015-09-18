@@ -80,8 +80,9 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
-	m.initForTarget(target)
+	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+		return nil
+	}
 	return profiles.ErrNoIncrementalUpdate
 }
 

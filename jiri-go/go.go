@@ -3,22 +3,25 @@
 // license that can be found in the LICENSE file.
 
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
 
 package main
 
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -54,16 +57,47 @@ vdl generate -lang=go all
 	ArgsLong: "<arg ...> is a list of arguments for the go tool.",
 }
 
+var (
+	manifestFlag, profilesFlag string
+	targetFlag                 profiles.Target
+	systemGoFlag               bool
+)
+
+func init() {
+	profiles.RegisterProfileFlags(&cmdGo.Flags, &manifestFlag, &profilesFlag, &targetFlag)
+	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
+}
+
+func getEnv(ctx *tool.Context) (*envvar.Vars, error) {
+	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
+	if err != nil {
+		return nil, err
+	}
+	if !ch.UsingProfilesForEnv() {
+		return util.JiriLegacyEnvironment(ctx)
+	}
+	ch.Vars = envvar.VarsFromOS()
+	ch.SetGoPath()
+	ch.SetVDLPath()
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
+	if !systemGoFlag {
+		ch.PrependToPATH(filepath.Join(ch.Get("GOROOT"), "bin"))
+	}
+	return ch.Vars, nil
+}
+
 func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return cmdlineEnv.UsageErrorf("not enough arguments")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
 
-	env, err := util.JiriEnvironment(ctx)
+	env, err := getEnv(ctx)
 	if err != nil {
 		return err
 	}
+
+	envMap := env.ToMap()
 
 	switch args[0] {
 	case "build", "install":
@@ -71,7 +105,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		// binary. Any manual specification of ldflags already in the args
 		// will override this.
 		var err error
-		args, err = setBuildInfoFlags(ctx, args, env)
+		args, err = setBuildInfoFlags(ctx, args, envMap)
 		if err != nil {
 			return err
 		}
@@ -85,13 +119,13 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		}
 
 		// Generate vdl files, if necessary.
-		if err := generateVDL(ctx, env, args); err != nil {
+		if err := generateVDL(ctx, envMap, args); err != nil {
 			return err
 		}
 	}
 
 	// Run the go tool.
-	goBin, err := runutil.LookPath("go", env.ToMap())
+	goBin, err := runutil.LookPath("go", envMap)
 	if err != nil {
 		return err
 	}
@@ -102,15 +136,15 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 
 // getPlatform identifies the target platform by querying the go tool
 // for the values of the GOARCH and GOOS environment variables.
-func getPlatform(ctx *tool.Context, env *envvar.Vars) (string, error) {
-	goBin, err := runutil.LookPath("go", env.ToMap())
+func getPlatform(ctx *tool.Context, env map[string]string) (string, error) {
+	goBin, err := runutil.LookPath("go", env)
 	if err != nil {
 		return "", err
 	}
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
-	opts.Env = env.ToMap()
+	opts.Env = env
 	if err = ctx.Run().CommandWithOpts(opts, goBin, "env", "GOARCH"); err != nil {
 		return "", err
 	}
@@ -126,7 +160,7 @@ func getPlatform(ctx *tool.Context, env *envvar.Vars) (string, error) {
 // setBuildInfoFlags augments the list of arguments with flags for the
 // go compiler that encoded the build information expected by the
 // v.io/x/lib/metadata package.
-func setBuildInfoFlags(ctx *tool.Context, args []string, env *envvar.Vars) ([]string, error) {
+func setBuildInfoFlags(ctx *tool.Context, args []string, env map[string]string) ([]string, error) {
 	info := buildinfo.T{Time: time.Now()}
 	// Compute the "platform" value.
 	platform, err := getPlatform(ctx, env)
@@ -181,7 +215,7 @@ func setBuildInfoFlags(ctx *tool.Context, args []string, env *envvar.Vars) ([]st
 //
 // TODO(toddw): Change the vdl tool to return vdl packages given the
 // full Go dependencies, after vdl config files are implemented.
-func generateVDL(ctx *tool.Context, env *envvar.Vars, cmdArgs []string) error {
+func generateVDL(ctx *tool.Context, env map[string]string, cmdArgs []string) error {
 	// Compute which VDL-based Go packages might need to be regenerated.
 	goPkgs, goFiles, goTags := processGoCmdAndArgs(cmdArgs[0], cmdArgs[1:])
 	goDeps, err := computeGoDeps(ctx, env, append(goPkgs, goFiles...), goTags)
@@ -200,7 +234,7 @@ func generateVDL(ctx *tool.Context, env *envvar.Vars, cmdArgs []string) error {
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	opts.Env = env.ToMap()
+	opts.Env = env
 	if err := ctx.Run().CommandWithOpts(opts, vdlBin, vdlArgs...); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%s", err, out.String())
 	}
@@ -369,8 +403,8 @@ var (
 // string that dumps the specified pkgs and all deps as space / newline
 // separated tokens.  The pkgs may be in any format recognized by "go list"; dir
 // paths, import paths, or go files.
-func computeGoDeps(ctx *tool.Context, env *envvar.Vars, pkgs []string, goTags string) ([]string, error) {
-	goBin, err := runutil.LookPath("go", env.ToMap())
+func computeGoDeps(ctx *tool.Context, env map[string]string, pkgs []string, goTags string) ([]string, error) {
+	goBin, err := runutil.LookPath("go", env)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +421,7 @@ func computeGoDeps(ctx *tool.Context, env *envvar.Vars, pkgs []string, goTags st
 	opts := ctx.Run().Opts()
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
-	opts.Env = env.ToMap()
+	opts.Env = env
 	if err := ctx.Run().CommandWithOpts(opts, goBin, goListArgs...); err != nil {
 		return nil, fmt.Errorf("failed to compute go deps: %v\n%s\n%v", err, stderr.String(), pkgs)
 	}

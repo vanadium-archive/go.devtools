@@ -179,7 +179,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		break
 	}
 
-	// Rebuild developer tools and override V23_ROOT/devtools/bin.
+	// Rebuild developer tools and override JIRI_ROOT/devtools/bin.
 	env, errs := rebuildDeveloperTools(ctx, projects, tools, tmpBinDir)
 	if len(errs) > 0 {
 		errMsgLines := []string{}
@@ -410,7 +410,7 @@ func recordPresubmitFailure(ctx *tool.Context, testCaseName, message, testName s
 
 // rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in
 // a temporary directory, which is used to replace
-// V23_ROOT/devtools/bin in the PATH.
+// JIRI_ROOT/devtools/bin in the PATH.
 func rebuildDeveloperTools(ctx *tool.Context, projects project.Projects, tools project.Tools, tmpBinDir string) (map[string]string, []error) {
 	errs := []error{}
 	for _, tool := range tools {

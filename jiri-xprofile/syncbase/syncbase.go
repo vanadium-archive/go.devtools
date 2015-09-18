@@ -7,11 +7,13 @@ package syncbase
 import (
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/lib/envvar"
 )
 
 const (
@@ -45,8 +47,8 @@ func (m Manager) Root() string {
 func (m *Manager) SetRoot(root string) {
 	m.root = root
 	m.syncbaseRoot = filepath.Join(m.root, "profiles", "cout")
-	m.snappySrcDir = filepath.Join(m.root, "profiles", "csrc", "snappy-1.1.2")
-	m.leveldbSrcDir = filepath.Join(m.root, "profiles", "csrc", "leveldb")
+	m.snappySrcDir = filepath.Join(m.root, "third_party", "csrc", "snappy-1.1.2")
+	m.leveldbSrcDir = filepath.Join(m.root, "third_party", "csrc", "leveldb")
 
 }
 
@@ -60,6 +62,35 @@ func (m *Manager) initForTarget(target profiles.Target) {
 	m.leveldbInstDir = filepath.Join(m.syncbaseRoot, targetDir, "leveldb")
 }
 
+// setSyncbaseEnv adds the LevelDB third-party C++ libraries Vanadium
+// Go code depends on to the CGO_CFLAGS and CGO_LDFLAGS variables.
+func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target profiles.Target) error {
+	for _, dir := range []string{
+		m.leveldbInstDir,
+		m.snappyInstDir,
+	} {
+		cflags := env.GetTokens("CGO_CFLAGS", " ")
+		cxxflags := env.GetTokens("CGO_CXXFLAGS", " ")
+		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
+		if _, err := ctx.Run().Stat(dir); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			continue
+		}
+		cflags = append(cflags, filepath.Join("-I"+dir, "include"))
+		cxxflags = append(cxxflags, filepath.Join("-I"+dir, "include"))
+		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"))
+		if target.Arch == "linux" {
+			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir, "lib"))
+		}
+		env.SetTokens("CGO_CFLAGS", cflags, " ")
+		env.SetTokens("CGO_CXXFLAGS", cxxflags, " ")
+		env.SetTokens("CGO_LDFLAGS", ldflags, " ")
+	}
+	return nil
+}
+
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	target.Version = profileVersion
 	m.initForTarget(target)
@@ -70,6 +101,11 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		return err
 	}
 	target.InstallationDir = m.syncbaseInstRoot
+	env := envvar.VarsFromSlice(target.Env.Vars)
+	if err := m.setSyncbaseEnv(ctx, env, target); err != nil {
+		return err
+	}
+	target.Env.Vars = env.ToSlice()
 	profiles.InstallProfile(profileName, m.syncbaseRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }
@@ -88,8 +124,9 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
-	m.initForTarget(target)
+	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+		return nil
+	}
 	return profiles.ErrNoIncrementalUpdate
 }
 
@@ -114,13 +151,7 @@ func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error 
 		}
 	case "linux":
 		pkgs = []string{
-			// libssl-dev is technically not specific to syncbase, it is
-			// required for all vanadium on linux/amd64. However, at the
-			// time this was added here, "syncbase" was the only "required"
-			// profile, so inserting it here to ensure that it is
-			// installed.
-			// TODO(ashankar): Figure this out!
-			"autoconf", "automake", "g++", "g++-multilib", "gcc-multilib", "libtool", "libssl-dev", "pkg-config",
+			"autoconf", "automake", "g++", "g++-multilib", "gcc-multilib", "libtool", "pkg-config",
 		}
 	default:
 		return fmt.Errorf("%q is not supported", OS)
@@ -128,12 +159,16 @@ func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error 
 	return profiles.InstallPackages(ctx, pkgs)
 }
 
+func getAndroidRoot() (string, error) {
+	androidProfile := profiles.LookupProfile("android")
+	if androidProfile == nil {
+		return "", fmt.Errorf("android profile is not installed")
+	}
+	return androidProfile.Root, nil
+}
+
 // installSyncbaseCommon installs the syncbase profile.
 func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e error) {
-
-	androidProfile := profiles.LookupProfile("android")
-	androidRoot := androidProfile.Root
-
 	// Build and install Snappy.
 	installSnappyFn := func() error {
 		if err := ctx.Run().Chdir(m.snappySrcDir); err != nil {
@@ -154,11 +189,14 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
 		} else if target.Arch == "arm" && target.OS == "android" {
+			androidRoot, err := getAndroidRoot()
+			if err != nil {
+				return err
+			}
 			args = append(args,
 				"--host=arm-linux-androidabi",
 				"--target=arm-linux-androidabi",
 			)
-
 			ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
 			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
@@ -195,7 +233,6 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 	}
 
 	// Build and install LevelDB.
-
 	installLeveldbFn := func() error {
 		if err := ctx.Run().Chdir(m.leveldbSrcDir); err != nil {
 			return err
@@ -221,6 +258,10 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
 		} else if target.Arch == "arm" && target.OS == "android" {
+			androidRoot, err := getAndroidRoot()
+			if err != nil {
+				return err
+			}
 			ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
 			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")

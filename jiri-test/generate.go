@@ -73,7 +73,7 @@ const (
 )
 
 func configureBuilder(ctx *tool.Context) (cleanup func(), err error) {
-	env, err := util.JiriEnvironment(ctx)
+	env, err := util.JiriLegacyEnvironment(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}
