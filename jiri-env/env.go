@@ -3,14 +3,16 @@
 // license that can be found in the LICENSE file.
 
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
 
 package main
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
@@ -41,9 +43,35 @@ each on a separate line in the same order as the arguments.
 	ArgsLong: "[name ...] is an optional list of variable names.",
 }
 
+var (
+	manifestFlag, profilesFlag string
+	targetFlag                 profiles.Target
+	systemGoFlag               bool
+)
+
+func init() {
+	profiles.RegisterProfileFlags(&cmdEnv.Flags, &manifestFlag, &profilesFlag, &targetFlag)
+	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
+}
+
+func getEnv(ctx *tool.Context) (*envvar.Vars, error) {
+	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
+	if err != nil {
+		return nil, err
+	}
+	if !ch.UsingProfilesForEnv() {
+		return util.JiriLegacyEnvironment(ctx)
+	}
+	ch.Vars = envvar.VarsFromOS()
+	ch.SetGoPath()
+	ch.SetVDLPath()
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
+	return ch.Vars, nil
+}
+
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	env, err := util.JiriEnvironment(ctx)
+	env, err := getEnv(ctx)
 	if err != nil {
 		return err
 	}

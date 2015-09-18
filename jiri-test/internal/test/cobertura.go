@@ -74,7 +74,7 @@ func coverageFromGoTestOutput(ctx *tool.Context, testOutput io.Reader) (*testCov
 	if err != nil {
 		return nil, err
 	}
-	env, err := util.JiriEnvironment(ctx)
+	env, err := util.JiriLegacyEnvironment(ctx)
 	if err != nil {
 		return nil, err
 	}

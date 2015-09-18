@@ -314,7 +314,7 @@ func TestGetTestsToRun(t *testing.T) {
 		}
 	}()
 
-	// Point the JIRI_ROOT  environment variable to the fake.
+	// Point the JIRI_ROOT environment variable to the fake.
 	oldRoot, err := project.JiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)

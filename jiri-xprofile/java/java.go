@@ -71,6 +71,9 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
+	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+		return nil
+	}
 	return profiles.ErrNoIncrementalUpdate
 }
 

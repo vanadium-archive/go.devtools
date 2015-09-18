@@ -14,7 +14,7 @@
 // 1) if you obtained the code using 'go get':
 // "go run $(go list -f {{.Dir}} v.io/x/devtools/v23/internal/test)/excluded_tests.go"
 //
-// 2) if you are using the jiri tool and "V23_ROOT" setup.
+// 2) if you are using the jiri tool and "JIRI_ROOT" setup.
 // "jiri go run $(jiri go list -f {{.Dir}} v.io/x/devtools/v23/internal/test)/excluded_tests.go"
 package main
 

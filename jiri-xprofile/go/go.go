@@ -86,6 +86,7 @@ func (m Manager) targetDir(target *profiles.Target) string {
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	target.Version = profileVersion
+	cgo := true
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
@@ -94,7 +95,10 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 			if err != nil {
 				return err
 			}
-			target.Env.Vars = envvar.MergeSlices(target.Env.Vars, vars, []string{"XTOOLS="+bindir})
+			target.Env.Vars = envvar.MergeSlices(target.Env.Vars, vars, []string{"XTOOLS=" + bindir})
+		} else {
+			// CGO is not supported.
+			cgo = false
 		}
 	}
 
@@ -103,6 +107,9 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		"GOARCH=" + target.Arch,
 		"GOOS=" + target.OS,
 	})
+	if cgo {
+		target.Env.Vars = append(target.Env.Vars, "CGO_ENABLED=1")
+	}
 
 	env := envvar.VarsFromSlice(target.Env.Vars)
 	targetDir := m.targetDir(&target)
@@ -149,6 +156,9 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
+	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+		return nil
+	}
 	return profiles.ErrNoIncrementalUpdate
 }
 
@@ -243,7 +253,7 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 		return "", err
 	}
 
-	if profiles.DirectoryExists(ctx, go15Dir) {
+	if ctx.Run().DirectoryExists(go15Dir) {
 		ctx.Run().RemoveAll(go15Dir)
 	}
 	if err := ctx.Run().Rename(tmpDir, go15Dir); err != nil {

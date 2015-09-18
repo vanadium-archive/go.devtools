@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
 
 package main
 
@@ -38,7 +38,7 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("no command to run")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	env, err := util.JiriEnvironment(ctx)
+	env, err := util.JiriLegacyEnvironment(ctx)
 	if err != nil {
 		return err
 	}

@@ -77,6 +77,9 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
+	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+		return nil
+	}
 	return profiles.ErrNoIncrementalUpdate
 }
 
@@ -216,7 +219,7 @@ func (m *Manager) installCommon(ctx *tool.Context, root, OS string) (e error) {
 		return err
 	}
 	goBinDir := filepath.Join(m.androidRoot, "go", "bin")
-	if !profiles.DirectoryExists(ctx, goBinDir) {
+	if !ctx.Run().DirectoryExists(goBinDir) {
 		if err := ctx.Run().MkdirAll(goBinDir, profiles.DefaultDirPerm); err != nil {
 			return err
 		}
