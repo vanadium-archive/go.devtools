@@ -810,7 +810,7 @@ func testWorker(ctx *tool.Context, timeout string, args, nonTestArgs []string, t
 			}
 			continue
 		}
-		err = ctx.Run().TimedCommandWithOpts(timeoutDuration, opts, "jiri", taskArgs...)
+		err = ctx.Run().TimedCommandWithOpts(timeoutDuration+time.Minute, opts, "jiri", taskArgs...)
 		result := testResult{
 			pkg:      task.pkg,
 			time:     time.Now().Sub(start),
@@ -1527,7 +1527,7 @@ func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Re
 	}
 	exclusions := append(goExclusions, goRaceExclusions...)
 	args := argsOpt([]string{"-race"})
-	timeout := timeoutOpt("1h")
+	timeout := timeoutOpt("30m")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
 	return goTestAndReport(ctx, testName, args, timeout, suffix, exclusionsOpt(exclusions), partPkgs)
 }
