@@ -181,10 +181,18 @@ func copyrightHelper(stdout, stderr io.Writer, args []string, fix bool) error {
 	if err != nil {
 		return err
 	}
+	missingCopyright := false
 	for _, project := range projects {
-		if err := checkProject(ctx, project, assets, fix); err != nil {
+		if missing, err := checkProject(ctx, project, assets, fix); err != nil {
 			return err
+		} else {
+			if missing {
+				missingCopyright = true
+			}
 		}
+	}
+	if !fix && missingCopyright {
+		return fmt.Errorf("missing copyright")
 	}
 	return nil
 }
@@ -197,24 +205,25 @@ func createComment(prefix, suffix, header string) string {
 
 // checkFile checks that the given file contains the appropriate
 // copyright header.
-func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool) error {
+func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool) (bool, error) {
 	// Some projects contain third-party files in a "third_party" subdir.
 	// Skip such files for the same reason that we skip the third_party project.
 	if strings.Contains(path, string(filepath.Separator)+"third_party"+string(filepath.Separator)) {
-		return nil
+		return false, nil
 	}
 
 	// Peak at the first line of the file looking for the interpreter
 	// directive (e.g. #!/bin/bash).
 	interpreter, err := detectInterpreter(ctx, path)
 	if err != nil {
-		return err
+		return false, err
 	}
+	missingCopyright := false
 	for _, lang := range languages {
 		if _, ok := lang.Interpreters[filepath.Base(interpreter)]; ok || strings.HasSuffix(path, lang.FileExtension) {
 			data, err := ctx.Run().ReadFile(path)
 			if err != nil {
-				return err
+				return false, err
 			}
 			if !hasCopyright(data, lang.CommentPrefix, lang.CommentSuffix) {
 				if fix {
@@ -229,18 +238,19 @@ func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool
 					data := append([]byte(copyright), data...)
 					info, err := ctx.Run().Stat(path)
 					if err != nil {
-						return err
+						return false, err
 					}
 					if err := ctx.Run().WriteFile(path, data, info.Mode()); err != nil {
-						return err
+						return false, err
 					}
 				} else {
+					missingCopyright = true
 					fmt.Fprintf(ctx.Stderr(), "%v copyright is missing\n", path)
 				}
 			}
 		}
 	}
-	return nil
+	return missingCopyright, nil
 }
 
 // checkProject checks that the given project contains the appropriate
@@ -248,8 +258,9 @@ func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool
 // appropriate copyright header. If the fix option is set, the
 // function fixes up the project. Otherwise, the function reports
 // violations to standard error output.
-func checkProject(ctx *tool.Context, project project.Project, assets *copyrightAssets, fix bool) (e error) {
-	check := func(fileMap map[string]string, isValid func([]byte, []byte) bool) error {
+func checkProject(ctx *tool.Context, project project.Project, assets *copyrightAssets, fix bool) (m bool, e error) {
+	check := func(fileMap map[string]string, isValid func([]byte, []byte) bool) (bool, error) {
+		missing := false
 		for file, want := range fileMap {
 			path := filepath.Join(project.Path, file)
 			got, err := ctx.Run().ReadFile(path)
@@ -257,66 +268,81 @@ func checkProject(ctx *tool.Context, project project.Project, assets *copyrightA
 				if os.IsNotExist(err) {
 					if fix {
 						if err := ctx.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
-							return err
+							return false, err
 						}
 					} else {
 						fmt.Fprintf(ctx.Stderr(), "%v is missing\n", path)
+						missing = true
 					}
 					continue
 				} else {
-					return err
+					return false, err
 				}
 			}
 			if !isValid(got, []byte(want)) {
 				if fix {
 					if err := ctx.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
-						return err
+						return false, err
 					}
 				} else {
 					fmt.Fprintf(ctx.Stderr(), "%v is not up-to-date\n", path)
+					missing = true
 				}
 			}
 		}
-		return nil
+		return missing, nil
 	}
 
+	missing := false
 	// Check the licensing files that require an exact match.
-	if err := check(assets.MatchFiles, bytes.Equal); err != nil {
-		return err
+	if missingLicense, err := check(assets.MatchFiles, bytes.Equal); err != nil {
+		return false, err
+	} else {
+		if missingLicense {
+			missing = true
+		}
 	}
 
 	// Check the licensing files that require a prefix match.
-	if err := check(assets.MatchPrefixFiles, bytes.HasPrefix); err != nil {
-		return err
+	if missngLicense, err := check(assets.MatchPrefixFiles, bytes.HasPrefix); err != nil {
+		return false, err
+	} else {
+		if missngLicense {
+			missing = true
+		}
 	}
 
 	// Check the source code files.
 	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("Getwd() failed: %v", err)
+		return false, fmt.Errorf("Getwd() failed: %v", err)
 	}
 	if err := ctx.Run().Chdir(project.Path); err != nil {
-		return err
+		return false, err
 	}
 	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
 	files, err := ctx.Git().TrackedFiles()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	expressions, err := readV23Ignore(ctx, project)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	for _, file := range files {
 		if ignore := isIgnored(file, expressions); !ignore {
-			if err := checkFile(ctx, filepath.Join(project.Path, file), assets, fix); err != nil {
-				return err
+			if missingCopyright, err := checkFile(ctx, filepath.Join(project.Path, file), assets, fix); err != nil {
+				return missing, err
+			} else {
+				if missingCopyright {
+					missing = true
+				}
 			}
 		}
 	}
-	return nil
+	return missing, nil
 }
 
 // detectInterpret returns the interpreter directive of the given

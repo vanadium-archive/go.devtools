@@ -83,8 +83,12 @@ func TestCopyright(t *testing.T) {
 		if err := ctx.Run().WriteFile(filepath.Join(projectPath, file), nil, os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if checkFile(ctx, filepath.Join(project.Path, file), assets, true); err != nil {
+		missing, err := checkFile(ctx, filepath.Join(project.Path, file), assets, true)
+		if err != nil {
 			t.Fatalf("%v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if err := ctx.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
 			t.Fatalf("%v", err)
@@ -98,43 +102,61 @@ func TestCopyright(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 	}
-	if err := checkProject(ctx, project, assets, false); err != nil {
+	missing, err := checkProject(ctx, project, assets, false)
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := missing, false; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := errOut.String(), ""; got != want {
 		t.Fatalf("unexpected error message: got %q, want %q", got, want)
 	}
-
 	// Check that missing licensing files are reported correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err := checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
 		if err := ctx.Git(tool.RootDirOpt(projectPath)).Remove(file); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := checkProject(ctx, project, assets, false); err != nil {
+		missing, err = checkProject(ctx, project, assets, false)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, true; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if got, want := errOut.String(), fmt.Sprintf("%v is missing\n", path); got != want {
 			t.Fatalf("unexpected error message: got %q, want %q", got, want)
 		}
 	}
-
 	// Check that out-of-date licensing files are reported correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err := checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
 		if err := ctx.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := checkProject(ctx, project, assets, false); err != nil {
+		missing, err = checkProject(ctx, project, assets, false)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, true; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if got, want := errOut.String(), fmt.Sprintf("%v is not up-to-date\n", path); got != want {
 			t.Fatalf("unexpected error message: got %q, want %q", got, want)
@@ -145,15 +167,23 @@ func TestCopyright(t *testing.T) {
 	// reported correctly.
 	for _, lang := range languages {
 		errOut.Reset()
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err := checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, "test"+lang.FileExtension)
 		if err := ctx.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := checkProject(ctx, project, assets, false); err != nil {
+		missing, err = checkProject(ctx, project, assets, false)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, true; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if got, want := errOut.String(), fmt.Sprintf("%v copyright is missing\n", path); got != want {
 			t.Fatalf("unexpected error message: got %q, want %q", got, want)
@@ -163,18 +193,30 @@ func TestCopyright(t *testing.T) {
 	// Check that missing licensing files are fixed up correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err := checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
 		if err := ctx.Run().RemoveAll(path); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err = checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if err := checkProject(ctx, project, assets, false); err != nil {
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
+		}
+		missing, err = checkProject(ctx, project, assets, false)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if got, want := errOut.String(), ""; got != want {
 			t.Fatalf("unexpected error message: got %q, want %q", got, want)
@@ -184,18 +226,30 @@ func TestCopyright(t *testing.T) {
 	// Check that out-of-date licensing files are fixed up correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err := checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
 		if err := ctx.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err = checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if err := checkProject(ctx, project, assets, false); err != nil {
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
+		}
+		missing, err = checkProject(ctx, project, assets, false)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if got, want := errOut.String(), ""; got != want {
 			t.Fatalf("unexpected error message: got %q, want %q", got, want)
@@ -206,18 +260,30 @@ func TestCopyright(t *testing.T) {
 	// fixed up correctly.
 	for _, lang := range languages {
 		errOut.Reset()
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err := checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, "test"+lang.FileExtension)
 		if err := ctx.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := checkProject(ctx, project, assets, true); err != nil {
+		missing, err = checkProject(ctx, project, assets, true)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if err := checkProject(ctx, project, assets, false); err != nil {
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
+		}
+		missing, err = checkProject(ctx, project, assets, false)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, want := missing, false; got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 		if got, want := errOut.String(), ""; got != want {
 			t.Fatalf("unexpected error message: got %q, want %q", got, want)
@@ -227,8 +293,12 @@ func TestCopyright(t *testing.T) {
 	// Check that third-party files are skipped when checking for copyright
 	// headers.
 	errOut.Reset()
-	if err := checkProject(ctx, project, assets, true); err != nil {
+	missing, err = checkProject(ctx, project, assets, true)
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := missing, false; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 	path := filepath.Join(projectPath, "third_party")
 	if err := ctx.Run().MkdirAll(path, 0700); err != nil {
@@ -243,8 +313,12 @@ func TestCopyright(t *testing.T) {
 	if err := ctx.Git(tool.RootDirOpt(projectPath)).Add(path); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := checkProject(ctx, project, assets, false); err != nil {
+	missing, err = checkProject(ctx, project, assets, false)
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := missing, false; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 	if errOut.Len() != 0 {
 		t.Fatalf("unexpected error message: %q", errOut.String())
@@ -271,8 +345,12 @@ func TestCopyright(t *testing.T) {
 	if err := ctx.Git(tool.RootDirOpt(projectPath)).Add(filename); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := checkProject(ctx, project, assets, false); err != nil {
+	missing, err = checkProject(ctx, project, assets, false)
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := missing, false; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 	if errOut.Len() != 0 {
 		t.Fatalf("unexpected error message: %q", errOut.String())
