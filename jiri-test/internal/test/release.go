@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -475,9 +476,21 @@ func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts .
 		return nil, internalTestError{err, "LoadConfig"}
 	}
 	tests := config.GroupTests([]string{"go", "java", "javascript", "projects", "third_party-go"})
+	testsWithParts := []string{}
+	// Append the part suffix to tests that have multiple parts specified in the config file.
+	for _, test := range tests {
+		if parts := config.TestParts(test); parts != nil {
+			for i := 0; i <= len(parts); i++ {
+				testsWithParts = append(testsWithParts, fmt.Sprintf("%s-part%d", test, i))
+			}
+		} else {
+			testsWithParts = append(testsWithParts, test)
+		}
+	}
+	sort.Strings(testsWithParts)
 
 	// Write to the properties file.
-	content := fmt.Sprintf("%s=%s\n%s=%s", manifestEnvVar, relativePath, testsEnvVar, strings.Join(tests, " "))
+	content := fmt.Sprintf("%s=%s\n%s=%s", manifestEnvVar, relativePath, testsEnvVar, strings.Join(testsWithParts, " "))
 	if err := ctx.Run().WriteFile(filepath.Join(root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
 		return nil, internalTestError{err, "Record Properties"}
 	}
