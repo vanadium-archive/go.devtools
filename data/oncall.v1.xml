@@ -4,96 +4,6 @@
 -->
 <rotation>
   <shift>
-    <primary>bprosnitz</primary>
-    <secondary>jhahn</secondary>
-    <startDate>Jul 13, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ataly</primary>
-    <secondary>jhahn</secondary>
-    <startDate>Jul 17, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>ataly</primary>
-    <secondary>bjornick</secondary>
-    <startDate>Jul 20, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ataly</primary>
-    <secondary>bjornick</secondary>
-    <startDate>Jul 24, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>cierniak</primary>
-    <secondary>jsimsa</secondary>
-    <startDate>Jul 27, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>cierniak</primary>
-    <secondary>jsimsa</secondary>
-    <startDate>Jul 31, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>herbertc</primary>
-    <secondary>gauthamt</secondary>
-    <startDate>Aug 03, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>herbertc</primary>
-    <secondary>gauthamt</secondary>
-    <startDate>Aug 07, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>bprosnitz</primary>
-    <secondary>hpucha</secondary>
-    <startDate>Aug 10, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>bprosnitz</primary>
-    <secondary>hpucha</secondary>
-    <startDate>Aug 14, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ashankar</primary>
-    <secondary>jasoncampbell</secondary>
-    <startDate>Aug 17, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>ashankar</primary>
-    <secondary>jasoncampbell</secondary>
-    <startDate>Aug 21, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>sjr</primary>
-    <secondary>rthellend</secondary>
-    <startDate>Aug 24, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>sjr</primary>
-    <secondary>rthellend</secondary>
-    <startDate>Aug 28, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>jyh</primary>
-    <secondary>jregan</secondary>
-    <startDate>Aug 31, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>jyh</primary>
-    <secondary>jregan</secondary>
-    <startDate>Sep 04, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>m3b</primary>
-    <secondary>kash</secondary>
-    <startDate>Sep 07, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>m3b</primary>
-    <secondary>kash</secondary>
-    <startDate>Sep 11, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
     <primary>suharshs</primary>
     <secondary>mattr</secondary>
     <startDate>Sep 14, 2015 01:00:00 PM</startDate>
@@ -104,32 +14,32 @@
     <startDate>Sep 18, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>rdaoud</primary>
+    <primary>nlacasse</primary>
     <secondary>p</secondary>
     <startDate>Sep 21, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>rdaoud</primary>
+    <primary>nlacasse</primary>
     <secondary>p</secondary>
     <startDate>Sep 25, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>rjkroege</primary>
+    <primary>ivanpi</primary>
     <secondary>ribrdb</secondary>
     <startDate>Sep 28, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>rjkroege</primary>
+    <primary>ivanpi</primary>
     <secondary>ribrdb</secondary>
     <startDate>Oct 02, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>rthellend</primary>
+    <primary>sjr</primary>
     <secondary>rogulenko</secondary>
     <startDate>Oct 05, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>rthellend</primary>
+    <primary>sjr</primary>
     <secondary>rogulenko</secondary>
     <startDate>Oct 09, 2015 08:00:00 AM</startDate>
   </shift>
@@ -144,12 +54,12 @@
     <startDate>Oct 16, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>nlacasse</primary>
+    <primary>rdaoud</primary>
     <secondary>spetrovic</secondary>
     <startDate>Oct 19, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>nlacasse</primary>
+    <primary>rdaoud</primary>
     <secondary>spetrovic</secondary>
     <startDate>Oct 23, 2015 08:00:00 AM</startDate>
   </shift>
@@ -164,12 +74,12 @@
     <startDate>Oct 30, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>wmleler</primary>
+    <primary>rthellend</primary>
     <secondary>toddw</secondary>
     <startDate>Nov 02, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>wmleler</primary>
+    <primary>rthellend</primary>
     <secondary>toddw</secondary>
     <startDate>Nov 06, 2015 01:00:00 PM</startDate>
   </shift>
@@ -204,33 +114,33 @@
     <startDate>Nov 27, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>ivanpi</primary>
+    <primary>rosswang</primary>
     <secondary>bjornick</secondary>
     <startDate>Nov 30, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>ivanpi</primary>
+    <primary>rosswang</primary>
     <secondary>bjornick</secondary>
     <startDate>Dec 04, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>jsimsa</primary>
+    <primary>afergan</primary>
     <secondary>cierniak</secondary>
     <startDate>Dec 07, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>jsimsa</primary>
+    <primary>afergan</primary>
     <secondary>cierniak</secondary>
     <startDate>Dec 11, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
     <primary>gauthamt</primary>
-    <secondary>herbertc</secondary>
+    <secondary>jyh</secondary>
     <startDate>Dec 14, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
     <primary>gauthamt</primary>
-    <secondary>herbertc</secondary>
+    <secondary>jyh</secondary>
     <startDate>Dec 18, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
