@@ -125,6 +125,9 @@
       <test>vanadium-chat-web-test</test>
       <test>vanadium-copyright</test>
     </project>
+    <project name="release.projects.croupier">
+      <test>vanadium-copyright</test>
+    </project>
     <project name="release.projects.media-sharing">
       <test>go</test>
       <test>vanadium-copyright</test>
