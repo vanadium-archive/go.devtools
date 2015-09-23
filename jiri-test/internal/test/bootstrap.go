@@ -28,9 +28,9 @@ func vanadiumBootstrap(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	// Create a new temporary V23_ROOT.
-	oldRoot := os.Getenv("V23_ROOT")
-	defer collect.Error(func() error { return os.Setenv("V23_ROOT", oldRoot) }, &e)
+	// Create a new temporary JIRI_ROOT.
+	oldRoot := os.Getenv("JIRI_ROOT")
+	defer collect.Error(func() error { return os.Setenv("JIRI_ROOT", oldRoot) }, &e)
 	tmpDir, err := ctx.Run().TempDir("", "")
 	if err != nil {
 		return nil, internalTestError{err, "TempDir"}
@@ -38,7 +38,7 @@ func vanadiumBootstrap(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
 
 	root := filepath.Join(tmpDir, "root")
-	if err := os.Setenv("V23_ROOT", root); err != nil {
+	if err := os.Setenv("JIRI_ROOT", root); err != nil {
 		return nil, internalTestError{err, "Setenv"}
 	}
 
@@ -53,7 +53,6 @@ func vanadiumBootstrap(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 		return nil, internalTestError{err, "LookPath"}
 	}
 	opts.Env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Dir(jiriPath), "", -1)
-	opts.Env["V23_ROOT"] = root
 	opts.Env["JIRI_ROOT"] = root
 	fn := func() error {
 		return ctx.Run().CommandWithOpts(opts, filepath.Join(oldRoot, "www", "public", "bootstrap"))

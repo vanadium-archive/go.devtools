@@ -418,7 +418,7 @@ func rebuildDeveloperTools(ctx *tool.Context, projects project.Projects, tools p
 			errs = append(errs, err)
 		}
 	}
-	// Create a new PATH that replaces V23_ROOT/devtools/bin with the
+	// Create a new PATH that replaces JIRI_ROOT/devtools/bin with the
 	// temporary directory in which the tools were rebuilt.
 	env := map[string]string{
 		"PATH": strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "devtools", "bin"), tmpBinDir, -1),
