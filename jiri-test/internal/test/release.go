@@ -423,10 +423,10 @@ func updateLatestFile(ctx *tool.Context, rcLabel string) error {
 	return nil
 }
 
-// vanadiumReleaseCandidateSnapshot takes a snapshot of the current V23_ROOT and
-// writes the symlink target (the relative path to V23_ROOT) of that snapshot
+// vanadiumReleaseCandidateSnapshot takes a snapshot of the current JIRI_ROOT and
+// writes the symlink target (the relative path to JIRI_ROOT) of that snapshot
 // in the form of "<manifestEnvVar>=<symlinkTarget>" to
-// "V23_ROOT/<snapshotManifestFile>".
+// "JIRI_ROOT/<snapshotManifestFile>".
 func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {

@@ -62,7 +62,7 @@ func runPoll(env *cmdline.Env, _ []string) error {
 		return err
 	}
 
-	// Get the latest snapshot file from $V23_ROOT/.update_history directory.
+	// Get the latest snapshot file from $JIRI_ROOT/.update_history directory.
 	historyDir := filepath.Join(root, ".update_history")
 	var maxTime int64
 	latestSnapshotFile := ""
