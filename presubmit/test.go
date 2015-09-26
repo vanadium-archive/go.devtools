@@ -223,6 +223,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	jiriArgs = append(jiriArgs, testName)
 
 	var out bytes.Buffer
+	out.Grow(1 << 20)
 	opts := ctx.Run().Opts()
 	opts.Env = env
 	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
