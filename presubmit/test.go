@@ -5,8 +5,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -21,6 +23,7 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/project"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -31,6 +34,9 @@ const (
 	// gsPrefix identifies the prefix of a Google Storage location where
 	// the test results are stored.
 	gsPrefix = "gs://vanadium-test-results/v0/"
+
+	// Timeout value for jiri-test command.
+	jiriTestTimeout = time.Minute * 55
 )
 
 var (
@@ -216,9 +222,22 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	}
 	jiriArgs = append(jiriArgs, testName)
 
+	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Env = env
-	if err := ctx.Run().CommandWithOpts(opts, "jiri-test", jiriArgs...); err != nil {
+	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
+	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
+	if err := ctx.Run().TimedCommandWithOpts(jiriTestTimeout, opts, "jiri-test", jiriArgs...); err != nil {
+		// jiri-test command times out.
+		if err == runutil.CommandTimedOutErr {
+			result := test.Result{
+				Status: test.TimedOut,
+			}
+			message := fmt.Sprintf("Test timed out after %v:\n%s\n", jiriTestTimeout, out.String())
+			if err := recordPresubmitFailure(ctx, "Timeout", message, testName, result); err != nil {
+				return err
+			}
+		}
 		// Check the error status to differentiate failed test errors.
 		exiterr, ok := err.(*exec.ExitError)
 		if !ok {
