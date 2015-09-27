@@ -175,7 +175,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 					Status:          test.MergeConflict,
 					MergeConflictCL: failedCL.String(),
 				}
-				if err := recordPresubmitFailure(ctx, "MergeConflict", message, testName, result); err != nil {
+				if err := recordPresubmitFailure(ctx, "MergeConflict", "Merge conflict detected", message, testName, -1, result); err != nil {
 					return err
 				}
 				return nil
@@ -198,7 +198,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 			Status:               test.ToolsBuildFailure,
 			ToolsBuildFailureMsg: errMsg,
 		}
-		if err := recordPresubmitFailure(ctx, "BuildTools", message, testName, result); err != nil {
+		if err := recordPresubmitFailure(ctx, "BuildTools", "Failed to build tools", message, testName, -1, result); err != nil {
 			return err
 		}
 		fmt.Fprintf(ctx.Stderr(), "failed to build tools:\n%s\n", errMsg)
@@ -232,10 +232,11 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		// jiri-test command times out.
 		if err == runutil.CommandTimedOutErr {
 			result := test.Result{
-				Status: test.TimedOut,
+				Status:       test.TimedOut,
+				TimeoutValue: jiriTestTimeout,
 			}
-			message := fmt.Sprintf("Test timed out after %v:\n%s\n", jiriTestTimeout, out.String())
-			if err := recordPresubmitFailure(ctx, "Timeout", message, testName, result); err != nil {
+			failureMessage := fmt.Sprintf("Test timed out after %v", jiriTestTimeout)
+			if err := recordPresubmitFailure(ctx, "Timeout", failureMessage, out.String(), testName, partIndex, result); err != nil {
 				return err
 			}
 		}
@@ -416,13 +417,13 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 
 // recordPresubmitFailure records failure from presubmit binary itself
 // (not from the test it runs) in the test status file and xUnit report.
-func recordPresubmitFailure(ctx *tool.Context, testCaseName, message, testName string, result test.Result) error {
-	if err := xunit.CreateFailureReport(ctx, testName, testName, testCaseName, message, message); err != nil {
+func recordPresubmitFailure(ctx *tool.Context, testCaseName, failureMessage, failureOutput, testName string, partIndex int, result test.Result) error {
+	if err := xunit.CreateFailureReport(ctx, testName, testName, testCaseName, failureMessage, failureOutput); err != nil {
 		return nil
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest
 	// build before the given timestamp terminates after the first iteration.
-	if err := writeTestStatusFile(ctx, result, math.MaxInt64, testName, 0); err != nil {
+	if err := writeTestStatusFile(ctx, result, math.MaxInt64, testName, partIndex); err != nil {
 		return err
 	}
 	return nil
