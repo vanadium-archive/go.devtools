@@ -548,7 +548,7 @@ func installArmLinux(ctx *tool.Context, target profileTarget) (e error) {
 		unsetGoEnv(makeEnv)
 		makeEnv.Set("GOARCH", "arm")
 		makeEnv.Set("GOOS", "linux")
-		return installGo14(ctx, goDir, makeEnv)
+		return installGo15(ctx, goDir, nil, makeEnv)
 	}
 	if err := atomicAction(ctx, installGoFn, goDir, "Download and build Go for arm/linux"); err != nil {
 		return err
