@@ -59,11 +59,6 @@ var (
 			github:       "git@github.com:vanadium/go.v23.git",
 		},
 		Mirror{
-			name:         "java",
-			googlesource: "https://vanadium.googlesource.com/release.java",
-			github:       "git@github.com:vanadium/java",
-		},
-		Mirror{
 			name:         "js",
 			googlesource: "https://vanadium.googlesource.com/release.js.core",
 			github:       "git@github.com:vanadium/js.git",
