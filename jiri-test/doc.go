@@ -9,16 +9,16 @@
 Manage vanadium tests.
 
 Usage:
-   test [flags] <command>
+   jiri test [flags] <command>
 
-The test commands are:
+The jiri test commands are:
    generate    Generate supporting code for v23 integration tests
    project     Run tests for a vanadium project
    run         Run vanadium tests
    list        List vanadium tests
    help        Display help for commands or topics
 
-The test flags are:
+The jiri test flags are:
  -color=true
    Use color to format output.
  -n=false
@@ -30,7 +30,7 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Test generate - Generate supporting code for v23 integration tests
+Jiri test generate - Generate supporting code for v23 integration tests
 
 The generate command supports the vanadium integration test framework and unit
 tests by generating go files that contain supporting code.  jiri test generate
@@ -57,11 +57,11 @@ The generated TestMain performs common initialization, and also performs child
 process dispatching for tests that use "v.io/veyron/test/modules".
 
 Usage:
-   test generate [flags] [packages]
+   jiri test generate [flags] [packages]
 
 list of go packages
 
-The test generate flags are:
+The jiri test generate flags are:
  -prefix=v23
    Specifies the prefix to use for generated files. Up to two files may
    generated, the defaults are v23_test.go and v23_internal_test.go, or
@@ -69,7 +69,7 @@ The test generate flags are:
  -progress=false
    Print verbose progress information.
 
-Test project - Run tests for a vanadium project
+Jiri test project - Run tests for a vanadium project
 
 Runs tests for a vanadium project that is by the remote URL specified as the
 command-line argument. Projects hosted on googlesource.com, can be specified
@@ -77,20 +77,20 @@ using the basename of the URL (e.g. "vanadium.go.core" implies
 "https://vanadium.googlesource.com/vanadium.go.core").
 
 Usage:
-   test project <project>
+   jiri test project <project>
 
 <project> identifies the project for which to run tests.
 
-Test run - Run vanadium tests
+Jiri test run - Run vanadium tests
 
 Run vanadium tests.
 
 Usage:
-   test run [flags] <name...>
+   jiri test run [flags] <name...>
 
 <name...> is a list names identifying the tests to run.
 
-The test run flags are:
+The jiri test run flags are:
  -blessings-root=dev.v.io
    The blessings root.
  -clean-go=true
@@ -114,14 +114,14 @@ The test run flags are:
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
-Test list - List vanadium tests
+Jiri test list - List vanadium tests
 
 List vanadium tests.
 
 Usage:
-   test list
+   jiri test list
 
-Test help - Display help for commands or topics
+Jiri test help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -130,11 +130,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   test help [flags] [command/topic ...]
+   jiri test help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The test help flags are:
+The jiri test help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

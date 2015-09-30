@@ -26,9 +26,9 @@ a profile supports multiple targets the above state transitions are applied on a
 profile + target basis.
 
 Usage:
-   xprofile [flags] <command>
+   jiri xprofile [flags] <command>
 
-The xprofile commands are:
+The jiri xprofile commands are:
    install     Install the given profiles
    list        List supported and installed profiles
    env         Display profile environment variables
@@ -36,7 +36,7 @@ The xprofile commands are:
    update      Update the given profiles
    help        Display help for commands or topics
 
-The xprofile flags are:
+The jiri xprofile flags are:
  -color=true
    Use color to format output.
  -n=false
@@ -48,16 +48,16 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Xprofile install - Install the given profiles
+Jiri xprofile install - Install the given profiles
 
 Install the given profiles.
 
 Usage:
-   xprofile install [flags] <profiles>
+   jiri xprofile install [flags] <profiles>
 
 <profiles> is a list of profiles to install.
 
-The xprofile install flags are:
+The jiri xprofile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
  -manifest=$JIRI_ROOT/.jiri_profiles
@@ -65,20 +65,20 @@ The xprofile install flags are:
  -target=native=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
 
-Xprofile list - List supported and installed profiles
+Jiri xprofile list - List supported and installed profiles
 
 List supported and installed profiles.
 
 Usage:
-   xprofile list [flags]
+   jiri xprofile list [flags]
 
-The xprofile list flags are:
+The jiri xprofile list flags are:
  -manifest=$JIRI_ROOT/.jiri_profiles
    specify the XML manifest to file read/write from.
  -show-manifest=false
    print out the manifest file
 
-Xprofile env - Display profile environment variables
+Jiri xprofile env - Display profile environment variables
 
 List profile specific and target specific environment variables. env
 --profile=<profile-name> --tag=<tag as appears in a target> [env var name]*
@@ -86,12 +86,12 @@ List profile specific and target specific environment variables. env
 If no environment variable names are requested then all will be printed.
 
 Usage:
-   xprofile env [flags] [<environment variable names>]
+   jiri xprofile env [flags] [<environment variable names>]
 
 [<environment variable names>] is an optional list of environment variables to
 display
 
-The xprofile env flags are:
+The jiri xprofile env flags are:
  -manifest=$JIRI_ROOT/.jiri_profiles
    specify the XML manifest to file read/write from.
  -profile=
@@ -99,16 +99,16 @@ The xprofile env flags are:
  -target=native=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
 
-Xprofile uninstall - Uninstall the given profiles
+Jiri xprofile uninstall - Uninstall the given profiles
 
 Uninstall the given profiles.
 
 Usage:
-   xprofile uninstall [flags] <profiles>
+   jiri xprofile uninstall [flags] <profiles>
 
 <profiles> is a list of profiles to uninstall.
 
-The xprofile uninstall flags are:
+The jiri xprofile uninstall flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
  -manifest=$JIRI_ROOT/.jiri_profiles
@@ -116,16 +116,16 @@ The xprofile uninstall flags are:
  -target=native=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
 
-Xprofile update - Update the given profiles
+Jiri xprofile update - Update the given profiles
 
 Update the given profiles.
 
 Usage:
-   xprofile update [flags] <profiles>
+   jiri xprofile update [flags] <profiles>
 
 <profiles> is a list of profiles to update.
 
-The xprofile update flags are:
+The jiri xprofile update flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
  -force=false
@@ -135,7 +135,7 @@ The xprofile update flags are:
  -target=native=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
 
-Xprofile help - Display help for commands or topics
+Jiri xprofile help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -144,11 +144,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   xprofile help [flags] [command/topic ...]
+   jiri xprofile help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The xprofile help flags are:
+The jiri xprofile help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

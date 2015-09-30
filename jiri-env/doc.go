@@ -17,11 +17,11 @@ If arguments are given, prints only the value of each named variable, each on a
 separate line in the same order as the arguments.
 
 Usage:
-   env [flags] [name ...]
+   jiri env [flags] [name ...]
 
 [name ...] is an optional list of variable names.
 
-The env flags are:
+The jiri env flags are:
  -color=true
    Use color to format output.
  -manifest=.jiri_profiles

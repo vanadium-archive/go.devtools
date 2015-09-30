@@ -8,7 +8,7 @@
 // - Decide what to do with the contents of the testdata directory.
 
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go -env=CMDLINE_PREFIX=jiri .
 
 package main
 

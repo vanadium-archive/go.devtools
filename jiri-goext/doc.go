@@ -9,13 +9,13 @@
 Vanadium extension of the go tool.
 
 Usage:
-   goext [flags] <command>
+   jiri goext [flags] <command>
 
-The goext commands are:
+The jiri goext commands are:
    distclean   Restore the vanadium Go workspaces to their pristine state
    help        Display help for commands or topics
 
-The goext flags are:
+The jiri goext flags are:
  -color=true
    Use color to format output.
  -n=false
@@ -27,7 +27,7 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Goext distclean - Restore the vanadium Go workspaces to their pristine state
+Jiri goext distclean - Restore the vanadium Go workspaces to their pristine state
 
 Unlike the 'go clean' command, which only removes object files for packages in
 the source tree, the 'goext disclean' command removes all object files from
@@ -36,9 +36,9 @@ stale object files that correspond to packages that no longer exist in the
 source tree.
 
 Usage:
-   goext distclean
+   jiri goext distclean
 
-Goext help - Display help for commands or topics
+Jiri goext help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -47,11 +47,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   goext help [flags] [command/topic ...]
+   jiri goext help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The goext help flags are:
+The jiri goext help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

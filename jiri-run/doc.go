@@ -9,12 +9,12 @@
 Run an executable using the vanadium environment.
 
 Usage:
-   run [flags] <executable> [arg ...]
+   jiri run [flags] <executable> [arg ...]
 
 <executable> [arg ...] is the executable to run and any arguments to pass
 verbatim to the executable.
 
-The run flags are:
+The jiri run flags are:
  -color=true
    Use color to format output.
  -n=false

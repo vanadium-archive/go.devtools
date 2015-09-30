@@ -25,9 +25,9 @@ a profile supports multiple targets the above state transitions are applied on a
 profile + target basis.
 
 Usage:
-   profile [flags] <command>
+   jiri profile [flags] <command>
 
-The profile commands are:
+The jiri profile commands are:
    install     Install the given vanadium profiles
    list        List known vanadium profiles
    setup       Set up the given vanadium profiles
@@ -35,7 +35,7 @@ The profile commands are:
    update      Update the given vanadium profiles
    help        Display help for commands or topics
 
-The profile flags are:
+The jiri profile flags are:
  -color=true
    Use color to format output.
  -n=false
@@ -47,51 +47,51 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Profile install - Install the given vanadium profiles
+Jiri profile install - Install the given vanadium profiles
 
 Install the given vanadium profiles.
 
 Usage:
-   profile install <profiles>
+   jiri profile install <profiles>
 
 <profiles> is a list of profiles to install.
 
-Profile list - List known vanadium profiles
+Jiri profile list - List known vanadium profiles
 
 List known vanadium profiles.
 
 Usage:
-   profile list
+   jiri profile list
 
-Profile setup - Set up the given vanadium profiles
+Jiri profile setup - Set up the given vanadium profiles
 
 Set up the given vanadium profiles. This command is identical to 'install' and
 is provided for backwards compatibility.
 
 Usage:
-   profile setup <profiles>
+   jiri profile setup <profiles>
 
 <profiles> is a list of profiles to set up.
 
-Profile uninstall - Uninstall the given vanadium profiles
+Jiri profile uninstall - Uninstall the given vanadium profiles
 
 Uninstall the given vanadium profiles.
 
 Usage:
-   profile uninstall <profiles>
+   jiri profile uninstall <profiles>
 
 <profiles> is a list of profiles to uninstall.
 
-Profile update - Update the given vanadium profiles
+Jiri profile update - Update the given vanadium profiles
 
 Update the given vanadium profiles.
 
 Usage:
-   profile update <profiles>
+   jiri profile update <profiles>
 
 <profiles> is a list of profiles to update.
 
-Profile help - Display help for commands or topics
+Jiri profile help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -100,11 +100,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   profile help [flags] [command/topic ...]
+   jiri profile help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The profile help flags are:
+The jiri profile help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

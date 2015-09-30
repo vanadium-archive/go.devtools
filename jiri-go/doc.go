@@ -17,11 +17,11 @@ tool commands that compile vanadium Go code:
 vdl generate -lang=go all
 
 Usage:
-   go [flags] <arg ...>
+   jiri go [flags] <arg ...>
 
 <arg ...> is a list of arguments for the go tool.
 
-The go flags are:
+The jiri go flags are:
  -color=true
    Use color to format output.
  -manifest=.jiri_profiles

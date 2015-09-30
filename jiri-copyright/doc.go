@@ -17,14 +17,14 @@ and licensing headers a ".jiriignore" file can be added to a project. The
 per line.
 
 Usage:
-   copyright [flags] <command>
+   jiri copyright [flags] <command>
 
-The copyright commands are:
+The jiri copyright commands are:
    check       Check copyright headers and licensing files
    fix         Fix copyright headers and licensing files
    help        Display help for commands or topics
 
-The copyright flags are:
+The jiri copyright flags are:
  -color=true
    Use color to format output.
  -manifest=
@@ -38,25 +38,25 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Copyright check - Check copyright headers and licensing files
+Jiri copyright check - Check copyright headers and licensing files
 
 Check copyright headers and licensing files.
 
 Usage:
-   copyright check <projects>
+   jiri copyright check <projects>
 
 <projects> is a list of projects to check.
 
-Copyright fix - Fix copyright headers and licensing files
+Jiri copyright fix - Fix copyright headers and licensing files
 
 Fix copyright headers and licensing files.
 
 Usage:
-   copyright fix <projects>
+   jiri copyright fix <projects>
 
 <projects> is a list of projects to fix.
 
-Copyright help - Display help for commands or topics
+Jiri copyright help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -65,11 +65,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   copyright help [flags] [command/topic ...]
+   jiri copyright help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The copyright help flags are:
+The jiri copyright help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

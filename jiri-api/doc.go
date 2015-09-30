@@ -10,14 +10,14 @@ Use this command to ensure that no unintended changes are made to the vanadium
 public API.
 
 Usage:
-   api [flags] <command>
+   jiri api [flags] <command>
 
-The api commands are:
+The jiri api commands are:
    check       Check if any changes have been made to the public API
    fix         Update .api files to reflect changes to the public API
    help        Display help for commands or topics
 
-The api flags are:
+The jiri api flags are:
  -color=true
    Use color to format output.
  -gotools-bin=
@@ -34,32 +34,32 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Api check - Check if any changes have been made to the public API
+Jiri api check - Check if any changes have been made to the public API
 
 Check if any changes have been made to the public API.
 
 Usage:
-   api check [flags] <projects>
+   jiri api check [flags] <projects>
 
 <projects> is a list of vanadium projects to check. If none are specified, all
 projects that require a public API check upon presubmit are checked.
 
-The api check flags are:
+The jiri api check flags are:
  -detailed=true
    If true, shows each API change in an expanded form. Otherwise, only a summary
    is shown.
 
-Api fix
+Jiri api fix
 
 Update .api files to reflect changes to the public API.
 
 Usage:
-   api fix <projects>
+   jiri api fix <projects>
 
 <projects> is a list of vanadium projects to update. If none are specified, all
 project APIs are updated.
 
-Api help - Display help for commands or topics
+Jiri api help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -68,11 +68,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   api help [flags] [command/topic ...]
+   jiri api help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The api help flags are:
+The jiri api help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.
