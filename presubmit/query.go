@@ -318,6 +318,11 @@ func newOpenCLs(ctx *tool.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 		}
 		curSet := setMap[topic]
 		if err := curSet.addCL(curCL); err != nil {
+			curCLRef := curCL.Reference()
+			message := fmt.Sprintf("failed to process multi-part CL %s:\n%v\n", curCLRef, err.Error())
+			if err := postMessage(ctx, message, []string{curCLRef}, false); err != nil {
+				printf(ctx.Stderr(), "%v\n", err)
+			}
 			printf(ctx.Stderr(), "%v\n", err)
 		}
 	}
