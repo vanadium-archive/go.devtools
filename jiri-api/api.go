@@ -337,7 +337,7 @@ func doAPICheck(stdout, stderr io.Writer, args []string, detailedOutput bool) er
 var cmdAPIUpdate = &cmdline.Command{
 	Runner:   cmdline.RunnerFunc(runAPIFix),
 	Name:     "fix",
-	Short:    "Update .api files to reflect changes to the public API",
+	Short:    "Update api files to reflect changes to the public API",
 	Long:     "Update .api files to reflect changes to the public API.",
 	ArgsName: "<projects>",
 	ArgsLong: "<projects> is a list of vanadium projects to update. If none are specified, all project APIs are updated.",

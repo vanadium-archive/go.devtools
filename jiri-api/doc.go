@@ -14,7 +14,7 @@ Usage:
 
 The jiri api commands are:
    check       Check if any changes have been made to the public API
-   fix         Update .api files to reflect changes to the public API
+   fix         Update api files to reflect changes to the public API
    help        Display help for commands or topics
 
 The jiri api flags are:
@@ -49,7 +49,7 @@ The jiri api check flags are:
    If true, shows each API change in an expanded form. Otherwise, only a summary
    is shown.
 
-Jiri api fix
+Jiri api fix - Update api files to reflect changes to the public API
 
 Update .api files to reflect changes to the public API.
 

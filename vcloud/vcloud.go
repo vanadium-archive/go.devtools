@@ -60,7 +60,7 @@ If [nodes] is not provided, lists information for all nodes.
 var cmdCP = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runCP),
 	Name:   "cp",
-	Short:  "Copy files to/from GCE node(s)",
+	Short:  "Copy files to or from GCE nodes",
 	Long: `
 Copy files to GCE node(s).  Runs 'gcloud compute copy-files'.  The default is to
 copy to/from all nodes in parallel.
@@ -91,7 +91,7 @@ E.g. if <nodes> matches A, B and C:
 var cmdSH = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runSH),
 	Name:   "sh",
-	Short:  "Start a shell or run a command on GCE node(s)",
+	Short:  "Start a shell or run a command on GCE nodes",
 	Long: `
 Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
 `,
@@ -115,7 +115,7 @@ The default is to run on all nodes in parallel.
 var cmdCopyAndRun = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runCopyAndRun),
 	Name:   "run",
-	Short:  "Copy file(s) to GCE node(s) and run",
+	Short:  "Copy files to GCE nodes and run",
 	Long: `
 Copy file(s) to GCE node(s) and run.  Uses the logic of both cp and sh.
 `,

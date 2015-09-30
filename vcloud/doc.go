@@ -14,10 +14,10 @@ Usage:
 
 The vcloud commands are:
    list        List GCE node information
-   cp          Copy files to/from GCE node(s)
+   cp          Copy files to or from GCE nodes
    node        Manage GCE nodes
-   run         Copy file(s) to GCE node(s) and run
-   sh          Start a shell or run a command on GCE node(s)
+   run         Copy files to GCE nodes and run
+   sh          Start a shell or run a command on GCE nodes
    help        Display help for commands or topics
 
 The vcloud flags are:
@@ -57,7 +57,7 @@ The vcloud list flags are:
  -noheader=false
    Don't print list table header.
 
-Vcloud cp
+Vcloud cp - Copy files to or from GCE nodes
 
 Copy files to GCE node(s).  Runs 'gcloud compute copy-files'.  The default is to
 copy to/from all nodes in parallel.
@@ -170,7 +170,7 @@ The vcloud node delete flags are:
  -zone=us-central1-f
    Zone to delete the machine in.
 
-Vcloud run
+Vcloud run - Copy files to GCE nodes and run
 
 Copy file(s) to GCE node(s) and run.  Uses the logic of both cp and sh.
 
@@ -210,7 +210,7 @@ The vcloud run flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
-Vcloud sh
+Vcloud sh - Start a shell or run a command on GCE nodes
 
 Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
 
