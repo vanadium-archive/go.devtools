@@ -11,9 +11,8 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
-	"v.io/jiri/project"
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -23,12 +22,7 @@ import (
 func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'jiri run vdl generate --lang=go all'.\n")
 
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -44,12 +38,14 @@ func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	venv, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return nil, err
 	}
-	opts.Env["VDLPATH"] = venv.Get("VDLPATH")
-	vdl := filepath.Join(root, "release", "go", "bin", "vdl")
+	ch.SetGoPath()
+	ch.SetVDLPath()
+	opts.Env["VDLPATH"] = ch.Get("VDLPATH")
+	vdl := filepath.Join(ch.Root(), "release", "go", "bin", "vdl")
 	err = ctx.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
 	output := strings.TrimSpace(out.String())
 	if err != nil || len(output) != 0 {

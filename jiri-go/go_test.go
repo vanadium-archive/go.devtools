@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/buildinfo"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
@@ -37,11 +37,12 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	if err := runGo(cmdlineEnv, []string{"env", "GOPATH"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if got, want := strings.TrimSpace(stdout.String()), env.Get("GOPATH"); got != want {
+	ch.SetGoPath()
+	if got, want := strings.TrimSpace(stdout.String()), ch.Get("GOPATH"); got != want {
 		t.Fatalf("GOPATH got %v, want %v", got, want)
 	}
 }
@@ -292,10 +293,11 @@ func TestProcessGoCmdAndArgs(t *testing.T) {
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+	ch.SetGoPath()
 	tests := []struct {
 		Pkgs, Deps []string
 	}{
@@ -309,7 +311,7 @@ func TestComputeGoDeps(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Logf("%v\n", test.Pkgs)
-		got, err := computeGoDeps(ctx, env.ToMap(), test.Pkgs, "")
+		got, err := computeGoDeps(ctx, ch.ToMap(), test.Pkgs, "")
 		if err != nil {
 			t.Errorf("%v failed: %v", test.Pkgs, err)
 		}

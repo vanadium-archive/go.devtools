@@ -124,7 +124,11 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
+	if err != nil {
+		return err
+	}
+	if !update {
 		return nil
 	}
 	return profiles.ErrNoIncrementalUpdate
@@ -137,14 +141,8 @@ func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error 
 		if arch != "arm" {
 			return fmt.Errorf("Architecture %q is not supported when compiling for Android.", arch)
 		}
-		androidProfileMgr := profiles.LookupManager("android")
-		if androidProfileMgr == nil {
-			return fmt.Errorf("no profile available to install android")
-		}
-		androidProfileMgr.SetRoot(m.root)
-		// Default target is totally fine for installing the android profile.
-		return androidProfileMgr.Install(ctx, profiles.Target{
-			Tag: "native", Arch: runtime.GOARCH, OS: runtime.GOOS})
+		androidTarget, _ := profiles.NewTarget("android=arm-android")
+		return profiles.EnsureProfileTargetIsInstalled(ctx, "android", androidTarget, m.root)
 	case "darwin":
 		pkgs = []string{
 			"autoconf", "automake", "libtool", "pkg-config",
@@ -174,7 +172,7 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 		if err := ctx.Run().Chdir(m.snappySrcDir); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "autoreconf", []string{"--install", "--force", "--verbose"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
 		}
 		args := []string{
@@ -200,8 +198,8 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
 			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
-			env["AR"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-ar")
-			env["RANLIB"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-ranlib")
+			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
+			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
 		} else if target.Arch == "arm" && runtime.GOOS == "darwin" && target.OS == "linux" {
 			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
 			/*
@@ -214,16 +212,16 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			           --host=arm-linux-gnueabi
 			*/
 		}
-		if err := profiles.RunCommand(ctx, "./configure", args, env); err != nil {
+		if err := profiles.RunCommand(ctx, env, "./configure", args...); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{fmt.Sprintf("-j%d", runtime.NumCPU())}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"install"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", "install"); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"distclean"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", "distclean"); err != nil {
 			return err
 		}
 		return nil
@@ -237,15 +235,15 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 		if err := ctx.Run().Chdir(m.leveldbSrcDir); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "mkdir", []string{"-p", m.leveldbInstDir}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "mkdir", "-p", m.leveldbInstDir); err != nil {
 			return err
 		}
 		leveldbIncludeDir := filepath.Join(m.leveldbInstDir, "include")
-		if err := profiles.RunCommand(ctx, "cp", []string{"-R", "include", leveldbIncludeDir}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "cp", "-R", "include", leveldbIncludeDir); err != nil {
 			return err
 		}
 		leveldbLibDir := filepath.Join(m.leveldbInstDir, "lib")
-		if err := profiles.RunCommand(ctx, "mkdir", []string{leveldbLibDir}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "mkdir", leveldbLibDir); err != nil {
 			return err
 		}
 		env := map[string]string{
@@ -266,6 +264,8 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
+			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
+			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
 		} else if target.Arch == "arm" && runtime.GOOS == "darwin" && target.OS == "linux" {
 			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
 			/*
@@ -283,10 +283,10 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 				cp -r ./include/leveldb ../../cout/linux_arm/leveldb/include
 			*/
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"clean"}, env); err != nil {
+		if err := profiles.RunCommand(ctx, env, "make", "clean"); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"static"}, env); err != nil {
+		if err := profiles.RunCommand(ctx, env, "make", "static"); err != nil {
 			return err
 		}
 		return nil

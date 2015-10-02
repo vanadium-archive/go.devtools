@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -141,15 +141,16 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Fatal(err)
 	}
+	ch.SetGoPath()
 	opts := ctx.Run().Opts()
 	var out bytes.Buffer
 	opts.Stdout = &out
 	opts.Stderr = &out
-	opts.Env = env.ToMap()
+	opts.Env = ch.ToMap()
 	if err := ctx.Run().CommandWithOpts(opts, "go", "test", "./testdata/generate/...", "-v", "-v23.tests"); err != nil {
 		t.Log(out.String())
 		t.Errorf("tests under testdata/generate failed: %v", err)

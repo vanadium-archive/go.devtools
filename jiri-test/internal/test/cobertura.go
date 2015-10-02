@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 )
@@ -74,15 +75,16 @@ func coverageFromGoTestOutput(ctx *tool.Context, testOutput io.Reader) (*testCov
 	if err != nil {
 		return nil, err
 	}
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return nil, err
 	}
+	ch.SetGoPath()
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdin = testOutput
 	opts.Stdout = &out
-	opts.Env = env.ToMap()
+	opts.Env = ch.ToMap()
 	if err := ctx.Run().CommandWithOpts(opts, bin); err != nil {
 		return nil, err
 	}

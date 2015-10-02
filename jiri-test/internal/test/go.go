@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -430,11 +431,11 @@ var (
 func goListPackagesAndFuncs(ctx *tool.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
 
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
-		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
 		return nil, nil, err
 	}
+	ch.SetGoPath()
 	pkgList, err := goutil.List(ctx, pkgs...)
 	if err != nil {
 		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
@@ -445,7 +446,7 @@ func goListPackagesAndFuncs(ctx *tool.Context, pkgs []string, matcher funcMatche
 	pkgsWithTests := []string{}
 
 	buildContext := build.Default
-	buildContext.GOPATH = env.Get("GOPATH")
+	buildContext.GOPATH = ch.Get("GOPATH")
 	for _, pkg := range pkgList {
 		pi, err := buildContext.Import(pkg, ".", build.ImportMode(0))
 		if err != nil {
@@ -1084,7 +1085,7 @@ func getNumWorkersOpt(opts []Opt) numWorkersOpt {
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1118,7 +1119,7 @@ func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1140,7 +1141,7 @@ func thirdPartyGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1191,7 +1192,7 @@ func thirdPartyPkgs() ([]string, error) {
 // vanadiumCopyright checks the copyright for vanadium projects.
 func vanadiumCopyright(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTestX(ctx, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1219,7 +1220,7 @@ To fix the above copyright violations run "jiri copyright fix" and commit the ch
 // vanadiumGoAPI checks the public Go api for vanadium projects.
 func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTestX(ctx, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1256,7 +1257,7 @@ to update the corresponding .api files and commit the changes.
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
 func vanadiumGoBench(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1276,7 +1277,7 @@ func vanadiumGoBench(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 // vanadiumGoBuild runs Go build for the vanadium projects.
 func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1305,7 +1306,7 @@ func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 // vanadiumGoCoverage runs Go coverage tests for vanadium projects.
 func vanadiumGoCoverage(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1322,7 +1323,7 @@ func vanadiumGoCoverage(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 // vanadiumGoDepcop runs Go dependency checks for vanadium projects.
 func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1357,7 +1358,7 @@ func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Res
 // vanadiumGoFormat runs Go format check for vanadium projects.
 func vanadiumGoFormat(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1398,7 +1399,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1511,7 +1512,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
 func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1616,7 +1617,7 @@ func getPkgsFromSpec(ctx *tool.Context, pkgSpec string) ([]string, error) {
 // vanadiumGoVet runs go vet checks for vanadium projects.
 func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1645,7 +1646,7 @@ func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 // vanadiumGoTest runs Go tests for vanadium projects.
 func vanadiumGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1668,7 +1669,7 @@ func vanadiumIntegrationTest(ctx *tool.Context, testName string, opts ...Opt) (_
 	// We need a shorter root/tmp dir to keep the length of unix domain socket
 	// path under limit (108 for linux and 104 for darwin).
 	shorterRootDir := filepath.Join(os.Getenv("HOME"), "tmp", "vit")
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"}, rootDirOpt(shorterRootDir))
+	cleanup, err := initTestX(ctx, testName, []string{"base"}, rootDirOpt(shorterRootDir))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1786,7 +1787,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	fmt.Fprintf(ctx.Stdout(), "Using config:\n%s\n", string(configBytes))
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

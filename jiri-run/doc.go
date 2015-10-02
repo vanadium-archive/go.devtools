@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Run an executable using the vanadium environment.
+Run an executable using the specified profile and target's environment.
 
 Usage:
    jiri run [flags] <executable> [arg ...]
@@ -17,8 +17,14 @@ verbatim to the executable.
 The jiri run flags are:
  -color=true
    Use color to format output.
+ -manifest=.jiri_xprofiles
+   specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
+ -profiles=base
+   a comma separated list of profiles to use
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
    Print verbose output.
 

@@ -23,8 +23,16 @@ const (
 // runJSTest is a harness for executing javascript tests.
 func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func() error, env map[string]string, extraDeps []string) (_ *test.Result, e error) {
 	// Initialize the test.
+	// Need the new-stype base profile since many web tests will build
+	// go apps that need it.
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
 	deps := append(extraDeps, "nodejs")
-	cleanup, err := initTest(ctx, testName, deps)
+	cleanup, err = initTest(ctx, testName, deps)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

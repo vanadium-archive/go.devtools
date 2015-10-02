@@ -14,7 +14,6 @@ import (
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/envvar"
 )
@@ -54,34 +53,27 @@ func init() {
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
 }
 
-func getEnv(ctx *tool.Context) (*envvar.Vars, error) {
-	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
-	if err != nil {
-		return nil, err
-	}
-	if !ch.UsingProfilesForEnv() {
-		return util.JiriLegacyEnvironment(ctx)
-	}
-	ch.Vars = envvar.VarsFromOS()
-	ch.SetGoPath()
-	ch.SetVDLPath()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
-	return ch.Vars, nil
-}
-
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	env, err := getEnv(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return err
 	}
+	if !ch.LegacyProfiles() {
+		if err := profiles.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
+			return err
+		}
+	}
+	ch.SetGoPath()
+	ch.SetVDLPath()
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
 	if len(args) > 0 {
 		for _, name := range args {
-			fmt.Fprintln(cmdlineEnv.Stdout, env.Get(name))
+			fmt.Fprintln(cmdlineEnv.Stdout, ch.Get(name))
 		}
 		return nil
 	}
-	for key, delta := range env.Deltas() {
+	for key, delta := range ch.Deltas() {
 		var value string
 		if delta != nil {
 			value = `"` + strings.Replace(*delta, `"`, `\"`, -1) + `"`

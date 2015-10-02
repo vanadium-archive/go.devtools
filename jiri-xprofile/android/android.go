@@ -5,17 +5,15 @@
 package android
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"path/filepath"
-	"strconv"
-	"strings"
+	"runtime"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/lib/envvar"
 )
 
 const (
@@ -52,23 +50,60 @@ func (m *Manager) SetRoot(root string) {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
+func (m *Manager) defaultTarget(ctx *tool.Context, target *profiles.Target) error {
+	if !target.IsSet() {
+		def := *target
+		target.Set("android=arm-android")
+		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
+	} else {
+		if target.Arch != "arm" && target.OS != "android" {
+			return fmt.Errorf("this profile can only be installed as arm-android")
+		}
+	}
+	return nil
+}
+
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	target.Version = profileVersion
-	if target.CrossCompiling() {
-		return fmt.Errorf("the %q profile does not support cross compilation to %v", profileName, target)
-	}
-	if target.OS != "linux" && target.OS != "darwin" {
-		return fmt.Errorf("this profile can only be installed on linux and darwin")
-	}
-	if err := m.installCommon(ctx, m.root, target.OS); err != nil {
+	if err := m.defaultTarget(ctx, &target); err != nil {
 		return err
 	}
+	if err := m.installAndroidNDK(ctx, runtime.GOOS); err != nil {
+		return err
+	}
+	// Install the NDK profile so that subsequent profile installations can use it
 	profiles.InstallProfile(profileName, m.androidRoot)
 	target.InstallationDir = m.androidRoot
-	return profiles.AddProfileTarget(profileName, target)
+	if err := profiles.AddProfileTarget(profileName, target); err != nil {
+		return err
+	}
+
+	// Install android targets for other profiles.
+	if err := m.installAndroidTargets(ctx, target); err != nil {
+		return err
+	}
+
+	goTarget := profiles.LookupProfileTarget("go", target)
+	if goTarget == nil {
+		return fmt.Errorf("failed to lookup go --target=%v", target)
+	}
+	env := envvar.VarsFromSlice(target.Env.Vars)
+	env.Set("GOROOT", goTarget.InstallationDir)
+
+	// Merge the environments for java and store it in the android profile.
+	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), env, target, "java")
+	if err != nil {
+		return err
+	}
+	target.Env.Vars = merged
+	profiles.InstallProfile(profileName, m.androidRoot)
+	return profiles.UpdateProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
+	if err := m.defaultTarget(ctx, &target); err != nil {
+		return err
+	}
 	if err := ctx.Run().RemoveAll(m.androidRoot); err != nil {
 		return err
 	}
@@ -77,14 +112,21 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+	if err := m.defaultTarget(ctx, &target); err != nil {
+		return err
+	}
+	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
+	if err != nil {
+		return err
+	}
+	if !update {
 		return nil
 	}
 	return profiles.ErrNoIncrementalUpdate
 }
 
-// installCommon prepares the shared cross-platform parts of the android setup.
-func (m *Manager) installCommon(ctx *tool.Context, root, OS string) (e error) {
+// installAndroidNDK installs the android NDK toolchain.
+func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (e error) {
 	// Install dependencies.
 	var pkgs []string
 	switch OS {
@@ -99,76 +141,6 @@ func (m *Manager) installCommon(ctx *tool.Context, root, OS string) (e error) {
 		return err
 	}
 
-	var sdkRoot string
-	switch OS {
-	case "linux":
-		sdkRoot = filepath.Join(m.androidRoot, "android-sdk-linux")
-	case "darwin":
-		sdkRoot = filepath.Join(m.androidRoot, "android-sdk-macosx")
-	default:
-		return fmt.Errorf("unsupported OS: %s", OS)
-	}
-
-	// Download Android SDK.
-	installSdkFn := func() error {
-		if err := ctx.Run().MkdirAll(m.androidRoot, profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-		tmpDir, err := ctx.Run().TempDir("", "")
-		if err != nil {
-			return fmt.Errorf("TempDir() failed: %v", err)
-		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-		var filename string
-		switch OS {
-		case "linux":
-			filename = "android-sdk_r23-linux.tgz"
-		case "darwin":
-			filename = "android-sdk_r23-macosx.zip"
-		default:
-			return fmt.Errorf("unsupported OS: %s", OS)
-		}
-		remote, local := "https://dl.google.com/android/"+filename, filepath.Join(tmpDir, filename)
-		if err := profiles.RunCommand(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
-			return err
-		}
-		switch OS {
-		case "linux":
-			if err := profiles.RunCommand(ctx, "tar", []string{"-C", m.androidRoot, "-xzf", local}, nil); err != nil {
-				return err
-			}
-		case "darwin":
-			if err := profiles.RunCommand(ctx, "unzip", []string{"-d", m.androidRoot, local}, nil); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported OS: %s", OS)
-		}
-		return nil
-	}
-	if err := profiles.AtomicAction(ctx, installSdkFn, sdkRoot, "Download Android SDK"); err != nil {
-		return err
-	}
-
-	// Install Android SDK packagess.
-	androidPkgs := []androidPkg{
-		androidPkg{"Android SDK Platform-tools", filepath.Join(sdkRoot, "platform-tools")},
-		androidPkg{"SDK Platform Android 4.4.2, API 19, revision 4", filepath.Join(sdkRoot, "platforms", "android-19")},
-		androidPkg{"Android SDK Build-tools, revision 21.0.2", filepath.Join(sdkRoot, "build-tools")},
-		androidPkg{"ARM EABI v7a System Image, Android API 19, revision 3", filepath.Join(sdkRoot, "system-images", "android-19")},
-	}
-	for _, pkg := range androidPkgs {
-		if err := installAndroidPkg(ctx, sdkRoot, pkg); err != nil {
-			return err
-		}
-	}
-
-	// Update Android SDK tools.
-	toolPkg := androidPkg{"Android SDK Tools", ""}
-	if err := installAndroidPkg(ctx, sdkRoot, toolPkg); err != nil {
-		return err
-	}
-
 	// Download Android NDK.
 	ndkRoot := filepath.Join(m.androidRoot, "ndk-toolchain")
 	installNdkFn := func() error {
@@ -180,116 +152,44 @@ func (m *Manager) installCommon(ctx *tool.Context, root, OS string) (e error) {
 		filename := "android-ndk-r9d-" + OS + "-x86_64.tar.bz2"
 		remote := "https://dl.google.com/android/ndk/" + filename
 		local := filepath.Join(tmpDir, filename)
-		if err := profiles.RunCommand(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "curl", "-Lo", local, remote); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "tar", []string{"-C", tmpDir, "-xjf", local}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "tar", "-C", tmpDir, "-xjf", local); err != nil {
 			return err
 		}
 		ndkBin := filepath.Join(tmpDir, "android-ndk-r9d", "build", "tools", "make-standalone-toolchain.sh")
 		ndkArgs := []string{ndkBin, "--platform=android-9", "--install-dir=" + ndkRoot}
-		if err := profiles.RunCommand(ctx, "bash", ndkArgs, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "bash", ndkArgs...); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(ctx, installNdkFn, ndkRoot, "Download Android NDK"); err != nil {
-		return err
-	}
-
-	// Install Android Go.
-	goProfileMgr := profiles.LookupManager("go")
-	if goProfileMgr == nil {
-		return fmt.Errorf("no profile available to install go")
-	}
-	goProfileMgr.SetRoot(root)
-	goTarget := profiles.Target{
-		Tag:  "android",
-		Arch: "arm",
-		OS:   "android",
-	}
-	// Equivalent to:
-	// install --target=android=arm-android -env GOARM=7,CGO_ENABLED_7,CC_FOR_TARGET=<ndkRoot>/bin/arm-linux-androidabi-gcc
-	ccForTarget := "CC_FOR_TARGET=" + filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
-	goTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1", ccForTarget}
-	if ctx.Run().Opts().Verbose || ctx.Run().Opts().DryRun {
-		fmt.Fprintf(ctx.Stdout(), "install --target=%s -env=%s go\n", "android=arm-android", strings.Join(goTarget.Env.Vars, ","))
-	}
-	if err := goProfileMgr.Install(ctx, goTarget); err != nil {
-		return err
-	}
-	goBinDir := filepath.Join(m.androidRoot, "go", "bin")
-	if !ctx.Run().DirectoryExists(goBinDir) {
-		if err := ctx.Run().MkdirAll(goBinDir, profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-	}
-	profile := profiles.LookupProfileTarget("go", profiles.Target{Tag: "android"})
-	gocmd := filepath.Join(goBinDir, "go")
-	ctx.Run().Remove(gocmd)
-	return ctx.Run().Symlink(filepath.Join(profile.InstallationDir, "bin", "go"), gocmd)
+	return profiles.AtomicAction(ctx, installNdkFn, ndkRoot, "Download Android NDK")
 }
 
-type androidPkg struct {
-	name      string
-	directory string
-}
+// installAndroidTargets installs android targets for other profiles, such
+// as go, java, syncbase etc.
+func (m *Manager) installAndroidTargets(ctx *tool.Context, target profiles.Target) (e error) {
+	ndkRoot := filepath.Join(m.androidRoot, "ndk-toolchain")
 
-func installAndroidPkg(ctx *tool.Context, sdkRoot string, pkg androidPkg) error {
-	installPkgFn := func() error {
-		// Identify all indexes that match the given package.
-		var out bytes.Buffer
-		androidBin := filepath.Join(sdkRoot, "tools", "android")
-		androidArgs := []string{"list", "sdk", "--all", "--no-https"}
-		opts := ctx.Run().Opts()
-		opts.Stdout = &out
-		opts.Stderr = &out
-		if err := ctx.Run().CommandWithOpts(opts, androidBin, androidArgs...); err != nil {
-			return err
-		}
-		scanner, indexes := bufio.NewScanner(&out), []int{}
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.Index(line, pkg.name) != -1 {
-				// The output of "android list sdk --all" looks as follows:
-				//
-				// Packages available for installation or update: 118
-				//    1- Android SDK Tools, revision 23.0.5
-				//    2- Android SDK Platform-tools, revision 21
-				//    3- Android SDK Build-tools, revision 21.1
-				// ...
-				//
-				// The following logic gets the package index.
-				index, err := strconv.Atoi(strings.TrimSpace(line[:4]))
-				if err != nil {
-					return fmt.Errorf("%v", err)
-				}
-				indexes = append(indexes, index)
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("Scan() failed: %v", err)
-		}
-		switch {
-		case len(indexes) == 0:
-			return fmt.Errorf("no package matching %q found", pkg.name)
-		case len(indexes) > 1:
-			return fmt.Errorf("multiple packages matching %q found", pkg.name)
-		}
-
-		// Install the target package.
-		androidArgs = []string{"update", "sdk", "--no-ui", "--all", "--no-https", "--filter", fmt.Sprintf("%d", indexes[0])}
-		var stdin, stdout bytes.Buffer
-		stdin.WriteString("y") // pasing "y" to accept Android's license agreement
-		opts = ctx.Run().Opts()
-		opts.Stdin = &stdin
-		opts.Stdout = &stdout
-		opts.Stderr = &stdout
-		err := ctx.Run().CommandWithOpts(opts, androidBin, androidArgs...)
-		if err != nil || tool.VerboseFlag {
-			fmt.Fprintf(ctx.Stdout(), out.String())
-		}
+	// Install Android Go target.
+	ndkBin := filepath.Join(ndkRoot, "bin")
+	ccForTarget := "CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc")
+	cxxForTarget := "CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++")
+	goTarget := target
+	goTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1", "NDK_BINDIR=" + ndkBin, ccForTarget, cxxForTarget}
+	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "go", goTarget, m.root); err != nil {
 		return err
 	}
-	return profiles.AtomicAction(ctx, installPkgFn, pkg.directory, fmt.Sprintf("Install %s", pkg.name))
+
+	// Install Android syncbase target
+	syncbaseTarget := target
+	syncbaseTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1"}
+	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "syncbase", syncbaseTarget, m.root); err != nil {
+		return err
+	}
+
+	// Install Android Java target.
+	return profiles.EnsureProfileTargetIsInstalled(ctx, "java", target, m.root)
 }

@@ -40,9 +40,11 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 	xspec{"amd64", "darwin"}: {
 		xspec{"amd64", "linux"}: darwin_to_linux,
 		xspec{"arm", "linux"}:   darwin_to_linux,
+		xspec{"arm", "android"}: to_android,
 	},
 	xspec{"amd64", "linux"}: {
-		xspec{"arm", "linux"}: linux_to_linux,
+		xspec{"arm", "linux"}:   linux_to_linux,
+		xspec{"arm", "android"}: to_android,
 	},
 }
 
@@ -156,7 +158,11 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
+	if err != nil {
+		return err
+	}
+	if !update {
 		return nil
 	}
 	return profiles.ErrNoIncrementalUpdate
@@ -186,14 +192,18 @@ func installGo14(ctx *tool.Context, goDir string, env *envvar.Vars) error {
 	defer ctx.Run().RemoveAll(tmpDir)
 	name := "go1.4.2.src.tar.gz"
 	remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
-	if err := profiles.RunCommand(ctx, "curl", []string{"-Lo", local, remote}, nil); err != nil {
+	if err := profiles.RunCommand(ctx, nil, "curl", "-Lo", local, remote); err != nil {
 		return err
 	}
-	if err := profiles.RunCommand(ctx, "tar", []string{"-C", tmpDir, "-xzf", local}, nil); err != nil {
+	if err := profiles.RunCommand(ctx, nil, "tar", "-C", tmpDir, "-xzf", local); err != nil {
 		return err
 	}
 	if err := ctx.Run().RemoveAll(local); err != nil {
 		return err
+	}
+	if ctx.Run().DirectoryExists(goDir) {
+		fmt.Fprintf(ctx.Stdout(), "Removing: %v\n", goDir)
+		ctx.Run().RemoveAll(goDir)
 	}
 	if err := ctx.Run().Rename(filepath.Join(tmpDir, "go"), goDir); err != nil {
 		return err
@@ -203,8 +213,7 @@ func installGo14(ctx *tool.Context, goDir string, env *envvar.Vars) error {
 		return err
 	}
 	makeBin := filepath.Join(goSrcDir, "make.bash")
-	makeArgs := []string{"--no-clean"}
-	if err := profiles.RunCommand(ctx, makeBin, makeArgs, env.ToMap()); err != nil {
+	if err := profiles.RunCommand(ctx, env.ToMap(), makeBin, "--no-clean"); err != nil {
 		return err
 	}
 	return nil
@@ -225,7 +234,6 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 	}
 
 	goBootstrapDir := filepath.Join(bootstrapDir, "go-bootstrap")
-
 	if err := installGo14(ctx, goBootstrapDir, envvar.VarsFromOS()); err != nil {
 		return "", err
 	}
@@ -245,11 +253,11 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 	}
 
 	// Check out the go1.5 release branch.
-	if err := profiles.RunCommand(ctx, "git", []string{"checkout", "go1.5"}, nil); err != nil {
+	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "go1.5"); err != nil {
 		return "", err
 	}
 
-	if err := profiles.RunCommand(ctx, "git", []string{"checkout", "-b", "go1.5"}, nil); err != nil {
+	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", "go1.5"); err != nil {
 		return "", err
 	}
 
@@ -265,13 +273,14 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 	}
 	// Apply patches, if any.
 	for _, patchFile := range patchFiles {
-		if err := profiles.RunCommand(ctx, "git", []string{"apply", patchFile}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "git", "apply", patchFile); err != nil {
 			return "", err
 		}
 	}
 	makeBin := filepath.Join(goSrcDir, "make.bash")
 	env.Set("GOROOT_BOOTSTRAP", goBootstrapDir)
-	if err := profiles.RunCommand(ctx, makeBin, nil, env.ToMap()); err != nil {
+	if err := profiles.RunCommand(ctx, env.ToMap(), makeBin); err != nil {
+		ctx.Run().RemoveAll(filepath.Join(go15Dir, "bin"))
 		return "", err
 	}
 	return go15Dir, nil
@@ -291,6 +300,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	xgccLinkInstDir := filepath.Join(xgccOutDir, "links-"+targetABI)
 	switch action {
 	case profiles.Uninstall:
+		profiles.RunCommand(ctx, nil, "chmod", "-R", "+w", xgccInstDir)
 		for _, dir := range []string{xtoolInstDir, xgccInstDir, xgccLinkInstDir} {
 			if err := ctx.Run().RemoveAll(dir); err != nil {
 				return "", nil, err
@@ -315,19 +325,19 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 		if err := ctx.Run().Chdir(xgccSrcDir); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "autoreconf", []string{"--install", "--force", "--verbose"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "./configure", []string{fmt.Sprintf("--prefix=%v", xtoolInstDir)}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "./configure", fmt.Sprintf("--prefix=%v", xtoolInstDir)); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{fmt.Sprintf("-j%d", runtime.NumCPU())}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"install"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", "install"); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"distclean"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", "distclean"); err != nil {
 			return err
 		}
 		return nil
@@ -347,7 +357,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 			return err
 		}
 		bin := filepath.Join(xtoolInstDir, "bin", "ct-ng")
-		if err := profiles.RunCommand(ctx, bin, []string{targetABI}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, bin, targetABI); err != nil {
 			return err
 		}
 		dataPath, err := project.DataDirPath(ctx, "")
@@ -365,10 +375,10 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 		if err := ctx.Run().WriteFile(newConfigFile, []byte(newConfig), profiles.DefaultFilePerm); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", newConfigFile, err)
 		}
-		if err := profiles.RunCommand(ctx, bin, []string{"oldconfig"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, bin, "oldconfig"); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, bin, []string{"build"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, bin, "build"); err != nil {
 			// Temp to get saved output
 			return err
 		}
@@ -426,4 +436,9 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 
 func darwin_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	return "", nil, fmt.Errorf("cross compilation from darwin to linux is not yet supported.")
+}
+
+func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+	ev := envvar.SliceToMap(target.Env.Vars)
+	return ev["NDK_BINDIR"], target.Env.Vars, nil
 }

@@ -24,13 +24,13 @@ Usage:
 The jiri env flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_profiles
+ -manifest=.jiri_xprofiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
  -profiles=base
    a comma separated list of profiles to use
- -target=native=<runtime.GOARCH>-<runtime.GOOS>
+ -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
    Print verbose output.

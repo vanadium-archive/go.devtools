@@ -80,7 +80,11 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
+	if err != nil {
+		return err
+	}
+	if !update {
 		return nil
 	}
 	return profiles.ErrNoIncrementalUpdate
@@ -132,11 +136,11 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target) error {
 
 	// Compile the Go Ppapi compiler.
 	compileGoPpapiFn := func() error {
-		if err := profiles.RunCommand(ctx, "cp", []string{"-r", m.naclSrcDir, m.naclInstDir}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "cp", "-r", m.naclSrcDir, m.naclInstDir); err != nil {
 			return err
 		}
 		goPpapiCompileScript := filepath.Join(m.naclInstDir, "src", "make-nacl-amd64p32.sh")
-		if err := profiles.RunCommand(ctx, goPpapiCompileScript, []string{}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, goPpapiCompileScript); err != nil {
 			return err
 		}
 		return nil

@@ -17,8 +17,8 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/lib/cmdline"
 )
@@ -73,15 +73,16 @@ const (
 )
 
 func configureBuilder(ctx *tool.Context) (cleanup func(), err error) {
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
+		return nil, err
 	}
+	ch.SetGoPath()
 	prevGOPATH := build.Default.GOPATH
 	cleanup = func() {
 		build.Default.GOPATH = prevGOPATH
 	}
-	build.Default.GOPATH = env.Get("GOPATH")
+	build.Default.GOPATH = ch.Get("GOPATH")
 	return cleanup, nil
 }
 

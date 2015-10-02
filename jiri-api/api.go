@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -136,10 +137,12 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
 func getCurrentAPI(ctx *tool.Context, gotoolsBin, dir string) ([]byte, error) {
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return nil, err
 	}
+	ch.SetGoPath()
+	env := ch.Vars
 	var output bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &output

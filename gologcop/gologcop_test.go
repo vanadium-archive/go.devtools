@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/build"
 	"go/token"
+	"go/types"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -18,10 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	"go/types"
-
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 )
 
 const (
@@ -210,10 +209,12 @@ func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 }
 
 func configureDefaultBuildConfig(ctx *tool.Context, tags []string) (cleanup func(), err error) {
-	env, err := util.JiriLegacyEnvironment(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}
+	ch.SetGoPath()
+	env := ch.Vars
 	prevGOPATH := build.Default.GOPATH
 	prevBuildTags := build.Default.BuildTags
 	cleanup = func() {

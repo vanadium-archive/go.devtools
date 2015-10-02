@@ -28,7 +28,6 @@ import (
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/buildinfo"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/envvar"
 	"v.io/x/lib/metadata"
 	"v.io/x/lib/set"
 )
@@ -58,32 +57,16 @@ vdl generate -lang=go all
 }
 
 var (
-	manifestFlag, profilesFlag string
-	targetFlag                 profiles.Target
-	systemGoFlag               bool
+	manifestFlag, profilesFlag                 string
+	systemGoFlag, useProfilesFlag, verboseFlag bool
+	targetFlag                                 profiles.Target
 )
 
 func init() {
 	profiles.RegisterProfileFlags(&cmdGo.Flags, &manifestFlag, &profilesFlag, &targetFlag)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
-}
-
-func getEnv(ctx *tool.Context) (*envvar.Vars, error) {
-	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
-	if err != nil {
-		return nil, err
-	}
-	if !ch.UsingProfilesForEnv() {
-		return util.JiriLegacyEnvironment(ctx)
-	}
-	ch.Vars = envvar.VarsFromOS()
-	ch.SetGoPath()
-	ch.SetVDLPath()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
-	if !systemGoFlag {
-		ch.PrependToPATH(filepath.Join(ch.Get("GOROOT"), "bin"))
-	}
-	return ch.Vars, nil
+	flag.BoolVar(&useProfilesFlag, "use-profiles", true, "run without using new-style profiles")
+	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
 }
 
 func runGo(cmdlineEnv *cmdline.Env, args []string) error {
@@ -91,16 +74,38 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("not enough arguments")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-
-	env, err := getEnv(ctx)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return err
 	}
 
-	envMap := env.ToMap()
+	if ch.LegacyProfiles() {
+		useProfilesFlag = false
+	}
+
+	ch.SetGoPath()
+	ch.SetVDLPath()
+	if useProfilesFlag {
+		if err := profiles.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
+			return err
+		}
+		ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
+	}
+
+	if !systemGoFlag {
+		if len(ch.Get("GOROOT")) > 0 {
+			ch.PrependToPATH(filepath.Join(ch.Get("GOROOT"), "bin"))
+		}
+	}
+
+	if verboseFlag {
+		fmt.Fprintf(ctx.Stdout(), "Environment: %v\n", strings.Join(ch.ToSlice(), "\n"))
+	}
+	envMap := ch.ToMap()
 
 	switch args[0] {
 	case "build", "install":
+
 		// Provide default ldflags to populate build info metadata in the
 		// binary. Any manual specification of ldflags already in the args
 		// will override this.
@@ -130,7 +135,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		return err
 	}
 	opts := ctx.Run().Opts()
-	opts.Env = env.ToMap()
+	opts.Env = ch.ToMap()
 	return util.TranslateExitCode(ctx.Run().CommandWithOpts(opts, goBin, args...))
 }
 

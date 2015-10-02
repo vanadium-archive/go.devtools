@@ -206,10 +206,19 @@ func lookupVersion(profiles map[string]profileInfo, target profileTarget, name s
 	return -1
 }
 
+// jiriProfilesFile returns the path to the jiri profiles file.
+func jiriProfilesFile() (string, error) {
+	root, err := project.JiriRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, ".jiri_profiles"), nil
+}
+
 // readV23Profiles reads information about installed jiri profiles into
 // memory.
 func readV23Profiles(ctx *tool.Context) (map[string]profileInfo, error) {
-	file, err := project.JiriProfilesFile()
+	file, err := jiriProfilesFile()
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +254,7 @@ func writeV23Profiles(ctx *tool.Context, profiles map[string]profileInfo) error 
 	if err != nil {
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
 	}
-	file, err := project.JiriProfilesFile()
+	file, err := jiriProfilesFile()
 	if err != nil {
 		return err
 	}

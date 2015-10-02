@@ -80,7 +80,11 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
+	if err != nil {
+		return err
+	}
+	if !update {
 		return nil
 	}
 	return profiles.ErrNoIncrementalUpdate
@@ -102,13 +106,13 @@ func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
 		if err := ctx.Run().Chdir(m.nodeSrcDir); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "./configure", []string{fmt.Sprintf("--prefix=%v", m.nodeInstDir)}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir)); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{fmt.Sprintf("-j%d", runtime.NumCPU())}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, "make", []string{"install"}, nil); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "make", "install"); err != nil {
 			return err
 		}
 		return nil

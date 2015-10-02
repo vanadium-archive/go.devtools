@@ -45,33 +45,24 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	// Install packages
-	pkgs := []string{}
 	if target.OS == "linux" {
-		pkgs = []string{"libssl-dev"}
-
-	}
-	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
-		return err
-	}
-
-	// Install profiles.
-	for _, profile := range []string{"go", "syncbase"} {
-		if !profiles.HasTarget(profile, target) {
-			syncbaseMgr := profiles.LookupManager(profile)
-			if syncbaseMgr == nil {
-				return fmt.Errorf("syncbase profile is not available")
-			}
-			syncbaseMgr.SetRoot(m.root)
-			if err := syncbaseMgr.Install(ctx, target); err != nil {
-				return err
-			}
+		if err := profiles.InstallPackages(ctx, []string{"libssl-dev"}); err != nil {
+			return err
 		}
 	}
-	goTarget := profiles.LookupProfileTarget("go", target)
-	syncbaseTarget := profiles.LookupProfileTarget("syncbase", target)
+	// Install profiles.
+	for _, profile := range []string{"go", "syncbase"} {
+		if err := profiles.EnsureProfileTargetIsInstalled(ctx, profile, target, m.root); err != nil {
+			return err
+		}
+	}
+	// Merge the environments for go and syncbase and store it in the base profile.
+	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), envvar.VarsFromSlice(target.Env.Vars), target, "syncbase", "go")
+	if err != nil {
+		return err
+	}
+	target.Env.Vars = merged
 	target.Version = profileVersion
-	// Merge the environments for the base target, go and syncbase.
-	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, goTarget.Env.Vars, syncbaseTarget.Env.Vars)
 	return profiles.AddProfileTarget(profileName, target)
 }
 
@@ -81,7 +72,11 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if !profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion) {
+	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
+	if err != nil {
+		return err
+	}
+	if !update {
 		return nil
 	}
 	return profiles.ErrNoIncrementalUpdate

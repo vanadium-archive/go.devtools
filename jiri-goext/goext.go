@@ -11,9 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/jiri/project"
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
 )
 
@@ -45,18 +44,15 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	root, err := project.JiriRoot()
+	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
 	if err != nil {
 		return err
 	}
-	env, err := util.JiriLegacyEnvironment(ctx)
-	if err != nil {
-		return err
-	}
+	ch.SetGoPath()
 	failed := false
 
-	for _, workspace := range env.GetTokens("GOPATH", ":") {
-		if !strings.HasPrefix(workspace, root) {
+	for _, workspace := range ch.GetTokens("GOPATH", ":") {
+		if !strings.HasPrefix(workspace, ch.Root()) {
 			continue
 		}
 		for _, name := range []string{"bin", "pkg"} {

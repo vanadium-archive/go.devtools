@@ -5,11 +5,14 @@
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 )
@@ -66,13 +69,42 @@ func regTestBinDirPath() string {
 	return filepath.Join(testTmpDir, "regtest")
 }
 
+func removeUntestedNewStyleProfiles(ctx *tool.Context) {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	for _, args := range []string{"list --v", "uninstall nacl", "uninstall nodejs", "list"} {
+		clargs := append([]string{"xprofile"}, strings.Split(args, " ")...)
+		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
+		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
+		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
+		out.Reset()
+	}
+}
+
 // initTest carries out the initial actions for the given test.
-func initTest(ctx *tool.Context, testName string, profiles []string, opts ...initTestOpt) (func() error, error) {
+func initTest(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
+	return initTestImpl(ctx, testName, "profile", profileNames, "", opts...)
+}
+
+// initTestX carries out the initial actions for the given test.
+func initTestX(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
+	return initTestImpl(ctx, testName, "xprofile", profileNames, "", opts...)
+}
+
+// initTestX carries out the initial actions for the given test.
+func initTestForTarget(ctx *tool.Context, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
+	return initTestImpl(ctx, testName, "xprofile", profileNames, target, opts...)
+}
+
+func initTestImpl(ctx *tool.Context, testName string, profileCommand string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("Hostname() failed: %v", err)
 	}
+	removeUntestedNewStyleProfiles(ctx)
 	fmt.Fprintf(ctx.Stdout(), "hostname = %q\n", hostname)
 
 	// Create a working test directory under $HOME/tmp and set the
@@ -100,7 +132,7 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 
 	// Create a directory for storing built binaries.
 	if err := ctx.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("MkdirAll(%s): %v", binDirPath(), err)
 	}
 
 	// Create a directory for storing regression test binaries.
@@ -108,19 +140,47 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 		return nil, err
 	}
 
-	// Install profiles.
-	for _, profile := range profiles {
-		if err := ctx.Run().Command("jiri", "profile", "install", profile); err != nil {
-			return nil, err
+	insertTarget := func(profile string) []string {
+		if len(target) > 0 {
+			return []string{"--target=" + target, profile}
 		}
+		return []string{profile}
+	}
+
+	// Install profiles.
+	args := []string{"-v", profileCommand, "install"}
+	for _, profile := range profileNames {
+		if profileCommand == "xprofile" {
+			t := profiles.NativeTarget()
+			if len(target) > 0 {
+				var err error
+				t, err = profiles.NewTarget(target)
+				if err != nil {
+					return nil, fmt.Errorf("NewTarget(%v): %v", target, err)
+				}
+			}
+			if profiles.HasTarget(profile, t) {
+				continue
+			}
+		}
+		clargs := append(args, insertTarget(profile)...)
+		if err := ctx.Run().Command("jiri", clargs...); err != nil {
+			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
+		}
+		fmt.Fprintf(ctx.Stdout(), "jiri: %v\n", strings.Join(clargs, " "))
 	}
 
 	// Update profiles.
-	for _, profile := range profiles {
-		if err := ctx.Run().Command("jiri", "profile", "update", profile); err != nil {
-			return nil, err
+	args = []string{profileCommand, "update"}
+	for _, profile := range profileNames {
+		clargs := append(args, insertTarget(profile)...)
+		if err := ctx.Run().Command("jiri", clargs...); err != nil {
+			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
 		}
+		fmt.Fprintf(ctx.Stdout(), "jiri: %v\n", strings.Join(clargs, " "))
+
 	}
+	fmt.Fprintf(ctx.Stdout(), "Installed & updated: %v\n", profileNames)
 
 	// Descend into the working directory (unless doing a "dry
 	// run" in which case the working directory does not exist).
@@ -130,14 +190,14 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 	}
 	if !ctx.DryRun() {
 		if err := ctx.Run().Chdir(workDir); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Chdir(%s): %v", workDir, err)
 		}
 	}
 
 	// Remove all stale Go object files and binaries.
 	if cleanGo {
 		if err := ctx.Run().Command("jiri", "goext", "distclean"); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("jiri goext distclean: %v", err)
 		}
 	}
 
@@ -149,12 +209,15 @@ func initTest(ctx *tool.Context, testName string, profiles []string, opts ...ini
 	}
 	for _, file := range testResultFiles {
 		if err := ctx.Run().RemoveAll(file); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("RemoveAll(%s): %v", file, err)
 		}
 	}
 
 	return func() error {
-		return ctx.Run().Chdir(cwd)
+		if err := ctx.Run().Chdir(cwd); err != nil {
+			return fmt.Errorf("Chdir(%s): %v", cwd, err)
+		}
+		return nil
 	}, nil
 }
 

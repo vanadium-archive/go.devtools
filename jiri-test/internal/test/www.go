@@ -28,7 +28,15 @@ func commonVanadiumWWW(ctx *tool.Context, testName, makeTarget string, timeout t
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, append([]string{"nodejs", "syncbase"}, extraDeps...))
+	// Need the new-stype base profile since many web tests will build
+	// go apps that need it.
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
+	cleanup, err = initTest(ctx, testName, append([]string{"nodejs", "nacl", "syncbase"}, extraDeps...))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
