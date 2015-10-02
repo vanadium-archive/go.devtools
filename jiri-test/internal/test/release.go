@@ -71,7 +71,7 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 		return nil, err
 	}
 
-	cleanup, err := initTest(ctx, testName, []string{"syncbase"})
+	cleanup, err := initTestX(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
