@@ -71,7 +71,7 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 		return nil, err
 	}
 
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTestX(ctx, testName, []string{"base", "java", "android"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
