@@ -31,6 +31,7 @@ The jiri external commands are:
    run          Run an executable using the specified profile and target's
                 environment
    test         Manage vanadium tests
+   v23-profile  No description available
    xprofile     No description available
 
 The jiri flags are:
@@ -840,6 +841,8 @@ List vanadium tests.
 
 Usage:
    jiri test list
+
+Jiri v23-profile - No description available
 
 Jiri xprofile - No description available
 */
