@@ -8,8 +8,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 )
 
 // main calls "jiri" tool with whatever arguments it was called with.
@@ -27,6 +30,11 @@ func main() {
 			panic(err)
 		}
 	}
+
+	fmt.Fprintf(os.Stderr, "\nWARNING: The v23 tool will soon be deprecated.\nPlease run 'jiri %s' instead.\n\n", strings.Join(args, " "))
+
+	// Sleep for annoyance.
+	time.Sleep(3 * time.Second)
 
 	if err := cmd.Run(); err != nil {
 		// The jiri tool should have reported an error in its output.  Don't
