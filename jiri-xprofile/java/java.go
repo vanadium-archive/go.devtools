@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -64,16 +63,22 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "base", target, m.root); err != nil {
 		return err
 	}
+	// NOTE(spetrovic): For now, we install android profile along with Java, as the two are bundled
+	// up for ease of development.
+	androidTarget, err := profiles.NewTarget("android=arm-android")
+	if err != nil {
+		return err
+	}
+	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "android", androidTarget, m.root); err != nil {
+		return err
+	}
+
 	target.InstallationDir = javaHome
 	env := envvar.VarsFromSlice(target.Env.Vars)
 	cgoflags := env.GetTokens("CGO_CFLAGS", " ")
-	includeOS := target.OS
-	if includeOS == "android" {
-		includeOS = runtime.GOOS
-	}
 	javaflags := []string{
 		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include")),
-		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include", includeOS)),
+		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include", target.OS)),
 	}
 	env.SetTokens("CGO_CFLAGS", append(cgoflags, javaflags...), " ")
 	env.Set("JAVA_HOME", javaHome)
@@ -109,11 +114,7 @@ func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, error) {
-	OS := target.OS
-	if OS == "android" {
-		OS = runtime.GOOS
-	}
-	switch OS {
+	switch target.OS {
 	case "darwin":
 		profiles.InstallPackages(ctx, []string{"gradle"})
 		if javaHome, err := getJDKDarwin(ctx); err == nil {

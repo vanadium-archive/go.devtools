@@ -136,13 +136,7 @@ func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
 
 func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error {
 	var pkgs []string
-	switch OS {
-	case "android":
-		if arch != "arm" {
-			return fmt.Errorf("Architecture %q is not supported when compiling for Android.", arch)
-		}
-		androidTarget, _ := profiles.NewTarget("android=arm-android")
-		return profiles.EnsureProfileTargetIsInstalled(ctx, "android", androidTarget, m.root)
+	switch runtime.GOOS {
 	case "darwin":
 		pkgs = []string{
 			"autoconf", "automake", "libtool", "pkg-config",
@@ -152,7 +146,7 @@ func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error 
 			"autoconf", "automake", "g++", "g++-multilib", "gcc-multilib", "libtool", "pkg-config",
 		}
 	default:
-		return fmt.Errorf("%q is not supported", OS)
+		return fmt.Errorf("%q is not supported", runtime.GOOS)
 	}
 	return profiles.InstallPackages(ctx, pkgs)
 }

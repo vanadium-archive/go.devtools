@@ -13,7 +13,6 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/x/lib/envvar"
 )
 
 const (
@@ -68,7 +67,8 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err := m.defaultTarget(ctx, &target); err != nil {
 		return err
 	}
-	if err := m.installAndroidNDK(ctx, runtime.GOOS); err != nil {
+	ndkRoot, err := m.installAndroidNDK(ctx, runtime.GOOS)
+	if err != nil {
 		return err
 	}
 	// Install the NDK profile so that subsequent profile installations can use it
@@ -83,19 +83,13 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		return err
 	}
 
-	goTarget := profiles.LookupProfileTarget("go", target)
-	if goTarget == nil {
+	// Use the same variables as the base target.
+	baseTarget := profiles.LookupProfileTarget("base", target)
+	if baseTarget == nil {
 		return fmt.Errorf("failed to lookup go --target=%v", target)
 	}
-	env := envvar.VarsFromSlice(target.Env.Vars)
-	env.Set("GOROOT", goTarget.InstallationDir)
-
-	// Merge the environments for java and store it in the android profile.
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), env, target, "java")
-	if err != nil {
-		return err
-	}
-	target.Env.Vars = merged
+	target.Env.Vars = baseTarget.Env.Vars
+	target.InstallationDir = ndkRoot
 	profiles.InstallProfile(profileName, m.androidRoot)
 	return profiles.UpdateProfileTarget(profileName, target)
 }
@@ -126,7 +120,7 @@ func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
 }
 
 // installAndroidNDK installs the android NDK toolchain.
-func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (e error) {
+func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot string, e error) {
 	// Install dependencies.
 	var pkgs []string
 	switch OS {
@@ -135,14 +129,14 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (e error) {
 	case "darwin":
 		pkgs = []string{"ant", "autoconf", "gawk"}
 	default:
-		return fmt.Errorf("unsupported OS: %s", OS)
+		return "", fmt.Errorf("unsupported OS: %s", OS)
 	}
 	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
-		return err
+		return "", err
 	}
 
 	// Download Android NDK.
-	ndkRoot := filepath.Join(m.androidRoot, "ndk-toolchain")
+	ndkRoot = filepath.Join(m.androidRoot, "ndk-toolchain")
 	installNdkFn := func() error {
 		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
@@ -165,7 +159,7 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (e error) {
 		}
 		return nil
 	}
-	return profiles.AtomicAction(ctx, installNdkFn, ndkRoot, "Download Android NDK")
+	return ndkRoot, profiles.AtomicAction(ctx, installNdkFn, ndkRoot, "Download Android NDK")
 }
 
 // installAndroidTargets installs android targets for other profiles, such
@@ -177,19 +171,7 @@ func (m *Manager) installAndroidTargets(ctx *tool.Context, target profiles.Targe
 	ndkBin := filepath.Join(ndkRoot, "bin")
 	ccForTarget := "CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc")
 	cxxForTarget := "CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++")
-	goTarget := target
-	goTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1", "NDK_BINDIR=" + ndkBin, ccForTarget, cxxForTarget}
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "go", goTarget, m.root); err != nil {
-		return err
-	}
-
-	// Install Android syncbase target
-	syncbaseTarget := target
-	syncbaseTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1"}
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "syncbase", syncbaseTarget, m.root); err != nil {
-		return err
-	}
-
-	// Install Android Java target.
-	return profiles.EnsureProfileTargetIsInstalled(ctx, "java", target, m.root)
+	baseTarget := target
+	baseTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1", "NDK_BINDIR=" + ndkBin, ccForTarget, cxxForTarget}
+	return profiles.EnsureProfileTargetIsInstalled(ctx, "base", baseTarget, m.root)
 }
