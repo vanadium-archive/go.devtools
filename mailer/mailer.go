@@ -5,6 +5,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,66 +18,37 @@ import (
 	"v.io/x/devtools/internal/cache"
 )
 
+const mailerTemplateFile = "gs://vanadium-mailer/template.json"
+
 type link struct {
-	url  string
-	name string
+	Url  string
+	Name string
 }
 
 type message struct {
-	lines []string
-	links map[string]link
+	Lines []string
+	Links map[string]link
 }
 
 func (m message) plain() string {
-	result := strings.Join(m.lines, "\n\n")
+	result := strings.Join(m.Lines, "\n\n")
 
-	for key, link := range m.links {
-		result = strings.Replace(result, key, fmt.Sprintf("%v (%v)", link.name, link.url), -1)
+	for key, link := range m.Links {
+		result = strings.Replace(result, key, fmt.Sprintf("%v (%v)", link.Name, link.Url), -1)
 	}
 	return result
 }
 
 func (m message) html() string {
 	result := ""
-	for _, line := range m.lines {
+	for _, line := range m.Lines {
 		result += fmt.Sprintf("<p>\n%v\n</p>\n", line)
 	}
 
-	for key, link := range m.links {
-		result = strings.Replace(result, key, fmt.Sprintf("<a href=%q>%v</a>", link.url, link.name), -1)
+	for key, link := range m.Links {
+		result = strings.Replace(result, key, fmt.Sprintf("<a href=%q>%v</a>", link.Url, link.Name), -1)
 	}
 	return result
-}
-
-var m = message{
-	lines: []string{
-		"Welcome to the Vanadium project. Your early access has been activated.",
-		"What now?",
-		"To understand a bit more about why we are building Vanadium and what we are trying to achieve with this early access program, read our [[0]].",
-		"The project’s website [[1]], includes information about Vanadium including key concepts, tutorials, and how to access our codebase.",
-		"Sign up for our mailing list, [[2]], and send any questions or feedback there.",
-		"As mentioned earlier, please keep this project confidential until it is publicly released. If there is anyone else that you think would benefit from access to this project, send them [[3]].",
-		"Thanks for participating,",
-		"The Vanadium Team",
-	},
-	links: map[string]link{
-		"[[0]]": link{
-			url:  "https://v.io/posts/001-welcome.html",
-			name: "welcome message",
-		},
-		"[[1]]": link{
-			url:  "https://v.io",
-			name: "v.io",
-		},
-		"[[2]]": link{
-			url:  "https://groups.google.com/a/v.io/forum/#!forum/vanadium-discuss",
-			name: "vanadium-discuss@v.io",
-		},
-		"[[3]]": link{
-			url:  "https://goo.gl/SzPXqd",
-			name: "here to sign up",
-		},
-	},
 }
 
 func main() {
@@ -108,7 +81,7 @@ func main() {
 			continue
 		}
 
-		if err := sendWelcomeEmail(mailer, email, attachment); err != nil {
+		if err := sendWelcomeEmail(ctx, mailer, email, attachment); err != nil {
 			messages = append(messages, err.Error())
 		}
 	}
@@ -122,7 +95,19 @@ func main() {
 	}
 }
 
-func sendWelcomeEmail(mailer *gomail.Mailer, email string, attachment string) error {
+func sendWelcomeEmail(ctx *tool.Context, mailer *gomail.Mailer, email string, attachment string) error {
+	// Read message data from Google Storage bucket and parse it.
+	var m message
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	if err := ctx.Run().CommandWithOpts(opts, "gsutil", "-q", "cat", mailerTemplateFile); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(out.Bytes(), &m); err != nil {
+		return fmt.Errorf("Unmarshal() failed: %v", err)
+	}
+
 	message := gomail.NewMessage()
 	message.SetHeader("From", "Vanadium Team <welcome@v.io>")
 	message.SetHeader("To", email)
