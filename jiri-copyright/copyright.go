@@ -304,10 +304,10 @@ func checkProject(ctx *tool.Context, project project.Project, assets *copyrightA
 	}
 
 	// Check the licensing files that require a prefix match.
-	if missngLicense, err := check(assets.MatchPrefixFiles, bytes.HasPrefix); err != nil {
+	if missingLicense, err := check(assets.MatchPrefixFiles, bytes.HasPrefix); err != nil {
 		return false, err
 	} else {
-		if missngLicense {
+		if missingLicense {
 			missing = true
 		}
 	}
@@ -410,7 +410,7 @@ func loadAssets(ctx *tool.Context, dir string) (*copyrightAssets, error) {
 		}
 		return nil
 	}
-	if err := load([]string{"CONTRIBUTING", "LICENSE", "PATENTS", "VERSION"}, result.MatchFiles); err != nil {
+	if err := load([]string{"CONTRIBUTING.md", "LICENSE", "PATENTS", "VERSION"}, result.MatchFiles); err != nil {
 		return nil, err
 	}
 	if err := load([]string{"AUTHORS", "CONTRIBUTORS"}, result.MatchPrefixFiles); err != nil {
