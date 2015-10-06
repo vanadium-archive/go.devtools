@@ -26,9 +26,9 @@ a profile supports multiple targets the above state transitions are applied on a
 profile + target basis.
 
 Usage:
-   jiri xprofile [flags] <command>
+   jiri v23-profile [flags] <command>
 
-The jiri xprofile commands are:
+The jiri v23-profile commands are:
    install     Install the given profiles
    list        List available or installed profiles
    env         Display profile environment variables
@@ -36,7 +36,7 @@ The jiri xprofile commands are:
    update      Update the given profiles
    help        Display help for commands or topics
 
-The jiri xprofile flags are:
+The jiri v23-profile flags are:
  -color=true
    Use color to format output.
  -n=false
@@ -48,16 +48,16 @@ The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
-Jiri xprofile install - Install the given profiles
+Jiri v23-profile install - Install the given profiles
 
 Install the given profiles.
 
 Usage:
-   jiri xprofile install [flags] <profiles>
+   jiri v23-profile install [flags] <profiles>
 
 <profiles> is a list of profiles to install.
 
-The jiri xprofile install flags are:
+The jiri v23-profile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
  -go.install-dir=
@@ -71,17 +71,17 @@ The jiri xprofile install flags are:
  -version=
    target version
 
-Jiri xprofile list - List available or installed profiles
+Jiri v23-profile list - List available or installed profiles
 
 List available or installed profiles.
 
 Usage:
-   jiri xprofile list [flags] [<profiles>]
+   jiri v23-profile list [flags] [<profiles>]
 
 <profiles> is a list of profiles to list, defaulting to all profiles if none are
 specifically requested.
 
-The jiri xprofile list flags are:
+The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
  -manifest=$JIRI_ROOT/.jiri_v23_profiles
@@ -91,19 +91,19 @@ The jiri xprofile list flags are:
  -v=false
    print more detailed information
 
-Jiri xprofile env - Display profile environment variables
+Jiri v23-profile env - Display profile environment variables
 
 List profile specific and target specific environment variables.
 
 If no environment variable names are requested then all will be printed.
 
 Usage:
-   jiri xprofile env [flags] [<environment variable names>]
+   jiri v23-profile env [flags] [<environment variable names>]
 
 [<environment variable names>] is an optional list of environment variables to
 display
 
-The jiri xprofile env flags are:
+The jiri v23-profile env flags are:
  -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the XML manifest to file read/write from.
  -profile=
@@ -113,16 +113,16 @@ The jiri xprofile env flags are:
  -version=
    target version
 
-Jiri xprofile uninstall - Uninstall the given profiles
+Jiri v23-profile uninstall - Uninstall the given profiles
 
 Uninstall the given profiles.
 
 Usage:
-   jiri xprofile uninstall [flags] <profiles>
+   jiri v23-profile uninstall [flags] <profiles>
 
 <profiles> is a list of profiles to uninstall.
 
-The jiri xprofile uninstall flags are:
+The jiri v23-profile uninstall flags are:
  -all=false
    uninstall all targets for the specified profile(s)
  -env=
@@ -138,16 +138,16 @@ The jiri xprofile uninstall flags are:
  -version=
    target version
 
-Jiri xprofile update - Update the given profiles
+Jiri v23-profile update - Update the given profiles
 
 Update the given profiles.
 
 Usage:
-   jiri xprofile update [flags] <profiles>
+   jiri v23-profile update [flags] <profiles>
 
 <profiles> is a list of profiles to update.
 
-The jiri xprofile update flags are:
+The jiri v23-profile update flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
  -force=false
@@ -163,7 +163,7 @@ The jiri xprofile update flags are:
  -version=
    target version
 
-Jiri xprofile help - Display help for commands or topics
+Jiri v23-profile help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -172,11 +172,11 @@ Help with args displays the usage of the specified sub-command or help topic.
 "help ..." recursively displays help for all commands and topics.
 
 Usage:
-   jiri xprofile help [flags] [command/topic ...]
+   jiri v23-profile help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The jiri xprofile help flags are:
+The jiri v23-profile help flags are:
  -style=compact
    The formatting style for help output:
       compact - Good for compact cmdline output.

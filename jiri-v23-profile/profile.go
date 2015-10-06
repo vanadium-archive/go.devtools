@@ -26,5 +26,5 @@ func init() {
 }
 
 func main() {
-	commandline.Main()
+	commandline.Main("v23-profile")
 }
