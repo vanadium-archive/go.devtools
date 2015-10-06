@@ -16,6 +16,7 @@ import (
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -141,7 +142,7 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		t.Fatal(err)
 	}

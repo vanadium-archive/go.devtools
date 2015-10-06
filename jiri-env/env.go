@@ -14,6 +14,7 @@ import (
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/envvar"
 )
@@ -49,13 +50,13 @@ var (
 )
 
 func init() {
-	profiles.RegisterProfileFlags(&cmdEnv.Flags, &manifestFlag, &profilesFlag, &targetFlag)
+	profiles.RegisterProfileFlags(&cmdEnv.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
 }
 
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -66,7 +67,7 @@ func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	}
 	ch.SetGoPath()
 	ch.SetVDLPath()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
 	if len(args) > 0 {
 		for _, name := range args {
 			fmt.Fprintln(cmdlineEnv.Stdout, ch.Get(name))

@@ -20,6 +20,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -73,7 +74,7 @@ const (
 )
 
 func configureBuilder(ctx *tool.Context) (cleanup func(), err error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, err
 	}

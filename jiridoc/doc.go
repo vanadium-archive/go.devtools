@@ -524,7 +524,7 @@ Usage:
 The jiri env flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_xprofiles
+ -manifest=.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -534,6 +534,8 @@ The jiri env flags are:
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
    Print verbose output.
+ -version=
+   target version
 
 Jiri go - Execute the go tool using the vanadium environment
 
@@ -555,7 +557,7 @@ Usage:
 The jiri go flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_xprofiles
+ -manifest=.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -565,6 +567,8 @@ The jiri go flags are:
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
    Print verbose output.
+ -version=
+   target version
 
 Jiri goext - Vanadium extensions of the go tool
 
@@ -719,7 +723,7 @@ verbatim to the executable.
 The jiri run flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_xprofiles
+ -manifest=.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -729,6 +733,8 @@ The jiri run flags are:
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
    Print verbose output.
+ -version=
+   target version
 
 Jiri test - Manage vanadium tests
 

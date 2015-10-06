@@ -60,10 +60,16 @@ Usage:
 The jiri xprofile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
- -manifest=$JIRI_ROOT/.jiri_xprofiles
+ -go.install-dir=
+   installation directory for go profile builds.
+ -go.sysroot=
+   sysroot for cross compiling to the currently specified target
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the XML manifest to file read/write from.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
+ -version=
+   target version
 
 Jiri xprofile list - List available or installed profiles
 
@@ -78,7 +84,7 @@ specifically requested.
 The jiri xprofile list flags are:
  -available=false
    print the list of available profiles
- -manifest=$JIRI_ROOT/.jiri_xprofiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the XML manifest to file read/write from.
  -show-manifest=false
    print out the manifest file
@@ -87,8 +93,7 @@ The jiri xprofile list flags are:
 
 Jiri xprofile env - Display profile environment variables
 
-List profile specific and target specific environment variables. env
---profile=<profile-name> --target=<tag>=<arch>-<os> [env var name]*
+List profile specific and target specific environment variables.
 
 If no environment variable names are requested then all will be printed.
 
@@ -99,12 +104,14 @@ Usage:
 display
 
 The jiri xprofile env flags are:
- -manifest=$JIRI_ROOT/.jiri_xprofiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the XML manifest to file read/write from.
  -profile=
    the profile whose environment is to be displayed
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
+ -version=
+   target version
 
 Jiri xprofile uninstall - Uninstall the given profiles
 
@@ -120,10 +127,16 @@ The jiri xprofile uninstall flags are:
    uninstall all targets for the specified profile(s)
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
- -manifest=$JIRI_ROOT/.jiri_xprofiles
+ -go.install-dir=
+   installation directory for go profile builds.
+ -go.sysroot=
+   sysroot for cross compiling to the currently specified target
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the XML manifest to file read/write from.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
+ -version=
+   target version
 
 Jiri xprofile update - Update the given profiles
 
@@ -139,10 +152,16 @@ The jiri xprofile update flags are:
    specifcy an environment variable in the form: <var>=[<val>],...
  -force=false
    force an uninstall followed by install
- -manifest=$JIRI_ROOT/.jiri_xprofiles
+ -go.install-dir=
+   installation directory for go profile builds.
+ -go.sysroot=
+   sysroot for cross compiling to the currently specified target
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the XML manifest to file read/write from.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
+ -version=
+   target version
 
 Jiri xprofile help - Display help for commands or topics
 

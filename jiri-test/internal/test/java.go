@@ -11,6 +11,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/envvar"
 )
 
@@ -23,12 +24,12 @@ func vanadiumJavaTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	target := profiles.NativeTarget()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), "java", target)
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), "java", target)
 	env := envvar.VarsFromOS()
 	env.Set("JAVA_HOME", ch.Get("JAVA_HOME"))
 	// Run tests.

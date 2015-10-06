@@ -13,6 +13,7 @@ import (
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -44,7 +45,7 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return err
 	}

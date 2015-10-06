@@ -22,6 +22,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -137,7 +138,7 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
 func getCurrentAPI(ctx *tool.Context, gotoolsBin, dir string) ([]byte, error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, err
 	}

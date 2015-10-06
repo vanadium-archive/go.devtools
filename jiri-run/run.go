@@ -13,6 +13,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -23,7 +24,7 @@ var (
 
 func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
-	profiles.RegisterProfileFlags(&cmdRun.Flags, &manifestFlag, &profilesFlag, &targetFlag)
+	profiles.RegisterProfileFlags(&cmdRun.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 }
 
 // cmdRun represents the "jiri run" command.
@@ -53,7 +54,7 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 	}
 	ch.SetGoPath()
 	ch.SetVDLPath()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = cmdlineEnv.Stdout
 	execCmd.Stderr = cmdlineEnv.Stderr

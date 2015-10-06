@@ -18,6 +18,7 @@ import (
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/golib"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -49,7 +50,7 @@ var (
 
 func init() {
 	tool.InitializeRunFlags(&cmdGo.Flags)
-	profiles.RegisterProfileFlags(&cmdGo.Flags, &manifestFlag, &profilesFlag, &targetFlag)
+	profiles.RegisterProfileFlags(&cmdGo.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
 	flag.BoolVar(&useProfilesFlag, "use-profiles", true, "run without using new-style profiles")
 	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
@@ -60,7 +61,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("not enough arguments")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		if err := profiles.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
 			return err
 		}
-		ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profilesFlag, targetFlag)
+		ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
 	}
 	if !systemGoFlag {
 		if len(ch.Get("GOROOT")) > 0 {

@@ -8,19 +8,23 @@
 package main
 
 import (
-	"v.io/jiri/profiles/driver"
-	"v.io/x/lib/cmdline"
+	"v.io/jiri/profiles/commandline"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 
 	// Add profile manager implementations here.
-	_ "v.io/x/devtools/jiri-xprofile/android"
-	_ "v.io/x/devtools/jiri-xprofile/base"
-	_ "v.io/x/devtools/jiri-xprofile/go"
-	_ "v.io/x/devtools/jiri-xprofile/java"
-	_ "v.io/x/devtools/jiri-xprofile/nacl"
-	_ "v.io/x/devtools/jiri-xprofile/nodejs"
-	_ "v.io/x/devtools/jiri-xprofile/syncbase"
+	_ "v.io/x/devtools/jiri-v23-profile/android"
+	_ "v.io/x/devtools/jiri-v23-profile/base"
+	_ "v.io/x/devtools/jiri-v23-profile/go"
+	_ "v.io/x/devtools/jiri-v23-profile/java"
+	_ "v.io/x/devtools/jiri-v23-profile/nacl"
+	_ "v.io/x/devtools/jiri-v23-profile/nodejs"
+	_ "v.io/x/devtools/jiri-v23-profile/syncbase"
 )
 
+func init() {
+	commandline.Init(v23_profile.DefaultManifestFilename)
+}
+
 func main() {
-	cmdline.Main(driver.CommandLineDriver)
+	commandline.Main()
 }

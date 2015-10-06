@@ -16,6 +16,7 @@ import (
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/buildinfo"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
 )
@@ -35,7 +36,7 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	if err := runGo(cmdlineEnv, []string{"env", "GOPATH"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -24,7 +24,7 @@ Usage:
 The jiri env flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_xprofiles
+ -manifest=.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -34,6 +34,8 @@ The jiri env flags are:
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
    Print verbose output.
+ -version=
+   target version
 
 The global flags are:
  -metadata=<just specify -metadata to activate>

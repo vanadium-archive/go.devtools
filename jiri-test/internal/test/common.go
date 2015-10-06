@@ -75,7 +75,7 @@ func removeUntestedNewStyleProfiles(ctx *tool.Context) {
 	opts.Stdout = &out
 	opts.Stderr = &out
 	for _, args := range []string{"list --v", "uninstall nacl", "uninstall nodejs", "list"} {
-		clargs := append([]string{"xprofile"}, strings.Split(args, " ")...)
+		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
 		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
 		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
 		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
@@ -90,12 +90,12 @@ func initTest(ctx *tool.Context, testName string, profileNames []string, opts ..
 
 // initTestX carries out the initial actions for the given test.
 func initTestX(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, testName, "xprofile", profileNames, "", opts...)
+	return initTestImpl(ctx, testName, "v23-profile", profileNames, "", opts...)
 }
 
 // initTestX carries out the initial actions for the given test.
 func initTestForTarget(ctx *tool.Context, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, testName, "xprofile", profileNames, target, opts...)
+	return initTestImpl(ctx, testName, "v23-profile", profileNames, target, opts...)
 }
 
 func initTestImpl(ctx *tool.Context, testName string, profileCommand string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
@@ -150,7 +150,7 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	// Install profiles.
 	args := []string{"-v", profileCommand, "install"}
 	for _, profile := range profileNames {
-		if profileCommand == "xprofile" {
+		if profileCommand == "v23-profile" {
 			t := profiles.NativeTarget()
 			if len(target) > 0 {
 				var err error

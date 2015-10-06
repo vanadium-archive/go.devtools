@@ -13,8 +13,13 @@ import (
 	"v.io/x/lib/envvar"
 )
 
-var profileName = "base"
-var profileVersion = "1"
+const (
+	profileName    = "base"
+	profileVersion = "1"
+)
+
+// The base profile is just a shorthand for go+syncbase.
+var baseProfiles = []string{"go", "syncbase"}
 
 func init() {
 	profiles.Register(profileName, &Manager{})
@@ -51,13 +56,13 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		}
 	}
 	// Install profiles.
-	for _, profile := range []string{"go", "syncbase"} {
+	for _, profile := range baseProfiles {
 		if err := profiles.EnsureProfileTargetIsInstalled(ctx, profile, target, m.root); err != nil {
 			return err
 		}
 	}
 	// Merge the environments for go and syncbase and store it in the base profile.
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), envvar.VarsFromSlice(target.Env.Vars), target, "syncbase", "go")
+	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), envvar.VarsFromSlice(target.Env.Vars), target, "syncbase", "go")
 	if err != nil {
 		return err
 	}
@@ -67,6 +72,15 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
+	for _, profile := range baseProfiles {
+		mgr := profiles.LookupManager(profile)
+		if mgr == nil {
+			return fmt.Errorf("%v is not available", profile)
+		}
+		if err := mgr.Uninstall(ctx, target); err != nil {
+			return err
+		}
+	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
 }

@@ -134,7 +134,6 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot strin
 	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
 		return "", err
 	}
-
 	// Download Android NDK.
 	ndkRoot = filepath.Join(m.androidRoot, "ndk-toolchain")
 	installNdkFn := func() error {

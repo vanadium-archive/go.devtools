@@ -84,7 +84,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	env.Set("JAVA_HOME", javaHome)
 
 	// Merge the base environment variables and store them in the java profile
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), env, target, "base")
+	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), env, target, "base")
 	if err != nil {
 		return err
 	}

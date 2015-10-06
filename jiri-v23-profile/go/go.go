@@ -87,7 +87,6 @@ func (m Manager) targetDir(target *profiles.Target) string {
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
 	cgo := true
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
@@ -127,6 +126,9 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{"GOROOT=" + go15Root})
 	target.InstallationDir = go15Root
 	profiles.InstallProfile(profileName, m.goRoot)
+	if len(target.Version) == 0 {
+		target.Version = profileVersion
+	}
 	return profiles.AddProfileTarget(profileName, target)
 }
 

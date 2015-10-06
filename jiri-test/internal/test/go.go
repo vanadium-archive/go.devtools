@@ -37,6 +37,7 @@ import (
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/host"
 	"v.io/x/lib/set"
 )
@@ -431,7 +432,7 @@ var (
 func goListPackagesAndFuncs(ctx *tool.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
 
-	ch, err := profiles.NewConfigHelper(ctx, profiles.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, nil, err
 	}

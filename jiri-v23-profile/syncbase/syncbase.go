@@ -92,7 +92,6 @@ func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target pro
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
 	m.initForTarget(target)
 	if err := m.installDependencies(ctx, target.Arch, target.OS); err != nil {
 		return err
@@ -107,11 +106,13 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 	target.Env.Vars = env.ToSlice()
 	profiles.InstallProfile(profileName, m.syncbaseRoot)
+	if len(target.Version) == 0 {
+		target.Version = profileVersion
+	}
 	return profiles.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
 	m.initForTarget(target)
 	if err := ctx.Run().RemoveAll(m.snappyInstDir); err != nil {
 		return err
@@ -207,6 +208,9 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			*/
 		}
 		if err := profiles.RunCommand(ctx, env, "./configure", args...); err != nil {
+			return err
+		}
+		if err := profiles.RunCommand(ctx, nil, "make", "clean"); err != nil {
 			return err
 		}
 		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
