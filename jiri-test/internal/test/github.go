@@ -29,6 +29,11 @@ var (
 			github:       "git@github.com:vanadium/chat.git",
 		},
 		Mirror{
+			name:         "croupier",
+			googlesource: "https://vanadium.googlesource.com/release.projects.croupier",
+			github:       "git@github.com:vanadium/croupier.git",
+		},
+		Mirror{
 			name:         "docs",
 			googlesource: "https://vanadium.googlesource.com/docs",
 			github:       "git@github.com:vanadium/docs.git",
@@ -42,6 +47,11 @@ var (
 			name:         "go.jiri",
 			googlesource: "https://vanadium.googlesource.com/release.go.jiri",
 			github:       "git@github.com:vanadium/go.jiri.git",
+		},
+		Mirror{
+			name:         "go.jni",
+			googlesource: "https://vanadium.googlesource.com/release.go.jni",
+			github:       "git@github.com:vanadium/go.jni.git",
 		},
 		Mirror{
 			name:         "go.lib",
@@ -59,6 +69,11 @@ var (
 			github:       "git@github.com:vanadium/go.v23.git",
 		},
 		Mirror{
+			name:         "java",
+			googlesource: "https://vanadium.googlesource.com/release.java",
+			github:       "git@github.com:vanadium/java.git",
+		},
+		Mirror{
 			name:         "js",
 			googlesource: "https://vanadium.googlesource.com/release.js.core",
 			github:       "git@github.com:vanadium/js.git",
@@ -69,9 +84,29 @@ var (
 			github:       "git@github.com:vanadium/js.syncbase.git",
 		},
 		Mirror{
+			name:         "media-sharing",
+			googlesource: "https://vanadium.googlesource.com/release.projects.media-sharing",
+			github:       "git@github.com:vanadium/media-sharing.git",
+		},
+		Mirror{
+			name:         "mojo.discovery",
+			googlesource: "https://vanadium.googlesource.com/release.mojo.discovery",
+			github:       "git@github.com:vanadium/mojo.discovery.git",
+		},
+		Mirror{
+			name:         "mojo.shared",
+			googlesource: "https://vanadium.googlesource.com/release.mojo.shared",
+			github:       "git@github.com:vanadium/mojo.shared.git",
+		},
+		Mirror{
 			name:         "mojo.syncbase",
 			googlesource: "https://vanadium.googlesource.com/release.mojo.syncbase",
 			github:       "git@github.com:vanadium/mojo.syncbase.git",
+		},
+		Mirror{
+			name:         "physical-lock",
+			googlesource: "https://vanadium.googlesource.com/release.projects.physical-lock",
+			github:       "git@github.com:vanadium/physical-lock.git",
 		},
 		Mirror{
 			name:         "pipe2browser",
@@ -97,6 +132,11 @@ var (
 			name:         "todos",
 			googlesource: "https://vanadium.googlesource.com/release.projects.todos",
 			github:       "git@github.com:vanadium/todos.git",
+		},
+		Mirror{
+			name:         "travel",
+			googlesource: "https://vanadium.googlesource.com/release.projects.travel",
+			github:       "git@github.com:vanadium/travel.git",
 		},
 		Mirror{
 			name:         "www",
