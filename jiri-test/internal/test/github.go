@@ -84,6 +84,11 @@ var (
 			github:       "git@github.com:vanadium/js.syncbase.git",
 		},
 		Mirror{
+			name:         "manifest",
+			googlesource: "https://vanadium.googlesource.com/manifest",
+			github:       "git@github.com:vanadium/manifest.git",
+		},
+		Mirror{
 			name:         "media-sharing",
 			googlesource: "https://vanadium.googlesource.com/release.projects.media-sharing",
 			github:       "git@github.com:vanadium/media-sharing.git",
