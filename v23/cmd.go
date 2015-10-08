@@ -31,10 +31,11 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\nWARNING: The v23 tool will soon be deprecated.\nPlease run 'jiri %s' instead.\n\n", strings.Join(args, " "))
+	delay := 3
+	fmt.Fprintf(os.Stderr, "\nWARNING: The v23 tool will soon be deprecated.\nPlease run 'jiri %s' instead or setup an alias.\nTo encourage transitioning, the v23 tool includes a %d second delay.\n\n", strings.Join(args, " "), delay)
 
 	// Sleep for annoyance.
-	time.Sleep(3 * time.Second)
+	time.Sleep(time.Duration(delay) * time.Second)
 
 	if err := cmd.Run(); err != nil {
 		// The jiri tool should have reported an error in its output.  Don't
