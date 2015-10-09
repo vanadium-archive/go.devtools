@@ -71,7 +71,6 @@ var testFunctions = map[string]func(*tool.Context, string, ...Opt) (*test.Result
 	"third_party-go-build":                thirdPartyGoBuild,
 	"third_party-go-test":                 thirdPartyGoTest,
 	"third_party-go-race":                 thirdPartyGoRace,
-	"vanadium-android-test":               vanadiumAndroidTest,
 	"vanadium-android-build":              vanadiumAndroidBuild,
 	"vanadium-bootstrap":                  vanadiumBootstrap,
 	"vanadium-browser-test":               vanadiumBrowserTest,
