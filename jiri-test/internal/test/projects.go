@@ -25,15 +25,9 @@ func runProjectTest(ctx *tool.Context, testName, projectName, target string, env
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, append([]string{"base"}, profiles...))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
-	}
-	defer collect.Error(func() error { return cleanup() }, &e)
-
-	cleanup, err = initTest(ctx, testName, profiles)
-	if err != nil {
-		return nil, err
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

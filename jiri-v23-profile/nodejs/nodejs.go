@@ -25,9 +25,8 @@ func init() {
 }
 
 type Manager struct {
-	root                    string
-	nodeRoot                string
-	nodeSrcDir, nodeInstDir string
+	root                              string
+	nodeRoot, nodeSrcDir, nodeInstDir string
 }
 
 func (Manager) Name() string {
@@ -44,33 +43,31 @@ func (m Manager) Root() string {
 
 func (m *Manager) SetRoot(root string) {
 	m.root = root
-	m.nodeRoot = filepath.Join(m.root, "profiles", "cout")
-	m.nodeSrcDir = filepath.Join(m.root, "profiles", "csrc", nodeVersion)
+	m.nodeRoot = filepath.Join(m.root, "profiles", "cout", nodeVersion)
+	m.nodeSrcDir = filepath.Join(m.root, "third_party", "csrc", nodeVersion)
 }
 
-func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
-}
+func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {}
 
 func (m *Manager) initForTarget(target profiles.Target) {
-	targetDir := profiles.TargetSpecificDirname(target, true)
-	m.nodeInstDir = filepath.Join(m.nodeRoot, "node", targetDir)
-	// maybe install softlink here..
+	m.nodeInstDir = filepath.Join(m.nodeRoot, profiles.TargetSpecificDirname(target, true))
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
+	m.initForTarget(target)
 	if target.CrossCompiling() {
 		return fmt.Errorf("the %q profile does not support cross compilation to %v", profileName, target)
 	}
 	if err := m.installNode(ctx, target); err != nil {
 		return err
 	}
+	target.Version = profileVersion
+	target.InstallationDir = m.nodeInstDir
 	profiles.InstallProfile(profileName, m.nodeRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
 	m.initForTarget(target)
 	if err := ctx.Run().RemoveAll(m.nodeInstDir); err != nil {
 		return err
@@ -80,6 +77,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
+	m.initForTarget(target)
 	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
 	if err != nil {
 		return err
@@ -99,7 +97,6 @@ func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
 		}
 	default:
 		return fmt.Errorf("%q is not supported", target.OS)
-
 	}
 	// Build and install NodeJS.
 	installNodeFn := func() error {
@@ -107,6 +104,9 @@ func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
 			return err
 		}
 		if err := profiles.RunCommand(ctx, nil, "./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir)); err != nil {
+			return err
+		}
+		if err := profiles.RunCommand(ctx, nil, "make", "clean"); err != nil {
 			return err
 		}
 		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {

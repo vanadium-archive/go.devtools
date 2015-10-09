@@ -31,13 +31,7 @@ func vanadiumPlaygroundTest(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
-	if err != nil {
-		return nil, internalTestError{err, "Init"}
-	}
-	defer collect.Error(func() error { return cleanup() }, &e)
-
-	cleanup, err = initTest(ctx, testName, []string{"nodejs"})
+	cleanup, err := initTest(ctx, testName, []string{"base", "nodejs"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

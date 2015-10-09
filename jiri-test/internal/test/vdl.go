@@ -23,7 +23,7 @@ import (
 func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'jiri run vdl generate --lang=go all'.\n")
 
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

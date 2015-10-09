@@ -73,11 +73,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	for _, profile := range baseProfiles {
-		mgr := profiles.LookupManager(profile)
-		if mgr == nil {
-			return fmt.Errorf("%v is not available", profile)
-		}
-		if err := mgr.Uninstall(ctx, target); err != nil {
+		if err := profiles.EnsureProfileTargetIsUninstalled(ctx, profile, target, m.root); err != nil {
 			return err
 		}
 	}

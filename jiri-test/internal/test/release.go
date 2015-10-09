@@ -71,7 +71,7 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 		return nil, err
 	}
 
-	cleanup, err := initTestX(ctx, testName, []string{"base", "java", "android"})
+	cleanup, err := initTest(ctx, testName, []string{"base", "java", "android"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -433,7 +433,7 @@ func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts .
 		return nil, err
 	}
 
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

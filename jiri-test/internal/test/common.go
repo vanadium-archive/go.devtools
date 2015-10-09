@@ -69,31 +69,27 @@ func regTestBinDirPath() string {
 	return filepath.Join(testTmpDir, "regtest")
 }
 
-func removeUntestedNewStyleProfiles(ctx *tool.Context) {
+func displayProfiles(ctx *tool.Context) {
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	for _, args := range []string{"list --v", "uninstall nacl", "uninstall nodejs", "list"} {
-		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
-		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
-		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
-		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
-		out.Reset()
+	fmt.Fprintf(ctx.Stdout(), "installed profiles:\n")
+	err := ctx.Run().CommandWithOpts(opts, "jiri", "v23-profile", "list", "--v")
+	if err != nil {
+		fmt.Fprintf(ctx.Stdout(), " %v\n", err)
+		return
 	}
+	fmt.Fprintf(ctx.Stdout(), "\n%s\n", out.String())
 }
 
 // initTest carries out the initial actions for the given test.
 func initTest(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, testName, "profile", profileNames, "", opts...)
-}
-
-// initTestX carries out the initial actions for the given test.
-func initTestX(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
 	return initTestImpl(ctx, testName, "v23-profile", profileNames, "", opts...)
 }
 
-// initTestX carries out the initial actions for the given test.
+// initTestForTarget carries out the initial actions for the given test using
+// a specific profile Target..
 func initTestForTarget(ctx *tool.Context, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
 	return initTestImpl(ctx, testName, "v23-profile", profileNames, target, opts...)
 }
@@ -104,7 +100,6 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	if err != nil {
 		return nil, fmt.Errorf("Hostname() failed: %v", err)
 	}
-	removeUntestedNewStyleProfiles(ctx)
 	fmt.Fprintf(ctx.Stdout(), "hostname = %q\n", hostname)
 
 	// Create a working test directory under $HOME/tmp and set the
@@ -129,6 +124,8 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	testTmpDir = workDir
 	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
 	fmt.Fprintf(ctx.Stdout(), "bin dir = %q\n", binDirPath())
+
+	displayProfiles(ctx)
 
 	// Create a directory for storing built binaries.
 	if err := ctx.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
@@ -164,10 +161,11 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 			}
 		}
 		clargs := append(args, insertTarget(profile)...)
+		fmt.Fprintf(ctx.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
 		if err := ctx.Run().Command("jiri", clargs...); err != nil {
 			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
 		}
-		fmt.Fprintf(ctx.Stdout(), "jiri: %v\n", strings.Join(clargs, " "))
+		fmt.Fprintf(ctx.Stdout(), "jiri %v: success\n", strings.Join(clargs, " "))
 	}
 
 	// Update profiles.

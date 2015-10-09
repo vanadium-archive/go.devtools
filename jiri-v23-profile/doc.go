@@ -60,6 +60,8 @@ Usage:
 The jiri v23-profile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
+ -force=false
+   force the command to be executed regardless of the current state
  -go.install-dir=
    installation directory for go profile builds.
  -go.sysroot=
@@ -93,9 +95,13 @@ The jiri v23-profile list flags are:
 
 Jiri v23-profile env - Display profile environment variables
 
-List profile specific and target specific environment variables.
+List profile specific and target specific environment variables. If the
+requested environment variable name ends in = then only the value will be
+printed, otherwise both name and value are printed, i.e. GOPATH="foo" vs just
+"foo".
 
-If no environment variable names are requested then all will be printed.
+If no environment variable names are requested then all will be printed in
+<name>=<val> format.
 
 Usage:
    jiri v23-profile env [flags] [<environment variable names>]
@@ -127,6 +133,8 @@ The jiri v23-profile uninstall flags are:
    uninstall all targets for the specified profile(s)
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
+ -force=false
+   force the command to be executed regardless of the current state
  -go.install-dir=
    installation directory for go profile builds.
  -go.sysroot=
@@ -151,7 +159,7 @@ The jiri v23-profile update flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
  -force=false
-   force an uninstall followed by install
+   force the command to be executed regardless of the current state
  -go.install-dir=
    installation directory for go profile builds.
  -go.sysroot=

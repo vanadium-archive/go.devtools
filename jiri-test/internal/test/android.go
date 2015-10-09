@@ -53,7 +53,7 @@ type androidAntProperties struct {
 // vanadiumAndroidBuild tests that all Java and Go JNI files build.
 func vanadiumAndroidBuild(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"mobile"})
+	cleanup, err := initTest(ctx, testName, []string{"android"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -80,7 +80,7 @@ func vanadiumAndroidBuild(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 // vanadiumAndroidTest runs all Android tests.
 func vanadiumAndroidTest(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"mobile"})
+	cleanup, err := initTest(ctx, testName, []string{"android"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

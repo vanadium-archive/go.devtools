@@ -13,6 +13,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
+	"v.io/x/lib/envvar"
 )
 
 const (
@@ -49,22 +50,21 @@ func (m *Manager) SetRoot(root string) {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) defaultTarget(ctx *tool.Context, target *profiles.Target) error {
+func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profiles.Target) error {
 	if !target.IsSet() {
 		def := *target
 		target.Set("android=arm-android")
 		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
 		if target.Arch != "arm" && target.OS != "android" {
-			return fmt.Errorf("this profile can only be installed as arm-android")
+			return fmt.Errorf("this profile can only be %v as arm-android and not as %v", action, target)
 		}
 	}
 	return nil
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	target.Version = profileVersion
-	if err := m.defaultTarget(ctx, &target); err != nil {
+	if err := m.defaultTarget(ctx, "installed", &target); err != nil {
 		return err
 	}
 	ndkRoot, err := m.installAndroidNDK(ctx, runtime.GOOS)
@@ -90,12 +90,17 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 	target.Env.Vars = baseTarget.Env.Vars
 	target.InstallationDir = ndkRoot
+	target.Version = profileVersion
 	profiles.InstallProfile(profileName, m.androidRoot)
 	return profiles.UpdateProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	if err := m.defaultTarget(ctx, &target); err != nil {
+	if err := m.defaultTarget(ctx, "uninstalled", &target); err != nil {
+		return err
+	}
+	target.Env.Vars = append(target.Env.Vars, "GOARM=7")
+	if err := profiles.EnsureProfileTargetIsUninstalled(ctx, "base", target, m.root); err != nil {
 		return err
 	}
 	if err := ctx.Run().RemoveAll(m.androidRoot); err != nil {
@@ -106,7 +111,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if err := m.defaultTarget(ctx, &target); err != nil {
+	if err := m.defaultTarget(ctx, "updated", &target); err != nil {
 		return err
 	}
 	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
@@ -164,13 +169,9 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot strin
 // installAndroidTargets installs android targets for other profiles, such
 // as go, java, syncbase etc.
 func (m *Manager) installAndroidTargets(ctx *tool.Context, target profiles.Target) (e error) {
-	ndkRoot := filepath.Join(m.androidRoot, "ndk-toolchain")
-
-	// Install Android Go target.
-	ndkBin := filepath.Join(ndkRoot, "bin")
-	ccForTarget := "CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc")
-	cxxForTarget := "CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++")
-	baseTarget := target
-	baseTarget.Env.Vars = []string{"GOARM=7", "CGO_ENABLED=1", "NDK_BINDIR=" + ndkBin, ccForTarget, cxxForTarget}
-	return profiles.EnsureProfileTargetIsInstalled(ctx, "base", baseTarget, m.root)
+	ev := envvar.VarsFromSlice(target.Env.Vars)
+	ev.Set("ANDROID_NDK_DIR", filepath.Join(m.androidRoot, "ndk-toolchain"))
+	ev.Set("GOARM", "7")
+	target.Env.Vars = ev.ToSlice()
+	return profiles.EnsureProfileTargetIsInstalled(ctx, "base", target, m.root)
 }

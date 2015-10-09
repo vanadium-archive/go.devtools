@@ -23,16 +23,9 @@ const (
 // runJSTest is a harness for executing javascript tests.
 func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func() error, env map[string]string, extraDeps []string) (_ *test.Result, e error) {
 	// Initialize the test.
-	// Need the new-stype base profile since many web tests will build
-	// go apps that need it.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
-	if err != nil {
-		return nil, internalTestError{err, "Init"}
-	}
-	defer collect.Error(func() error { return cleanup() }, &e)
-
-	deps := append(extraDeps, "nodejs")
-	cleanup, err = initTest(ctx, testName, deps)
+	deps := append([]string{"base"}, extraDeps...)
+	deps = append(deps, "nodejs")
+	cleanup, err := initTest(ctx, testName, deps)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -43,11 +36,13 @@ func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func
 		return nil, err
 	}
 
-	// Clean up after previous instances of the test.
+	// Set up the environment
 	opts := ctx.Run().Opts()
 	for key, value := range env {
 		opts.Env[key] = value
 	}
+
+	// Clean up after previous instances of the test.
 	if err := ctx.Run().CommandWithOpts(opts, "make", "clean"); err != nil {
 		return nil, err
 	}
@@ -109,9 +104,7 @@ func vanadiumJSDocSyncbase(ctx *tool.Context, testName string, _ ...Opt) (*test.
 		return nil, err
 	}
 	testDir := filepath.Join(root, "release", "javascript", "syncbase")
-	target := "docs"
-
-	result, err := runJSTest(ctx, testName, testDir, target, nil, nil, nil)
+	result, err := runJSTest(ctx, testName, testDir, "docs", nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

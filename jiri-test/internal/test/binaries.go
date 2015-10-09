@@ -19,7 +19,7 @@ import (
 // vanadiumGoBinaries uploads Vanadium binaries to Google Storage.
 func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

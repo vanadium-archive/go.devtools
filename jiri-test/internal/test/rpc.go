@@ -73,7 +73,7 @@ func vanadiumGoRPCLoad(ctx *tool.Context, testName string, _ ...Opt) (*test.Resu
 }
 
 func runRPCTest(ctx *tool.Context, testName, nodeName string, numServerNodes, numClientNodes int, testFunc func(*tool.Context, string) (*test.Result, error)) (_ *test.Result, e error) {
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

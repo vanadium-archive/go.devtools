@@ -92,11 +92,11 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
 		if builder := xcompilers[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch, target.OS}]; builder != nil {
-			bindir, vars, err := builder(ctx, m, target, profiles.Install)
+			_, vars, err := builder(ctx, m, target, profiles.Install)
 			if err != nil {
 				return err
 			}
-			target.Env.Vars = envvar.MergeSlices(target.Env.Vars, vars, []string{"XTOOLS=" + bindir})
+			target.Env.Vars = vars
 		} else {
 			// CGO is not supported.
 			cgo = false
@@ -136,7 +136,8 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
-		if builder := xcompilers[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch, target.OS}]; builder != nil {
+		def := profiles.DefaultTarget()
+		if builder := xcompilers[xspec{def.Arch, def.OS}][xspec{target.Arch, target.OS}]; builder != nil {
 			if _, _, err := builder(ctx, m, target, profiles.Uninstall); err != nil {
 				return err
 			}
@@ -147,8 +148,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 		"GOARCH=" + target.Arch,
 		"GOOS=" + target.OS,
 	})
-	targetDir := m.targetDir(&target)
-	if err := ctx.Run().RemoveAll(targetDir); err != nil {
+	if err := ctx.Run().RemoveAll(m.targetDir(&target)); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
@@ -441,6 +441,22 @@ func darwin_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, acti
 }
 
 func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
-	ev := envvar.SliceToMap(target.Env.Vars)
-	return ev["NDK_BINDIR"], target.Env.Vars, nil
+	switch action {
+	case profiles.Uninstall, profiles.Update:
+		return "", nil, nil
+	case profiles.Install:
+		fallthrough
+	default:
+		ev := envvar.SliceToMap(target.Env.Vars)
+		ndk := ev["ANDROID_NDK_DIR"]
+		if len(ndk) == 0 {
+			return "", nil, fmt.Errorf("Android NDK location not specified, please set ANDROID_NDK_DIR appropriately")
+		}
+		ndkBin := filepath.Join(ndk, "bin")
+		vars := []string{
+			"CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
+			"CXX_FOR_TARGET" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
+		}
+		return ndkBin, vars, nil
+	}
 }

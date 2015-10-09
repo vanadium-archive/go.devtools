@@ -580,6 +580,8 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 		}
 	}
 
+	// TODO(cnicolaou): this gets run for every test case, which is going
+	// to be pretty slow. We should refactor so that it only gets run once.
 	// Install required tools.
 	if err := ctx.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 		return nil, nil, internalTestError{err, "install-go2xunit"}
@@ -1086,7 +1088,7 @@ func getNumWorkersOpt(opts []Opt) numWorkersOpt {
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1120,7 +1122,7 @@ func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1142,7 +1144,7 @@ func thirdPartyGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1193,7 +1195,7 @@ func thirdPartyPkgs() ([]string, error) {
 // vanadiumCopyright checks the copyright for vanadium projects.
 func vanadiumCopyright(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1221,7 +1223,7 @@ To fix the above copyright violations run "jiri copyright fix" and commit the ch
 // vanadiumGoAPI checks the public Go api for vanadium projects.
 func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1258,7 +1260,7 @@ to update the corresponding .api files and commit the changes.
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
 func vanadiumGoBench(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1278,7 +1280,7 @@ func vanadiumGoBench(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 // vanadiumGoBuild runs Go build for the vanadium projects.
 func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1307,7 +1309,7 @@ func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 // vanadiumGoCoverage runs Go coverage tests for vanadium projects.
 func vanadiumGoCoverage(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1324,7 +1326,7 @@ func vanadiumGoCoverage(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 // vanadiumGoDepcop runs Go dependency checks for vanadium projects.
 func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1359,7 +1361,7 @@ func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Res
 // vanadiumGoFormat runs Go format check for vanadium projects.
 func vanadiumGoFormat(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1400,7 +1402,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 	}
 
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1513,7 +1515,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
 func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1618,7 +1620,7 @@ func getPkgsFromSpec(ctx *tool.Context, pkgSpec string) ([]string, error) {
 // vanadiumGoVet runs go vet checks for vanadium projects.
 func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1647,7 +1649,7 @@ func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 // vanadiumGoTest runs Go tests for vanadium projects.
 func vanadiumGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1670,7 +1672,7 @@ func vanadiumIntegrationTest(ctx *tool.Context, testName string, opts ...Opt) (_
 	// We need a shorter root/tmp dir to keep the length of unix domain socket
 	// path under limit (108 for linux and 104 for darwin).
 	shorterRootDir := filepath.Join(os.Getenv("HOME"), "tmp", "vit")
-	cleanup, err := initTestX(ctx, testName, []string{"base"}, rootDirOpt(shorterRootDir))
+	cleanup, err := initTest(ctx, testName, []string{"base"}, rootDirOpt(shorterRootDir))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1788,7 +1790,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	fmt.Fprintf(ctx.Stdout(), "Using config:\n%s\n", string(configBytes))
 
 	// Initialize the test.
-	cleanup, err := initTestX(ctx, testName, []string{"base"})
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

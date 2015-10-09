@@ -71,7 +71,7 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{})
+	cleanup, err := initTest(ctx, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
