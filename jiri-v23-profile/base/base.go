@@ -62,7 +62,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		}
 	}
 	// Merge the environments for go and syncbase and store it in the base profile.
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), envvar.VarsFromSlice(target.Env.Vars), target, "syncbase", "go")
+	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), nil, envvar.VarsFromSlice(target.Env.Vars), target, "syncbase", "go")
 	if err != nil {
 		return err
 	}
