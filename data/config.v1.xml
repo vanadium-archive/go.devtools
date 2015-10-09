@@ -84,6 +84,7 @@
     </project>
     <project name="release.go.x.jni">
       <test>java</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.go.x.lib">
       <test>go</test>
@@ -105,6 +106,7 @@
     </project>
     <project name="release.java">
       <test>java</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.js.core">
       <test>javascript</test>
