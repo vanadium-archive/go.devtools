@@ -47,6 +47,7 @@
     <job arch="false" OS="true" parts="false" showOS="true">third_party-go-build</job>
     <job arch="false" OS="true" parts="false" showOS="true">third_party-go-test</job>
     <job arch="false" OS="true" parts="true"  showOS="false">third_party-go-race</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-android-build</job>
     <job arch="false" OS="true" parts="false" showOS="false">vanadium-bootstrap</job>
     <job arch="true"  OS="true" parts="false" showOS="true">vanadium-go-build</job>
     <job arch="true"  OS="true" parts="false" showOS="true">vanadium-go-test</job>
@@ -174,12 +175,6 @@
     <test name="third_party-go-test">
       <dependency>third_party-go-build</dependency>
     </test>
-    <test name="vanadium-android-build">
-      <dependency>vanadium-android-build-native</dependency>
-    </test>
-    <test name="vanadium-android-test">
-      <dependency>vanadium-android-build</dependency>
-    </test>
     <test name="vanadium-browser-test">
       <dependency>vanadium-go-build</dependency>
       <dependency>vanadium-js-browser-integration</dependency>
@@ -230,6 +225,7 @@
     </group>
     <group name="java">
       <test>vanadium-java-test</test>
+      <test>vanadium-android-build</test>
     </group>
     <group name="javascript">
       <test>vanadium-js-browser-integration</test>
