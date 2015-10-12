@@ -455,7 +455,7 @@ func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action pr
 		ndkBin := filepath.Join(ndk, "bin")
 		vars := []string{
 			"CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
-			"CXX_FOR_TARGET" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
+			"CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
 		}
 		return ndkBin, vars, nil
 	}
