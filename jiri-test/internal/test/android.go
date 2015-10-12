@@ -45,7 +45,9 @@ func vanadiumAndroidBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *t
 	if err := ctx.Run().Chdir(javaDir); err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Command(filepath.Join(javaDir, "gradlew"), "--info", ":android-lib:assemble"); err != nil {
+	runOpts := ctx.Run().Opts()
+	runOpts.Env = env.ToMap()
+	if err := ctx.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":android-lib:assemble"); err != nil {
 		return nil, err
 	}
 	return &test.Result{Status: test.Passed}, nil
