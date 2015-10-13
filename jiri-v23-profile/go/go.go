@@ -24,10 +24,10 @@ import (
 
 var (
 	profileName      = "go"
-	profileVersion   = "1.5"
+	profileVersion   = "1.5.1"
 	patchFiles       = []string{}
 	go15GitRemote    = "https://github.com/golang/go.git"
-	go15GitRevision  = "cc6554f750ccaf63bcdcc478b2a60d71ca76d342"
+	go15GitRevision  = "f2e4c8b5fb3660d793b2c545ef207153db0a34b1"
 	goInstallDirFlag = ""
 	goSysRootFlag    = ""
 )
@@ -221,12 +221,12 @@ func installGo14(ctx *tool.Context, goDir string, env *envvar.Vars) error {
 	return nil
 }
 
-// installGo15 installs Go 1.5 at a given location, using the provided
+// installGo15 installs Go 1.5.1 at a given location, using the provided
 // environment during compilation.
 func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []string, env *envvar.Vars) (string, error) {
 
 	go15Dir := filepath.Join(goDir, go15GitRevision)
-	if isInstalled(ctx, filepath.Join(go15Dir, "bin", "go"), regexp.MustCompile("go1.5")) {
+	if isInstalled(ctx, filepath.Join(go15Dir, "bin", "go"), regexp.MustCompile("go1\\.5\\.1")) {
 		return go15Dir, nil
 	}
 
@@ -254,12 +254,12 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 		return "", err
 	}
 
-	// Check out the go1.5 release branch.
-	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "go1.5"); err != nil {
+	// Check out the go1.5.1 release branch.
+	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "go1.5.1"); err != nil {
 		return "", err
 	}
 
-	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", "go1.5"); err != nil {
+	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", "go1.5.1"); err != nil {
 		return "", err
 	}
 
