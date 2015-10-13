@@ -119,6 +119,9 @@
       <test>vanadium-js-syncbase-browser</test>
       <test>vanadium-js-syncbase-node</test>
     </project>
+    <project name="release.mojo.discovery">
+      <test>vanadium-copyright</test>
+    </project>
     <project name="release.mojo.syncbase">
       <test>vanadium-copyright</test>
     </project>
