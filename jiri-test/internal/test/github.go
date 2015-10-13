@@ -50,7 +50,7 @@ var (
 		},
 		Mirror{
 			name:         "go.jni",
-			googlesource: "https://vanadium.googlesource.com/release.go.jni",
+			googlesource: "https://vanadium.googlesource.com/release.go.x.jni",
 			github:       "git@github.com:vanadium/go.jni.git",
 		},
 		Mirror{
