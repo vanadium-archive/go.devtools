@@ -30,6 +30,8 @@ The jiri go flags are:
    Show what commands will run but do not execute them.
  -profiles=base
    a comma separated list of profiles to use
+ -skip-profiles=false
+   if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false
@@ -42,8 +44,6 @@ The global flags are:
    Displays metadata for the program and exits.
  -system-go=false
    use the version of go found in $PATH rather than that built by the go profile
- -use-profiles=true
-   run without using new-style profiles
  -v=false
    print verbose debugging information
 */

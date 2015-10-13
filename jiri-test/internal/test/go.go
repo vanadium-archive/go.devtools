@@ -432,7 +432,7 @@ var (
 func goListPackagesAndFuncs(ctx *tool.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
 
-	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, nil, err
 	}

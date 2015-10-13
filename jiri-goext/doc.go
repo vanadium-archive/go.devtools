@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Vanadium extension of the go tool.
+Vanadium extensions of the go tool.
 
 Usage:
    jiri goext [flags] <command>

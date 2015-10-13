@@ -36,7 +36,7 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	if err := runGo(cmdlineEnv, []string{"env", "GOPATH"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

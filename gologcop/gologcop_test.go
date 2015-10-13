@@ -210,7 +210,7 @@ func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 }
 
 func configureDefaultBuildConfig(ctx *tool.Context, tags []string) (cleanup func(), err error) {
-	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}

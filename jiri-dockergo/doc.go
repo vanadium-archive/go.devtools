@@ -51,6 +51,8 @@ The jiri dockergo flags are:
    Show what commands will run but do not execute them.
  -profiles=base
    a comma separated list of profiles to use
+ -skip-profiles=false
+   if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: [<tag>=]<arch>-<os>
  -v=false

@@ -19,12 +19,13 @@ import (
 
 var (
 	manifestFlag, profilesFlag string
+	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
 )
 
 func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
-	profiles.RegisterProfileFlags(&cmdRun.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
+	profiles.RegisterProfileFlags(&cmdRun.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 }
 
 // cmdRun represents the "jiri run" command.
@@ -48,7 +49,7 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("no command to run")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
+	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}

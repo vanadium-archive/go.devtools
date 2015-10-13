@@ -76,7 +76,7 @@ func coverageFromGoTestOutput(ctx *tool.Context, testOutput io.Reader) (*testCov
 	if err != nil {
 		return nil, err
 	}
-	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, err
 	}

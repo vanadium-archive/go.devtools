@@ -45,14 +45,14 @@ vdl generate -lang=go all
 var (
 	manifestFlag, profilesFlag                 string
 	systemGoFlag, useProfilesFlag, verboseFlag bool
+	profilesModeFlag                           profiles.ProfilesMode
 	targetFlag                                 profiles.Target
 )
 
 func init() {
 	tool.InitializeRunFlags(&cmdGo.Flags)
-	profiles.RegisterProfileFlags(&cmdGo.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
+	profiles.RegisterProfileFlags(&cmdGo.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
-	flag.BoolVar(&useProfilesFlag, "use-profiles", true, "run without using new-style profiles")
 	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
 }
 
@@ -61,21 +61,16 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("not enough arguments")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
+	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}
-	if ch.LegacyProfiles() {
-		useProfilesFlag = false
-	}
 	ch.SetGoPath()
 	ch.SetVDLPath()
-	if useProfilesFlag {
-		if err := profiles.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
-			return err
-		}
-		ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
+	if err := ch.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
+		return err
 	}
+	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
 	if !systemGoFlag {
 		if len(ch.Get("GOROOT")) > 0 {
 			ch.PrependToPATH(filepath.Join(ch.Get("GOROOT"), "bin"))

@@ -8,7 +8,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
@@ -45,25 +44,23 @@ each on a separate line in the same order as the arguments.
 
 var (
 	manifestFlag, profilesFlag string
+	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
-	systemGoFlag               bool
 )
 
 func init() {
-	profiles.RegisterProfileFlags(&cmdEnv.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
-	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
+	profiles.RegisterProfileFlags(&cmdEnv.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
+
 }
 
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
+	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}
-	if !ch.LegacyProfiles() {
-		if err := profiles.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
-			return err
-		}
+	if err := ch.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
+		return err
 	}
 	ch.SetGoPath()
 	ch.SetVDLPath()

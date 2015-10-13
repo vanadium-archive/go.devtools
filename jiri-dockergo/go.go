@@ -68,6 +68,7 @@ such as invoking the VDL compiler on packages to generate up-to-date .go files.
 var (
 	imageFlag                  string
 	manifestFlag, profilesFlag string
+	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
 )
 
@@ -75,7 +76,7 @@ const dockerBin = "docker"
 
 func init() {
 	tool.InitializeRunFlags(&cmd.Flags)
-	profiles.RegisterProfileFlags(&cmd.Flags, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
+	profiles.RegisterProfileFlags(&cmd.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 	flag.StringVar(&imageFlag, "image", "", "Name of the docker image to use. If empty, the tool will automatically select an image based on the environment variables, possibly edited by the profile")
 }
 
@@ -84,7 +85,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		return cmdlineEnv.UsageErrorf("not enough arguments")
 	}
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, manifestFlag)
+	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}

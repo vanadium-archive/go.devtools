@@ -25,7 +25,7 @@ func init() {
 var cmdGoExt = &cmdline.Command{
 	Name:     "goext",
 	Short:    "Vanadium extensions of the go tool",
-	Long:     "Vanadium extension of the go tool.",
+	Long:     "Vanadium extensions of the go tool.",
 	Children: []*cmdline.Command{cmdGoExtDistClean},
 }
 
@@ -45,7 +45,7 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return err
 	}
