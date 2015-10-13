@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# This hook prevents accidental commits to the local master branch.
+
+# Get the current branch name.
+readonly BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "${BRANCH}" == "master" ]]
+then
+  echo "==========================================================================="
+  echo "Code cannot be committed to master using the 'git commit' command."
+  echo "Please create a local non-master branch and commit your code there."
+  echo "==========================================================================="
+  exit 1
+fi
+
+exit 0

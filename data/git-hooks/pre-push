@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# This hook prevents accidental pushes to the remote master branch.
+
+readonly REMOTE="$1"
+
+# Get the current branch name.
+readonly BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "${REMOTE}" == "origin" && "${BRANCH}" == "master" ]]
+then
+  echo "======================================================================"
+  echo "Code cannot be pushed to master using the 'git push' command."
+  echo "Use the 'jiri cl mail' command to follow the code review workflow."
+  echo "======================================================================"
+  exit 1
+fi
+
+exit 0
