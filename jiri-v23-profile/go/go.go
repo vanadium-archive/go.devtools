@@ -183,106 +183,116 @@ func isInstalled(ctx *tool.Context, bin string, re *regexp.Regexp) bool {
 
 // installGo14 installs Go 1.4 at a given location, using the provided
 // environment during compilation.
-func installGo14(ctx *tool.Context, goDir string, env *envvar.Vars) error {
-	if isInstalled(ctx, filepath.Join(goDir, "bin", "go"), regexp.MustCompile("go1.4")) {
+func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
+	installGo14Fn := func() error {
+		if isInstalled(ctx, filepath.Join(go14Dir, "bin", "go"), regexp.MustCompile("go1.4")) {
+			return nil
+		}
+		tmpDir, err := ctx.Run().TempDir("", "")
+		if err != nil {
+			return err
+		}
+		defer ctx.Run().RemoveAll(tmpDir)
+		name := "go1.4.2.src.tar.gz"
+		remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
+		if err := profiles.RunCommand(ctx, nil, "curl", "-Lo", local, remote); err != nil {
+			return err
+		}
+		if err := profiles.RunCommand(ctx, nil, "tar", "-C", tmpDir, "-xzf", local); err != nil {
+			return err
+		}
+		if err := ctx.Run().RemoveAll(local); err != nil {
+			return err
+		}
+		if ctx.Run().DirectoryExists(go14Dir) {
+			fmt.Fprintf(ctx.Stdout(), "Removing: %v\n", go14Dir)
+			ctx.Run().RemoveAll(go14Dir)
+		}
+		if err := ctx.Run().Rename(filepath.Join(tmpDir, "go"), go14Dir); err != nil {
+			return err
+		}
+		goSrcDir := filepath.Join(go14Dir, "src")
+		if err := ctx.Run().Chdir(goSrcDir); err != nil {
+			return err
+		}
+		makeBin := filepath.Join(goSrcDir, "make.bash")
+		if err := profiles.RunCommand(ctx, env.ToMap(), makeBin, "--no-clean"); err != nil {
+			return err
+		}
 		return nil
 	}
-	tmpDir, err := ctx.Run().TempDir("", "")
-	if err != nil {
-		return err
-	}
-	defer ctx.Run().RemoveAll(tmpDir)
-	name := "go1.4.2.src.tar.gz"
-	remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
-	if err := profiles.RunCommand(ctx, nil, "curl", "-Lo", local, remote); err != nil {
-		return err
-	}
-	if err := profiles.RunCommand(ctx, nil, "tar", "-C", tmpDir, "-xzf", local); err != nil {
-		return err
-	}
-	if err := ctx.Run().RemoveAll(local); err != nil {
-		return err
-	}
-	if ctx.Run().DirectoryExists(goDir) {
-		fmt.Fprintf(ctx.Stdout(), "Removing: %v\n", goDir)
-		ctx.Run().RemoveAll(goDir)
-	}
-	if err := ctx.Run().Rename(filepath.Join(tmpDir, "go"), goDir); err != nil {
-		return err
-	}
-	goSrcDir := filepath.Join(goDir, "src")
-	if err := ctx.Run().Chdir(goSrcDir); err != nil {
-		return err
-	}
-	makeBin := filepath.Join(goSrcDir, "make.bash")
-	if err := profiles.RunCommand(ctx, env.ToMap(), makeBin, "--no-clean"); err != nil {
-		return err
-	}
-	return nil
+
+	return profiles.AtomicAction(ctx, installGo14Fn, go14Dir, "Build and install Go 1.4")
 }
 
 // installGo15 installs Go 1.5.1 at a given location, using the provided
 // environment during compilation.
 func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []string, env *envvar.Vars) (string, error) {
-
 	go15Dir := filepath.Join(goDir, go15GitRevision)
 	if isInstalled(ctx, filepath.Join(go15Dir, "bin", "go"), regexp.MustCompile("go1\\.5\\.1")) {
 		return go15Dir, nil
 	}
 
-	// First install bootstrap Go 1.4 for the host.
-	if err := ctx.Run().MkdirAll(goDir, profiles.DefaultDirPerm); err != nil {
-		return "", err
-	}
-
-	goBootstrapDir := filepath.Join(bootstrapDir, "go-bootstrap")
-	if err := installGo14(ctx, goBootstrapDir, envvar.VarsFromOS()); err != nil {
-		return "", err
-	}
-
-	tmpDir, err := ctx.Run().TempDir("", "")
-	if err != nil {
-		return "", err
-	}
-	defer ctx.Run().RemoveAll(tmpDir)
-
-	if err := profiles.GitCloneRepo(ctx, go15GitRemote, go15GitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
-
-		return "", err
-	}
-	if err := ctx.Run().Chdir(tmpDir); err != nil {
-		return "", err
-	}
-
-	// Check out the go1.5.1 release branch.
-	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "go1.5.1"); err != nil {
-		return "", err
-	}
-
-	if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", "go1.5.1"); err != nil {
-		return "", err
-	}
-
-	if ctx.Run().DirectoryExists(go15Dir) {
-		ctx.Run().RemoveAll(go15Dir)
-	}
-	if err := ctx.Run().Rename(tmpDir, go15Dir); err != nil {
-		return "", err
-	}
-	goSrcDir := filepath.Join(go15Dir, "src")
-	if err := ctx.Run().Chdir(goSrcDir); err != nil {
-		return "", err
-	}
-	// Apply patches, if any.
-	for _, patchFile := range patchFiles {
-		if err := profiles.RunCommand(ctx, nil, "git", "apply", patchFile); err != nil {
-			return "", err
+	installGo15Fn := func() error {
+		// First install bootstrap Go 1.4 for the host.
+		if err := ctx.Run().MkdirAll(goDir, profiles.DefaultDirPerm); err != nil {
+			return err
 		}
+
+		goBootstrapDir := filepath.Join(bootstrapDir, "go-bootstrap")
+		if err := installGo14(ctx, goBootstrapDir, envvar.VarsFromOS()); err != nil {
+			return err
+		}
+
+		tmpDir, err := ctx.Run().TempDir("", "")
+		if err != nil {
+			return err
+		}
+		defer ctx.Run().RemoveAll(tmpDir)
+
+		if err := profiles.GitCloneRepo(ctx, go15GitRemote, go15GitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
+
+			return err
+		}
+		if err := ctx.Run().Chdir(tmpDir); err != nil {
+			return err
+		}
+
+		// Check out the go1.5.1 release branch.
+		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "go1.5.1"); err != nil {
+			return err
+		}
+
+		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", "go1.5.1"); err != nil {
+			return err
+		}
+
+		if ctx.Run().DirectoryExists(go15Dir) {
+			ctx.Run().RemoveAll(go15Dir)
+		}
+		if err := ctx.Run().Rename(tmpDir, go15Dir); err != nil {
+			return err
+		}
+		goSrcDir := filepath.Join(go15Dir, "src")
+		if err := ctx.Run().Chdir(goSrcDir); err != nil {
+			return err
+		}
+		// Apply patches, if any.
+		for _, patchFile := range patchFiles {
+			if err := profiles.RunCommand(ctx, nil, "git", "apply", patchFile); err != nil {
+				return err
+			}
+		}
+		makeBin := filepath.Join(goSrcDir, "make.bash")
+		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir)
+		if err := profiles.RunCommand(ctx, env.ToMap(), makeBin); err != nil {
+			ctx.Run().RemoveAll(filepath.Join(go15Dir, "bin"))
+			return err
+		}
+		return nil
 	}
-	makeBin := filepath.Join(goSrcDir, "make.bash")
-	env.Set("GOROOT_BOOTSTRAP", goBootstrapDir)
-	if err := profiles.RunCommand(ctx, env.ToMap(), makeBin); err != nil {
-		ctx.Run().RemoveAll(filepath.Join(go15Dir, "bin"))
+
+	if err := profiles.AtomicAction(ctx, installGo15Fn, go15Dir, "Build and install Go 1.5"); err != nil {
 		return "", err
 	}
 	return go15Dir, nil
