@@ -33,7 +33,6 @@ The jiri external commands are:
                 environment
    test         Manage vanadium tests
    v23-profile  No description available
-   xprofile     No description available
 
 The jiri flags are:
  -color=true
@@ -912,7 +911,5 @@ Usage:
    jiri test list
 
 Jiri v23-profile - No description available
-
-Jiri xprofile - No description available
 */
 package main

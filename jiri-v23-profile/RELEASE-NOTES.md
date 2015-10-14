@@ -4,25 +4,25 @@ This note summarises the state of the currently 'new style' profiles as of 9/25/
 
 Please read the docs for v.io/jiri/profiles to understand how the new scheme works
 in detail. In outline, profiles are now separate packages, linked into a jiri
-subcommand (eg. jiri-xprofile), that can be installed/updated/uninstalled. Profiles
+subcommand (eg. jiri-v23-profile), that can be installed/updated/uninstalled. Profiles
 represent source code and are built for specific targets, thus cross compilation
 is inherently supported and it's possible to support multiple targets for each profile.
 The profiles package maintains a manifest of the currently installed profiles and their
-configuration (currently $JIRI_ROOT/.jiri_xprofiles) and the various other jiri
+configuration (currently $JIRI_ROOT/.jiri_v23_profile) and the various other jiri
 subcommands (e.g. jiri-go, jiri-test etc) read the manifest to configure themselves
 appropriately for the required profile and target. For native compilation this
 entire mechanism is largely hidden since sensible defaults are used throughout.
 
 Thus, the common usage is:
 
-$ jiri xprofile install base
-$ jiri xprofile update base
+$ jiri v23-profile install base
+$ jiri v23-profile update base
 $
 $ jiri go build v.io/...
 
 Cross compilation would be achieved as follows:
 
-$ jiri xprofile install --target=arm-linux base
+$ jiri v23-profile install --target=arm-linux base
 $ jiri go --target=arm-linux build v.io/...
 
 Native compilation would still work as before:
