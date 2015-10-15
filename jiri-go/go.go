@@ -47,6 +47,7 @@ var (
 	systemGoFlag, useProfilesFlag, verboseFlag bool
 	profilesModeFlag                           profiles.ProfilesMode
 	targetFlag                                 profiles.Target
+	extraLDFlags                               string
 )
 
 func init() {
@@ -54,6 +55,7 @@ func init() {
 	profiles.RegisterProfileFlags(&cmdGo.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
 	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
+	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 }
 
 func runGo(cmdlineEnv *cmdline.Env, args []string) error {
@@ -80,7 +82,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		fmt.Fprintf(ctx.Stdout(), "Environment: %v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
 	envMap := ch.ToMap()
-	if args, err = golib.PrepareGo(ctx, envMap, args); err != nil {
+	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags); err != nil {
 		return err
 	}
 	// Run the go tool.

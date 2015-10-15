@@ -65,7 +65,7 @@ func TestGoVDLGeneration(t *testing.T) {
 		},
 	}
 	// Check that the 'env' go command does not generate the test VDL file.
-	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"env", "GOPATH"}); err != nil {
+	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"env", "GOPATH"}, ""); err != nil {
 		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
 	}
 	if _, err := ctx.Run().Stat(outFile); err != nil {
@@ -76,7 +76,7 @@ func TestGoVDLGeneration(t *testing.T) {
 		t.Fatalf("file %v exists and it should not.", outFile)
 	}
 	// Check that the 'build' go command generates the test VDL file.
-	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"build", "testpkg"}); err != nil {
+	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"build", "testpkg"}, ""); err != nil {
 		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
 	}
 	if _, err := ctx.Run().Stat(outFile); err != nil {
@@ -311,20 +311,39 @@ func TestSetBuildInfo(t *testing.T) {
 		"PATH":   os.Getenv("PATH"),
 		"GOPATH": os.Getenv("GOPATH"),
 	}
-	args, err := PrepareGo(ctx, env, []string{"build"})
+	args, err := PrepareGo(ctx, env, []string{"build"}, "-when=now -why")
 	if err != nil {
 		t.Fatal(err)
 	}
-	prefix := "-ldflags=" + strings.Split(metadata.LDFlag(&metadata.T{}), "=")[0] + "="
+
+	prefix := "-ldflags="
+	foundLDFlags := false
 	var md *metadata.T
 	// Find a flag with 'prefix' and extract metadata out of it.
 	for _, arg := range args {
 		if strings.HasPrefix(arg, prefix) {
-			if md, err = metadata.FromBase64([]byte(strings.TrimPrefix(arg, prefix))); err != nil {
-				t.Errorf("ASIM: prefix: %q, %q", prefix, strings.TrimPrefix(arg, prefix))
+			if foundLDFlags {
+				t.Fatalf("ldflags set more than once in %v", args)
+			}
+			foundLDFlags = true
+			arg = strings.TrimPrefix(arg, prefix)
+			prefix := strings.Split(metadata.LDFlag(&metadata.T{}), "=")[0] + "="
+			if !strings.HasPrefix(arg, prefix) {
+				t.Fatalf("metadata flag not set")
+			}
+			arg = strings.TrimPrefix(arg, prefix)
+			suffix := " -when=now -why"
+			if !strings.HasSuffix(arg, suffix) {
+				t.Fatalf("extra ld flags not set in %v", arg)
+			}
+			arg = strings.TrimSuffix(arg, suffix)
+			if md, err = metadata.FromBase64([]byte(arg)); err != nil {
 				t.Fatalf("Unparseable: %v: %v", arg, err)
 			}
 		}
+	}
+	if !foundLDFlags {
+		t.Fatalf("no ldflags found in arguments")
 	}
 	if md == nil {
 		t.Fatalf("metadata flag not set")

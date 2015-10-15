@@ -70,6 +70,7 @@ var (
 	manifestFlag, profilesFlag string
 	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
+	extraLDFlags               string
 )
 
 const dockerBin = "docker"
@@ -78,6 +79,7 @@ func init() {
 	tool.InitializeRunFlags(&cmd.Flags)
 	profiles.RegisterProfileFlags(&cmd.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
 	flag.StringVar(&imageFlag, "image", "", "Name of the docker image to use. If empty, the tool will automatically select an image based on the environment variables, possibly edited by the profile")
+	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 }
 
 func runGo(cmdlineEnv *cmdline.Env, args []string) error {
@@ -108,7 +110,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if args, err = golib.PrepareGo(ctx, envMap, args); err != nil {
+	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags); err != nil {
 		return err
 	}
 	if ctx.Verbose() {

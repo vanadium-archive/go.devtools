@@ -40,6 +40,12 @@ The jiri go flags are:
    target version
 
 The global flags are:
+ -extra-ldflags=
+   This tool sets some ldflags automatically, e.g. to set binary metadata.  The
+   extra-ldflags are appended to the end of those automatically generated
+   ldflags.  Note that if your go command line specifies -ldflags explicitly, it
+   will override both the automatically generated ldflags as well as the
+   extra-ldflags.
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
  -system-go=false
