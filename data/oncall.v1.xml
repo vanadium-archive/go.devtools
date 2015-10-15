@@ -4,52 +4,17 @@
 -->
 <rotation>
   <shift>
-    <primary>suharshs</primary>
-    <secondary>mattr</secondary>
-    <startDate>Sep 14, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>suharshs</primary>
-    <secondary>mattr</secondary>
-    <startDate>Sep 18, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>nlacasse</primary>
-    <secondary>p</secondary>
-    <startDate>Sep 21, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>nlacasse</primary>
-    <secondary>p</secondary>
-    <startDate>Sep 25, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>ivanpi</primary>
-    <secondary>ribrdb</secondary>
-    <startDate>Sep 28, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
-    <primary>ivanpi</primary>
-    <secondary>ribrdb</secondary>
-    <startDate>Oct 02, 2015 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>sjr</primary>
-    <secondary>rogulenko</secondary>
-    <startDate>Oct 05, 2015 01:00:00 PM</startDate>
-  </shift>
-  <shift>
     <primary>sjr</primary>
     <secondary>rogulenko</secondary>
     <startDate>Oct 09, 2015 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>jkline</primary>
+    <primary>caprita</primary>
     <secondary>jlodhia</secondary>
     <startDate>Oct 12, 2015 01:00:00 PM</startDate>
   </shift>
   <shift>
-    <primary>jkline</primary>
+    <primary>caprita</primary>
     <secondary>jlodhia</secondary>
     <startDate>Oct 16, 2015 08:00:00 AM</startDate>
   </shift>
