@@ -33,6 +33,12 @@ func vanadiumSignupProxyHelper(ctx *tool.Context, schema, testName string) (_ *t
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
 
+	cleanup, err := initTest(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
 	// Fetch emails addresses.
 	credentials := os.Getenv("CREDENTIALS")
 	sheetID := os.Getenv("SHEET_ID")
