@@ -102,6 +102,12 @@ func vanadiumSignupWelcomeStepOneNew(ctx *tool.Context, testName string, _ ...Op
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
 
+	cleanup, err := initTest(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
 	credentials := os.Getenv("CREDENTIALS")
 	sheetID := os.Getenv("SHEET_ID")
 
@@ -188,6 +194,12 @@ func vanadiumSignupWelcomeStepTwoNew(ctx *tool.Context, testName string, _ ...Op
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
 
+	cleanup, err := initTest(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
 	mailer := filepath.Join(root, "release", "go", "src", "v.io", "x", "devtools", "mailer", "mailer.go")
 	mailerFunc := func() error {
 		return ctx.Run().Command("jiri", "go", "run", mailer)
@@ -212,6 +224,12 @@ func vanadiumSignupGithubHelper(ctx *tool.Context, schema, testName string) (_ *
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
+
+	cleanup, err := initTest(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	credentials := os.Getenv("CREDENTIALS")
 	sheetID := os.Getenv("SHEET_ID")
@@ -250,6 +268,12 @@ func vanadiumSignupGroupHelper(ctx *tool.Context, schema, testName string, discu
 	if err != nil {
 		return nil, internalTestError{err, "VanadiumRoot"}
 	}
+
+	cleanup, err := initTest(ctx, testName, []string{"base"})
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Fetch emails addresses.
 	credentials := os.Getenv("CREDENTIALS")
