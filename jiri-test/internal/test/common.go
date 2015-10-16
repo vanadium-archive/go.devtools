@@ -83,6 +83,20 @@ func displayProfiles(ctx *tool.Context) {
 	fmt.Fprintf(ctx.Stdout(), "\n%s\n", out.String())
 }
 
+func removeUntestedNewStyleProfiles(ctx *tool.Context) {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	for _, args := range []string{"list --v", "uninstall nacl", "list"} {
+		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
+		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
+		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
+		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
+		out.Reset()
+	}
+}
+
 // initTest carries out the initial actions for the given test.
 func initTest(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
 	return initTestImpl(ctx, testName, "v23-profile", profileNames, "", opts...)
@@ -125,6 +139,7 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
 	fmt.Fprintf(ctx.Stdout(), "bin dir = %q\n", binDirPath())
 
+	removeUntestedNewStyleProfiles(ctx)
 	displayProfiles(ctx)
 
 	// Create a directory for storing built binaries.
