@@ -21,10 +21,9 @@ const (
 )
 
 // runJSTest is a harness for executing javascript tests.
-func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func() error, env map[string]string, extraDeps []string) (_ *test.Result, e error) {
+func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *test.Result, e error) {
 	// Initialize the test.
-	deps := append([]string{"base"}, extraDeps...)
-	deps = append(deps, "nodejs")
+	deps := []string{"base", "nodejs"}
 	cleanup, err := initTest(ctx, testName, deps)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -67,6 +66,22 @@ func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func
 	return &test.Result{Status: test.Passed}, nil
 }
 
+func runJSTestWithNacl(ctx *tool.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *test.Result, e error) {
+	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl"); err != nil {
+		return nil, err
+	}
+	return runJSTest(ctx, testName, testDir, target, cleanFn, env)
+}
+
+func installExtraDeps(ctx *tool.Context, testName string, deps []string, target string) (e error) {
+	cleanup2, err := initTestForTarget(ctx, testName, deps, target)
+	if err != nil {
+		return internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup2() }, &e)
+	return nil
+}
+
 // vanadiumJSBuildExtension tests the vanadium javascript build extension.
 func vanadiumJSBuildExtension(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
 	root, err := project.JiriRoot()
@@ -75,7 +90,7 @@ func vanadiumJSBuildExtension(ctx *tool.Context, testName string, _ ...Opt) (*te
 	}
 	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "extension/vanadium.zip"
-	return runJSTest(ctx, testName, testDir, target, nil, nil, []string{"nacl"})
+	return runJSTestWithNacl(ctx, testName, testDir, target, nil, nil)
 }
 
 // vanadiumJSDoc (re)generates the content of the vanadium core javascript
@@ -88,7 +103,7 @@ func vanadiumJSDoc(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 	testDir := filepath.Join(root, "release", "javascript", "core")
 	target := "docs"
 
-	result, err := runJSTest(ctx, testName, testDir, target, nil, nil, nil)
+	result, err := runJSTest(ctx, testName, testDir, target, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +119,7 @@ func vanadiumJSDocSyncbase(ctx *tool.Context, testName string, _ ...Opt) (*test.
 		return nil, err
 	}
 	testDir := filepath.Join(root, "release", "javascript", "syncbase")
-	result, err := runJSTest(ctx, testName, testDir, "docs", nil, nil, nil)
+	result, err := runJSTest(ctx, testName, testDir, "docs", nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +183,7 @@ func vanadiumJSBrowserIntegration(ctx *tool.Context, testName string, _ ...Opt) 
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["BROWSER_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, []string{"nacl"})
+	return runJSTestWithNacl(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSNodeIntegration runs the vanadium javascript integration test in NodeJS environment using wspr.
@@ -182,7 +197,7 @@ func vanadiumJSNodeIntegration(ctx *tool.Context, testName string, _ ...Opt) (*t
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, nil)
+	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSUnit runs the vanadium javascript unit test.
@@ -196,7 +211,7 @@ func vanadiumJSUnit(ctx *tool.Context, testName string, _ ...Opt) (*test.Result,
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, []string{"nacl"})
+	return runJSTestWithNacl(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSVdl runs the vanadium javascript vdl test.
@@ -210,7 +225,7 @@ func vanadiumJSVdl(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, []string{"nacl"})
+	return runJSTestWithNacl(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSVDLAudit checks that all VDL-based JS source files are up-to-date.
@@ -224,7 +239,7 @@ func vanadiumJSVdlAudit(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, nil)
+	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSVom runs the vanadium javascript vom test.
@@ -238,7 +253,7 @@ func vanadiumJSVom(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, 
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, []string{"nacl"})
+	return runJSTestWithNacl(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSSyncbaseBrowser runs the vanadium javascript syncbase test in a browser.
@@ -252,7 +267,7 @@ func vanadiumJSSyncbaseBrowser(ctx *tool.Context, testName string, _ ...Opt) (*t
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["BROWSER_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, []string{"nacl", "syncbase"})
+	return runJSTestWithNacl(ctx, testName, testDir, target, nil, env)
 }
 
 // vanadiumJSSyncbaseNode runs the vanadium javascript syncbase test in nodejs.
@@ -266,7 +281,7 @@ func vanadiumJSSyncbaseNode(ctx *tool.Context, testName string, _ ...Opt) (*test
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["NODE_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTest(ctx, testName, testDir, target, nil, env, []string{"syncbase"})
+	return runJSTest(ctx, testName, testDir, target, nil, env)
 }
 
 func setCommonJSEnv(env map[string]string) {

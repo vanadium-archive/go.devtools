@@ -67,17 +67,24 @@ func runProjectTest(ctx *tool.Context, testName, projectName, target string, env
 	return &test.Result{Status: test.Passed}, nil
 }
 
+func runProjectTestWithNacl(ctx *tool.Context, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
+	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl"); err != nil {
+		return nil, err
+	}
+	return runProjectTest(ctx, testName, "browser", "test", env, profiles)
+}
+
 // vanadiumBrowserTest runs the tests for the Vanadium browser.
 func vanadiumBrowserTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
 	env := map[string]string{
 		"XUNIT_OUTPUT_FILE": xunit.ReportPath(testName),
 	}
-	return runProjectTest(ctx, testName, "browser", "test", env, []string{"nacl", "nodejs"})
+	return runProjectTestWithNacl(ctx, testName, "browser", "test", env, []string{"nodejs"})
 }
 
 // vanadiumBrowserTestWeb runs the ui tests for the Vanadium browser.
 func vanadiumBrowserTestWeb(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "browser", "test-ui", nil, []string{"nacl", "nodejs"})
+	return runProjectTestWithNacl(ctx, testName, "browser", "test-ui", nil, []string{"nodejs"})
 }
 
 // vanadiumChatShellTest runs the tests for the chat shell client.
@@ -87,17 +94,17 @@ func vanadiumChatShellTest(ctx *tool.Context, testName string, _ ...Opt) (*test.
 
 // vanadiumChatWebTest runs the tests for the chat web client.
 func vanadiumChatWebTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "chat", "test-web", nil, []string{"nacl", "nodejs"})
+	return runProjectTestWithNacl(ctx, testName, "chat", "test-web", nil, []string{"nodejs"})
 }
 
 // vanadiumChatWebUITest runs the ui tests for the chat web client.
 func vanadiumChatWebUITest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "chat", "test-ui", nil, []string{"nacl", "nodejs"})
+	return runProjectTestWithNacl(ctx, testName, "chat", "test-ui", nil, []string{"nodejs"})
 }
 
 // vanadiumPipe2BrowserTest runs the tests for pipe2browser.
 func vanadiumPipe2BrowserTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "pipe2browser", "test", nil, []string{"nacl", "nodejs"})
+	return runProjectTestWithNacl(ctx, testName, "pipe2browser", "test", nil, []string{"nodejs"})
 }
 
 // vanadiumReaderTest runs the tests for the reader example application.

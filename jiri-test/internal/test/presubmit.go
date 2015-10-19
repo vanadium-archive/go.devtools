@@ -49,6 +49,9 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	args := []string{}
 	if ctx.Verbose() {
 		args = append(args, "-v")
+	} else {
+		// append this for testing this CL only - remove on checkin.
+		args = append(args, "-v")
 	}
 	args = append(args,
 		"-host", jenkinsHost,
@@ -116,7 +119,7 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	return &test.Result{Status: test.Passed}, nil
 }
 
-// vanadiumPresubmitResult runs "presubmit result" command to process and post test resutls.
+// vanadiumPresubmitResult runs "presubmit result" command to process and post test results.
 func vanadiumPresubmitResult(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "WORKSPACE"}); err != nil {
 		return nil, err

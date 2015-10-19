@@ -28,11 +28,17 @@ func commonVanadiumWWW(ctx *tool.Context, testName, makeTarget string, timeout t
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, append([]string{"base", "nodejs", "nacl"}, extraDeps...))
+	cleanup, err := initTest(ctx, testName, append([]string{"base", "nodejs"}, extraDeps...))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
+
+	cleanup2, err := initTestForTarget(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl")
+	if err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+	defer collect.Error(func() error { return cleanup2() }, &e)
 
 	wwwDir := filepath.Join(root, "www")
 	if err := ctx.Run().Chdir(wwwDir); err != nil {

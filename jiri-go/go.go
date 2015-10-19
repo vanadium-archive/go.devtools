@@ -43,11 +43,11 @@ vdl generate -lang=go all
 }
 
 var (
-	manifestFlag, profilesFlag                 string
-	systemGoFlag, useProfilesFlag, verboseFlag bool
-	profilesModeFlag                           profiles.ProfilesMode
-	targetFlag                                 profiles.Target
-	extraLDFlags                               string
+	manifestFlag, profilesFlag string
+	systemGoFlag, verboseFlag  bool
+	profilesModeFlag           profiles.ProfilesMode
+	targetFlag                 profiles.Target
+	extraLDFlags               string
 )
 
 func init() {
@@ -72,6 +72,23 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if err := ch.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
 		return err
 	}
+
+	/*
+		// TODO(cnicolaou): there is a CL in flight to handle merge environment
+		// variables in a more principled and consistent manner. Clean this up
+		// when it's checked in.
+		ignoredVariables := map[string]bool{"GOPATH": true} // never use GOPATH from a profile
+		// If we're run from the presubmit test, then prefer the
+		// env vars in the profile...
+		if os.Getenv("TEST") == "" {
+			for k, _ := range profiles.CommonIgnoreVariables() {
+				if ch.Get(k) != "" {
+					// Prefer variables from the environment.
+					ignoredVariables[k] = true
+				}
+			}
+		}
+	*/
 	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
 	if !systemGoFlag {
 		if len(ch.Get("GOROOT")) > 0 {

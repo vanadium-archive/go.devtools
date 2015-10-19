@@ -88,7 +88,7 @@ func removeUntestedNewStyleProfiles(ctx *tool.Context) {
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	for _, args := range []string{"list --v", "uninstall nacl", "list"} {
+	for _, args := range []string{"list --v", "uninstall --target=amd64p32-nacl nacl", "uninstall --target=amd64-linux nacl", "list"} {
 		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
 		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
 		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
