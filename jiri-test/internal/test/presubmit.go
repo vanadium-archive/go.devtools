@@ -5,9 +5,11 @@
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/project"
@@ -64,6 +66,20 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	}
 
 	return &test.Result{Status: test.Passed}, nil
+}
+
+func removeUntestedNewStyleProfiles(ctx *tool.Context) {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	for _, args := range []string{"list --v", "uninstall --target=amd64p32-nacl nacl", "uninstall --target=amd64-linux nacl", "list"} {
+		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
+		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
+		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
+		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
+		out.Reset()
+	}
 }
 
 // vanadiumPresubmitTest runs presubmit tests for a given project specified

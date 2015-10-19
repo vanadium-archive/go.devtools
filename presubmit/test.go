@@ -87,6 +87,12 @@ func (c cl) String() string {
 func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("Hostname() failed: %v", err)
+	}
+	printf(ctx.Stdout(), "### Running the presubmit binary on %s\n", hostname)
+
 	// Basic sanity checks.
 	if err := sanityChecks(ctx, cmdlineEnv); err != nil {
 		return err
