@@ -50,6 +50,8 @@ The global flags are:
    Displays metadata for the program and exits.
  -system-go=false
    use the version of go found in $PATH rather than that built by the go profile
+ -time=false
+   Dump timing information to stderr before exiting the program.
  -v=false
    print verbose debugging information
 */

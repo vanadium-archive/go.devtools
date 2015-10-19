@@ -35,6 +35,8 @@ The vkiosk flags are:
 The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
+ -time=false
+   Dump timing information to stderr before exiting the program.
 
 Vkiosk collect - Takes screenshots of a given URL in Chrome and stores them in the given export dir
 
