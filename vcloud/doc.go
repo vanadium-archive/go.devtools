@@ -33,6 +33,8 @@ The global flags are:
    Displays metadata for the program and exits.
  -project=vanadium-internal
    Specify the gcloud project.
+ -time=false
+   Dump timing information to stderr before exiting the program.
  -user=veyron
    Run operations as the given user on each node.
 

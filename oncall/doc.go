@@ -27,6 +27,8 @@ The oncall flags are:
 The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
+ -time=false
+   Dump timing information to stderr before exiting the program.
 
 Oncall collect - Collect data for oncall dashboard
 

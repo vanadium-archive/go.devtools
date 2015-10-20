@@ -72,5 +72,7 @@ The global flags are:
    an image based on the environment variables, possibly edited by the profile
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
+ -time=false
+   Dump timing information to stderr before exiting the program.
 */
 package main
