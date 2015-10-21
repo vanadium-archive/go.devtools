@@ -15,18 +15,27 @@ import (
 )
 
 const (
-	profileName    = "nodejs"
-	profileVersion = "1"
-	nodeVersion    = "node-v0.10.24"
+	profileName = "nodejs"
 )
 
+type versionSpec struct {
+	nodeVersion string
+}
+
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
+			"10.24": &versionSpec{"node-v0.10.24"},
+		}, "10.24"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
 	root                              string
 	nodeRoot, nodeSrcDir, nodeInstDir string
+	versionInfo                       *profiles.VersionInfo
+	spec                              versionSpec
 }
 
 func (Manager) Name() string {
@@ -34,7 +43,7 @@ func (Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -43,32 +52,44 @@ func (m Manager) Root() string {
 
 func (m *Manager) SetRoot(root string) {
 	m.root = root
-	m.nodeRoot = filepath.Join(m.root, "profiles", "cout", nodeVersion)
-	m.nodeSrcDir = filepath.Join(m.root, "third_party", "csrc", nodeVersion)
+
+}
+
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
 }
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {}
 
-func (m *Manager) initForTarget(target profiles.Target) {
-	m.nodeInstDir = filepath.Join(m.nodeRoot, profiles.TargetSpecificDirname(target, true))
+func (m *Manager) initForTarget(target profiles.Target) error {
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return err
+	}
+	m.nodeRoot = filepath.Join(m.root, "profiles", "cout", m.spec.nodeVersion)
+	m.nodeInstDir = filepath.Join(m.nodeRoot, target.TargetSpecificDirname())
+	m.nodeSrcDir = filepath.Join(m.root, "third_party", "csrc", m.spec.nodeVersion)
+	return nil
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	m.initForTarget(target)
+	if err := m.initForTarget(target); err != nil {
+		return err
+	}
 	if target.CrossCompiling() {
 		return fmt.Errorf("the %q profile does not support cross compilation to %v", profileName, target)
 	}
 	if err := m.installNode(ctx, target); err != nil {
 		return err
 	}
-	target.Version = profileVersion
 	target.InstallationDir = m.nodeInstDir
 	profiles.InstallProfile(profileName, m.nodeRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	m.initForTarget(target)
+	if err := m.initForTarget(target); err != nil {
+		return err
+	}
 	if err := ctx.Run().RemoveAll(m.nodeInstDir); err != nil {
 		return err
 	}
@@ -76,20 +97,8 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	return nil
 }
 
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	m.initForTarget(target)
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
-}
-
 func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
-	switch target.OS {
+	switch target.OS() {
 	case "darwin":
 	case "linux":
 		if err := profiles.InstallPackages(ctx, []string{"g++"}); err != nil {

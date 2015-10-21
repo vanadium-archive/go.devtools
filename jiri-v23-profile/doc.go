@@ -18,8 +18,11 @@ The subcommands of the profile command realize the following transitions:
   update:    out-of-date => up-to-date
   uninstall: up-to-date or out-of-date => absent
 
-In addition, a profile can transition from being up-to-date to out-of-date by
-the virtue of a new version of the profile being released.
+A profile can simultaneously have multiple versions, one of which is configured
+as the default. A profile installation is out of date if the installed versions
+are older than the current default. Updating that profile will install the
+default version which will then be used by default. Newer versions than the
+default may be installed and used via appropriate command line flags.
 
 To enable cross-compilation, a profile can be installed for multiple targets. If
 a profile supports multiple targets the above state transitions are applied on a
@@ -33,7 +36,9 @@ The jiri v23-profile commands are:
    list        List available or installed profiles
    env         Display profile environment variables
    uninstall   Uninstall the given profiles
-   update      Update the given profiles
+   update      Install the latest default version of the given profiles
+   recreate    Display a list of commands that will recreate the currently
+               installed profiles
    help        Display help for commands or topics
 
 The jiri v23-profile flags are:
@@ -62,18 +67,15 @@ Usage:
 The jiri v23-profile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
- -force=false
-   force the command to be executed regardless of the current state
  -go.install-dir=
    installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the XML manifest to file read/write from.
+ -manifest=$JIRI_ROOT//.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
- -version=
-   target version
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
 
 Jiri v23-profile list - List available or installed profiles
 
@@ -88,8 +90,8 @@ specifically requested.
 The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the XML manifest to file read/write from.
+ -manifest=$JIRI_ROOT//.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -show-manifest=false
    print out the manifest file
  -v=false
@@ -112,14 +114,13 @@ Usage:
 display
 
 The jiri v23-profile env flags are:
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the XML manifest to file read/write from.
+ -manifest=$JIRI_ROOT//.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -profile=
    the profile whose environment is to be displayed
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
- -version=
-   target version
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
 
 Jiri v23-profile uninstall - Uninstall the given profiles
 
@@ -131,47 +132,46 @@ Usage:
 <profiles> is a list of profiles to uninstall.
 
 The jiri v23-profile uninstall flags are:
- -all=false
-   uninstall all targets for the specified profile(s)
- -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
- -force=false
-   force the command to be executed regardless of the current state
+ -all-targets=false
+   apply to all targets for the specified profile(s)
  -go.install-dir=
    installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the XML manifest to file read/write from.
+ -manifest=$JIRI_ROOT//.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
- -version=
-   target version
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
 
-Jiri v23-profile update - Update the given profiles
+Jiri v23-profile update - Install the latest default version of the given profiles
 
-Update the given profiles.
+Install the latest default version of the given profiles.
 
 Usage:
    jiri v23-profile update [flags] <profiles>
 
-<profiles> is a list of profiles to update.
+<profiles> is a list of profiles to update, if omitted all profiles are updated.
 
 The jiri v23-profile update flags are:
- -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
- -force=false
-   force the command to be executed regardless of the current state
- -go.install-dir=
-   installation directory for go profile builds.
- -go.sysroot=
-   sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the XML manifest to file read/write from.
- -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
- -version=
-   target version
+ -manifest=$JIRI_ROOT//.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   print more detailed information
+
+Jiri v23-profile recreate - Display a list of commands that will recreate the currently installed profiles
+
+Display a list of commands that will recreate the currently installed profiles.
+
+Usage:
+   jiri v23-profile recreate [flags] <profiles>
+
+<profiles> is a list of profiles to be recreated, if omitted commands to
+recreate all profiles are displayed.
+
+The jiri v23-profile recreate flags are:
+ -manifest=$JIRI_ROOT//.jiri_v23_profiles
+   specify the profiles XML manifest filename.
 
 Jiri v23-profile help - Display help for commands or topics
 

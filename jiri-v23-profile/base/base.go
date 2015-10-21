@@ -14,19 +14,30 @@ import (
 )
 
 const (
-	profileName    = "base"
-	profileVersion = "1"
+	profileName = "base"
 )
 
-// The base profile is just a shorthand for go+syncbase.
-var baseProfiles = []string{"go", "syncbase"}
+type versionSpec struct {
+	dependencies []struct{ name, version string }
+}
 
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName,
+			map[string]interface{}{
+				"1": &versionSpec{[]struct{ name, version string }{
+					{"go", ""},
+					{"syncbase", ""}},
+				},
+			}, "1"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
-	root string
+	root        string
+	versionInfo *profiles.VersionInfo
+	spec        versionSpec
 }
 
 func (Manager) Name() string {
@@ -34,7 +45,7 @@ func (Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -45,49 +56,55 @@ func (m *Manager) SetRoot(root string) {
 	m.root = root
 }
 
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	// Install packages
-	if target.OS == "linux" {
+	if target.OS() == "linux" {
 		if err := profiles.InstallPackages(ctx, []string{"libssl-dev"}); err != nil {
 			return err
 		}
 	}
-	// Install profiles.
-	for _, profile := range baseProfiles {
-		if err := profiles.EnsureProfileTargetIsInstalled(ctx, profile, target, m.root); err != nil {
-			return err
-		}
-	}
-	// Merge the environments for go and syncbase and store it in the base profile.
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), nil, envvar.VarsFromSlice(target.Env.Vars), target, "syncbase", "go")
-	if err != nil {
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
-	target.Env.Vars = merged
-	target.Version = profileVersion
+	// Install profiles.
+	profileEnvs := [][]string{}
+	for _, profile := range m.spec.dependencies {
+		dependency := target
+		dependency.SetVersion(profile.version)
+		if err := profiles.EnsureProfileTargetIsInstalled(ctx, profile.name, dependency, m.root); err != nil {
+			return err
+		}
+		installed := profiles.LookupProfileTarget(profile.name, dependency)
+		if installed == nil {
+			return fmt.Errorf("%s %s should have been installed, but apparently is not", profile.name, dependency)
+		}
+		profileEnvs = append(profileEnvs, installed.Env.Vars)
+	}
+	// Merge the environments for go and syncbase and store it in the base profile.
+	base := envvar.VarsFromSlice(target.Env.Vars)
+	profiles.MergeEnv(profiles.CommonConcatVariables(), nil, base, profileEnvs...)
+	target.Env.Vars = base.ToSlice()
 	return profiles.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	for _, profile := range baseProfiles {
-		if err := profiles.EnsureProfileTargetIsUninstalled(ctx, profile, target, m.root); err != nil {
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return err
+	}
+	for _, profile := range m.spec.dependencies {
+		dependency := target
+		dependency.SetVersion(profile.version)
+		if err := profiles.EnsureProfileTargetIsUninstalled(ctx, profile.name, target, m.root); err != nil {
 			return err
 		}
 	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
-}
-
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
 }

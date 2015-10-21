@@ -21,18 +21,27 @@ import (
 )
 
 const (
-	profileName    = "java"
-	profileVersion = "1.7+"
-	jdkPackage     = "openjdk-7-jdk"
+	profileName = "java"
 )
 
+type versionSpec struct {
+	jdkVersion, jdkPackage string
+}
+
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
+			"1.7+": &versionSpec{"1.7+", "openjdk-7-jdk"},
+		}, "1.7+"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
-	root     string
-	javaRoot string
+	root        string
+	javaRoot    string
+	versionInfo *profiles.VersionInfo
+	spec        versionSpec
 }
 
 func (Manager) Name() string {
@@ -40,7 +49,7 @@ func (Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -52,6 +61,10 @@ func (m *Manager) SetRoot(root string) {
 	m.javaRoot = filepath.Join(m.root, "profiles", "java")
 }
 
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
@@ -60,11 +73,13 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err != nil {
 		return err
 	}
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "base", target, m.root); err != nil {
+	baseTarget := target
+	baseTarget.SetVersion("")
+	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "base", baseTarget, m.root); err != nil {
 		return err
 	}
-	// NOTE(spetrovic): For now, we install android profile along with Java, as the two are bundled
-	// up for ease of development.
+	// NOTE(spetrovic): For now, we install android profile along with Java,
+	// as the two are bundled up for ease of development.
 	androidTarget, err := profiles.NewTarget("android=arm-android")
 	if err != nil {
 		return err
@@ -78,18 +93,17 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	cgoflags := env.GetTokens("CGO_CFLAGS", " ")
 	javaflags := []string{
 		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include")),
-		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include", target.OS)),
+		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include", target.OS())),
 	}
 	env.SetTokens("CGO_CFLAGS", append(cgoflags, javaflags...), " ")
 	env.Set("JAVA_HOME", javaHome)
 
 	// Merge the base environment variables and store them in the java profile
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), env, target, "base")
+	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), env, baseTarget, "base")
 	if err != nil {
 		return err
 	}
 	target.Env.Vars = merged
-	target.Version = profileVersion
 	profiles.InstallProfile(profileName, m.javaRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }
@@ -102,49 +116,41 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	return nil
 }
 
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
-}
-
 func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, error) {
-	switch target.OS {
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return "", err
+	}
+	switch target.OS() {
 	case "darwin":
 		profiles.InstallPackages(ctx, []string{"gradle"})
-		if javaHome, err := getJDKDarwin(ctx); err == nil {
+		if javaHome, err := getJDKDarwin(ctx, m.spec); err == nil {
 			return javaHome, nil
 		}
 		// Prompt the user to install JDK 1.7+, if not already installed.
 		// (Note that JDK cannot be installed via Homebrew.)
 		javaHomeBin := "/usr/libexec/java_home"
-		if err := profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "-v", "1.7+"); err != nil {
+		if err := profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "-v", m.spec.jdkVersion); err != nil {
 			fmt.Fprintf(ctx.Stderr(), "Couldn't find a valid JDK installation under JAVA_HOME (%s): installing a new JDK.\n", os.Getenv("JAVA_HOME"))
 			profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "--request")
 			// Wait for JDK to be installed.
 			fmt.Println("Please follow the OS X prompt instructions to install JDK 1.7+.")
 			for true {
 				time.Sleep(5 * time.Second)
-				if err = profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "-v", "1.7+"); err == nil {
+				if err = profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "-v", m.spec.jdkVersion); err == nil {
 					break
 				}
 			}
 		}
-		return getJDKDarwin(ctx)
+		return getJDKDarwin(ctx, m.spec)
 	case "linux":
 		pkgs := []string{"gradle"}
-		if _, err := getJDKLinux(ctx); err != nil {
-			pkgs = append(pkgs, jdkPackage)
+		if _, err := getJDKLinux(ctx, m.spec); err != nil {
+			pkgs = append(pkgs, m.spec.jdkPackage)
 		}
 		if err := profiles.InstallPackages(ctx, pkgs); err != nil {
 			return "", err
 		}
-		return getJDKLinux(ctx)
+		return getJDKLinux(ctx, m.spec)
 	default:
 		return "", fmt.Errorf("%q is not supported", target.OS)
 	}
@@ -155,7 +161,7 @@ func checkInstall(ctx *tool.Context, home string) error {
 	return err
 }
 
-func getJDKLinux(ctx *tool.Context) (string, error) {
+func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
 		return javaHome, checkInstall(ctx, javaHome)
 	}
@@ -174,7 +180,7 @@ func getJDKLinux(ctx *tool.Context) (string, error) {
 	return javaHome, checkInstall(ctx, javaHome)
 }
 
-func getJDKDarwin(ctx *tool.Context) (string, error) {
+func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
 		return javaHome, checkInstall(ctx, javaHome)
 	}
@@ -183,7 +189,7 @@ func getJDKDarwin(ctx *tool.Context) (string, error) {
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	ctx.Run().CommandWithOpts(opts, javaHomeBin, "-t", "CommandLine", "-v", "1.7+")
+	ctx.Run().CommandWithOpts(opts, javaHomeBin, "-t", "CommandLine", "-v", spec.jdkVersion)
 	if out.Len() == 0 {
 		return "", errors.New("Couldn't find a valid Java installation: did you run \"jiri profile install java\"?")
 	}

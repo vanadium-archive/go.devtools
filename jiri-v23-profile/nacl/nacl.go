@@ -16,20 +16,29 @@ import (
 )
 
 const (
-	profileName    = "nacl"
-	profileVersion = "2"
-	gitRemote      = "https://vanadium.googlesource.com/release.go.ppapi"
-	gitRevision    = "5e967194049bd1a6f097854f09fcbbbaa21afc05"
+	profileName = "nacl"
+	gitRemote   = "https://vanadium.googlesource.com/release.go.ppapi"
 )
 
+type versionSpec struct {
+	gitRevision string
+}
+
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
+			"1": &versionSpec{"5e967194049bd1a6f097854f09fcbbbaa21afc05"},
+			"2": &versionSpec{"5e967194049bd1a6f097854f09fcbbbaa21afc05"},
+		}, "2"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
-	root                    string
-	naclRoot                string
-	naclSrcDir, naclInstDir string
+	root        string
+	naclRoot    string
+	versionInfo *profiles.VersionInfo
+	spec        versionSpec
 }
 
 func (Manager) Name() string {
@@ -37,7 +46,7 @@ func (Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -47,9 +56,10 @@ func (m Manager) Root() string {
 func (m *Manager) SetRoot(root string) {
 	m.root = root
 	m.naclRoot = filepath.Join(m.root, "profiles", "nacl")
-	m.naclSrcDir = filepath.Join(m.naclRoot, gitRevision)
-	// Nacl builds are always amd64p32-nacl
-	m.naclInstDir = filepath.Join(m.naclRoot, "amd64p32-nacl")
+}
+
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
 }
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
@@ -61,7 +71,7 @@ func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profil
 		target.Set("nacl=amd64p32-nacl")
 		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
-		if target.Arch != "amd64p32" && target.OS != "nacl" {
+		if target.Arch() != "amd64p32" && target.OS() != "nacl" {
 			return fmt.Errorf("this profile can only be %v as amd64p32-nacl and not as %v", action, target)
 		}
 	}
@@ -72,30 +82,36 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err := m.defaultTarget(ctx, "installed", &target); err != nil {
 		return err
 	}
-	target.Version = profileVersion
-	if err := m.installNacl(ctx, target); err != nil {
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
+	naclInstDir := filepath.Join(m.naclRoot, target.TargetSpecificDirname(), m.spec.gitRevision)
+
+	if err := m.installNacl(ctx, target, m.spec); err != nil {
+		return err
+	}
+	target.InstallationDir = naclInstDir
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
 		"GOARCH=amd64p32",
 		"GOOS=nacl",
-		"GOROOT=" + m.naclInstDir,
+		"GOROOT=" + naclInstDir,
 	})
-	target.InstallationDir = m.naclInstDir
 	profiles.InstallProfile(profileName, m.naclRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	//if err := m.defaultTarget(ctx, "uninstalled", &target); err != nil {
-	//	return err
-	//}
-	// ignore errors for now.
-	//m.defaultTarget(ctx, "uninstalled", &target)
-	if err := ctx.Run().RemoveAll(m.naclInstDir); err != nil {
+	// ignore errors to allow for older installs to be removed.
+	m.defaultTarget(ctx, "uninstalled", &target)
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
-	if err := ctx.Run().RemoveAll(m.naclSrcDir); err != nil {
+	naclSrcDir := filepath.Join(m.naclRoot, m.spec.gitRevision)
+	naclInstDir := filepath.Join(m.naclRoot, target.TargetSpecificDirname(), m.spec.gitRevision)
+	if err := ctx.Run().RemoveAll(naclInstDir); err != nil {
+		return err
+	}
+	if err := ctx.Run().RemoveAll(naclSrcDir); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
@@ -104,19 +120,8 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	return nil
 }
 
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
-}
-
 // installNacl installs the nacl profile.
-func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target) error {
+func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec versionSpec) error {
 	switch runtime.GOOS {
 	case "darwin":
 	case "linux":
@@ -125,6 +130,9 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target) error {
 		}
 	}
 
+	naclSrcDir := filepath.Join(m.naclRoot, spec.gitRevision)
+	naclInstDir := filepath.Join(m.naclRoot, "native", spec.gitRevision)
+
 	cloneGoPpapiFn := func() error {
 		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
@@ -132,7 +140,7 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target) error {
 		}
 		defer ctx.Run().RemoveAll(tmpDir)
 
-		if err := profiles.GitCloneRepo(ctx, gitRemote, gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
+		if err := profiles.GitCloneRepo(ctx, gitRemote, spec.gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
 			return err
 		}
 		if err := ctx.Run().Chdir(tmpDir); err != nil {
@@ -143,30 +151,34 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target) error {
 			return err
 		}
 
-		if ctx.Run().DirectoryExists(m.naclSrcDir) {
-			ctx.Run().RemoveAll(m.naclSrcDir)
+		if ctx.Run().DirectoryExists(naclSrcDir) {
+			ctx.Run().RemoveAll(naclSrcDir)
 		}
-		if err := ctx.Run().Rename(tmpDir, m.naclSrcDir); err != nil {
+		if err := ctx.Run().Rename(tmpDir, naclSrcDir); err != nil {
 			return err
 		}
 		return nil
 	}
 	// Cloning is slow so we handle it as an atomic action and then create
 	// a copy for the actual build.
-	if err := profiles.AtomicAction(ctx, cloneGoPpapiFn, m.naclSrcDir, "Clone Go Ppapi repository"); err != nil {
+	if err := profiles.AtomicAction(ctx, cloneGoPpapiFn, naclSrcDir, "Clone Go Ppapi repository"); err != nil {
 		return err
 	}
 
 	// Compile the Go Ppapi compiler.
 	compileGoPpapiFn := func() error {
-		if err := profiles.RunCommand(ctx, nil, "cp", "-r", m.naclSrcDir, m.naclInstDir); err != nil {
+		dir := filepath.Dir(naclInstDir)
+		if err := ctx.Run().MkdirAll(dir, profiles.DefaultDirPerm); err != nil {
 			return err
 		}
-		goPpapiCompileScript := filepath.Join(m.naclInstDir, "src", "make-nacl-amd64p32.sh")
+		if err := profiles.RunCommand(ctx, nil, "cp", "-r", naclSrcDir, naclInstDir); err != nil {
+			return err
+		}
+		goPpapiCompileScript := filepath.Join(naclInstDir, "src", "make-nacl-amd64p32.sh")
 		if err := profiles.RunCommand(ctx, nil, goPpapiCompileScript); err != nil {
 			return err
 		}
 		return nil
 	}
-	return profiles.AtomicAction(ctx, compileGoPpapiFn, m.naclInstDir, "Compile Go Ppapi compiler")
+	return profiles.AtomicAction(ctx, compileGoPpapiFn, naclInstDir, "Compile Go Ppapi compiler")
 }

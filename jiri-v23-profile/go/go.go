@@ -5,13 +5,11 @@
 package go_profile
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 
@@ -24,10 +22,7 @@ import (
 
 var (
 	profileName      = "go"
-	profileVersion   = "1.5.1"
-	patchFiles       = []string{}
 	go15GitRemote    = "https://github.com/golang/go.git"
-	go15GitRevision  = "f2e4c8b5fb3660d793b2c545ef207153db0a34b1"
 	goInstallDirFlag = ""
 	goSysRootFlag    = ""
 )
@@ -48,13 +43,28 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 	},
 }
 
+type versionSpec struct {
+	goRevision, gitRevision string
+	patchFiles              []string
+}
+
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
+			"1.5": &versionSpec{
+				"go1.5", "cc6554f750ccaf63bcdcc478b2a60d71ca76d342", nil},
+			"1.5.1": &versionSpec{
+				"go1.5.1", "f2e4c8b5fb3660d793b2c545ef207153db0a34b1", nil},
+		}, "1.5.1"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
-	root   string
-	goRoot string
+	root        string
+	goRoot      string
+	versionInfo *profiles.VersionInfo
+	spec        versionSpec
 }
 
 func (_ Manager) Name() string {
@@ -62,7 +72,7 @@ func (_ Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -77,13 +87,17 @@ func (m *Manager) SetRoot(root string) {
 	}
 }
 
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 	flags.StringVar(&goInstallDirFlag, profileName+".install-dir", "", "installation directory for go profile builds.")
 	flags.StringVar(&goSysRootFlag, profileName+".sysroot", "", "sysroot for cross compiling to the currently specified target")
 }
 
 func (m Manager) targetDir(target *profiles.Target) string {
-	return filepath.Join(m.goRoot, profiles.TargetSpecificDirname(*target, false))
+	return filepath.Join(m.goRoot, target.TargetSpecificDirname())
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
@@ -91,7 +105,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
-		if builder := xcompilers[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch, target.OS}]; builder != nil {
+		if builder := xcompilers[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch(), target.OS()}]; builder != nil {
 			_, vars, err := builder(ctx, m, target, profiles.Install)
 			if err != nil {
 				return err
@@ -105,8 +119,8 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 
 	// Force GOARM, GOARCH to have the values specified in the target.
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-		"GOARCH=" + target.Arch,
-		"GOOS=" + target.OS,
+		"GOARCH=" + target.Arch(),
+		"GOOS=" + target.OS(),
 	})
 	if cgo {
 		target.Env.Vars = append(target.Env.Vars, "CGO_ENABLED=1")
@@ -114,21 +128,22 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 
 	env := envvar.VarsFromSlice(target.Env.Vars)
 	targetDir := m.targetDir(&target)
-	go15Root, err := installGo15(ctx, m.goRoot, targetDir, patchFiles, env)
+
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return err
+	}
+	goInstRoot, err := installGo15Plus(ctx, m.goRoot, targetDir, &m.spec, env)
 	if err != nil {
 		return err
 	}
 	// Merge the environment variables as set via the OS and those set in
 	// the profile and write them back to the target so that they get
 	// written to the manifest.
-	target.Env.Vars = envvar.MergeSlices(profiles.GoEnvironmentFromOS(), target.Env.Vars)
+	target.Env.Vars = envvar.MergeSlices(profiles.GoEnvironmentFromOS(), target.CommandLineEnv().Vars, target.Env.Vars)
 	// Now make sure that GOROOT is set to the newly installed go directory.
-	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{"GOROOT=" + go15Root})
-	target.InstallationDir = go15Root
+	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{"GOROOT=" + goInstRoot})
+	target.InstallationDir = goInstRoot
 	profiles.InstallProfile(profileName, m.goRoot)
-	if len(target.Version) == 0 {
-		target.Version = profileVersion
-	}
 	return profiles.AddProfileTarget(profileName, target)
 }
 
@@ -137,17 +152,12 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
 		def := profiles.DefaultTarget()
-		if builder := xcompilers[xspec{def.Arch, def.OS}][xspec{target.Arch, target.OS}]; builder != nil {
+		if builder := xcompilers[xspec{def.Arch(), def.OS()}][xspec{target.Arch(), target.OS()}]; builder != nil {
 			if _, _, err := builder(ctx, m, target, profiles.Uninstall); err != nil {
 				return err
 			}
 		}
 	}
-	// Force GOARM, GOARCH to have the values specified in the target.
-	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-		"GOARCH=" + target.Arch,
-		"GOOS=" + target.OS,
-	})
 	if err := ctx.Run().RemoveAll(m.targetDir(&target)); err != nil {
 		return err
 	}
@@ -159,35 +169,10 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	return nil
 }
 
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
-}
-
-func isInstalled(ctx *tool.Context, bin string, re *regexp.Regexp) bool {
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, bin, "version"); err != nil {
-		return false
-	}
-	return re.Match(out.Bytes())
-}
-
 // installGo14 installs Go 1.4 at a given location, using the provided
 // environment during compilation.
 func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 	installGo14Fn := func() error {
-		if isInstalled(ctx, filepath.Join(go14Dir, "bin", "go"), regexp.MustCompile("go1.4")) {
-			return nil
-		}
 		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
 			return err
@@ -221,17 +206,13 @@ func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 		}
 		return nil
 	}
-
 	return profiles.AtomicAction(ctx, installGo14Fn, go14Dir, "Build and install Go 1.4")
 }
 
-// installGo15 installs Go 1.5.1 at a given location, using the provided
-// environment during compilation.
-func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []string, env *envvar.Vars) (string, error) {
-	go15Dir := filepath.Join(goDir, go15GitRevision)
-	if isInstalled(ctx, filepath.Join(go15Dir, "bin", "go"), regexp.MustCompile("go1\\.5\\.1")) {
-		return go15Dir, nil
-	}
+// installGo15Plus installs any version of go past 1.5 at the specified git and go
+// revision.
+func installGo15Plus(ctx *tool.Context, bootstrapDir, goDir string, spec *versionSpec, env *envvar.Vars) (string, error) {
+	goRevDir := filepath.Join(goDir, spec.gitRevision)
 
 	installGo15Fn := func() error {
 		// First install bootstrap Go 1.4 for the host.
@@ -250,7 +231,7 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 		}
 		defer ctx.Run().RemoveAll(tmpDir)
 
-		if err := profiles.GitCloneRepo(ctx, go15GitRemote, go15GitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
+		if err := profiles.GitCloneRepo(ctx, go15GitRemote, spec.gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
 
 			return err
 		}
@@ -259,26 +240,26 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 		}
 
 		// Check out the go1.5.1 release branch.
-		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "go1.5.1"); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "git", "checkout", spec.goRevision); err != nil {
 			return err
 		}
 
-		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", "go1.5.1"); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", spec.goRevision); err != nil {
 			return err
 		}
 
-		if ctx.Run().DirectoryExists(go15Dir) {
-			ctx.Run().RemoveAll(go15Dir)
+		if ctx.Run().DirectoryExists(goRevDir) {
+			ctx.Run().RemoveAll(goRevDir)
 		}
-		if err := ctx.Run().Rename(tmpDir, go15Dir); err != nil {
+		if err := ctx.Run().Rename(tmpDir, goRevDir); err != nil {
 			return err
 		}
-		goSrcDir := filepath.Join(go15Dir, "src")
+		goSrcDir := filepath.Join(goRevDir, "src")
 		if err := ctx.Run().Chdir(goSrcDir); err != nil {
 			return err
 		}
 		// Apply patches, if any.
-		for _, patchFile := range patchFiles {
+		for _, patchFile := range spec.patchFiles {
 			if err := profiles.RunCommand(ctx, nil, "git", "apply", patchFile); err != nil {
 				return err
 			}
@@ -286,21 +267,21 @@ func installGo15(ctx *tool.Context, bootstrapDir, goDir string, patchFiles []str
 		makeBin := filepath.Join(goSrcDir, "make.bash")
 		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir)
 		if err := profiles.RunCommand(ctx, env.ToMap(), makeBin); err != nil {
-			ctx.Run().RemoveAll(filepath.Join(go15Dir, "bin"))
+			ctx.Run().RemoveAll(filepath.Join(goRevDir, "bin"))
 			return err
 		}
 		return nil
 	}
 
-	if err := profiles.AtomicAction(ctx, installGo15Fn, go15Dir, "Build and install Go 1.5"); err != nil {
+	if err := profiles.AtomicAction(ctx, installGo15Fn, goRevDir, "Build and install Go "+spec.goRevision); err != nil {
 		return "", err
 	}
-	return go15Dir, nil
+	return goRevDir, nil
 }
 
 func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	targetABI := ""
-	switch target.Arch {
+	switch target.Arch() {
 	case "arm":
 		targetABI = "arm-unknown-linux-gnueabi"
 	default:
@@ -310,16 +291,13 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	xtoolInstDir := filepath.Join(xgccOutDir, "crosstools-ng-"+targetABI)
 	xgccInstDir := filepath.Join(xgccOutDir, targetABI)
 	xgccLinkInstDir := filepath.Join(xgccOutDir, "links-"+targetABI)
-	switch action {
-	case profiles.Uninstall:
+	if action == profiles.Uninstall {
 		profiles.RunCommand(ctx, nil, "chmod", "-R", "+w", xgccInstDir)
 		for _, dir := range []string{xtoolInstDir, xgccInstDir, xgccLinkInstDir} {
 			if err := ctx.Run().RemoveAll(dir); err != nil {
 				return "", nil, err
 			}
 		}
-		return "", nil, nil
-	case profiles.Update:
 		return "", nil, nil
 	}
 	// Install dependencies.
@@ -451,22 +429,18 @@ func darwin_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, acti
 }
 
 func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
-	switch action {
-	case profiles.Uninstall, profiles.Update:
+	if action == profiles.Uninstall {
 		return "", nil, nil
-	case profiles.Install:
-		fallthrough
-	default:
-		ev := envvar.SliceToMap(target.Env.Vars)
-		ndk := ev["ANDROID_NDK_DIR"]
-		if len(ndk) == 0 {
-			return "", nil, fmt.Errorf("Android NDK location not specified, please set ANDROID_NDK_DIR appropriately")
-		}
-		ndkBin := filepath.Join(ndk, "bin")
-		vars := []string{
-			"CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
-			"CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
-		}
-		return ndkBin, vars, nil
 	}
+	ev := envvar.SliceToMap(target.CommandLineEnv().Vars)
+	ndk := ev["ANDROID_NDK_DIR"]
+	if len(ndk) == 0 {
+		return "", nil, fmt.Errorf("ANDROID_NDK_DIR not specified in the command line environment")
+	}
+	ndkBin := filepath.Join(ndk, "bin")
+	vars := []string{
+		"CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
+		"CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
+	}
+	return ndkBin, vars, nil
 }

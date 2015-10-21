@@ -22,7 +22,12 @@ const (
 )
 
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
+			"1": "1",
+		}, "1"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
@@ -30,6 +35,7 @@ type Manager struct {
 	syncbaseRoot, syncbaseInstRoot string
 	snappySrcDir, leveldbSrcDir    string
 	snappyInstDir, leveldbInstDir  string
+	versionInfo                    *profiles.VersionInfo
 }
 
 func (Manager) Name() string {
@@ -37,7 +43,7 @@ func (Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -52,11 +58,15 @@ func (m *Manager) SetRoot(root string) {
 
 }
 
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
 func (m *Manager) initForTarget(target profiles.Target) {
-	targetDir := profiles.TargetSpecificDirname(target, true)
+	targetDir := target.TargetSpecificDirname()
 	m.syncbaseInstRoot = filepath.Join(m.root, "profiles", "cout", targetDir)
 	m.snappyInstDir = filepath.Join(m.syncbaseRoot, targetDir, "snappy")
 	m.leveldbInstDir = filepath.Join(m.syncbaseRoot, targetDir, "leveldb")
@@ -81,7 +91,7 @@ func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target pro
 		cflags = append(cflags, filepath.Join("-I"+dir, "include"))
 		cxxflags = append(cxxflags, filepath.Join("-I"+dir, "include"))
 		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"))
-		if target.Arch == "linux" {
+		if target.Arch() == "linux" {
 			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir, "lib"))
 		}
 		env.SetTokens("CGO_CFLAGS", cflags, " ")
@@ -93,7 +103,7 @@ func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target pro
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	m.initForTarget(target)
-	if err := m.installDependencies(ctx, target.Arch, target.OS); err != nil {
+	if err := m.installDependencies(ctx, target.Arch(), target.OS()); err != nil {
 		return err
 	}
 	if err := m.installCommon(ctx, target); err != nil {
@@ -106,9 +116,6 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 	target.Env.Vars = env.ToSlice()
 	profiles.InstallProfile(profileName, m.syncbaseRoot)
-	if len(target.Version) == 0 {
-		target.Version = profileVersion
-	}
 	return profiles.AddProfileTarget(profileName, target)
 }
 
@@ -122,17 +129,6 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
-}
-
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
 }
 
 func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error {
@@ -178,10 +174,10 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			// NOTE(nlacasse): The -fPIC flag is needed to compile Syncbase Mojo service.
 			"CXXFLAGS": " -fPIC",
 		}
-		if target.Arch == "386" {
+		if target.Arch() == "386" {
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
-		} else if target.Arch == "arm" && target.OS == "android" {
+		} else if target.Arch() == "arm" && target.OS() == "android" {
 			androidRoot, err := getAndroidRoot()
 			if err != nil {
 				return err
@@ -195,7 +191,7 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
 			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
 			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
-		} else if target.Arch == "arm" && runtime.GOOS == "darwin" && target.OS == "linux" {
+		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
 			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
 			/*
 			   export CC=/Volumes/code2/llvm/bin/cc-arm-raspian
@@ -250,10 +246,10 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			"CXXFLAGS": "-I" + filepath.Join(m.snappyInstDir, "include") + " -fPIC",
 			"LDFLAGS":  "-L" + filepath.Join(m.snappyInstDir, "lib"),
 		}
-		if target.Arch == "386" {
+		if target.Arch() == "386" {
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
-		} else if target.Arch == "arm" && target.OS == "android" {
+		} else if target.Arch() == "arm" && target.OS() == "android" {
 			androidRoot, err := getAndroidRoot()
 			if err != nil {
 				return err
@@ -264,7 +260,7 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
 			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
 			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
-		} else if target.Arch == "arm" && runtime.GOOS == "darwin" && target.OS == "linux" {
+		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
 			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
 			/*
 				export CC=/Volumes/code2/llvm/bin/cc-arm-raspian

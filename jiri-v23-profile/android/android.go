@@ -13,21 +13,25 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
-	"v.io/x/lib/envvar"
 )
 
 const (
-	profileName    = "android"
-	profileVersion = "2"
+	profileName = "android"
 )
 
 func init() {
-	profiles.Register(profileName, &Manager{})
+	m := &Manager{
+		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
+			"2": "2",
+		}, "2"),
+	}
+	profiles.Register(profileName, m)
 }
 
 type Manager struct {
 	root        string
 	androidRoot string
+	versionInfo *profiles.VersionInfo
 }
 
 func (Manager) Name() string {
@@ -35,7 +39,7 @@ func (Manager) Name() string {
 }
 
 func (m Manager) String() string {
-	return fmt.Sprintf("%s version:%s root:%s", profileName, profileVersion, m.root)
+	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
 }
 
 func (m Manager) Root() string {
@@ -47,6 +51,10 @@ func (m *Manager) SetRoot(root string) {
 	m.androidRoot = filepath.Join(m.root, "profiles", "android")
 }
 
+func (m Manager) VersionInfo() *profiles.VersionInfo {
+	return m.versionInfo
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
@@ -56,7 +64,7 @@ func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profil
 		target.Set("android=arm-android")
 		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
-		if target.Arch != "arm" && target.OS != "android" {
+		if target.Arch() != "arm" && target.OS() != "android" {
 			return fmt.Errorf("this profile can only be %v as arm-android and not as %v", action, target)
 		}
 	}
@@ -74,23 +82,25 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	// Install the NDK profile so that subsequent profile installations can use it
 	profiles.InstallProfile(profileName, m.androidRoot)
 	target.InstallationDir = m.androidRoot
+
 	if err := profiles.AddProfileTarget(profileName, target); err != nil {
 		return err
 	}
 
 	// Install android targets for other profiles.
-	if err := m.installAndroidTargets(ctx, target); err != nil {
+	dependency := target
+	dependency.SetVersion("")
+	if err := m.installAndroidTargets(ctx, dependency); err != nil {
 		return err
 	}
 
-	// Use the same variables as the base target.
-	baseTarget := profiles.LookupProfileTarget("base", target)
-	if baseTarget == nil {
+	// Use the same variables as the go target.
+	goTarget := profiles.LookupProfileTarget("go", target)
+	if goTarget == nil {
 		return fmt.Errorf("failed to lookup go --target=%v", target)
 	}
-	target.Env.Vars = baseTarget.Env.Vars
+	target.Env.Vars = goTarget.Env.Vars
 	target.InstallationDir = ndkRoot
-	target.Version = profileVersion
 	profiles.InstallProfile(profileName, m.androidRoot)
 	return profiles.UpdateProfileTarget(profileName, target)
 }
@@ -108,20 +118,6 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
-}
-
-func (m *Manager) Update(ctx *tool.Context, target profiles.Target) error {
-	if err := m.defaultTarget(ctx, "updated", &target); err != nil {
-		return err
-	}
-	update, err := profiles.ProfileTargetNeedsUpdate(profileName, target, profileVersion)
-	if err != nil {
-		return err
-	}
-	if !update {
-		return nil
-	}
-	return profiles.ErrNoIncrementalUpdate
 }
 
 // installAndroidNDK installs the android NDK toolchain.
@@ -169,9 +165,10 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot strin
 // installAndroidTargets installs android targets for other profiles, such
 // as go, java, syncbase etc.
 func (m *Manager) installAndroidTargets(ctx *tool.Context, target profiles.Target) (e error) {
-	ev := envvar.VarsFromSlice(target.Env.Vars)
-	ev.Set("ANDROID_NDK_DIR", filepath.Join(m.androidRoot, "ndk-toolchain"))
-	ev.Set("GOARM", "7")
-	target.Env.Vars = ev.ToSlice()
-	return profiles.EnsureProfileTargetIsInstalled(ctx, "base", target, m.root)
+	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", filepath.Join(m.androidRoot, "ndk-toolchain"))
+	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
+	if err != nil {
+		return err
+	}
+	return profiles.EnsureProfileTargetIsInstalled(ctx, "base", androidTarget, m.root)
 }

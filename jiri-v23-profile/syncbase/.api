@@ -2,8 +2,8 @@ pkg syncbase, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
 pkg syncbase, method (*Manager) Install(*tool.Context, profiles.Target) error
 pkg syncbase, method (*Manager) SetRoot(string)
 pkg syncbase, method (*Manager) Uninstall(*tool.Context, profiles.Target) error
-pkg syncbase, method (*Manager) Update(*tool.Context, profiles.Target) error
 pkg syncbase, method (Manager) Name() string
 pkg syncbase, method (Manager) Root() string
 pkg syncbase, method (Manager) String() string
+pkg syncbase, method (Manager) VersionInfo() *profiles.VersionInfo
 pkg syncbase, type Manager struct

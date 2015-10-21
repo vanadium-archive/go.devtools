@@ -17,7 +17,7 @@ verbatim to the executable.
 The jiri run flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -26,11 +26,10 @@ The jiri run flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
- -version=
-   target version
 
 The global flags are:
  -metadata=<just specify -metadata to activate>

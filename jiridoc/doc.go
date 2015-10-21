@@ -547,7 +547,7 @@ Usage:
 The jiri dockergo flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -556,11 +556,10 @@ The jiri dockergo flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
- -version=
-   target version
 
 Jiri env - Print vanadium environment variables
 
@@ -582,7 +581,7 @@ Usage:
 The jiri env flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -591,11 +590,10 @@ The jiri env flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
- -version=
-   target version
 
 Jiri go - Execute the go tool using the vanadium environment
 
@@ -617,7 +615,7 @@ Usage:
 The jiri go flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -626,11 +624,10 @@ The jiri go flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
- -version=
-   target version
 
 Jiri goext - Vanadium extensions of the go tool
 
@@ -785,7 +782,7 @@ verbatim to the executable.
 The jiri run flags are:
  -color=true
    Use color to format output.
- -manifest=.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -n=false
    Show what commands will run but do not execute them.
@@ -794,11 +791,10 @@ The jiri run flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form: [<tag>=]<arch>-<os>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
- -version=
-   target version
 
 Jiri test - Manage vanadium tests
 

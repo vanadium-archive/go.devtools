@@ -72,23 +72,6 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if err := ch.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
 		return err
 	}
-
-	/*
-		// TODO(cnicolaou): there is a CL in flight to handle merge environment
-		// variables in a more principled and consistent manner. Clean this up
-		// when it's checked in.
-		ignoredVariables := map[string]bool{"GOPATH": true} // never use GOPATH from a profile
-		// If we're run from the presubmit test, then prefer the
-		// env vars in the profile...
-		if os.Getenv("TEST") == "" {
-			for k, _ := range profiles.CommonIgnoreVariables() {
-				if ch.Get(k) != "" {
-					// Prefer variables from the environment.
-					ignoredVariables[k] = true
-				}
-			}
-		}
-	*/
 	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
 	if !systemGoFlag {
 		if len(ch.Get("GOROOT")) > 0 {
@@ -96,7 +79,7 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		}
 	}
 	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "Environment: %v\n", strings.Join(ch.ToSlice(), "\n"))
+		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
 	envMap := ch.ToMap()
 	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags); err != nil {
@@ -106,6 +89,9 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	goBin, err := runutil.LookPath("go", envMap)
 	if err != nil {
 		return err
+	}
+	if verboseFlag {
+		fmt.Fprintf(ctx.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
 	}
 	opts := ctx.Run().Opts()
 	opts.Env = envMap

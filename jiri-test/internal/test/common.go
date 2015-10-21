@@ -5,7 +5,6 @@
 package test
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -67,20 +66,6 @@ func regTestBinDirPath() string {
 		panic("regTestBinDirPath() shouldn't be called before initTest()")
 	}
 	return filepath.Join(testTmpDir, "regtest")
-}
-
-func displayProfiles(ctx *tool.Context) {
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	fmt.Fprintf(ctx.Stdout(), "installed profiles:\n")
-	err := ctx.Run().CommandWithOpts(opts, "jiri", "v23-profile", "list", "--v")
-	if err != nil {
-		fmt.Fprintf(ctx.Stdout(), " %v\n", err)
-		return
-	}
-	fmt.Fprintf(ctx.Stdout(), "\n%s\n", out.String())
 }
 
 // initTest carries out the initial actions for the given test.
@@ -156,7 +141,7 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 					return nil, fmt.Errorf("NewTarget(%v): %v", target, err)
 				}
 			}
-			if profiles.HasTarget(profile, t) {
+			if profiles.LookupProfileTarget(profile, t) != nil {
 				continue
 			}
 		}
@@ -170,14 +155,12 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 
 	// Update profiles.
 	args = []string{profileCommand, "update"}
-	for _, profile := range profileNames {
-		clargs := append(args, insertTarget(profile)...)
-		if err := ctx.Run().Command("jiri", clargs...); err != nil {
-			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
-		}
-		fmt.Fprintf(ctx.Stdout(), "jiri: %v\n", strings.Join(clargs, " "))
 
+	if err := ctx.Run().Command("jiri", args...); err != nil {
+		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
 	}
+	fmt.Fprintf(ctx.Stdout(), "jiri: %v\n", strings.Join(args, " "))
+
 	fmt.Fprintf(ctx.Stdout(), "Installed & updated: %v\n", profileNames)
 
 	// Descend into the working directory (unless doing a "dry

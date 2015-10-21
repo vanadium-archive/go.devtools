@@ -2,8 +2,8 @@ pkg base, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
 pkg base, method (*Manager) Install(*tool.Context, profiles.Target) error
 pkg base, method (*Manager) SetRoot(string)
 pkg base, method (*Manager) Uninstall(*tool.Context, profiles.Target) error
-pkg base, method (*Manager) Update(*tool.Context, profiles.Target) error
 pkg base, method (Manager) Name() string
 pkg base, method (Manager) Root() string
 pkg base, method (Manager) String() string
+pkg base, method (Manager) VersionInfo() *profiles.VersionInfo
 pkg base, type Manager struct
