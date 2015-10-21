@@ -87,7 +87,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 	naclInstDir := filepath.Join(m.naclRoot, target.TargetSpecificDirname(), m.spec.gitRevision)
 
-	if err := m.installNacl(ctx, target, m.spec); err != nil {
+	if err := m.installNacl(ctx, target, m.spec, naclInstDir); err != nil {
 		return err
 	}
 	target.InstallationDir = naclInstDir
@@ -121,7 +121,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 // installNacl installs the nacl profile.
-func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec versionSpec) error {
+func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec versionSpec, naclInstDir string) error {
 	switch runtime.GOOS {
 	case "darwin":
 	case "linux":
@@ -131,7 +131,6 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec ve
 	}
 
 	naclSrcDir := filepath.Join(m.naclRoot, spec.gitRevision)
-	naclInstDir := filepath.Join(m.naclRoot, "native", spec.gitRevision)
 
 	cloneGoPpapiFn := func() error {
 		tmpDir, err := ctx.Run().TempDir("", "")
