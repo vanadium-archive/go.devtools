@@ -192,22 +192,17 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	}
 
 	// Rebuild developer tools and override JIRI_ROOT/devtools/bin.
-	env, errs := rebuildDeveloperTools(ctx, projects, tools, tmpBinDir)
-	if len(errs) > 0 {
-		errMsgLines := []string{}
-		for _, err := range errs {
-			errMsgLines = append(errMsgLines, err.Error())
-		}
-		errMsg := strings.Join(errMsgLines, "\n")
-		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, errMsg)
+	env, err := rebuildDeveloperTools(ctx, tools, tmpBinDir)
+	if err != nil {
+		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, err.Error())
 		result := test.Result{
 			Status:               test.ToolsBuildFailure,
-			ToolsBuildFailureMsg: errMsg,
+			ToolsBuildFailureMsg: err.Error(),
 		}
 		if err := recordPresubmitFailure(ctx, "BuildTools", "Failed to build tools", message, testName, -1, result); err != nil {
 			return err
 		}
-		fmt.Fprintf(ctx.Stderr(), "failed to build tools:\n%s\n", errMsg)
+		fmt.Fprintf(ctx.Stderr(), "failed to build tools:\n%s\n", err.Error())
 		return nil
 	}
 
@@ -435,22 +430,19 @@ func recordPresubmitFailure(ctx *tool.Context, testCaseName, failureMessage, fai
 	return nil
 }
 
-// rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in
-// a temporary directory, which is used to replace
-// JIRI_ROOT/devtools/bin in the PATH.
-func rebuildDeveloperTools(ctx *tool.Context, projects project.Projects, tools project.Tools, tmpBinDir string) (map[string]string, []error) {
-	errs := []error{}
-	for _, tool := range tools {
-		if err := project.BuildTool(ctx, tmpBinDir, tool.Name, tool.Package, projects[tool.Project]); err != nil {
-			errs = append(errs, err)
-		}
+// rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in a
+// temporary directory, which is used to replace JIRI_ROOT/devtools/bin in the
+// PATH.
+func rebuildDeveloperTools(ctx *tool.Context, tools project.Tools, tmpBinDir string) (map[string]string, error) {
+	if err := project.BuildTools(ctx, tools, tmpBinDir); err != nil {
+		return nil, err
 	}
 	// Create a new PATH that replaces JIRI_ROOT/devtools/bin with the
 	// temporary directory in which the tools were rebuilt.
 	env := map[string]string{
 		"PATH": strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "devtools", "bin"), tmpBinDir, -1),
 	}
-	return env, errs
+	return env, nil
 }
 
 // processTestPartSuffix extracts the test name without part suffix as well
