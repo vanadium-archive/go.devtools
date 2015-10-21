@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultPlaygroundTestTimeout = 5 * time.Minute
+	defaultPlaygroundTestTimeout = 10 * time.Minute
 )
 
 // vanadiumPlaygroundTest runs integration tests for the Vanadium playground.
