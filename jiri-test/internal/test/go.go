@@ -948,6 +948,9 @@ func init() {
 		newExclusion("github.com/howeyc/fsnotify", ".*", isDarwin()),
 		// This test relies on timing, which results in flakiness on GCE.
 		newExclusion("google.golang.org/appengine/internal", "TestDelayedLogFlushing", isCI()),
+		// The crypto/ssh TestValidTerminalMode is flakey on Jenkins and
+		// sometimes fails when getting a pty.
+		newExclusion("golang.org/x/crypto/ssh/test", "TestValidTerminalMode", isCI()),
 		// The following tests require ICMP socket permissions which are not enabled
 		// by default on linux.
 		newExclusion("golang.org/x/net/icmp", "TestPingGoogle", isCI()),
