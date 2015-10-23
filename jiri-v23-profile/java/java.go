@@ -61,6 +61,15 @@ func (m *Manager) SetRoot(root string) {
 	m.javaRoot = filepath.Join(m.root, "profiles", "java")
 }
 
+func (m Manager) Info() string {
+	return `
+The java profile provides support for Java and in particular installs java related
+tools such as gradle. It does not install a jre, but rather attempts to locate one
+on the current system and prompts the user to install it if not present. It also
+installs the android profile since android is the primary use of Java. It only
+supports a single target of 'arm-android' and assumes it as the default.`
+}
+
 func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }

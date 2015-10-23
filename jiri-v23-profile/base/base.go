@@ -56,6 +56,12 @@ func (m *Manager) SetRoot(root string) {
 	m.root = root
 }
 
+func (m Manager) Info() string {
+	return `
+The base profile is a convenient shorthand for installing the profiles that all
+vanadium projects need, this is currently go and syncbase.`
+}
+
 func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }

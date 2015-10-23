@@ -2,6 +2,7 @@ pkg go_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
 pkg go_profile, method (*Manager) Install(*tool.Context, profiles.Target) error
 pkg go_profile, method (*Manager) SetRoot(string)
 pkg go_profile, method (*Manager) Uninstall(*tool.Context, profiles.Target) error
+pkg go_profile, method (Manager) Info() string
 pkg go_profile, method (Manager) Name() string
 pkg go_profile, method (Manager) Root() string
 pkg go_profile, method (Manager) String() string

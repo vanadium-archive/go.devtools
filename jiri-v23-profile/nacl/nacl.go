@@ -62,6 +62,13 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }
 
+func (m Manager) Info() string {
+	return `
+The nacl profile provides support for native client builds for chrome. It
+clones and builds the go.ppapi git repository. It supports a single target of
+amd64p32-nacl and assumes it as the default`
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 

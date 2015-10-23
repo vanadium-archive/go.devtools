@@ -59,6 +59,12 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }
 
+func (m Manager) Info() string {
+	return `
+The nodejs profile provides support for node. It installs and builds particular,
+tested, versions of node.`
+}
+
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {}
 
 func (m *Manager) initForTarget(target profiles.Target) error {

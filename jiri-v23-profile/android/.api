@@ -2,6 +2,7 @@ pkg android, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
 pkg android, method (*Manager) Install(*tool.Context, profiles.Target) error
 pkg android, method (*Manager) SetRoot(string)
 pkg android, method (*Manager) Uninstall(*tool.Context, profiles.Target) error
+pkg android, method (Manager) Info() string
 pkg android, method (Manager) Name() string
 pkg android, method (Manager) Root() string
 pkg android, method (Manager) String() string

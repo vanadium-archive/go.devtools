@@ -58,6 +58,12 @@ func (m *Manager) SetRoot(root string) {
 
 }
 
+func (m Manager) Info() string {
+	return `
+The syncbase profile provides support for syncbase, in particular the snappy and
+leveldb libraries.`
+}
+
 func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }

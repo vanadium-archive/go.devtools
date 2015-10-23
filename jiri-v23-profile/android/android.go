@@ -51,6 +51,14 @@ func (m *Manager) SetRoot(root string) {
 	m.androidRoot = filepath.Join(m.root, "profiles", "android")
 }
 
+func (m Manager) Info() string {
+	return `
+The android profile provides support for cross-compiling from linux or darwin
+to android. It only supports one target 'arm-android' and will assume that
+as the default value if one is not supplied. It installs the android NDK
+and a go compiler configured to use it.`
+}
+
 func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }

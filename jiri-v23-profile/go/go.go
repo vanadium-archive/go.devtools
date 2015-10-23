@@ -87,6 +87,13 @@ func (m *Manager) SetRoot(root string) {
 	}
 }
 
+func (m Manager) Info() string {
+	return `
+The go profile manages installations of the go compiler and in particular configures
+them for cross compilation with cgo. A separate build of each cross-compilation
+environment is maintained to simplify use of cgo albeit at the cost of some disk space.`
+}
+
 func (m Manager) VersionInfo() *profiles.VersionInfo {
 	return m.versionInfo
 }
