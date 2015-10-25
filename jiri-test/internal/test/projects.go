@@ -71,7 +71,7 @@ func runProjectTestWithNacl(ctx *tool.Context, testName, projectName, target str
 	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl"); err != nil {
 		return nil, err
 	}
-	return runProjectTest(ctx, testName, "browser", "test", env, profiles)
+	return runProjectTest(ctx, testName, projectName, target, env, profiles)
 }
 
 // vanadiumBrowserTest runs the tests for the Vanadium browser.
