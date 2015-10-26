@@ -48,6 +48,7 @@ func testSingleProdService(ctx *tool.Context, vroot, principalDir string, servic
 	bin := filepath.Join(vroot, "release", "go", "bin", "vrpc")
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
+	opts.Verbose = true
 	opts.Stdout = &out
 	opts.Stderr = &out
 	start := time.Now()
@@ -61,6 +62,7 @@ func testSingleProdService(ctx *tool.Context, vroot, principalDir string, servic
 	}
 	args = append(args, service.objectName)
 	if err := ctx.Run().TimedCommandWithOpts(test.DefaultTimeout, opts, bin, args...); err != nil {
+		fmt.Fprintf(ctx.Stderr(), "Failed running %q: %v. Output:\n%v\n", append([]string{bin}, args...), err, out.String())
 		return generateXUnitTestSuite(ctx, &xunit.Failure{Message: "vrpc", Data: out.String()}, service.name, time.Now().Sub(start))
 	}
 	if !service.regexp.Match(out.Bytes()) {
