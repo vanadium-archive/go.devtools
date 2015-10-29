@@ -305,9 +305,6 @@ import (
 	}
 	fmt.Fprintln(&buf, `"testing"`)
 	fmt.Fprintln(&buf)
-	if tmOpts != nil {
-		fmt.Fprintln(&buf, `"v.io/x/ref/test"`)
-	}
 	if tmOpts != nil && tmOpts.hasModules {
 		fmt.Fprintln(&buf, `"v.io/x/ref/test/modules"`)
 	}
@@ -317,8 +314,7 @@ import (
 	fmt.Fprintln(&buf, `)`)
 	if tmOpts != nil {
 		tm := `
-func TestMain(m *testing.M) {
-	test.Init()`
+func TestMain(m *testing.M) {`
 		if tmOpts.hasModules {
 			tm += `
 	modules.DispatchAndExitIfChild()`
