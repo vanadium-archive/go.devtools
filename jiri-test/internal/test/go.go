@@ -1421,7 +1421,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 	// Stash any uncommitted changes and defer functions that undo any
 	// changes created by this function and then unstash the original
 	// uncommitted changes.
-	projects, err := project.LocalProjects(ctx)
+	projects, err := project.LocalProjects(ctx, false)
 	if err != nil {
 		return nil, err
 	}

@@ -185,7 +185,7 @@ func reportOutdatedBranches(ctx *tool.Context) (e error) {
 		return err
 	}
 	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
-	projects, err := project.LocalProjects(ctx)
+	projects, err := project.LocalProjects(ctx, false)
 	if err != nil {
 		return err
 	}

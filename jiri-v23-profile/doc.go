@@ -120,7 +120,7 @@ The jiri v23-profile install flags are:
    installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT//.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
@@ -139,7 +139,7 @@ specifically requested.
 The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
- -manifest=$JIRI_ROOT//.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -show-manifest=false
    print out the manifest file
@@ -163,7 +163,7 @@ Usage:
 display
 
 The jiri v23-profile env flags are:
- -manifest=$JIRI_ROOT//.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -profile=
    the profile whose environment is to be displayed
@@ -187,7 +187,7 @@ The jiri v23-profile uninstall flags are:
    installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT//.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
@@ -203,7 +203,7 @@ Usage:
 <profiles> is a list of profiles to update, if omitted all profiles are updated.
 
 The jiri v23-profile update flags are:
- -manifest=$JIRI_ROOT//.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -v=false
    print more detailed information
@@ -229,7 +229,7 @@ Usage:
 recreate all profiles are displayed.
 
 The jiri v23-profile recreate flags are:
- -manifest=$JIRI_ROOT//.jiri_v23_profiles
+ -manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
 
 Jiri v23-profile help - Display help for commands or topics
