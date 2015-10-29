@@ -55,6 +55,11 @@ func init() {
 				"go1.5", "cc6554f750ccaf63bcdcc478b2a60d71ca76d342", nil},
 			"1.5.1": &versionSpec{
 				"go1.5.1", "f2e4c8b5fb3660d793b2c545ef207153db0a34b1", nil},
+			// NOTE(spetrovic): feel free to push the specified revision below to anything
+			// more current, *but don't move it back*.
+			"master": &versionSpec{
+				"master", "492a62e945555bbf94a6f9dd6d430f712738c5e0", nil},
+
 		}, "1.5.1"),
 	}
 	profiles.Register(profileName, m)
@@ -251,7 +256,7 @@ func installGo15Plus(ctx *tool.Context, bootstrapDir, goDir string, spec *versio
 			return err
 		}
 
-		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", spec.goRevision); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "git", "checkout", "-b", fmt.Sprintf("branch_%s", spec.goRevision)); err != nil {
 			return err
 		}
 

@@ -22,8 +22,8 @@ const (
 func init() {
 	m := &Manager{
 		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
-			"2": "2",
-		}, "2"),
+			"3": "3",
+		}, "3"),
 	}
 	profiles.Register(profileName, m)
 }
@@ -96,9 +96,9 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 
 	// Install android targets for other profiles.
-	dependency := target
-	dependency.SetVersion("")
-	if err := m.installAndroidTargets(ctx, dependency); err != nil {
+	baseTarget := target
+	baseTarget.SetVersion("2")
+	if err := m.installAndroidBaseTarget(ctx, baseTarget); err != nil {
 		return err
 	}
 
@@ -172,7 +172,7 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot strin
 
 // installAndroidTargets installs android targets for other profiles, such
 // as go, java, syncbase etc.
-func (m *Manager) installAndroidTargets(ctx *tool.Context, target profiles.Target) (e error) {
+func (m *Manager) installAndroidBaseTarget(ctx *tool.Context, target profiles.Target) (e error) {
 	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", filepath.Join(m.androidRoot, "ndk-toolchain"))
 	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
 	if err != nil {
