@@ -129,11 +129,6 @@ var (
 			github:       "git@github.com:vanadium/reader.git",
 		},
 		Mirror{
-			name:         "syncslides",
-			googlesource: "https://vanadium.googlesource.com/release.projects.syncslides",
-			github:       "git@github.com:vanadium/syncslides.git",
-		},
-		Mirror{
 			name:         "third_party",
 			googlesource: "https://vanadium.googlesource.com/third_party",
 			github:       "git@github.com:vanadium/third_party.git",

@@ -27,7 +27,6 @@
     <project>release.projects.pipe2browser</project>
     <project>release.projects.playground</project>
     <project>release.projects.reader</project>
-    <project>release.projects.syncslides</project>
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
     <project>www</project>
@@ -153,9 +152,6 @@
     <project name="release.projects.reader">
       <test>vanadium-copyright</test>
       <test>vanadium-reader-test</test>
-    </project>
-    <project name="release.projects.syncslides">
-      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.travel">
       <test>vanadium-copyright</test>
