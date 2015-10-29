@@ -987,6 +987,8 @@ func init() {
 		// The check.v1 tests contain flakey benchmark tests which sometimes do
 		// not complete, and sometimes complete with unexpected times.
 		newExclusion("gopkg.in/check.v1", ".*", true),
+		// The tests depend on a c library.
+		newExclusion("code.google.com/p/rsc/...", ".*", true),
 	}
 
 	// Tests excluded only when running under --race flag.
