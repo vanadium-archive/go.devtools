@@ -29,6 +29,10 @@ func init() {
 					{"go", ""},
 					{"syncbase", ""}},
 				},
+				"2": &versionSpec{[]struct{ name, version string }{
+					{"go", "master"},
+					{"syncbase", ""}},
+				},
 			}, "1"),
 	}
 	profiles.Register(profileName, m)
