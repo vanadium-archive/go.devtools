@@ -89,7 +89,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 	// NOTE(spetrovic): For now, we install android profile along with Java,
 	// as the two are bundled up for ease of development.
-	androidTarget, err := profiles.NewTarget("android=arm-android")
+	androidTarget, err := profiles.NewTarget("arm-android")
 	if err != nil {
 		return err
 	}

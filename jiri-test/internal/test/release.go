@@ -77,12 +77,6 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	cleanup2, err := initTestForTarget(ctx, testName, []string{"android"}, "android=arm-android")
-	if err != nil {
-		return nil, internalTestError{err, "Init"}
-	}
-	defer collect.Error(func() error { return cleanup2() }, &e)
-
 	type step struct {
 		msg string
 		fn  func() error

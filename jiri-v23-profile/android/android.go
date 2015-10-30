@@ -69,7 +69,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profiles.Target) error {
 	if !target.IsSet() {
 		def := *target
-		target.Set("android=arm-android")
+		target.Set("arm-android")
 		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
 		if target.Arch() != "arm" && target.OS() != "android" {

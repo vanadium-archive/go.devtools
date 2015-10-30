@@ -24,12 +24,6 @@ func vanadiumJavaTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	cleanup2, err := initTestForTarget(ctx, testName, []string{"android"}, "android=arm-android")
-	if err != nil {
-		return nil, internalTestError{err, "Init"}
-	}
-	defer collect.Error(func() error { return cleanup2() }, &e)
-
 	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
