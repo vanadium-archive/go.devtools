@@ -1845,7 +1845,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 		oldDir, err := downloadVanadiumBinaries(ctx, vbinaryBin, againstTime)
 		if err == noSnapshotErr {
 			fmt.Fprintf(ctx.Stdout(), "#### Skipping tests for %s, no snapshot ####\n", againstDateStr)
-			continue
+			return nil, fmt.Errorf("no snapshot found for %s", againstDateStr)
 		} else if err != nil {
 			return nil, err
 		}
