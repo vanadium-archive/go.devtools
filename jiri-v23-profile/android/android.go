@@ -7,22 +7,66 @@ package android
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/profiles"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 )
 
 const (
-	profileName = "android"
+	profileName        = "android"
+	ndkDownloadBaseURL = "https://dl.google.com/android/ndk"
 )
 
+type versionSpec struct {
+	ndkDownloadURL string
+	// seq's chain may be already in progress.
+	ndkExtract  func(seq *runutil.Sequence, src, dst string)
+	ndkAPILevel int
+}
+
+func ndkArch() (string, error) {
+	switch runtime.GOARCH {
+	case "386":
+		return "x86", nil
+	case "amd64":
+		return "x86_64", nil
+	default:
+		return "", fmt.Errorf("NDK unsupported for GOARCH %s", runtime.GOARCH)
+	}
+}
+
+func tarExtract(seq *runutil.Sequence, src, dst string) {
+	seq.Run("tar", "-C", dst, "-xjf", src)
+}
+
+func selfExtract(seq *runutil.Sequence, src, dst string) {
+	seq.Chmod(src, profiles.DefaultDirPerm).Run(src, "-y", "-o"+dst)
+}
+
 func init() {
+	arch, err := ndkArch()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: android profile not supported: %v\n", err)
+		return
+	}
 	m := &Manager{
 		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
-			"3": "3",
+			"3": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r9d-%s-%s.tar.bz2", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     tarExtract,
+				ndkAPILevel:    9,
+			},
+			"4": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     selfExtract,
+				ndkAPILevel:    16,
+			},
 		}, "3"),
 	}
 	profiles.Register(profileName, m)
@@ -83,7 +127,11 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err := m.defaultTarget(ctx, "installed", &target); err != nil {
 		return err
 	}
-	ndkRoot, err := m.installAndroidNDK(ctx, runtime.GOOS)
+	var spec versionSpec
+	if err := m.versionInfo.Lookup(target.Version(), &spec); err != nil {
+		return err
+	}
+	ndkRoot, err := m.installAndroidNDK(ctx, spec)
 	if err != nil {
 		return err
 	}
@@ -121,7 +169,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	if err := profiles.EnsureProfileTargetIsUninstalled(ctx, "base", target, m.root); err != nil {
 		return err
 	}
-	if err := ctx.Run().RemoveAll(m.androidRoot); err != nil {
+	if err := ctx.Seq().RemoveAll(m.androidRoot).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -129,16 +177,16 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 // installAndroidNDK installs the android NDK toolchain.
-func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot string, e error) {
+func (m *Manager) installAndroidNDK(ctx *tool.Context, spec versionSpec) (ndkRoot string, e error) {
 	// Install dependencies.
 	var pkgs []string
-	switch OS {
+	switch runtime.GOOS {
 	case "linux":
 		pkgs = []string{"ant", "autoconf", "bzip2", "default-jdk", "gawk", "lib32z1", "lib32stdc++6"}
 	case "darwin":
 		pkgs = []string{"ant", "autoconf", "gawk"}
 	default:
-		return "", fmt.Errorf("unsupported OS: %s", OS)
+		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
 		return "", err
@@ -146,26 +194,28 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, OS string) (ndkRoot strin
 	// Download Android NDK.
 	ndkRoot = filepath.Join(m.androidRoot, "ndk-toolchain")
 	installNdkFn := func() error {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		tmpDir, err := ctx.Seq().TempDir("", "")
 		if err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-		filename := "android-ndk-r9d-" + OS + "-x86_64.tar.bz2"
-		remote := "https://dl.google.com/android/ndk/" + filename
-		local := filepath.Join(tmpDir, filename)
-		if err := profiles.RunCommand(ctx, nil, "curl", "-Lo", local, remote); err != nil {
+		defer collect.Error(func() error { return ctx.Seq().RemoveAll(tmpDir).Done() }, &e)
+		extractDir, err := ctx.Seq().TempDir(tmpDir, "extract")
+		if err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, nil, "tar", "-C", tmpDir, "-xjf", local); err != nil {
+		local := filepath.Join(tmpDir, path.Base(spec.ndkDownloadURL))
+		ctx.Seq().Run("curl", "-Lo", local, spec.ndkDownloadURL)
+		spec.ndkExtract(ctx.Seq(), local, extractDir)
+		files, err := ctx.Seq().ReadDir(extractDir)
+		if err != nil {
 			return err
 		}
-		ndkBin := filepath.Join(tmpDir, "android-ndk-r9d", "build", "tools", "make-standalone-toolchain.sh")
-		ndkArgs := []string{ndkBin, "--platform=android-9", "--install-dir=" + ndkRoot}
-		if err := profiles.RunCommand(ctx, nil, "bash", ndkArgs...); err != nil {
-			return err
+		if len(files) != 1 {
+			return fmt.Errorf("expected one directory under %s, got: %v", extractDir, files)
 		}
-		return nil
+		ndkBin := filepath.Join(extractDir, files[0].Name(), "build", "tools", "make-standalone-toolchain.sh")
+		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", spec.ndkAPILevel), "--arch=arm", "--install-dir=" + ndkRoot}
+		return ctx.Seq().Run("bash", ndkArgs...).Done()
 	}
 	return ndkRoot, profiles.AtomicAction(ctx, installNdkFn, ndkRoot, "Download Android NDK")
 }
