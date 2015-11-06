@@ -20,6 +20,8 @@ The jiri goext flags are:
    Use color to format output.
  -n=false
    Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -v=false
    Print verbose output.
 

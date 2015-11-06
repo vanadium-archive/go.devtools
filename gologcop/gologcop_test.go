@@ -214,7 +214,7 @@ func configureDefaultBuildConfig(ctx *tool.Context, tags []string) (cleanup func
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}
-	ch.SetGoPath()
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	env := ch.Vars
 	prevGOPATH := build.Default.GOPATH
 	prevBuildTags := build.Default.BuildTags

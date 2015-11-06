@@ -14,9 +14,14 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
 var (
+	// The name of the v23-profile manifest file to use. It is intended
+	// to be set via a command line flag.
+	ManifestFilename = v23_profile.DefaultManifestFilename
+
 	// cleanGo is used to control whether the initTest function removes
 	// all stale Go object files and binaries. It is used to prevent the
 	// test of this package from interfering with other concurrently
@@ -110,8 +115,6 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
 	fmt.Fprintf(ctx.Stdout(), "bin dir = %q\n", binDirPath())
 
-	displayProfiles(ctx)
-
 	// Create a directory for storing built binaries.
 	if err := ctx.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
 		return nil, fmt.Errorf("MkdirAll(%s): %v", binDirPath(), err)
@@ -159,7 +162,7 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
 	}
-	fmt.Fprintf(ctx.Stdout(), "jiri: %v\n", strings.Join(args, " "))
+	fmt.Fprintf(ctx.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
 
 	fmt.Fprintf(ctx.Stdout(), "Installed & updated: %v\n", profileNames)
 
@@ -192,6 +195,10 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 		if err := ctx.Run().RemoveAll(file); err != nil {
 			return nil, fmt.Errorf("RemoveAll(%s): %v", file, err)
 		}
+	}
+
+	if !isCI() {
+		displayProfiles(ctx, "initTest:")
 	}
 
 	return func() error {

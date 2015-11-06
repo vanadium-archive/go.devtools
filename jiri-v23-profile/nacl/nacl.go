@@ -97,12 +97,12 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err := m.installNacl(ctx, target, m.spec, naclInstDir); err != nil {
 		return err
 	}
-	target.InstallationDir = naclInstDir
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
 		"GOARCH=amd64p32",
 		"GOOS=nacl",
 		"GOROOT=" + naclInstDir,
 	})
+	target.InstallationDir = naclInstDir
 	profiles.InstallProfile(profileName, m.naclRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }

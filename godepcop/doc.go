@@ -93,6 +93,8 @@ The godepcop list flags are:
    Only show direct dependencies, rather than showing transitive dependencies.
  -goroot=false
    Show $GOROOT packages.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -style=set
    List dependencies with the given style:
       set    - As a sorted set of unique packages.
@@ -127,6 +129,8 @@ The godepcop list-importers flags are:
    Only show direct dependencies, rather than showing transitive dependencies.
  -goroot=false
    Show $GOROOT packages.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -test=false
    Show imports from test files in the same package.
  -xtest=false

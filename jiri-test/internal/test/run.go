@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -212,6 +213,12 @@ func (PkgsOpt) Opt() {}
 type PublisherCredDirOpt string
 
 func (PublisherCredDirOpt) Opt() {}
+
+// MergePoliciesOpt is an option that specifies merge policies for use
+// when merging environment variables from the environment and from profiles.
+type MergePoliciesOpt profiles.MergePolicies
+
+func (MergePoliciesOpt) Opt() {}
 
 // ListTests returns a list of all tests known by the test package.
 func ListTests() ([]string, error) {

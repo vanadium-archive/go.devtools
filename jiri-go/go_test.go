@@ -40,7 +40,7 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	ch.SetGoPath()
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	if got, want := strings.TrimSpace(stdout.String()), ch.Get("GOPATH"); got != want {
 		t.Fatalf("GOPATH got %v, want %v", got, want)
 	}

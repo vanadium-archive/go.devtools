@@ -97,22 +97,19 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		return err
 	}
 
-	target.InstallationDir = javaHome
+	// Merge the environments using those in the target as the base
+	// with those from the base profile and then the java ones
+	// we want to set here.
 	env := envvar.VarsFromSlice(target.Env.Vars)
-	cgoflags := env.GetTokens("CGO_CFLAGS", " ")
-	javaflags := []string{
-		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include")),
-		fmt.Sprintf("-I%s", filepath.Join(javaHome, "include", target.OS())),
+	javaProfileEnv := []string{
+		fmt.Sprintf("CGO_CFLAGS=-I%s -I%s", filepath.Join(javaHome, "include"),
+			filepath.Join(javaHome, "include", target.OS())),
+		"JAVA_HOME=" + javaHome,
 	}
-	env.SetTokens("CGO_CFLAGS", append(cgoflags, javaflags...), " ")
-	env.Set("JAVA_HOME", javaHome)
-
-	// Merge the base environment variables and store them in the java profile
-	merged, err := profiles.MergeEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), env, baseTarget, "base")
-	if err != nil {
-		return err
-	}
-	target.Env.Vars = merged
+	baseProfileEnv := profiles.EnvFromProfile(baseTarget, "base")
+	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv, javaProfileEnv)
+	target.Env.Vars = env.ToSlice()
+	target.InstallationDir = javaHome
 	profiles.InstallProfile(profileName, m.javaRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }

@@ -33,6 +33,8 @@ The gologcop commands are:
 The gologcop flags are:
  -color=true
    Use color to format output.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
  -progress=false

@@ -8,6 +8,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -46,11 +47,14 @@ var (
 	manifestFlag, profilesFlag string
 	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
+	mergePoliciesFlag          profiles.MergePolicies
+	verboseFlag                bool
 )
 
 func init() {
-	profiles.RegisterProfileFlags(&cmdEnv.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
-
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterProfileFlags(&cmdEnv.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &mergePoliciesFlag, &targetFlag)
+	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
 }
 
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
@@ -59,12 +63,16 @@ func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := ch.ValidateRequestedProfilesAndTarget(strings.Split(profilesFlag, ","), targetFlag); err != nil {
+	profileNames := profiles.InitProfilesFromFlag(profilesFlag, profiles.DoNotAppendJiriProfile)
+	if err := ch.ValidateRequestedProfilesAndTarget(profileNames, targetFlag); err != nil {
 		return err
 	}
-	ch.SetGoPath()
-	ch.SetVDLPath()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
+	ch.MergeEnvFromProfiles(mergePoliciesFlag, targetFlag, profileNames...)
+	if verboseFlag {
+		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
+		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
+		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+	}
 	if len(args) > 0 {
 		for _, name := range args {
 			fmt.Fprintln(cmdlineEnv.Stdout, ch.Get(name))

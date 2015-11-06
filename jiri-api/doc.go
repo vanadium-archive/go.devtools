@@ -25,8 +25,12 @@ The jiri api flags are:
    necessary.
  -manifest=
    Name of the project manifest.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -v=false
    Print verbose output.
 

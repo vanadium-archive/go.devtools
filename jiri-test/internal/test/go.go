@@ -37,7 +37,6 @@ import (
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/host"
 	"v.io/x/lib/set"
 )
@@ -106,6 +105,29 @@ func (pkgsOpt) goBuildOpt()    {}
 func (pkgsOpt) goCoverageOpt() {}
 
 func (numWorkersOpt) goTestOpt() {}
+
+func (MergePoliciesOpt) goBuildOpt()    {}
+func (MergePoliciesOpt) goTestOpt()     {}
+func (MergePoliciesOpt) goCoverageOpt() {}
+
+func goListOpts(opts ...interface{}) []string {
+	for _, o := range opts {
+		if mp, ok := o.(MergePoliciesOpt); ok {
+			return []string{"--merge-policies=" + profiles.MergePolicies(mp).String()}
+		}
+	}
+	return nil
+}
+
+func getOptsFromTestOpts(opts []goTestOpt) []Opt {
+	var r []Opt
+	for _, o := range opts {
+		if v, ok := o.(Opt); ok {
+			r = append(r, v)
+		}
+	}
+	return r
+}
 
 // goBuild is a helper function for running Go builds.
 func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Result, e error) {
@@ -240,7 +262,7 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 
 	// Enumerate the packages for which coverage is to be computed.
 	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
-	pkgList, err := goutil.List(ctx, pkgs...)
+	pkgList, err := goutil.List(ctx, goListOpts(opts), pkgs...)
 	if err != nil {
 		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
 		if err := xunit.CreateFailureReport(ctx, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
@@ -429,15 +451,15 @@ var (
 // goListPackagesAndFuncs is a helper function for listing Go
 // packages and obtaining lists of function names that are matched
 // by the matcher interface.
-func goListPackagesAndFuncs(ctx *tool.Context, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
+func goListPackagesAndFuncs(ctx *tool.Context, opts []Opt, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
 
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, nil, err
 	}
-	ch.SetGoPath()
-	pkgList, err := goutil.List(ctx, pkgs...)
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	pkgList, err := goutil.List(ctx, goListOpts(opts), pkgs...)
 	if err != nil {
 		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
 		return nil, nil, err
@@ -598,7 +620,7 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 	}
 
 	// Enumerate the packages to be built and tests to be executed.
-	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(ctx, pkgs, matcher)
+	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(ctx, getOptsFromTestOpts(opts), pkgs, matcher)
 	if err != nil {
 		originalTestName := testName
 		if len(suffix) != 0 {
@@ -1054,12 +1076,12 @@ func validateAgainstDefaultPackages(ctx *tool.Context, opts []Opt, defaults []st
 		return defsOpt, nil
 	}
 
-	defPkgs, err := goutil.List(ctx, defaults...)
+	defPkgs, err := goutil.List(ctx, goListOpts(opts), defaults...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := goutil.List(ctx, optPkgs...)
+	pkgs, err := goutil.List(ctx, goListOpts(opts), optPkgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1576,7 +1598,7 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 	// Get packages specified in test-parts before the current index.
 	existingPartsPkgs := map[string]struct{}{}
 	for i := 0; i < index; i++ {
-		curPkgs, err := getPkgsFromSpec(ctx, parts[i])
+		curPkgs, err := getPkgsFromSpec(ctx, opts, parts[i])
 		if err != nil {
 			return nil, err
 		}
@@ -1584,12 +1606,12 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 	}
 
 	// Get packages for the current index.
-	pkgs, err := goutil.List(ctx, allPkgs...)
+	pkgs, err := goutil.List(ctx, goListOpts(opts), allPkgs...)
 	if err != nil {
 		return nil, err
 	}
 	if index < len(parts) {
-		curPkgs, err := getPkgsFromSpec(ctx, parts[index])
+		curPkgs, err := getPkgsFromSpec(ctx, opts, parts[index])
 		if err != nil {
 			return nil, err
 		}
@@ -1609,11 +1631,11 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 // getPkgsFromSpec parses the given pkgSpec (a common-separated pkg names) and
 // returns a union of all expanded packages.
 // TODO(jingjin): test this function.
-func getPkgsFromSpec(ctx *tool.Context, pkgSpec string) ([]string, error) {
+func getPkgsFromSpec(ctx *tool.Context, opts []Opt, pkgSpec string) ([]string, error) {
 	expandedPkgs := map[string]struct{}{}
 	pkgs := strings.Split(pkgSpec, ",")
 	for _, pkg := range pkgs {
-		curPkgs, err := goutil.List(ctx, pkg)
+		curPkgs, err := goutil.List(ctx, goListOpts(opts), pkg)
 		if err != nil {
 			return nil, err
 		}

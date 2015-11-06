@@ -11,16 +11,18 @@ import (
 	"fmt"
 	"go/build"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 )
 
 var (
-	flagStyle  string
-	flagDirect bool
-	flagGoroot bool
-	flagTest   bool
-	flagXTest  bool
+	flagStyle         string
+	flagDirect        bool
+	flagGoroot        bool
+	flagTest          bool
+	flagXTest         bool
+	mergePoliciesFlag profiles.MergePolicies
 )
 
 const (
@@ -49,6 +51,10 @@ List dependencies with the given style:
 	cmdListImporters.Flags.BoolVar(&flagGoroot, "goroot", false, descGoroot)
 	cmdListImporters.Flags.BoolVar(&flagTest, "test", false, descTest)
 	cmdListImporters.Flags.BoolVar(&flagXTest, "xtest", false, descXTest)
+
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterMergePoliciesFlag(&cmdList.Flags, &mergePoliciesFlag)
+	profiles.RegisterMergePoliciesFlag(&cmdListImporters.Flags, &mergePoliciesFlag)
 }
 
 func main() {

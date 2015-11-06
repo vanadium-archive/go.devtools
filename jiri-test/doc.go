@@ -64,6 +64,8 @@ Usage:
 list of go packages
 
 The jiri test generate flags are:
+ -merge-policies=
+   specify policies for merging environment variables
  -prefix=v23
    Specifies the prefix to use for generated files. Up to two files may
    generated, the defaults are v23_test.go and v23_internal_test.go, or
@@ -100,6 +102,8 @@ The jiri test run flags are:
    tests. Setting this flag to 'false' may lead to faster Go builds, but it may
    also result in some source code changes not being reflected in the tests
    (e.g., if the change was made in a different Go workspace).
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -num-test-workers=<runtime.NumCPU()>
    Set the number of test workers to use; use 1 to serialize all tests.
  -output-dir=
@@ -109,6 +113,8 @@ The jiri test run flags are:
  -pkgs=
    Comma-separated list of Go package expressions that identify a subset of
    tests to run; only relevant for Go-based tests
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -v23.credentials.admin=
    Directory for vanadium credentials.
  -v23.credentials.publisher=

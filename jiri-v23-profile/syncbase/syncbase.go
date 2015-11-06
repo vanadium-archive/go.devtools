@@ -80,7 +80,8 @@ func (m *Manager) initForTarget(target profiles.Target) {
 
 // setSyncbaseEnv adds the LevelDB third-party C++ libraries Vanadium
 // Go code depends on to the CGO_CFLAGS and CGO_LDFLAGS variables.
-func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target profiles.Target) error {
+func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]string, error) {
+	env := envvar.VarsFromSlice([]string{})
 	for _, dir := range []string{
 		m.leveldbInstDir,
 		m.snappyInstDir,
@@ -90,7 +91,7 @@ func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target pro
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
 		if _, err := ctx.Run().Stat(dir); err != nil {
 			if !os.IsNotExist(err) {
-				return err
+				return nil, err
 			}
 			continue
 		}
@@ -104,7 +105,7 @@ func (m *Manager) setSyncbaseEnv(ctx *tool.Context, env *envvar.Vars, target pro
 		env.SetTokens("CGO_CXXFLAGS", cxxflags, " ")
 		env.SetTokens("CGO_LDFLAGS", ldflags, " ")
 	}
-	return nil
+	return env.ToSlice(), nil
 }
 
 func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
@@ -115,12 +116,14 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err := m.installCommon(ctx, target); err != nil {
 		return err
 	}
-	target.InstallationDir = m.syncbaseInstRoot
 	env := envvar.VarsFromSlice(target.Env.Vars)
-	if err := m.setSyncbaseEnv(ctx, env, target); err != nil {
+	syncbaseEnv, err := m.syncbaseEnv(ctx, target)
+	if err != nil {
 		return err
 	}
+	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, syncbaseEnv)
 	target.Env.Vars = env.ToSlice()
+	target.InstallationDir = m.syncbaseInstRoot
 	profiles.InstallProfile(profileName, m.syncbaseRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }

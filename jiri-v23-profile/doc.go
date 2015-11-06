@@ -85,7 +85,6 @@ The jiri v23-profile commands are:
    env         Display profile environment variables
    uninstall   Uninstall the given profiles
    update      Install the latest default version of the given profiles
-   info        Display info about the available profiles
    recreate    Display a list of commands that will recreate the currently
                installed profiles
    help        Display help for commands or topics
@@ -120,7 +119,7 @@ The jiri v23-profile install flags are:
    installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
@@ -139,10 +138,26 @@ specifically requested.
 The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -info=
+   The following fields for use with --profile-info are available:
+   	SchemaVersion - the version of the profiles implementation.
+   	Target.InstallationDir - the installation directory of the requested profile.
+   	Target.CommandLineEnv - the environment variables specified via the command line when installing this profile target.
+   	Target.Env - the environment variables computed by the profile installation process for this target.
+   	Note: if no --target is specified then metadata for all targets will be displayed.
+   	Profile.Description - description of the requested profile.
+   	Profile.Root - the root directory of the requested profile.
+   	Profile.Versions - the set of supported versions for this profile.
+   	Profile.DefaultVersion - the default version of the requested profile.
+   	Profile.LatestVersion - the latest version available for the requested profile.
+   	Note: if no profiles are specified then metadata for all profiles will be displayed.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -show-manifest=false
    print out the manifest file
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
  -v=false
    print more detailed information
 
@@ -163,13 +178,17 @@ Usage:
 display
 
 The jiri v23-profile env flags are:
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
- -profile=
-   the profile whose environment is to be displayed
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
+ -v=false
+   print more detailed information
 
 Jiri v23-profile uninstall - Uninstall the given profiles
 
@@ -187,7 +206,7 @@ The jiri v23-profile uninstall flags are:
    installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
@@ -203,20 +222,10 @@ Usage:
 <profiles> is a list of profiles to update, if omitted all profiles are updated.
 
 The jiri v23-profile update flags are:
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -v=false
    print more detailed information
-
-Jiri v23-profile info - Display info about the available profiles
-
-Display info about the available profiles.
-
-Usage:
-   jiri v23-profile info <profiles>
-
-<profiles> is a list of profiles to show info for, if omitted, info is shown for
-all profiles.
 
 Jiri v23-profile recreate - Display a list of commands that will recreate the currently installed profiles
 
@@ -229,7 +238,7 @@ Usage:
 recreate all profiles are displayed.
 
 The jiri v23-profile recreate flags are:
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
 
 Jiri v23-profile help - Display help for commands or topics

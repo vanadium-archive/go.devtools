@@ -15,7 +15,6 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
 type testCoverage struct {
@@ -76,11 +75,11 @@ func coverageFromGoTestOutput(ctx *tool.Context, testOutput io.Reader) (*testCov
 	if err != nil {
 		return nil, err
 	}
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.SetGoPath()
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdin = testOutput

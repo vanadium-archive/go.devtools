@@ -16,6 +16,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
+	"v.io/x/lib/envvar"
 )
 
 const (
@@ -135,27 +136,23 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err != nil {
 		return err
 	}
-	// Install the NDK profile so that subsequent profile installations can use it
 	profiles.InstallProfile(profileName, m.androidRoot)
-	target.InstallationDir = m.androidRoot
-
 	if err := profiles.AddProfileTarget(profileName, target); err != nil {
 		return err
 	}
 
 	// Install android targets for other profiles.
-	baseTarget := target
-	baseTarget.SetVersion("2")
-	if err := m.installAndroidBaseTarget(ctx, baseTarget); err != nil {
+	dependency := target
+	dependency.SetVersion("2")
+	if err := m.installAndroidBaseTargets(ctx, dependency); err != nil {
 		return err
 	}
 
-	// Use the same variables as the go target.
-	goTarget := profiles.LookupProfileTarget("go", target)
-	if goTarget == nil {
-		return fmt.Errorf("failed to lookup go --target=%v", target)
-	}
-	target.Env.Vars = goTarget.Env.Vars
+	// Merge the target and baseProfile environments.
+	env := envvar.VarsFromSlice(target.Env.Vars)
+	baseProfileEnv := profiles.EnvFromProfile(target, "base")
+	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv)
+	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = ndkRoot
 	profiles.InstallProfile(profileName, m.androidRoot)
 	return profiles.UpdateProfileTarget(profileName, target)
@@ -220,9 +217,9 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context, spec versionSpec) (ndkRoo
 	return ndkRoot, profiles.AtomicAction(ctx, installNdkFn, ndkRoot, "Download Android NDK")
 }
 
-// installAndroidTargets installs android targets for other profiles, such
-// as go, java, syncbase etc.
-func (m *Manager) installAndroidBaseTarget(ctx *tool.Context, target profiles.Target) (e error) {
+// installAndroidTargets installs android targets for other profiles, currently
+// just the base profile (i.e. go and syncbase.)
+func (m *Manager) installAndroidBaseTargets(ctx *tool.Context, target profiles.Target) (e error) {
 	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", filepath.Join(m.androidRoot, "ndk-toolchain"))
 	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
 	if err != nil {

@@ -45,12 +45,14 @@ Usage:
 The jiri dockergo flags are:
  -color=true
    Use color to format output.
- -manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
- -profiles=base
+ -profiles=base,jiri
    a comma separated list of profiles to use
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>

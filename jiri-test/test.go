@@ -12,9 +12,11 @@ import (
 	"runtime"
 	"strings"
 
+	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
+	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -28,6 +30,7 @@ var (
 	partFlag             int
 	pkgsFlag             string
 	publisherCredDirFlag string
+	mergePoliciesFlag    profiles.MergePolicies
 )
 
 func init() {
@@ -41,7 +44,9 @@ func init() {
 	cmdTestRun.Flags.IntVar(&partFlag, "part", -1, "Specify which part of the test to run.")
 	cmdTestRun.Flags.StringVar(&pkgsFlag, "pkgs", "", "Comma-separated list of Go package expressions that identify a subset of tests to run; only relevant for Go-based tests")
 	cmdTestRun.Flags.BoolVar(&cleanGoFlag, "clean-go", true, "Specify whether to remove Go object files and binaries before running the tests. Setting this flag to 'false' may lead to faster Go builds, but it may also result in some source code changes not being reflected in the tests (e.g., if the change was made in a different Go workspace).")
-
+	profiles.RegisterManifestFlag(&cmdTestRun.Flags, &jiriTest.ManifestFilename, v23_profile.DefaultManifestFilename)
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterMergePoliciesFlag(&cmdTestRun.Flags, &mergePoliciesFlag)
 	tool.InitializeRunFlags(&cmdTest.Flags)
 }
 
@@ -135,6 +140,7 @@ func optsFromFlags() (opts []jiriTest.Opt) {
 		jiriTest.OutputDirOpt(outputDirFlag),
 		jiriTest.PublisherCredDirOpt(publisherCredDirFlag),
 		jiriTest.CleanGoOpt(cleanGoFlag),
+		jiriTest.MergePoliciesOpt(mergePoliciesFlag),
 	)
 	return
 }

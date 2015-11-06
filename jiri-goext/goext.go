@@ -17,7 +17,10 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
+var manifestFlag string
+
 func init() {
+	profiles.RegisterManifestFlag(&cmdGoExt.Flags, &manifestFlag, v23_profile.DefaultManifestFilename)
 	tool.InitializeRunFlags(&cmdGoExt.Flags)
 }
 
@@ -45,14 +48,12 @@ packages that no longer exist in the source tree.
 
 func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, manifestFlag)
 	if err != nil {
 		return err
 	}
-	ch.SetGoPath()
 	failed := false
-
-	for _, workspace := range ch.GetTokens("GOPATH", ":") {
+	for _, workspace := range ch.GetTokens(ch.GoPath(), ":") {
 		if !strings.HasPrefix(workspace, ch.Root()) {
 			continue
 		}

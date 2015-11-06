@@ -29,6 +29,8 @@ import (
 var (
 	detailedOutputFlag bool
 	gotoolsBinPathFlag string
+	mergePoliciesFlag  profiles.MergePolicies
+	manifestFlag       string
 
 	commentRE = regexp.MustCompile("^($|[:space:]*#)")
 )
@@ -36,7 +38,9 @@ var (
 func init() {
 	cmdAPICheck.Flags.BoolVar(&detailedOutputFlag, "detailed", true, "If true, shows each API change in an expanded form. Otherwise, only a summary is shown.")
 	cmdAPI.Flags.StringVar(&gotoolsBinPathFlag, "gotools-bin", "", "The path to the gotools binary to use. If empty, gotools will be built if necessary.")
-
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterMergePoliciesFlag(&cmdAPI.Flags, &mergePoliciesFlag)
+	profiles.RegisterManifestFlag(&cmdAPI.Flags, &manifestFlag, v23_profile.DefaultManifestFilename)
 	tool.InitializeProjectFlags(&cmdAPI.Flags)
 	tool.InitializeRunFlags(&cmdAPI.Flags)
 }
@@ -138,11 +142,11 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
 func getCurrentAPI(ctx *tool.Context, gotoolsBin, dir string) ([]byte, error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, manifestFlag)
 	if err != nil {
 		return nil, err
 	}
-	ch.SetGoPath()
+	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	env := ch.Vars
 	var output bytes.Buffer
 	opts := ctx.Run().Opts()

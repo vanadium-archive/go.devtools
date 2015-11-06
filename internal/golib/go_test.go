@@ -16,6 +16,7 @@ import (
 	"fmt"
 
 	"v.io/jiri/profiles"
+	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/buildinfo"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -267,11 +268,12 @@ func TestProcessGoCmdAndArgs(t *testing.T) {
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	root, _ := project.JiriRoot()
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	ch.SetGoPath()
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	tests := []struct {
 		Pkgs, Deps []string
 	}{

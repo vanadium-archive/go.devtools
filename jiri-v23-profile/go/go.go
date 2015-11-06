@@ -148,12 +148,11 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err != nil {
 		return err
 	}
-	// Merge the environment variables as set via the OS and those set in
-	// the profile and write them back to the target so that they get
-	// written to the manifest.
-	target.Env.Vars = envvar.MergeSlices(profiles.GoEnvironmentFromOS(), target.CommandLineEnv().Vars, target.Env.Vars)
-	// Now make sure that GOROOT is set to the newly installed go directory.
-	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{"GOROOT=" + goInstRoot})
+
+	// Merge our target environment and GOROOT
+	goEnv := []string{"GOROOT=" + goInstRoot}
+	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, goEnv)
+	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = goInstRoot
 	profiles.InstallProfile(profileName, m.goRoot)
 	return profiles.AddProfileTarget(profileName, target)

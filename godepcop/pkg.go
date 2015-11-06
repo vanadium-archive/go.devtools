@@ -28,7 +28,7 @@ func isPseudoPackage(p *build.Package) bool {
 }
 
 func listPackagePaths(env *cmdline.Env, args ...string) ([]string, error) {
-	return goutil.List(tool.NewContextFromEnv(env), args...)
+	return goutil.List(tool.NewContextFromEnv(env), []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 }
 
 // importPackage loads and returns the package with the given package path.

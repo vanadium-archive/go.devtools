@@ -71,13 +71,17 @@ var (
 	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
 	extraLDFlags               string
+	mergePoliciesFlag          profiles.MergePolicies
+	verboseFlag                bool
 )
 
 const dockerBin = "docker"
 
 func init() {
 	tool.InitializeRunFlags(&cmd.Flags)
-	profiles.RegisterProfileFlags(&cmd.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterProfileFlags(&cmd.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &mergePoliciesFlag,
+		&targetFlag)
 	flag.StringVar(&imageFlag, "image", "", "Name of the docker image to use. If empty, the tool will automatically select an image based on the environment variables, possibly edited by the profile")
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 }
@@ -91,8 +95,16 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	ch.SetGoPath()
-	ch.SetVDLPath()
+	profileNames := profiles.InitProfilesFromFlag(profilesFlag, profiles.DoNotAppendJiriProfile)
+	if err := ch.ValidateRequestedProfilesAndTarget(profileNames, targetFlag); err != nil {
+		return err
+	}
+	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
+	if verboseFlag {
+		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
+		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
+		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+	}
 	envMap := ch.ToMap()
 	// docker can only be used to build linux binaries
 	if os, exists := envMap["GOOS"]; exists && os != "linux" {

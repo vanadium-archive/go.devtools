@@ -8,7 +8,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os/exec"
+	"strings"
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
@@ -21,11 +24,15 @@ var (
 	manifestFlag, profilesFlag string
 	profilesModeFlag           profiles.ProfilesMode
 	targetFlag                 profiles.Target
+	mergePoliciesFlag          profiles.MergePolicies
+	verboseFlag                bool
 )
 
 func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
-	profiles.RegisterProfileFlags(&cmdRun.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &targetFlag)
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterProfileFlags(&cmdRun.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &mergePoliciesFlag, &targetFlag)
+	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
 }
 
 // cmdRun represents the "jiri run" command.
@@ -53,9 +60,16 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	ch.SetGoPath()
-	ch.SetVDLPath()
-	ch.SetEnvFromProfiles(profiles.CommonConcatVariables(), profiles.CommonIgnoreVariables(), profilesFlag, targetFlag)
+	profileNames := profiles.InitProfilesFromFlag(profilesFlag, profiles.DoNotAppendJiriProfile)
+	if err := ch.ValidateRequestedProfilesAndTarget(profileNames, targetFlag); err != nil {
+		return err
+	}
+	ch.MergeEnvFromProfiles(mergePoliciesFlag, targetFlag, profileNames...)
+	if verboseFlag {
+		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
+		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
+		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+	}
 	execCmd := exec.Command(args[0], args[1:]...)
 	execCmd.Stdout = cmdlineEnv.Stdout
 	execCmd.Stderr = cmdlineEnv.Stderr

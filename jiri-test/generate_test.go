@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"v.io/jiri/profiles"
+	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
@@ -31,7 +32,9 @@ func TestV23TestGenerate(t *testing.T) {
 		t.Fatalf("TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(tmpdir)
-	// Set GOPATH so that the tmpdir appears first.
+	// Set GOPATH so that the tmpdir appears first, need to use appropirate
+	// --merge-policies parameter for this to have any effect since by
+	// default GOPATH set from the environment is ignored.
 	oldGoPath := os.Getenv("GOPATH")
 	newGoPath := strings.Join([]string{tmpdir, oldGoPath}, ":")
 	if err := os.Setenv("GOPATH", newGoPath); err != nil {
@@ -43,7 +46,7 @@ func TestV23TestGenerate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gendir := filepath.Join(tmpdir, "src", "v.io", "x", "devtools", "v23", "testdata", "generate")
+	gendir := filepath.Join(tmpdir, "src", "v.io", "x", "devtools", "jiri-test", "testdata", "generate")
 	srcdir := filepath.Join(cwd, "testdata", "generate")
 	infos, err := ioutil.ReadDir(srcdir)
 	if err != nil {
@@ -76,7 +79,9 @@ func testGenerate(t *testing.T, gendir, srcdir, name string) {
 	}
 	// Generate test files into gendir.
 	env := cmdline.EnvFromOS()
-	if err := cmdline.ParseAndRun(cmdTestGenerate, env, []string{"-prefix=" + prefix, "v.io/x/devtools/v23/testdata/generate/" + name}); err != nil {
+	// We want to prepend the GOPATH value in the environment to that used
+	// by the jiri tool.
+	if err := cmdline.ParseAndRun(cmdTestGenerate, env, []string{"--merge-policies=:GOPATH", "-prefix=" + prefix, "v.io/x/devtools/jiri-test/testdata/generate/" + name}); err != nil {
 		t.Fatal(err)
 	}
 	// Validate generated files.
@@ -142,11 +147,15 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
 	ctx := tool.NewDefaultContext()
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	root, err := project.JiriRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ch.SetGoPath()
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	opts := ctx.Run().Opts()
 	var out bytes.Buffer
 	opts.Stdout = &out

@@ -154,7 +154,7 @@ func (ps *parseState) parseAndTypeCheckPackage(bpkg *build.Package) ([]*ast.File
 // (so v.io/v23/... can be used as an interface package spec for example) and
 // then import those packages.
 func importPkgs(ctx *tool.Context, packageSpec []string) (ifcs []*build.Package, err error) {
-	pkgs, err := goutil.List(ctx, packageSpec...)
+	pkgs, err := goutil.List(ctx, []string{"--merge-policies=" + mergePoliciesFlag.String()}, packageSpec...)
 	if err != nil {
 		return nil, err
 	}

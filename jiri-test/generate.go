@@ -20,7 +20,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
+	jiriTest "v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
 )
 
@@ -32,6 +32,7 @@ var (
 func init() {
 	cmdTestGenerate.Flags.StringVar(&prefixFlag, "prefix", defaultV23TestPrefix, "Specifies the prefix to use for generated files. Up to two files may generated, the defaults are v23_test.go and v23_internal_test.go, or <prefix>_test.go and <prefix>_internal_test.go.")
 	cmdTestGenerate.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
+	profiles.RegisterMergePoliciesFlag(&cmdTestGenerate.Flags, &mergePoliciesFlag)
 }
 
 var cmdTestGenerate = &cmdline.Command{
@@ -74,11 +75,11 @@ const (
 )
 
 func configureBuilder(ctx *tool.Context) (cleanup func(), err error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, jiriTest.ManifestFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.SetGoPath()
+	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	prevGOPATH := build.Default.GOPATH
 	cleanup = func() {
 		build.Default.GOPATH = prevGOPATH
@@ -92,7 +93,7 @@ func runTestGenerate(env *cmdline.Env, args []string) error {
 	// Delete all files we're going to generate, to start with a clean slate.  We
 	// do this first to avoid any issues where packages in the cache might include
 	// the generated files.
-	dirs, err := goutil.ListDirs(ctx, args...)
+	dirs, err := goutil.ListDirs(ctx, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 	if err != nil {
 		return env.UsageErrorf("failed to list %v: %v", args, err)
 	}
@@ -107,7 +108,7 @@ func runTestGenerate(env *cmdline.Env, args []string) error {
 	}
 
 	// Now list the package paths and generate each one.
-	paths, err := goutil.List(ctx, args...)
+	paths, err := goutil.List(ctx, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 	if err != nil {
 		return env.UsageErrorf("failed to list %v: %v", args, err)
 	}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/project"
@@ -67,12 +68,31 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func displayProfiles(ctx *tool.Context) {
+func removeProfiles(ctx *tool.Context) {
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	fmt.Fprintf(ctx.Stdout(), "installed profiles:\n")
+
+	removals := []string{}
+	fmt.Fprintf(ctx.Stdout(), "presubmit: removeProfiles: %s\n", removals)
+	cmds := append([]string{"list"}, removals...)
+	cmds = append(cmds, "list")
+	for _, args := range cmds {
+		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
+		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
+		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
+		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
+		out.Reset()
+	}
+}
+
+func displayProfiles(ctx *tool.Context, msg string) {
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	fmt.Fprintf(ctx.Stdout(), "%s: installed profiles:\n", msg)
 	err := ctx.Run().CommandWithOpts(opts, "jiri", "v23-profile", "list", "--v")
 	if err != nil {
 		fmt.Fprintf(ctx.Stdout(), " %v\n", err)
@@ -103,7 +123,10 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	displayProfiles(ctx)
+	if isCI() {
+		removeProfiles(ctx)
+		displayProfiles(ctx, "presubmit")
+	}
 
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{}

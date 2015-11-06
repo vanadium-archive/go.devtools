@@ -15,7 +15,6 @@ import (
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
 // vanadiumGoVDL checks that all VDL-based Go source files are
@@ -39,12 +38,11 @@ func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 	opts := ctx.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.SetGoPath()
-	ch.SetVDLPath()
+	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	opts.Env["VDLPATH"] = ch.Get("VDLPATH")
 	vdl := filepath.Join(ch.Root(), "release", "go", "bin", "vdl")
 	err = ctx.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
