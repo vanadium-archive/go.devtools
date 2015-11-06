@@ -197,6 +197,15 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
 			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
 			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
+		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
+			root := os.Getenv("FNL_JIRI_ROOT")
+			if len(root) == 0 {
+				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
+			}
+			muslBin := filepath.Join(root, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
+			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
+			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
+			args = append(args, "--host=amd64-linux")
 		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
 			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
 			/*
@@ -266,6 +275,15 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
 			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
 			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
+		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
+			root := os.Getenv("FNL_JIRI_ROOT")
+			if len(root) == 0 {
+				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
+			}
+			muslBin := filepath.Join(root, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
+			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
+			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
+			env["AR"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-ar")
 		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
 			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
 			/*

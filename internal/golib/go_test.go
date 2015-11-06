@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
+
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/buildinfo"
@@ -65,7 +67,7 @@ func TestGoVDLGeneration(t *testing.T) {
 		},
 	}
 	// Check that the 'env' go command does not generate the test VDL file.
-	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"env", "GOPATH"}, ""); err != nil {
+	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"env", "GOPATH"}, "", ""); err != nil {
 		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
 	}
 	if _, err := ctx.Run().Stat(outFile); err != nil {
@@ -76,7 +78,7 @@ func TestGoVDLGeneration(t *testing.T) {
 		t.Fatalf("file %v exists and it should not.", outFile)
 	}
 	// Check that the 'build' go command generates the test VDL file.
-	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"build", "testpkg"}, ""); err != nil {
+	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"build", "testpkg"}, "", ""); err != nil {
 		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
 	}
 	if _, err := ctx.Run().Stat(outFile); err != nil {
@@ -298,6 +300,23 @@ func containsStrings(super, sub []string) bool {
 	return len(subSet) == 0
 }
 
+func extractFlag(args []string, name string) (string, error) {
+	found, prefix, value := false, "-"+name+"=", ""
+	for _, arg := range args {
+		if strings.HasPrefix(arg, prefix) {
+			if found {
+				return "", fmt.Errorf("flag %s set more than once in %v", name, args)
+			}
+			found = true
+			value = strings.TrimPrefix(arg, prefix)
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("flag %s not found in %v", name, args)
+	}
+	return value, nil
+}
+
 func TestSetBuildInfo(t *testing.T) {
 	ctx, start := tool.NewDefaultContext(), time.Now().UTC()
 	// Set up a temp directory.
@@ -311,39 +330,29 @@ func TestSetBuildInfo(t *testing.T) {
 		"PATH":   os.Getenv("PATH"),
 		"GOPATH": os.Getenv("GOPATH"),
 	}
-	args, err := PrepareGo(ctx, env, []string{"build"}, "-when=now -why")
+	args, err := PrepareGo(ctx, env, []string{"build"}, "-when=now -why", "mypath")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	prefix := "-ldflags="
-	foundLDFlags := false
 	var md *metadata.T
 	// Find a flag with 'prefix' and extract metadata out of it.
-	for _, arg := range args {
-		if strings.HasPrefix(arg, prefix) {
-			if foundLDFlags {
-				t.Fatalf("ldflags set more than once in %v", args)
-			}
-			foundLDFlags = true
-			arg = strings.TrimPrefix(arg, prefix)
-			prefix := strings.Split(metadata.LDFlag(&metadata.T{}), "=")[0] + "="
-			if !strings.HasPrefix(arg, prefix) {
-				t.Fatalf("metadata flag not set")
-			}
-			arg = strings.TrimPrefix(arg, prefix)
-			suffix := " -when=now -why"
-			if !strings.HasSuffix(arg, suffix) {
-				t.Fatalf("extra ld flags not set in %v", arg)
-			}
-			arg = strings.TrimSuffix(arg, suffix)
-			if md, err = metadata.FromBase64([]byte(arg)); err != nil {
-				t.Fatalf("Unparseable: %v: %v", arg, err)
-			}
-		}
+	ldFlagsValue, err := extractFlag(args, "ldflags")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !foundLDFlags {
-		t.Fatalf("no ldflags found in arguments")
+	prefix := strings.Split(metadata.LDFlag(&metadata.T{}), "=")[0] + "="
+	if !strings.HasPrefix(ldFlagsValue, prefix) {
+		t.Fatalf("metadata flag not set")
+	}
+	ldFlagsValue = strings.TrimPrefix(ldFlagsValue, prefix)
+	ldFlagsSuffix := " -when=now -why"
+	if !strings.HasSuffix(ldFlagsValue, ldFlagsSuffix) {
+		t.Fatalf("missing extra ld flags in %s", ldFlagsValue)
+	}
+	ldFlagsValue = strings.TrimSuffix(ldFlagsValue, ldFlagsSuffix)
+	if md, err = metadata.FromBase64([]byte(ldFlagsValue)); err != nil {
+		t.Fatalf("Unparseable: %v: %v", ldFlagsValue, err)
 	}
 	if md == nil {
 		t.Fatalf("metadata flag not set")
@@ -352,6 +361,15 @@ func TestSetBuildInfo(t *testing.T) {
 	if err != nil {
 		t.Errorf("DecodeMetaData(%#v) failed: %v", md, err)
 	}
+
+	installSuffixValue, err := extractFlag(args, "installsuffix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := installSuffixValue, "mypath"; got != want {
+		t.Fatalf("expected suffix %q, but got %q", "mypath", want, got)
+	}
+
 	const fudge = -5 * time.Second
 	if bi.Time.Before(start.Add(fudge)) {
 		t.Errorf("build time %v < start %v", bi.Time, start)

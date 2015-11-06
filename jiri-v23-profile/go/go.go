@@ -38,6 +38,7 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 		xspec{"arm", "android"}: to_android,
 	},
 	xspec{"amd64", "linux"}: {
+		xspec{"amd64", "fnl"}:   to_fnl,
 		xspec{"arm", "linux"}:   linux_to_linux,
 		xspec{"arm", "android"}: to_android,
 	},
@@ -59,7 +60,6 @@ func init() {
 			// more current, *but don't move it back*.
 			"master": &versionSpec{
 				"master", "492a62e945555bbf94a6f9dd6d430f712738c5e0", nil},
-
 		}, "1.5.1"),
 	}
 	profiles.Register(profileName, m)
@@ -129,11 +129,11 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 		}
 	}
 
-	// Force GOARM, GOARCH to have the values specified in the target.
-	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
+	// Set GOARCH, GOOS to the values specified in the target, if not set.
+	target.Env.Vars = envvar.MergeSlices([]string{
 		"GOARCH=" + target.Arch(),
 		"GOOS=" + target.OS(),
-	})
+	}, target.Env.Vars)
 	if cgo {
 		target.Env.Vars = append(target.Env.Vars, "CGO_ENABLED=1")
 	}
@@ -455,4 +455,37 @@ func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action pr
 		"CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
 	}
 	return ndkBin, vars, nil
+}
+
+func to_fnl(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+	if action == profiles.Uninstall {
+		return "", nil, nil
+	}
+	root := os.Getenv("FNL_JIRI_ROOT")
+	if len(root) == 0 {
+		return "", nil, fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
+	}
+	muslBin := filepath.Join(root, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
+	// This cross compiles by building a go compiler with HOST=386 rather than amd64 because
+	// the go compiler build process doesn't support building two different versions when
+	// host and target are the same.
+	// TODO(bprosnitz) Determine whether fnl is linux or a separate os and make the build process cleaner.
+	vars := []string{
+		"CC_FOR_TARGET=" + filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc"),
+		"CXX_FOR_TARGET=" + filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++"),
+		"GOHOSTARCH=386",
+		"GOHOSTOS=linux",
+		"GOARCH=amd64",
+		"GOOS=linux",
+		// Under $JIRI_ROOT, packages for both standard amd64 linux machines and fnl
+		// will be placed under "release/go/pkg/linux_amd64" yet be incompatible.
+		// This sets a suffix "linux_amd64_musl" for fnl target packages.
+		// Note that this isn't a problem for the fnl go cross compiler itself
+		// because it is cross compiling from 386 to amd64 and the package
+		// directories will not conflict.
+		// GO_FLAGS is an environment variable used by go's compiler build scripts
+		// to inject flags into the build commands.
+		"GO_FLAGS=-installsuffix=musl",
+	}
+	return "", vars, nil
 }

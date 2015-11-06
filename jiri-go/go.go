@@ -82,7 +82,11 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
 	envMap := ch.ToMap()
-	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags); err != nil {
+	var installSuffix string
+	if targetFlag.OS() == "fnl" {
+		installSuffix = "musl"
+	}
+	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags, installSuffix); err != nil {
 		return err
 	}
 	// Run the go tool.

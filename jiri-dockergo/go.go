@@ -110,7 +110,11 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags); err != nil {
+	var installSuffix string
+	if targetFlag.OS() == "fnl" {
+		installSuffix = "musl"
+	}
+	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags, installSuffix); err != nil {
 		return err
 	}
 	if ctx.Verbose() {
