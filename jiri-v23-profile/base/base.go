@@ -30,7 +30,7 @@ func init() {
 					{"syncbase", ""}},
 				},
 				"2": &versionSpec{[]struct{ name, version string }{
-					{"go", "master"},
+					{"go", "1.5.1.1:2738c5e0"},
 					{"syncbase", ""}},
 				},
 			}, "1"),
