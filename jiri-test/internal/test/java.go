@@ -41,13 +41,5 @@ func vanadiumJavaTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	if err := ctx.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":lib:test"); err != nil {
 		return nil, err
 	}
-	// Run Gradle plugin tests.
-	gradlePluginDir := filepath.Join(javaDir, "gradle-plugin")
-	if err := ctx.Run().Chdir(gradlePluginDir); err != nil {
-		return nil, err
-	}
-	if err := ctx.Run().CommandWithOpts(runOpts, filepath.Join(gradlePluginDir, "gradlew"), "--info", "test"); err != nil {
-		return nil, err
-	}
 	return &test.Result{Status: test.Passed}, nil
 }
