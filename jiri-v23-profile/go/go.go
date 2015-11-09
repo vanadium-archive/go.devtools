@@ -123,6 +123,9 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 				return err
 			}
 			target.Env.Vars = vars
+		} else if runtime.GOARCH == "amd64" && runtime.GOOS == "linux" && target.Arch() == "386" && target.OS() == "linux" {
+			// CGO for 386-linux works on amd64-linux host without cross-compilation.
+			cgo = true
 		} else {
 			// CGO is not supported.
 			cgo = false
@@ -287,7 +290,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	case "arm":
 		targetABI = "arm-unknown-linux-gnueabi"
 	default:
-		return "", nil, fmt.Errorf("Arch %q is not yet supported for crosstools xgcc", target.Arch)
+		return "", nil, fmt.Errorf("Arch %q is not yet supported for crosstools xgcc", target.Arch())
 	}
 	xgccOutDir := filepath.Join(m.root, "profiles", "cout", "xgcc")
 	xtoolInstDir := filepath.Join(xgccOutDir, "crosstools-ng-"+targetABI)
