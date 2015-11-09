@@ -5,11 +5,9 @@
 package test
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/project"
@@ -68,52 +66,15 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func removeProfiles(ctx *tool.Context) {
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-
-	removals := []string{}
-	fmt.Fprintf(ctx.Stdout(), "presubmit: removeProfiles: %s\n", removals)
-	cmds := append([]string{"list"}, removals...)
-	cmds = append(cmds, "list")
-	for _, args := range cmds {
-		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
-		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
-		fmt.Fprintf(ctx.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
-		fmt.Fprintf(ctx.Stdout(), "%s]]\n", out.String())
-		out.Reset()
-	}
-}
-
-func displayProfiles(ctx *tool.Context, msg string) {
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	fmt.Fprintf(ctx.Stdout(), "%s: installed profiles:\n", msg)
-	err := ctx.Run().CommandWithOpts(opts, "jiri", "v23-profile", "list", "--v")
-	if err != nil {
-		fmt.Fprintf(ctx.Stdout(), " %v\n", err)
-		return
-	}
-	fmt.Fprintf(ctx.Stdout(), "\n%s\n", out.String())
-	out.Reset()
-	fmt.Fprintf(ctx.Stdout(), "recreate profiles with:\n")
-	err = ctx.Run().CommandWithOpts(opts, "jiri", "v23-profile", "recreate")
-	if err != nil {
-		fmt.Fprintf(ctx.Stdout(), " %v\n", err)
-		return
-	}
-	fmt.Fprintf(ctx.Stdout(), "\n%s\n", out.String())
-}
-
 // vanadiumPresubmitTest runs presubmit tests for a given project specified
 // in TEST environment variable.
 func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "TEST", "WORKSPACE"}); err != nil {
 		return nil, err
+	}
+
+	if err := cleanupProfiles(ctx); err != nil {
+		return nil, internalTestError{err, "Init"}
 	}
 
 	// Initialize the test.
@@ -123,10 +84,7 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	if isCI() {
-		removeProfiles(ctx)
-		displayProfiles(ctx, "presubmit")
-	}
+	displayProfiles(ctx, "presubmit")
 
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{}
