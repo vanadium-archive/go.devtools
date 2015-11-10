@@ -96,6 +96,7 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 		if err != runutil.CommandTimedOutErr {
 			return nil, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}
+		fmt.Fprintf(ctx.Stdout(), "%s %s TIMED OUT: %s\n", debug, args, buf.String())
 		return nil, err
 	}
 
