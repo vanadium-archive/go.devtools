@@ -25,18 +25,23 @@ func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	args := []string{"update", "-manifest=snapshot/stable-go"}
 	// Fetch the latest stable Go snapshot.
-	if err := ctx.Run().Command("jiri", "update", "-manifest=snapshot/stable-go"); err != nil {
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return nil, internalTestError{err, "Update"}
 	}
+	fmt.Fprintf(ctx.Stdout(), "jiri %s: success\n", args)
 
 	// Build all v.io binaries.
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	if err := ctx.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
+	args = []string{"go", "install", "-tags=leveldb", "v.io/..."}
+	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return nil, internalTestError{err, "Install"}
 	}
+
+	fmt.Fprintf(ctx.Stdout(), "jiri %s: success\n", args)
 
 	// Compute the timestamp for the build snapshot.
 	labelFile, err := project.ManifestFile("snapshot/stable-go")
@@ -56,9 +61,15 @@ func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 		return nil, internalTestError{err, "JiriRoot"}
 	}
 	binaries := filepath.Join(root, "release", "go", "bin", "*")
-	if err := ctx.Run().Command("gsutil", "-m", "-q", "cp", binaries, bucket+timestamp); err != nil {
+
+	ctx.Run().Command("ls", filepath.Dir(binaries))
+
+	args = []string{"-m", "-q", "cp", binaries, bucket + timestamp}
+	fmt.Fprintf(ctx.Stdout(), "gsutil %s ......\n", args)
+	if err := ctx.Run().Command("gsutil", args...); err != nil {
 		return nil, internalTestError{err, "Upload"}
 	}
+	fmt.Fprintf(ctx.Stdout(), "gsutil %s: success\n", args)
 
 	// Upload two files: 1) a file that identifies the directory
 	// containing the latest set of binaries and 2) a file that
@@ -72,16 +83,23 @@ func vanadiumGoBinaries(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 	if err := ctx.Run().WriteFile(doneFile, nil, os.FileMode(0600)); err != nil {
 		return nil, internalTestError{err, "WriteFile"}
 	}
-	if err := ctx.Run().Command("gsutil", "-q", "cp", doneFile, bucket+timestamp); err != nil {
+	fmt.Fprintf(ctx.Stdout(), "Created %s: succcess\n", doneFile)
+	args = []string{"-q", "cp", doneFile, bucket + timestamp}
+	if err := ctx.Run().Command("gsutil", args...); err != nil {
 		return nil, internalTestError{err, "Upload"}
 	}
+	fmt.Fprintf(ctx.Stdout(), "gsutil %s: success\n", args)
+
 	latestFile := filepath.Join(tmpDir, "latest")
 	if err := ctx.Run().WriteFile(latestFile, []byte(timestamp), os.FileMode(0600)); err != nil {
 		return nil, internalTestError{err, "WriteFile"}
 	}
-	if err := ctx.Run().Command("gsutil", "-q", "cp", latestFile, bucket); err != nil {
+	fmt.Fprintf(ctx.Stdout(), "Created %s: succcess\n", latestFile)
+	args = []string{"-q", "cp", latestFile, bucket}
+	if err := ctx.Run().Command("gsutil", args...); err != nil {
 		return nil, internalTestError{err, "Upload"}
 	}
+	fmt.Fprintf(ctx.Stdout(), "gsutil %s: success\n", args)
 
 	return &test.Result{Status: test.Passed}, nil
 }
