@@ -78,7 +78,7 @@ func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt)
 	}, &e)
 	go func() {
 		sigchan := make(chan os.Signal, 1)
-		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		<-sigchan
 		if err := cleanupTestInstances(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)

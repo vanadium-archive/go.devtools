@@ -1758,13 +1758,20 @@ type binSet struct {
 }
 
 type regressionTestConfig struct {
-	AgainstDates []regressionDate `json:"againstDates"` // Dates to test binaries against.
-	Sets         []binSet         `json:"sets"`         // Sets of binaries to hold at different dates.
-	Tests        string           `json:"tests"`        // regexp defining tests to run.
+	// Dates to test binaries against.
+	AgainstDates []regressionDate `json:"againstDates"`
+	// If binaries for any given date are missing, go back up to this many
+	// days in search for existing binaries.
+	DatesGrace int `json:"datesGrace"`
+	// Sets of binaries to hold at different dates.
+	Sets []binSet `json:"sets"`
+	// Regexp defining tests to run.
+	Tests string `json:"tests"`
 }
 
 func defaultRegressionConfig() *regressionTestConfig {
 	config := &regressionTestConfig{
+		DatesGrace: 3,
 		Sets: []binSet{
 			{
 				Name:     "agent-only",
@@ -1858,12 +1865,29 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	if err := ctx.Run().Command("jiri", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
 		return nil, err
 	}
-
+	available, err := listAvailableVanadiumBinaries(ctx, vbinaryBin)
+	if err != nil {
+		return nil, err
+	}
 	out := &test.Result{Status: test.Passed}
 	suites := []xunit.TestSuite{}
 	for _, againstDate := range config.AgainstDates {
 		againstTime := time.Time(againstDate)
-		againstDateStr := againstTime.Format("2006-01-02")
+		var againstDateStr string
+		for i := 0; i <= config.DatesGrace; i++ {
+			againstDateStr = againstTime.Format("2006-01-02")
+			if bytes.Contains(available, []byte(runtime.GOOS+"_"+runtime.GOARCH+"/"+againstDateStr)) {
+				if i > 0 {
+					fmt.Fprintf(ctx.Stdout(), "no snapshot found for %s; using %s instead\n", time.Time(againstDate).Format("2006-01-02"), againstDateStr)
+				}
+				break
+			}
+			if i == config.DatesGrace {
+				fmt.Fprintf(ctx.Stdout(), "#### Skipping tests for %s, no snapshot found (grace: %d) ####\n", againstDateStr, config.DatesGrace)
+				return nil, fmt.Errorf("no snapshot found for %s (grace: %d)", againstDateStr, config.DatesGrace)
+			}
+			againstTime = againstTime.AddDate(0, 0, -1)
+		}
 		oldDir, err := downloadVanadiumBinaries(ctx, vbinaryBin, againstTime)
 		if err == noSnapshotErr {
 			fmt.Fprintf(ctx.Stdout(), "#### Skipping tests for %s, no snapshot ####\n", againstDateStr)
@@ -1915,6 +1939,20 @@ func mergeTestSet(into map[string][]string, from map[string][]string) {
 // binaries for the given date.
 var noSnapshotErr = fmt.Errorf("no snapshots for specified date.")
 
+func listAvailableVanadiumBinaries(ctx *tool.Context, bin string) ([]byte, error) {
+	args := []string{
+		"-key-file", os.Getenv("V23_KEY_FILE"),
+		"list",
+	}
+	opts := ctx.Run().Opts()
+	var out bytes.Buffer
+	opts.Stdout = &out
+	if err := ctx.Run().CommandWithOpts(opts, bin, args...); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
 func downloadVanadiumBinaries(ctx *tool.Context, bin string, date time.Time) (binDir string, e error) {
 	dateStr := date.Format("2006-01-02")
 	binDir = filepath.Join(regTestBinDirPath(), dateStr)
@@ -1923,12 +1961,14 @@ func downloadVanadiumBinaries(ctx *tool.Context, bin string, date time.Time) (bi
 	} else if !os.IsNotExist(err) {
 		return "", err
 	}
-	if err := ctx.Run().Command(bin,
+	args := []string{
 		"-date-prefix", dateStr,
 		"-key-file", os.Getenv("V23_KEY_FILE"),
 		"download",
 		"-attempts=3",
-		"-output-dir", binDir); err != nil {
+		"-output-dir", binDir,
+	}
+	if err := ctx.Run().Command(bin, args...); err != nil {
 		exiterr, ok := err.(*exec.ExitError)
 		if !ok {
 			return "", err
@@ -1940,6 +1980,7 @@ func downloadVanadiumBinaries(ctx *tool.Context, bin string, date time.Time) (bi
 		if status.ExitStatus() == util.NoSnapshotExitCode {
 			return "", noSnapshotErr
 		}
+		return "", err
 	}
 	return binDir, nil
 }
