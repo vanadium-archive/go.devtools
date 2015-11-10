@@ -113,7 +113,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := profiles.EnsureProfileTargetIsUninstalled(ctx, profile.name, target, m.root); err != nil {
+		if err := profiles.EnsureProfileTargetIsUninstalled(ctx, profile.name, dependency, m.root); err != nil {
 			return err
 		}
 	}

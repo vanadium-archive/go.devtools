@@ -85,8 +85,7 @@ The jiri v23-profile commands are:
    env         Display profile environment variables
    uninstall   Uninstall the given profiles
    update      Install the latest default version of the given profiles
-   recreate    Display a list of commands that will recreate the currently
-               installed profiles
+   cleanup     Cleanup the locally installed profiles
    help        Display help for commands or topics
 
 The jiri v23-profile flags are:
@@ -144,13 +143,14 @@ The jiri v23-profile list flags are:
    	Target.InstallationDir - the installation directory of the requested profile.
    	Target.CommandLineEnv - the environment variables specified via the command line when installing this profile target.
    	Target.Env - the environment variables computed by the profile installation process for this target.
-   	Note: if no --target is specified then metadata for all targets will be displayed.
+   	Target.Command - a command that can be used to create this profile.
+   	Note: if no --target is specified then the requested field will be displayed for all targets.
    	Profile.Description - description of the requested profile.
    	Profile.Root - the root directory of the requested profile.
    	Profile.Versions - the set of supported versions for this profile.
    	Profile.DefaultVersion - the default version of the requested profile.
    	Profile.LatestVersion - the latest version available for the requested profile.
-   	Note: if no profiles are specified then metadata for all profiles will be displayed.
+   	Note: if no profiles are specified then the requested field will be displayed for all profiles.
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -show-manifest=false
@@ -227,19 +227,27 @@ The jiri v23-profile update flags are:
  -v=false
    print more detailed information
 
-Jiri v23-profile recreate - Display a list of commands that will recreate the currently installed profiles
+Jiri v23-profile cleanup - Cleanup the locally installed profiles
 
-Display a list of commands that will recreate the currently installed profiles.
+Cleanup the locally installed profiles. This is generally required when
+recovering from earlier bugs or when preparing for a subsequent change to the
+profiles implementation.
 
 Usage:
-   jiri v23-profile recreate [flags] <profiles>
+   jiri v23-profile cleanup [flags] <profiles>
 
-<profiles> is a list of profiles to be recreated, if omitted commands to
-recreate all profiles are displayed.
+<profiles> is a list of profiles to cleanup, if omitted all profiles are
+cleaned.
 
-The jiri v23-profile recreate flags are:
+The jiri v23-profile cleanup flags are:
+ -ensure-specific-versions-are-set=false
+   ensure that profile targets have a specific version set
+ -gc=false
+   uninstall profile targets that are older than the current default
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -v=false
+   print more detailed information
 
 Jiri v23-profile help - Display help for commands or topics
 

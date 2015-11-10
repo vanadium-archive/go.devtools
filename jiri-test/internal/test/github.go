@@ -184,7 +184,7 @@ func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 	allPassed := true
 	suites := []xunit.TestSuite{}
 	for _, mirror := range mirrors {
-		suite, err := sync(ctx, mirror, projects)
+		suite, err := gitHubSync(ctx, mirror, projects)
 		if err != nil {
 			return nil, internalTestError{err, "sync"}
 		}
@@ -204,7 +204,7 @@ func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func sync(ctx *tool.Context, mirror Mirror, projects string) (*xunit.TestSuite, error) {
+func gitHubSync(ctx *tool.Context, mirror Mirror, projects string) (*xunit.TestSuite, error) {
 	suite := xunit.TestSuite{Name: mirror.name}
 	dirname := filepath.Join(projects, mirror.name)
 

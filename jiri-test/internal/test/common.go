@@ -125,6 +125,10 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 		return nil, err
 	}
 
+	if err := cleanupProfiles(ctx); err != nil {
+		return nil, internalTestError{err, "Init"}
+	}
+
 	insertTarget := func(profile string) []string {
 		if len(target) > 0 {
 			return []string{"--target=" + target, profile}
