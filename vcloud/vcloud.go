@@ -185,6 +185,7 @@ var (
 	flagBootDiskSize string
 	flagMachineType  string
 	flagSetupScript  string
+	flagScopes       string
 	flagFields       fieldsFlag
 )
 
@@ -203,6 +204,7 @@ func init() {
 	cmdNodeCreate.Flags.StringVar(&flagMachineType, "machine-type", "n1-standard-8", "Machine type to create.")
 	cmdNodeCreate.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to create the machine in.")
 	cmdNodeCreate.Flags.StringVar(&flagSetupScript, "setup-script", "", "Script to set up the machine.")
+	cmdNodeCreate.Flags.StringVar(&flagScopes, "scopes", "storage-full,logging-write", "Scopes of the machine.")
 	cmdNodeDelete.Flags.StringVar(&flagZone, "zone", "us-central1-f", "Zone to delete the machine in.")
 
 	tool.InitializeRunFlags(&cmdVCloud.Flags)

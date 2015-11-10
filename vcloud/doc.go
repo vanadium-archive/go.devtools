@@ -154,6 +154,8 @@ The vcloud node create flags are:
    Image to create the machine from.
  -machine-type=n1-standard-8
    Machine type to create.
+ -scopes=storage-full,logging-write
+   Scopes of the machine.
  -setup-script=
    Script to set up the machine.
  -zone=us-central1-f
