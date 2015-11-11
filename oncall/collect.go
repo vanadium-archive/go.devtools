@@ -57,12 +57,17 @@ const (
 )
 
 var (
-	binDirFlag          string
-	credentialsFlag     string
-	keyFileFlag         string
-	projectFlag         string
-	serviceAccountFlag  string
-	debugCommandTimeout = time.Second * 30
+	binDirFlag         string
+	credentialsFlag    string
+	keyFileFlag        string
+	projectFlag        string
+	serviceAccountFlag string
+	// Running debug stats read
+	// devmgr/apps/*/*/*/stats/system/metadata/build.[TPUM]* takes > 1
+	// minute on the jenkins corp nodes with the RPC backward compatibility
+	// retry change.
+	debugCommandTimeout = 2 * time.Minute
+	debugRPCTimeout     = 90 * time.Second
 	buildInfoRE         = regexp.MustCompile(`devmgr/apps/([^/]*)/.*/stats/system/metadata/build.(Pristine|Time|User|Manifest):\s*(.*)`)
 	manifestRE          = regexp.MustCompile(`.*label="(.*)">`)
 )
@@ -450,6 +455,7 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 	opts.Stderr = &stderrBuf
 	if err := ctx.Run().TimedCommandWithOpts(
 		debugCommandTimeout, opts, debug,
+		"--timeout", debugRPCTimeout.String(),
 		"--v23.namespace.root", namespaceRoot,
 		"--v23.credentials", credentialsFlag, "stats", "read", fmt.Sprintf("%s/build.[TPUM]*", buildInfoEndpointPrefix)); err != nil {
 		return fmt.Errorf("debug command failed: %v\nSTDERR:\n%s\nSTDOUT:\n%s\nEND\n", err, stderrBuf.String(), stdoutBuf.String())
