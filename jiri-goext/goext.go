@@ -17,9 +17,14 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
-var manifestFlag string
+var (
+	manifestFlag      string
+	mergePoliciesFlag profiles.MergePolicies
+)
 
 func init() {
+	mergePoliciesFlag = profiles.JiriMergePolicies()
+	profiles.RegisterMergePoliciesFlag(&cmdGoExt.Flags, &mergePoliciesFlag)
 	profiles.RegisterManifestFlag(&cmdGoExt.Flags, &manifestFlag, v23_profile.DefaultManifestFilename)
 	tool.InitializeRunFlags(&cmdGoExt.Flags)
 }
@@ -52,8 +57,9 @@ func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	if err != nil {
 		return err
 	}
+	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	failed := false
-	for _, workspace := range ch.GetTokens(ch.GoPath(), ":") {
+	for _, workspace := range ch.GetTokens("GOPATH", ":") {
 		if !strings.HasPrefix(workspace, ch.Root()) {
 			continue
 		}
