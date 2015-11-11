@@ -62,7 +62,7 @@ var (
 	keyFileFlag         string
 	projectFlag         string
 	serviceAccountFlag  string
-	debugCommandTimeout = time.Second * 10
+	debugCommandTimeout = time.Second * 30
 	buildInfoRE         = regexp.MustCompile(`devmgr/apps/([^/]*)/.*/stats/system/metadata/build.(Pristine|Time|User|Manifest):\s*(.*)`)
 	manifestRE          = regexp.MustCompile(`.*label="(.*)">`)
 )
@@ -444,19 +444,19 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 
 	// Run "debug stats read" command to query build info data.
 	debug := filepath.Join(binDirFlag, "debug")
-	var buf bytes.Buffer
+	var stdoutBuf, stderrBuf bytes.Buffer
 	opts := ctx.Run().Opts()
-	opts.Stdout = &buf
-	opts.Stderr = &buf
+	opts.Stdout = &stdoutBuf
+	opts.Stderr = &stderrBuf
 	if err := ctx.Run().TimedCommandWithOpts(
 		debugCommandTimeout, opts, debug,
 		"--v23.namespace.root", namespaceRoot,
 		"--v23.credentials", credentialsFlag, "stats", "read", fmt.Sprintf("%s/build.[TPUM]*", buildInfoEndpointPrefix)); err != nil {
-		return fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
+		return fmt.Errorf("debug command failed: %v\nSTDERR:\n%s\nSTDOUT:\n%s\nEND\n", err, stderrBuf.String(), stdoutBuf.String())
 	}
 
 	// Parse output.
-	lines := strings.Split(buf.String(), "\n")
+	lines := strings.Split(stdoutBuf.String(), "\n")
 	buildInfoByServiceName := map[string]*buildInfoData{}
 	for _, line := range lines {
 		matches := buildInfoRE.FindStringSubmatch(line)
