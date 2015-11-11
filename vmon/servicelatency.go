@@ -20,7 +20,11 @@ import (
 )
 
 var (
-	timeout = 5 * time.Second
+	// Empirically, running "debug stats read -json
+	// /ns.dev.v.io:8101/binaries/__debug/stats/rpc/server/routing-id/*/methods/*/latency-ms/delta1m
+	// ten times took a max of 14 seconds with a standard deviation of 2.6
+	// seconds.  So we take max + 2 x stdev =~ 20 seconds.
+	timeout = 20 * time.Second
 )
 
 type prodService struct {
