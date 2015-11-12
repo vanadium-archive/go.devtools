@@ -31,8 +31,8 @@ func cleanupProfilesImpl(ctx *tool.Context) error {
 	opts.Stdout = &out
 	opts.Stderr = &out
 
-	removals := []string{}
-	fmt.Fprintf(ctx.Stdout(), "sanitizeProfiles: remove: %s\n", removals)
+	removals := []string{"uninstall nacl"}
+	fmt.Fprintf(ctx.Stdout(), "cleanuoProfiles: remove: %s\n", removals)
 	cmds := append([]string{"list"}, removals...)
 	cleanup := []string{"cleanup --ensure-specific-versions-are-set --gc"}
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)

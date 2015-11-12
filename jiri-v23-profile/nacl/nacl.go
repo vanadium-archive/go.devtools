@@ -75,7 +75,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profiles.Target) error {
 	if !target.IsSet() {
 		def := *target
-		target.Set("nacl=amd64p32-nacl")
+		target.Set("amd64p32-nacl")
 		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
 		if target.Arch() != "amd64p32" && target.OS() != "nacl" {
