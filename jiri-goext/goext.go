@@ -8,6 +8,7 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -59,12 +60,15 @@ func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	failed := false
+	fmt.Fprintf(ctx.Stdout(), "GOPATH: %s\n", ch.GetTokens("GOPATH", ":"))
+	fmt.Fprintf(ctx.Stdout(), "Jiri Root: %v\n", ch.Root())
 	for _, workspace := range ch.GetTokens("GOPATH", ":") {
 		if !strings.HasPrefix(workspace, ch.Root()) {
 			continue
 		}
 		for _, name := range []string{"bin", "pkg"} {
 			dir := filepath.Join(workspace, name)
+			fmt.Fprintf(ctx.Stdout(), "removing: %s\n", dir)
 			if err := ctx.Run().RemoveAll(dir); err != nil {
 				failed = true
 			}
