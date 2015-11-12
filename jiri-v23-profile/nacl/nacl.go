@@ -35,10 +35,10 @@ func init() {
 }
 
 type Manager struct {
-	root        string
-	naclRoot    string
-	versionInfo *profiles.VersionInfo
-	spec        versionSpec
+	root, naclRoot          profiles.RelativePath
+	naclSrcDir, naclInstDir profiles.RelativePath
+	versionInfo             *profiles.VersionInfo
+	spec                    versionSpec
 }
 
 func (Manager) Name() string {
@@ -47,15 +47,6 @@ func (Manager) Name() string {
 
 func (m Manager) String() string {
 	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
-}
-
-func (m Manager) Root() string {
-	return m.root
-}
-
-func (m *Manager) SetRoot(root string) {
-	m.root = root
-	m.naclRoot = filepath.Join(m.root, "profiles", "nacl")
 }
 
 func (m Manager) VersionInfo() *profiles.VersionInfo {
@@ -72,7 +63,10 @@ amd64p32-nacl and assumes it as the default`
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profiles.Target) error {
+func (m *Manager) initForTarget(ctx *tool.Context, action string, root profiles.RelativePath, target *profiles.Target) error {
+	m.root = root
+	m.naclRoot = root.Join("nacl")
+
 	if !target.IsSet() {
 		def := *target
 		target.Set("nacl=amd64p32-nacl")
@@ -82,53 +76,63 @@ func (m *Manager) defaultTarget(ctx *tool.Context, action string, target *profil
 			return fmt.Errorf("this profile can only be %v as amd64p32-nacl and not as %v", action, target)
 		}
 	}
-	return nil
-}
-
-func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	if err := m.defaultTarget(ctx, "installed", &target); err != nil {
-		return err
-	}
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
-	naclInstDir := filepath.Join(m.naclRoot, target.TargetSpecificDirname(), m.spec.gitRevision)
+	m.naclSrcDir = m.naclRoot.Join(m.spec.gitRevision)
+	m.naclInstDir = m.naclRoot.Join(target.TargetSpecificDirname(), m.spec.gitRevision)
+	return nil
+}
 
-	if err := m.installNacl(ctx, target, m.spec, naclInstDir); err != nil {
+func relPath(rp profiles.RelativePath) string {
+	if profiles.SchemaVersion() >= 4 {
+		return rp.String()
+	}
+	return rp.Expand()
+}
+
+func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(ctx, "installed", root, &target); err != nil {
+		return err
+	}
+
+	if err := m.installNacl(ctx, target, m.spec); err != nil {
 		return err
 	}
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
 		"GOARCH=amd64p32",
 		"GOOS=nacl",
-		"GOROOT=" + naclInstDir,
+		"GOROOT=" + relPath(m.naclInstDir),
 	})
-	target.InstallationDir = naclInstDir
-	profiles.InstallProfile(profileName, m.naclRoot)
+	if profiles.SchemaVersion() >= 4 {
+		target.InstallationDir = m.naclInstDir.String()
+		profiles.InstallProfile(profileName, m.naclRoot.String())
+	} else {
+		target.InstallationDir = m.naclInstDir.Expand()
+		profiles.InstallProfile(profileName, m.naclRoot.Expand())
+
+	}
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
+func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
 	// ignore errors to allow for older installs to be removed.
-	m.defaultTarget(ctx, "uninstalled", &target)
-	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+	m.initForTarget(ctx, "uninstalled", root, &target)
+
+	if err := ctx.Run().RemoveAll(m.naclInstDir.Expand()); err != nil {
 		return err
 	}
-	naclSrcDir := filepath.Join(m.naclRoot, m.spec.gitRevision)
-	naclInstDir := filepath.Join(m.naclRoot, target.TargetSpecificDirname(), m.spec.gitRevision)
-	if err := ctx.Run().RemoveAll(naclInstDir); err != nil {
-		return err
-	}
-	if err := ctx.Run().RemoveAll(naclSrcDir); err != nil {
+	if err := ctx.Run().RemoveAll(m.naclSrcDir.Expand()); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
-		return ctx.Run().RemoveAll(m.naclRoot)
+		return ctx.Run().RemoveAll(m.naclRoot.Expand())
 	}
 	return nil
 }
 
 // installNacl installs the nacl profile.
-func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec versionSpec, naclInstDir string) error {
+func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec versionSpec) error {
 	switch runtime.GOOS {
 	case "darwin":
 	case "linux":
@@ -136,9 +140,8 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec ve
 			return err
 		}
 	}
-
-	naclSrcDir := filepath.Join(m.naclRoot, spec.gitRevision)
-
+	naclSrcDir := m.naclSrcDir.Expand()
+	naclInstDir := m.naclInstDir.Expand()
 	cloneGoPpapiFn := func() error {
 		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
@@ -153,7 +156,7 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec ve
 			return err
 		}
 
-		if err := ctx.Run().MkdirAll(m.naclRoot, profiles.DefaultDirPerm); err != nil {
+		if err := ctx.Run().MkdirAll(m.naclRoot.Expand(), profiles.DefaultDirPerm); err != nil {
 			return err
 		}
 

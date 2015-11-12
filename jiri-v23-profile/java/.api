@@ -1,10 +1,8 @@
 pkg java, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg java, method (*Manager) Install(*tool.Context, profiles.Target) error
-pkg java, method (*Manager) SetRoot(string)
-pkg java, method (*Manager) Uninstall(*tool.Context, profiles.Target) error
+pkg java, method (*Manager) Install(*tool.Context, profiles.RelativePath, profiles.Target) error
+pkg java, method (*Manager) Uninstall(*tool.Context, profiles.RelativePath, profiles.Target) error
 pkg java, method (Manager) Info() string
 pkg java, method (Manager) Name() string
-pkg java, method (Manager) Root() string
 pkg java, method (Manager) String() string
 pkg java, method (Manager) VersionInfo() *profiles.VersionInfo
 pkg java, type Manager struct

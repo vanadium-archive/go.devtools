@@ -114,8 +114,6 @@ Usage:
 The jiri v23-profile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
- -go.install-dir=
-   installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
@@ -202,8 +200,6 @@ Usage:
 The jiri v23-profile uninstall flags are:
  -all-targets=false
    apply to all targets for the specified profile(s)
- -go.install-dir=
-   installation directory for go profile builds.
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
@@ -246,6 +242,8 @@ The jiri v23-profile cleanup flags are:
    uninstall profile targets that are older than the current default
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -rm-all=false
+   remove profile manifest and all profile generated output files.
  -v=false
    print more detailed information
 

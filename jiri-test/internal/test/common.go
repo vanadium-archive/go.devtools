@@ -167,8 +167,7 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
 	}
 	fmt.Fprintf(ctx.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
-
-	fmt.Fprintf(ctx.Stdout(), "Installed & updated: %v\n", profileNames)
+	displayProfiles(ctx, "initTest:")
 
 	// Descend into the working directory (unless doing a "dry
 	// run" in which case the working directory does not exist).
@@ -209,10 +208,6 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 		if err := ctx.Run().RemoveAll(file); err != nil {
 			return nil, fmt.Errorf("RemoveAll(%s): %v", file, err)
 		}
-	}
-
-	if !isCI() {
-		displayProfiles(ctx, "initTest:")
 	}
 
 	return func() error {

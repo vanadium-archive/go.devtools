@@ -38,10 +38,9 @@ func init() {
 }
 
 type Manager struct {
-	root        string
-	javaRoot    string
-	versionInfo *profiles.VersionInfo
-	spec        versionSpec
+	root, javaRoot profiles.RelativePath
+	versionInfo    *profiles.VersionInfo
+	spec           versionSpec
 }
 
 func (Manager) Name() string {
@@ -50,15 +49,6 @@ func (Manager) Name() string {
 
 func (m Manager) String() string {
 	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
-}
-
-func (m Manager) Root() string {
-	return m.root
-}
-
-func (m *Manager) SetRoot(root string) {
-	m.root = root
-	m.javaRoot = filepath.Join(m.root, "profiles", "java")
 }
 
 func (m Manager) Info() string {
@@ -77,14 +67,27 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
+func (m *Manager) initForTarget(root profiles.RelativePath, target profiles.Target) error {
+	m.root = root
+	m.javaRoot = root.Join("java")
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(root, target); err != nil {
+		return err
+	}
+
 	javaHome, err := m.install(ctx, target)
 	if err != nil {
 		return err
 	}
 	baseTarget := target
 	baseTarget.SetVersion("")
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "base", baseTarget, m.root); err != nil {
+	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "base", root, baseTarget); err != nil {
 		return err
 	}
 	// NOTE(spetrovic): For now, we install android profile along with Java,
@@ -93,7 +96,7 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	if err != nil {
 		return err
 	}
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "android", androidTarget, m.root); err != nil {
+	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "android", root, androidTarget); err != nil {
 		return err
 	}
 
@@ -106,16 +109,24 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 			filepath.Join(javaHome, "include", target.OS())),
 		"JAVA_HOME=" + javaHome,
 	}
+
 	baseProfileEnv := profiles.EnvFromProfile(baseTarget, "base")
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv, javaProfileEnv)
 	target.Env.Vars = env.ToSlice()
+	if profiles.SchemaVersion() >= 4 {
+		profiles.InstallProfile(profileName, m.javaRoot.RelativePath())
+	} else {
+		profiles.InstallProfile(profileName, m.javaRoot.Expand())
+	}
 	target.InstallationDir = javaHome
-	profiles.InstallProfile(profileName, m.javaRoot)
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	if err := ctx.Run().RemoveAll(m.javaRoot); err != nil {
+func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(root, target); err != nil {
+		return err
+	}
+	if err := ctx.Run().RemoveAll(m.javaRoot.Expand()); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -123,9 +134,6 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 }
 
 func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, error) {
-	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
-		return "", err
-	}
 	switch target.OS() {
 	case "darwin":
 		profiles.InstallPackages(ctx, []string{"gradle"})

@@ -14,7 +14,7 @@ import (
 // and starts the corresponding Jenkins targets based on the changes.
 func vanadiumPostsubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(ctx, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

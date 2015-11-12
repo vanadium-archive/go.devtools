@@ -21,10 +21,9 @@ import (
 )
 
 var (
-	profileName      = "go"
-	go15GitRemote    = "https://github.com/golang/go.git"
-	goInstallDirFlag = ""
-	goSysRootFlag    = ""
+	profileName   = "go"
+	go15GitRemote = "https://github.com/golang/go.git"
+	goSysRootFlag = ""
 )
 
 // Supported cross compilation toolchains.
@@ -66,10 +65,9 @@ func init() {
 }
 
 type Manager struct {
-	root        string
-	goRoot      string
-	versionInfo *profiles.VersionInfo
-	spec        versionSpec
+	root, goRoot, targetDir, goInstDir profiles.RelativePath
+	versionInfo                        *profiles.VersionInfo
+	spec                               versionSpec
 }
 
 func (_ Manager) Name() string {
@@ -78,18 +76,6 @@ func (_ Manager) Name() string {
 
 func (m Manager) String() string {
 	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
-}
-
-func (m Manager) Root() string {
-	return m.root
-}
-
-func (m *Manager) SetRoot(root string) {
-	m.root = root
-	m.goRoot = goInstallDirFlag
-	if len(m.goRoot) == 0 {
-		m.goRoot = filepath.Join(m.root, "profiles", "go")
-	}
 }
 
 func (m Manager) Info() string {
@@ -104,15 +90,38 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 }
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
-	flags.StringVar(&goInstallDirFlag, profileName+".install-dir", "", "installation directory for go profile builds.")
 	flags.StringVar(&goSysRootFlag, profileName+".sysroot", "", "sysroot for cross compiling to the currently specified target")
 }
 
-func (m Manager) targetDir(target *profiles.Target) string {
-	return filepath.Join(m.goRoot, target.TargetSpecificDirname())
+func (m *Manager) initForTarget(ctx *tool.Context, root profiles.RelativePath, target *profiles.Target) error {
+	m.root = root
+	m.goRoot = root.Join("go")
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return err
+	}
+	m.targetDir = m.goRoot.Join(target.TargetSpecificDirname())
+	m.goInstDir = m.targetDir.Join(m.spec.gitRevision)
+	if ctx.Verbose() {
+		fmt.Fprintf(ctx.Stdout(), "Installation Directories for: %s\n", target)
+		fmt.Fprintf(ctx.Stdout(), "Go Profiles: %s\n", m.goRoot)
+		fmt.Fprintf(ctx.Stdout(), "Go Target+Revision %s\n", m.goInstDir)
+	}
+	return nil
 }
 
-func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
+func relPath(rp profiles.RelativePath) string {
+	if profiles.SchemaVersion() >= 4 {
+		return rp.String()
+	}
+	return rp.Expand()
+}
+
+func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(ctx, root, &target); err != nil {
+		return err
+	}
+
+	ctx.Run().RemoveAll(m.goRoot.Join("go-bootstrap").Expand())
 	cgo := true
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
@@ -142,26 +151,30 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 
 	env := envvar.VarsFromSlice(target.Env.Vars)
-	targetDir := m.targetDir(&target)
-
-	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
-		return err
-	}
-	goInstRoot, err := installGo15Plus(ctx, m.goRoot, targetDir, target.Version(), &m.spec, env)
-	if err != nil {
+	if err := m.installGo15Plus(ctx, target.Version(), env); err != nil {
 		return err
 	}
 
 	// Merge our target environment and GOROOT
-	goEnv := []string{"GOROOT=" + goInstRoot}
+	goEnv := []string{"GOROOT=" + relPath(m.goInstDir)}
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, goEnv)
 	target.Env.Vars = env.ToSlice()
-	target.InstallationDir = goInstRoot
-	profiles.InstallProfile(profileName, m.goRoot)
+	if profiles.SchemaVersion() >= 4 {
+		target.InstallationDir = m.goInstDir.RelativePath()
+		profiles.InstallProfile(profileName, m.goRoot.RelativePath())
+
+	} else {
+		target.InstallationDir = m.goInstDir.Expand()
+		profiles.InstallProfile(profileName, m.goRoot.Expand())
+	}
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
+func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(ctx, root, &target); err != nil {
+		return err
+	}
+
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
@@ -172,13 +185,13 @@ func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
 			}
 		}
 	}
-	if err := ctx.Run().RemoveAll(m.targetDir(&target)); err != nil {
+	if err := ctx.Run().RemoveAll(m.targetDir.Expand()); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
 		// If there are no more targets then remove the entire go directory,
 		// including the bootstrap one.
-		return ctx.Run().RemoveAll(m.goRoot)
+		return ctx.Run().RemoveAll(m.goRoot.Expand())
 	}
 	return nil
 }
@@ -204,8 +217,11 @@ func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 			return err
 		}
 		if ctx.Run().DirectoryExists(go14Dir) {
-			fmt.Fprintf(ctx.Stdout(), "Removing: %v\n", go14Dir)
 			ctx.Run().RemoveAll(go14Dir)
+		}
+		parentDir := filepath.Dir(go14Dir)
+		if !ctx.Run().DirectoryExists(parentDir) {
+			ctx.Run().MkdirAll(parentDir, profiles.DefaultDirPerm)
 		}
 		if err := ctx.Run().Rename(filepath.Join(tmpDir, "go"), go14Dir); err != nil {
 			return err
@@ -225,63 +241,61 @@ func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 
 // installGo15Plus installs any version of go past 1.5 at the specified git and go
 // revision.
-func installGo15Plus(ctx *tool.Context, bootstrapDir, goDir, version string, spec *versionSpec, env *envvar.Vars) (string, error) {
-	goRevDir := filepath.Join(goDir, spec.gitRevision)
-
+func (m *Manager) installGo15Plus(ctx *tool.Context, version string, env *envvar.Vars) error {
+	// First install bootstrap Go 1.4 for the host.
+	goBootstrapDir := m.targetDir.Join("go-bootstrap")
+	if err := installGo14(ctx, goBootstrapDir.Expand(), envvar.VarsFromOS()); err != nil {
+		return err
+	}
 	installGo15Fn := func() error {
-		// First install bootstrap Go 1.4 for the host.
-		if err := ctx.Run().MkdirAll(goDir, profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-
-		goBootstrapDir := filepath.Join(bootstrapDir, "go-bootstrap")
-		if err := installGo14(ctx, goBootstrapDir, envvar.VarsFromOS()); err != nil {
-			return err
-		}
-
 		tmpDir, err := ctx.Run().TempDir("", "")
 		if err != nil {
 			return err
 		}
 		defer ctx.Run().RemoveAll(tmpDir)
 
-		if err := profiles.GitCloneRepo(ctx, go15GitRemote, spec.gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
+		if err := ctx.Run().MkdirAll(m.targetDir.Expand(), profiles.DefaultDirPerm); err != nil {
+			return err
+		}
 
+		if err := profiles.GitCloneRepo(ctx, go15GitRemote, m.spec.gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
 			return err
 		}
 		if err := ctx.Run().Chdir(tmpDir); err != nil {
 			return err
 		}
 
-		if ctx.Run().DirectoryExists(goRevDir) {
-			ctx.Run().RemoveAll(goRevDir)
+		goInstDir := m.goInstDir.Expand()
+		if ctx.Run().DirectoryExists(goInstDir) {
+			ctx.Run().RemoveAll(goInstDir)
 		}
-		if err := ctx.Run().Rename(tmpDir, goRevDir); err != nil {
+
+		if err := ctx.Run().Rename(tmpDir, goInstDir); err != nil {
 			return err
 		}
-		goSrcDir := filepath.Join(goRevDir, "src")
+		goSrcDir := filepath.Join(goInstDir, "src")
 		if err := ctx.Run().Chdir(goSrcDir); err != nil {
 			return err
 		}
 		// Apply patches, if any.
-		for _, patchFile := range spec.patchFiles {
+		for _, patchFile := range m.spec.patchFiles {
 			if err := profiles.RunCommand(ctx, nil, "git", "apply", patchFile); err != nil {
 				return err
 			}
 		}
 		makeBin := filepath.Join(goSrcDir, "make.bash")
-		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir)
+		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Expand())
 		if err := profiles.RunCommand(ctx, env.ToMap(), makeBin); err != nil {
-			ctx.Run().RemoveAll(filepath.Join(goRevDir, "bin"))
+			ctx.Run().RemoveAll(filepath.Join(goInstDir, "bin"))
 			return err
 		}
 		return nil
 	}
-
-	if err := profiles.AtomicAction(ctx, installGo15Fn, goRevDir, "Build and install Go "+version+" @ "+spec.gitRevision); err != nil {
-		return "", err
+	if err := profiles.AtomicAction(ctx, installGo15Fn, m.goInstDir.Expand(), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
+		return err
 	}
-	return goRevDir, nil
+	env.Set("GOROOT_BOOTSTRAP", relPath(goBootstrapDir))
+	return nil
 }
 
 func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
@@ -292,7 +306,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	default:
 		return "", nil, fmt.Errorf("Arch %q is not yet supported for crosstools xgcc", target.Arch())
 	}
-	xgccOutDir := filepath.Join(m.root, "profiles", "cout", "xgcc")
+	xgccOutDir := filepath.Join(m.root.Expand(), "profiles", "cout", "xgcc")
 	xtoolInstDir := filepath.Join(xgccOutDir, "crosstools-ng-"+targetABI)
 	xgccInstDir := filepath.Join(xgccOutDir, targetABI)
 	xgccLinkInstDir := filepath.Join(xgccOutDir, "links-"+targetABI)
@@ -316,7 +330,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 
 	// Build and install crosstool-ng.
 	installNgFn := func() error {
-		xgccSrcDir := filepath.Join(m.root, "third_party", "csrc", "crosstool-ng-1.20.0")
+		xgccSrcDir := filepath.Join(m.root.RootJoin("third_party", "csrc", "crosstool-ng-1.20.0").Expand())
 		if err := ctx.Run().Chdir(xgccSrcDir); err != nil {
 			return err
 		}
@@ -364,7 +378,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 		if err != nil {
 			return fmt.Errorf("ReadFile(%v) failed: %v", configFile, err)
 		}
-		old, new := "/usr/local/vanadium", filepath.Join(m.root, "profiles", "cout")
+		old, new := "/usr/local/vanadium", filepath.Join(m.root.Expand(), "profiles", "cout")
 		newConfig := strings.Replace(string(config), old, new, -1)
 		newConfigFile := filepath.Join(tmpDir, ".config")
 		if err := ctx.Run().WriteFile(newConfigFile, []byte(newConfig), profiles.DefaultFilePerm); err != nil {

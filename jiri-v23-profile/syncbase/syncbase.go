@@ -31,10 +31,9 @@ func init() {
 }
 
 type Manager struct {
-	root                           string
-	syncbaseRoot, syncbaseInstRoot string
-	snappySrcDir, leveldbSrcDir    string
-	snappyInstDir, leveldbInstDir  string
+	syncbaseRoot, syncbaseInstRoot profiles.RelativePath
+	snappySrcDir, leveldbSrcDir    profiles.RelativePath
+	snappyInstDir, leveldbInstDir  profiles.RelativePath
 	versionInfo                    *profiles.VersionInfo
 }
 
@@ -44,18 +43,6 @@ func (Manager) Name() string {
 
 func (m Manager) String() string {
 	return fmt.Sprintf("%s[%s]", profileName, m.versionInfo.Default())
-}
-
-func (m Manager) Root() string {
-	return m.root
-}
-
-func (m *Manager) SetRoot(root string) {
-	m.root = root
-	m.syncbaseRoot = filepath.Join(m.root, "profiles", "cout")
-	m.snappySrcDir = filepath.Join(m.root, "third_party", "csrc", "snappy-1.1.2")
-	m.leveldbSrcDir = filepath.Join(m.root, "third_party", "csrc", "leveldb")
-
 }
 
 func (m Manager) Info() string {
@@ -71,35 +58,53 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(target profiles.Target) {
+func (m *Manager) initForTarget(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) {
+	m.syncbaseRoot = root.Join("cout")
+	m.snappySrcDir = root.RootJoin("third_party", "csrc", "snappy-1.1.2")
+	m.leveldbSrcDir = root.RootJoin("third_party", "csrc", "leveldb")
+
 	targetDir := target.TargetSpecificDirname()
-	m.syncbaseInstRoot = filepath.Join(m.root, "profiles", "cout", targetDir)
-	m.snappyInstDir = filepath.Join(m.syncbaseRoot, targetDir, "snappy")
-	m.leveldbInstDir = filepath.Join(m.syncbaseRoot, targetDir, "leveldb")
+	m.syncbaseInstRoot = m.syncbaseRoot.Join(targetDir)
+	m.snappyInstDir = m.syncbaseInstRoot.Join("snappy")
+	m.leveldbInstDir = m.syncbaseInstRoot.Join("leveldb")
+
+	if ctx.Verbose() {
+		fmt.Fprintf(ctx.Stdout(), "Installation Directories for: %s\n", target)
+		fmt.Fprintf(ctx.Stdout(), "Syncbase installation dir: %s\n", m.syncbaseInstRoot)
+		fmt.Fprintf(ctx.Stdout(), "Snappy: %s\n", m.snappyInstDir)
+		fmt.Fprintf(ctx.Stdout(), "Leveldb: %s\n", m.leveldbInstDir)
+	}
+}
+
+func relPath(rp profiles.RelativePath) string {
+	if profiles.SchemaVersion() >= 4 {
+		return rp.String()
+	}
+	return rp.Expand()
 }
 
 // setSyncbaseEnv adds the LevelDB third-party C++ libraries Vanadium
 // Go code depends on to the CGO_CFLAGS and CGO_LDFLAGS variables.
 func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]string, error) {
 	env := envvar.VarsFromSlice([]string{})
-	for _, dir := range []string{
+	for _, dir := range []profiles.RelativePath{
 		m.leveldbInstDir,
 		m.snappyInstDir,
 	} {
 		cflags := env.GetTokens("CGO_CFLAGS", " ")
 		cxxflags := env.GetTokens("CGO_CXXFLAGS", " ")
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
-		if _, err := ctx.Run().Stat(dir); err != nil {
+		if _, err := ctx.Run().Stat(dir.Expand()); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
 			}
 			continue
 		}
-		cflags = append(cflags, filepath.Join("-I"+dir, "include"))
-		cxxflags = append(cxxflags, filepath.Join("-I"+dir, "include"))
-		ldflags = append(ldflags, filepath.Join("-L"+dir, "lib"))
+		cflags = append(cflags, filepath.Join("-I"+relPath(dir), "include"))
+		cxxflags = append(cxxflags, filepath.Join("-I"+relPath(dir), "include"))
+		ldflags = append(ldflags, filepath.Join("-L"+relPath(dir), "lib"))
 		if target.Arch() == "linux" {
-			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir, "lib"))
+			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(relPath(dir), "lib"))
 		}
 		env.SetTokens("CGO_CFLAGS", cflags, " ")
 		env.SetTokens("CGO_CXXFLAGS", cxxflags, " ")
@@ -108,8 +113,8 @@ func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]stri
 	return env.ToSlice(), nil
 }
 
-func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
-	m.initForTarget(target)
+func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	m.initForTarget(ctx, root, target)
 	if err := m.installDependencies(ctx, target.Arch(), target.OS()); err != nil {
 		return err
 	}
@@ -123,17 +128,22 @@ func (m *Manager) Install(ctx *tool.Context, target profiles.Target) error {
 	}
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, syncbaseEnv)
 	target.Env.Vars = env.ToSlice()
-	target.InstallationDir = m.syncbaseInstRoot
-	profiles.InstallProfile(profileName, m.syncbaseRoot)
+	if profiles.SchemaVersion() >= 4 {
+		target.InstallationDir = m.syncbaseInstRoot.RelativePath()
+	} else {
+		target.InstallationDir = m.syncbaseInstRoot.Expand()
+	}
+
+	profiles.InstallProfile(profileName, m.syncbaseRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, target profiles.Target) error {
-	m.initForTarget(target)
-	if err := ctx.Run().RemoveAll(m.snappyInstDir); err != nil {
+func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+	m.initForTarget(ctx, root, target)
+	if err := ctx.Run().RemoveAll(m.snappyInstDir.Expand()); err != nil {
 		return err
 	}
-	if err := ctx.Run().RemoveAll(m.leveldbInstDir); err != nil {
+	if err := ctx.Run().RemoveAll(m.leveldbInstDir.Expand()); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -169,14 +179,14 @@ func getAndroidRoot() (string, error) {
 func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
-		if err := ctx.Run().Chdir(m.snappySrcDir); err != nil {
+		if err := ctx.Run().Chdir(m.snappySrcDir.Expand()); err != nil {
 			return err
 		}
 		if err := profiles.RunCommand(ctx, nil, "autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
 		}
 		args := []string{
-			fmt.Sprintf("--prefix=%v", m.snappyInstDir),
+			fmt.Sprintf("--prefix=%v", m.snappyInstDir.Expand()),
 			"--enable-shared=false",
 		}
 		env := map[string]string{
@@ -238,31 +248,31 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(ctx, installSnappyFn, m.snappyInstDir, "Build and install Snappy"); err != nil {
+	if err := profiles.AtomicAction(ctx, installSnappyFn, m.snappyInstDir.Expand(), "Build and install Snappy"); err != nil {
 		return err
 	}
 
 	// Build and install LevelDB.
 	installLeveldbFn := func() error {
-		if err := ctx.Run().Chdir(m.leveldbSrcDir); err != nil {
+		if err := ctx.Run().Chdir(m.leveldbSrcDir.Expand()); err != nil {
 			return err
 		}
-		if err := profiles.RunCommand(ctx, nil, "mkdir", "-p", m.leveldbInstDir); err != nil {
+		if err := profiles.RunCommand(ctx, nil, "mkdir", "-p", m.leveldbInstDir.Expand()); err != nil {
 			return err
 		}
-		leveldbIncludeDir := filepath.Join(m.leveldbInstDir, "include")
+		leveldbIncludeDir := m.leveldbInstDir.Join("include").Expand()
 		if err := profiles.RunCommand(ctx, nil, "cp", "-R", "include", leveldbIncludeDir); err != nil {
 			return err
 		}
-		leveldbLibDir := filepath.Join(m.leveldbInstDir, "lib")
+		leveldbLibDir := m.leveldbInstDir.Join("lib").Expand()
 		if err := profiles.RunCommand(ctx, nil, "mkdir", leveldbLibDir); err != nil {
 			return err
 		}
 		env := map[string]string{
 			"PREFIX": leveldbLibDir,
 			// NOTE(nlacasse): The -fPIC flag is needed to compile Syncbase Mojo service.
-			"CXXFLAGS": "-I" + filepath.Join(m.snappyInstDir, "include") + " -fPIC",
-			"LDFLAGS":  "-L" + filepath.Join(m.snappyInstDir, "lib"),
+			"CXXFLAGS": "-I" + filepath.Join(relPath(m.snappyInstDir), "include") + " -fPIC",
+			"LDFLAGS":  "-L" + filepath.Join(relPath(m.snappyInstDir), "lib"),
 		}
 		if target.Arch() == "386" {
 			env["CC"] = "gcc -m32"
@@ -312,7 +322,7 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(ctx, installLeveldbFn, m.leveldbInstDir, "Build and install LevelDB"); err != nil {
+	if err := profiles.AtomicAction(ctx, installLeveldbFn, m.leveldbInstDir.Expand(), "Build and install LevelDB"); err != nil {
 		return err
 	}
 	return nil
