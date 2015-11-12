@@ -8,6 +8,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,7 @@ import (
 
 var (
 	manifestFlag      string
+	verboseFlag       bool
 	mergePoliciesFlag profiles.MergePolicies
 )
 
@@ -27,6 +29,7 @@ func init() {
 	mergePoliciesFlag = profiles.JiriMergePolicies()
 	profiles.RegisterMergePoliciesFlag(&cmdGoExt.Flags, &mergePoliciesFlag)
 	profiles.RegisterManifestFlag(&cmdGoExt.Flags, &manifestFlag, v23_profile.DefaultManifestFilename)
+	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
 	tool.InitializeRunFlags(&cmdGoExt.Flags)
 }
 
@@ -60,15 +63,19 @@ func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	failed := false
-	fmt.Fprintf(ctx.Stdout(), "GOPATH: %s\n", ch.GetTokens("GOPATH", ":"))
-	fmt.Fprintf(ctx.Stdout(), "Jiri Root: %v\n", ch.Root())
+	if verboseFlag {
+		fmt.Fprintf(ctx.Stdout(), "GOPATH:\n%s\n", strings.Join(ch.GetTokens("GOPATH", ":"), "\n"))
+		fmt.Fprintf(ctx.Stdout(), "Jiri Root: %v\n", ch.Root())
+	}
 	for _, workspace := range ch.GetTokens("GOPATH", ":") {
 		if !strings.HasPrefix(workspace, ch.Root()) {
 			continue
 		}
 		for _, name := range []string{"bin", "pkg"} {
 			dir := filepath.Join(workspace, name)
-			fmt.Fprintf(ctx.Stdout(), "removing: %s\n", dir)
+			if verboseFlag {
+				fmt.Fprintf(ctx.Stdout(), "removing: %s\n", dir)
+			}
 			if err := ctx.Run().RemoveAll(dir); err != nil {
 				failed = true
 			}

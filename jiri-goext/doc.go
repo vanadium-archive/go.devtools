@@ -32,6 +32,8 @@ The global flags are:
    Displays metadata for the program and exits.
  -time=false
    Dump timing information to stderr before exiting the program.
+ -v=false
+   print verbose debugging information
 
 Jiri goext distclean - Restore the vanadium Go workspaces to their pristine state
 
