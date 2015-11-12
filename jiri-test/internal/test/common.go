@@ -184,6 +184,16 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 
 	// Remove all stale Go object files and binaries.
 	if cleanGo {
+		// TODO(nlacasse, cnicolaou): Remove this once goext distclean is fixed
+		// on jenkins.
+		root, err := project.JiriRoot()
+		if err != nil {
+			return nil, err
+		}
+		if err := ctx.Run().RemoveAll(filepath.Join(root, "release", "go", "pkg")); err != nil {
+			return nil, err
+		}
+
 		if err := ctx.Run().Command("jiri", "goext", "distclean"); err != nil {
 			return nil, fmt.Errorf("jiri goext distclean: %v", err)
 		}
