@@ -69,7 +69,7 @@ func (m *Manager) initForTarget(ctx *tool.Context, action string, root profiles.
 
 	if !target.IsSet() {
 		def := *target
-		target.Set("nacl=amd64p32-nacl")
+		target.Set("amd64p32-nacl")
 		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
 		if target.Arch() != "amd64p32" && target.OS() != "nacl" {
