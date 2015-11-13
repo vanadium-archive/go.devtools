@@ -120,7 +120,7 @@ The jiri v23-profile install flags are:
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
 
 Jiri v23-profile list - List available or installed profiles
 
@@ -155,7 +155,7 @@ The jiri v23-profile list flags are:
    print out the manifest file
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    print more detailed information
 
@@ -184,7 +184,7 @@ The jiri v23-profile env flags are:
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    print more detailed information
 
@@ -206,7 +206,7 @@ The jiri v23-profile uninstall flags are:
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
 
 Jiri v23-profile update - Install the latest default version of the given profiles
 
