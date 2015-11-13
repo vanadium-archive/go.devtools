@@ -109,6 +109,11 @@ var (
 			github:       "git@github.com:vanadium/mojo.syncbase.git",
 		},
 		Mirror{
+			name:         "mojo.v23proxy",
+			googlesource: "https://vanadium.googlesource.com/release.mojo.v23proxy",
+			github:       "git@github.com:vanadium/mojo.v23proxy.git",
+		},
+		Mirror{
 			name:         "physical-lock",
 			googlesource: "https://vanadium.googlesource.com/release.projects.physical-lock",
 			github:       "git@github.com:vanadium/physical-lock.git",
