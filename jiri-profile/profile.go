@@ -117,8 +117,10 @@ func init() {
 // cmdProfile represents the "jiri profile" command.
 var cmdProfile = &cmdline.Command{
 	Name:  "profile",
-	Short: "Manage vanadium profiles",
+	Short: "Manage vanadium profiles (deprecated: use jiri v23-profile instead)",
 	Long: `
+NOTE: this command is deprecated, please use jiri v23-profile instead.
+
 To facilitate development across different host platforms, vanadium
 defines platform-independent "profiles" that map different platforms
 to a set of libraries and tools that can be used for a facet of
@@ -275,6 +277,7 @@ var cmdProfileInstall = &cmdline.Command{
 }
 
 func runProfileInstall(env *cmdline.Env, args []string) error {
+	warning()
 	// Check that the profiles to be installed exist.
 	for _, arg := range args {
 		if _, ok := knownProfiles[arg]; !ok {
@@ -1232,6 +1235,7 @@ var cmdProfileList = &cmdline.Command{
 }
 
 func runProfileList(env *cmdline.Env, _ []string) error {
+	warning()
 	var profiles []string
 	for profile := range knownProfiles {
 		profiles = append(profiles, profile)
@@ -1266,6 +1270,7 @@ var cmdProfileUninstall = &cmdline.Command{
 }
 
 func runProfileUninstall(env *cmdline.Env, args []string) error {
+	warning()
 	// Check that the profiles to be uninstalled exist.
 	for _, arg := range args {
 		if _, ok := knownProfiles[arg]; !ok {
@@ -1506,6 +1511,7 @@ var cmdProfileUpdate = &cmdline.Command{
 }
 
 func runProfileUpdate(env *cmdline.Env, args []string) error {
+	warning()
 	// Check that the profiles to be updated exist.
 	for _, arg := range args {
 		if _, ok := knownProfiles[arg]; !ok {
@@ -1574,6 +1580,13 @@ func runProfileUpdate(env *cmdline.Env, args []string) error {
 		}
 	}
 	return nil
+}
+
+func warning() {
+	fmt.Fprintf(os.Stdout, "jiri profiles is deprecated - please use jiri v23-profile instead. This tool will be deleted before thanksgiving.\n")
+	duration := time.Duration(15 * time.Second)
+	fmt.Fprintf(os.Stderr, "Sleeping for %s to encourage you to use the new tool......\n", duration)
+	time.Sleep(duration)
 }
 
 func main() {

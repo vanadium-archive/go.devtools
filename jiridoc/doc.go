@@ -24,11 +24,13 @@ The jiri external commands are:
    api          Manage vanadium public API
    copyright    Manage vanadium copyright
    dockergo     Execute the go command in a docker container
-   env          Print vanadium environment variables
+   env          Print vanadium environment variables (deprecated: use jiri
+                v23-profile env instead)
    go           Execute the go tool using the vanadium environment
    goext        Vanadium extensions of the go tool
    oncall       Manage vanadium oncall schedule
-   profile      Manage vanadium profiles
+   profile      Manage vanadium profiles (deprecated: use jiri v23-profile
+                instead)
    run          Run an executable using the specified profile and target's
                 environment
    test         Manage vanadium tests
@@ -542,7 +544,9 @@ The jiri dockergo flags are:
  -v=false
    Print verbose output.
 
-Jiri env - Print vanadium environment variables
+Jiri env
+
+NOTE: this command is deprecated, please use jiri v23-profile env instead.
 
 Print vanadium environment variables.
 
@@ -675,7 +679,9 @@ List available oncall schedule.
 Usage:
    jiri oncall list
 
-Jiri profile - Manage vanadium profiles
+Jiri profile
+
+NOTE: this command is deprecated, please use jiri v23-profile instead.
 
 To facilitate development across different host platforms, vanadium defines
 platform-independent "profiles" that map different platforms to a set of

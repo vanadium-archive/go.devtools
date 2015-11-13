@@ -6,6 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
+NOTE: this command is deprecated, please use jiri v23-profile env instead.
+
 Print vanadium environment variables.
 
 If no arguments are given, prints all variables in NAME="VALUE" format, each on

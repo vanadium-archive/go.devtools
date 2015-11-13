@@ -6,6 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
+NOTE: this command is deprecated, please use jiri v23-profile instead.
+
 To facilitate development across different host platforms, vanadium defines
 platform-independent "profiles" that map different platforms to a set of
 libraries and tools that can be used for a facet of vanadium development.

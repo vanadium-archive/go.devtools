@@ -10,7 +10,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
@@ -27,8 +29,10 @@ func init() {
 var cmdEnv = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runEnv),
 	Name:   "env",
-	Short:  "Print vanadium environment variables",
+	Short:  "Print vanadium environment variables (deprecated: use jiri v23-profile env instead)",
 	Long: `
+NOTE: this command is deprecated, please use jiri v23-profile env instead.
+
 Print vanadium environment variables.
 
 If no arguments are given, prints all variables in NAME="VALUE" format,
@@ -58,6 +62,10 @@ func init() {
 }
 
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
+	fmt.Fprintf(os.Stdout, "jiri env is deprecated - please use jiri v23-profile env instead. This tool will be deleted before thanksgiving.\n")
+	duration := time.Duration(15 * time.Second)
+	fmt.Fprintf(os.Stderr, "Sleeping for %s to encourage you to use the new tool......\n", duration)
+	time.Sleep(duration)
 	ctx := tool.NewContextFromEnv(cmdlineEnv)
 	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
 	if err != nil {
