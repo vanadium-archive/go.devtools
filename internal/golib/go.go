@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,8 +46,7 @@ func PrepareGo(ctx *tool.Context, env map[string]string, args []string, extraLDF
 		// binary. Any manual specification of ldflags already in the args
 		// will override this.
 		var err error
-		args, err = setBuildInfoFlags(ctx, args, env, extraLDFlags, installSuffix)
-		if err != nil {
+		if args, err = setBuildInfoFlags(ctx, args, env, extraLDFlags, installSuffix); err != nil {
 			return nil, err
 		}
 		fallthrough
@@ -59,7 +59,7 @@ func PrepareGo(ctx *tool.Context, env map[string]string, args []string, extraLDF
 		}
 
 		// Generate vdl files, if necessary.
-		if err := generateVDL(ctx, env, args); err != nil {
+		if err := generateVDL(ctx, env, args[0], args[1:]); err != nil {
 			return nil, err
 		}
 	}
@@ -138,26 +138,24 @@ func setBuildInfoFlags(ctx *tool.Context, args []string, env map[string]string, 
 	return args, nil
 }
 
-// generateVDL generates VDL for the transitive Go package
-// dependencies.
+// generateVDL generates VDL for the transitive Go package dependencies.
 //
-// Note that the vdl tool takes VDL packages as input, but we're
-// supplying Go packages.  We're assuming the package paths for the
-// VDL packages we want to generate have the same path names as the Go
-// package paths.  Some of the Go package paths may not correspond to
-// a valid VDL package, so we provide the -ignore_unknown flag to
-// silently ignore these paths.
+// Note that the vdl tool takes VDL packages as input, but we're supplying Go
+// packages.  We're assuming the package paths for the VDL packages we want to
+// generate have the same path names as the Go package paths.  Some of the Go
+// package paths may not correspond to a valid VDL package, so we provide the
+// -ignore_unknown flag to silently ignore these paths.
 //
-// It's fine if the VDL packages have dependencies not reflected in
-// the Go packages; the vdl tool will compute the transitive closure
-// of VDL package dependencies, as usual.
+// It's fine if the VDL packages have dependencies not reflected in the Go
+// packages; the vdl tool will compute the transitive closure of VDL package
+// dependencies, as usual.
 //
-// TODO(toddw): Change the vdl tool to return vdl packages given the
-// full Go dependencies, after vdl config files are implemented.
-func generateVDL(ctx *tool.Context, env map[string]string, cmdArgs []string) error {
+// TODO(toddw): Change the vdl tool to return vdl packages given the full Go
+// dependencies, after vdl config files are implemented.
+func generateVDL(ctx *tool.Context, env map[string]string, cmd string, args []string) error {
 	// Compute which VDL-based Go packages might need to be regenerated.
-	goPkgs, goFiles, goTags := processGoCmdAndArgs(cmdArgs[0], cmdArgs[1:])
-	goDeps, err := computeGoDeps(ctx, env, append(goPkgs, goFiles...), goTags)
+	goPkgs, goFiles, goTags := processGoCmdAndArgs(cmd, args)
+	goDeps, err := computeGoDeps(ctx, env, append(goPkgs, goFiles...), goTags, cmd == "test")
 	if err != nil {
 		return err
 	}
@@ -325,16 +323,16 @@ func processGoCmdAndArgs(cmd string, args []string) ([]string, []string, string)
 var (
 	goFlagRE     = regexp.MustCompile(`^--?([^=]+)(=?)(.*)`)
 	nonBoolBuild = []string{
-		"p", "ccflags", "compiler", "gccgoflags", "gcflags", "installsuffix", "ldflags", "tags",
+		"p", "asmflags", "buildmode", "ccflags", "compiler", "gccgoflags", "gcflags", "installsuffix", "ldflags", "pkgdir", "tags", "toolexec",
 	}
 	nonBoolTest = []string{
-		"bench", "benchtime", "blockprofile", "blockprofilerate", "covermode", "coverpkg", "coverprofile", "cpu", "cpuprofile", "memprofile", "memprofilerate", "outputdir", "parallel", "run", "timeout",
+		"bench", "benchtime", "blockprofile", "blockprofilerate", "count", "covermode", "coverpkg", "coverprofile", "cpu", "cpuprofile", "memprofile", "memprofilerate", "outputdir", "parallel", "run", "timeout", "trace",
 	}
 	nonBoolGoBuild    = set.StringBool.FromSlice(append(nonBoolBuild, "o"))
 	nonBoolGoGenerate = set.StringBool.FromSlice([]string{"run"})
 	nonBoolGoInstall  = set.StringBool.FromSlice(nonBoolBuild)
 	nonBoolGoRun      = set.StringBool.FromSlice(append(nonBoolBuild, "exec"))
-	nonBoolGoTest     = set.StringBool.FromSlice(append(append(nonBoolBuild, nonBoolTest...), "exec"))
+	nonBoolGoTest     = set.StringBool.FromSlice(append(append(nonBoolBuild, nonBoolTest...), "exec", "o"))
 )
 
 // computeGoDeps computes the transitive Go package dependencies for the given
@@ -342,14 +340,33 @@ var (
 // string that dumps the specified pkgs and all deps as space / newline
 // separated tokens.  The pkgs may be in any format recognized by "go list"; dir
 // paths, import paths, or go files.
-func computeGoDeps(ctx *tool.Context, env map[string]string, pkgs []string, goTags string) ([]string, error) {
+func computeGoDeps(ctx *tool.Context, env map[string]string, pkgs []string, tags string, test bool) ([]string, error) {
+	if len(pkgs) == 0 {
+		pkgs = []string{"."}
+	}
 	goBin, err := runutil.LookPath("go", env)
 	if err != nil {
 		return nil, err
 	}
-	goListArgs := []string{`list`, `-f`, `{{.ImportPath}} {{join .Deps " "}}`}
-	if goTags != "" {
-		goListArgs = append(goListArgs, "-tags="+goTags)
+	if test {
+		// In order to compute the test dependencies, we need to first grab the
+		// direct test imports, and use the resulting set of packages to capture the
+		// transitive dependencies.  We can't do this with a single run of "go
+		// list", since unlike Dep, TestImports and XTestImports don't include
+		// transitive dependencies.
+		testDeps, err := runGoList(ctx, goBin, env, pkgs, tags, `{{join .TestImports " "}} {{join .XTestImports " "}}`)
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, testDeps...)
+	}
+	return runGoList(ctx, goBin, env, pkgs, tags, `{{.ImportPath}} {{join .Deps " "}}`)
+}
+
+func runGoList(ctx *tool.Context, goBin string, env map[string]string, pkgs []string, tags, format string) ([]string, error) {
+	goListArgs := []string{`list`, `-f`, format}
+	if tags != "" {
+		goListArgs = append(goListArgs, "-tags="+tags)
 	}
 	goListArgs = append(goListArgs, pkgs...)
 	var stdout, stderr bytes.Buffer
@@ -368,20 +385,16 @@ func computeGoDeps(ctx *tool.Context, env map[string]string, pkgs []string, goTa
 	scanner.Split(bufio.ScanWords)
 	depsMap := make(map[string]bool)
 	for scanner.Scan() {
-		depsMap[scanner.Text()] = true
+		// Ignore bad packages:
+		//   command-line-arguments is the dummy import path for "go run".
+		if dep := scanner.Text(); dep != "command-line-arguments" {
+			depsMap[dep] = true
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("Scan() failed: %v", err)
 	}
-	var deps []string
-	for dep, _ := range depsMap {
-		// Filter out bad packages:
-		//   command-line-arguments is the dummy import path for "go run".
-		switch dep {
-		case "command-line-arguments":
-			continue
-		}
-		deps = append(deps, dep)
-	}
+	deps := set.StringBool.ToSlice(depsMap)
+	sort.Strings(deps)
 	return deps, nil
 }
