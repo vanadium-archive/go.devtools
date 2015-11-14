@@ -51,7 +51,7 @@ var (
 		"proxyd",
 		"proxyd:vlab-proxyd",
 		"xproxyd",
-		"xproxyd:vlab-proxyd",
+		"xproxyd:vlab-xproxyd",
 		"roled",
 	}
 
