@@ -50,6 +50,8 @@ var (
 		"mounttabled",
 		"proxyd",
 		"proxyd:vlab-proxyd",
+		"xproxyd",
+		"xproxyd:vlab-proxyd",
 		"roled",
 	}
 
@@ -61,6 +63,8 @@ var (
 		"devmgr/apps/proxyd",
 		"devmgr/apps/roled",
 		"devmgr/apps/VLabProxy",
+		"devmgr/apps/xproxyd",
+		"devmgr/apps/VLabXProxy",
 	}
 )
 
