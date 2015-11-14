@@ -19,7 +19,6 @@
     <project>release.mojo.discovery</project>
     <project>release.mojo.shared</project>
     <project>release.mojo.syncbase</project>
-    <project>release.mojo.v23proxy</project>
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
     <project>release.projects.croupier</project>
@@ -125,9 +124,6 @@
       <test>vanadium-copyright</test>
     </project>
     <project name="release.mojo.syncbase">
-      <test>vanadium-copyright</test>
-    </project>
-    <project name="release.mojo.v23proxy">
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.browser">
