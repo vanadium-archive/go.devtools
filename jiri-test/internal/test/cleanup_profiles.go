@@ -31,12 +31,14 @@ func cleanupProfilesImpl(ctx *tool.Context) error {
 	opts.Stdout = &out
 	opts.Stderr = &out
 
-	removals := []string{"uninstall nacl"}
-	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
-	cmds := append([]string{"list"}, removals...)
+	cmds := []string{"list"}
 	cleanup := []string{"cleanup --ensure-specific-versions-are-set --gc"}
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
+	cmds = append(cmds, "list")
+	removals := []string{"uninstall nacl"}
+	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
+	cmds = append(cmds, removals...)
 	cmds = append(cmds, "list")
 	for _, args := range cmds {
 		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
