@@ -19,6 +19,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/buildinfo"
+	_ "v.io/x/devtools/internal/golib/testdata/basedep"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
@@ -274,24 +275,37 @@ func TestComputeGoDeps(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	// The golib package depends on itself and "fmt", but doesn't depend on
+	// basedep.  The test does depend on basedep, which transitively depends on
+	// transdep.
+	deps := []string{"v.io/x/devtools/internal/golib", "fmt"}
+	baseDeps := []string{"v.io/x/devtools/internal/golib/testdata/basedep", "v.io/x/devtools/internal/golib/testdata/transdep"}
+	testDeps := append(deps, baseDeps...)
 	tests := []struct {
 		Pkgs, Deps []string
+		Test       bool
 	}{
 		// This is checking the actual dependencies of the specified packages, so it
 		// may break if we change the implementation; we try to pick dependencies
 		// that are likely to remain in these packages.
-		{nil, []string{"v.io/x/devtools/internal/golib", "fmt"}},
-		{[]string{"."}, []string{"v.io/x/devtools/internal/golib", "fmt"}},
-		{[]string{"v.io/x/devtools/internal/golib"}, []string{"v.io/x/devtools/internal/golib", "fmt"}},
-		{[]string{"v.io/x/devtools/internal/golib/..."}, []string{"v.io/x/devtools/internal/golib", "fmt"}},
+		{nil, deps, false},
+		{[]string{"."}, deps, false},
+		{[]string{"../golib"}, deps, false},
+		{[]string{"v.io/x/devtools/internal/golib"}, deps, false},
+		{[]string{"v.io/x/devtools/internal/golib/..."}, deps, false},
+		{nil, testDeps, true},
+		{[]string{"."}, testDeps, true},
+		{[]string{"../golib"}, testDeps, true},
+		{[]string{"v.io/x/devtools/internal/golib"}, testDeps, true},
+		{[]string{"v.io/x/devtools/internal/golib/..."}, testDeps, true},
 	}
 	for _, test := range tests {
-		got, err := computeGoDeps(ctx, ch.ToMap(), test.Pkgs, "")
+		got, err := computeGoDeps(ctx, ch.ToMap(), test.Pkgs, "", test.Test)
 		if err != nil {
-			t.Errorf("%v failed: %v", test.Pkgs, err)
+			t.Errorf("%v test=%v failed: %v", test.Pkgs, test.Test, err)
 		}
 		if want := test.Deps; !containsStrings(got, want) {
-			t.Errorf("%v got %v, want to contain %v", test.Pkgs, got, want)
+			t.Errorf("%v test=%v got %v, want to contain %v", test.Pkgs, test.Test, got, want)
 		}
 	}
 }
