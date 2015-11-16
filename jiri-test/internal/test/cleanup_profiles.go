@@ -36,9 +36,15 @@ func cleanupProfilesImpl(ctx *tool.Context) error {
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
 	cmds = append(cmds, "list")
+	// uninstall nacl since it was the only profile using a tag.
+	// TODO(cnicolaou): remove the uninstall by Friday 11/20/15.
 	removals := []string{"uninstall --all-targets nacl"}
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
-	cmds = append(cmds, removals...)
+	if isCI() {
+		cmds = append(cmds, removals...)
+	} else {
+		fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: skipping removals when not on CI\n")
+	}
 	cmds = append(cmds, "list")
 	for _, args := range cmds {
 		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
