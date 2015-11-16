@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -307,11 +306,6 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 }
 
 func createClient(ctx *tool.Context) (*http.Client, error) {
-	if os.Getenv("USER") == gceUser {
-		// We're on GCE, use the metadata server to get a token.
-		return oauth2.NewClient(oauth2.NoContext, google.ComputeTokenSource("")), nil
-	}
-
 	if len(keyFileFlag) > 0 {
 		data, err := ctx.Run().ReadFile(keyFileFlag)
 		if err != nil {
@@ -324,7 +318,7 @@ func createClient(ctx *tool.Context) (*http.Client, error) {
 		return conf.Client(oauth2.NoContext), nil
 	}
 
-	return &http.Client{}, nil
+	return google.DefaultClient(oauth2.NoContext, storage.CloudPlatformScope)
 }
 
 func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, errChan chan<- error) {
