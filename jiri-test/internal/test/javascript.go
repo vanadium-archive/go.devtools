@@ -67,7 +67,7 @@ func runJSTest(ctx *tool.Context, testName, testDir, target string, cleanFn func
 }
 
 func runJSTestWithNacl(ctx *tool.Context, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *test.Result, e error) {
-	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl"); err != nil {
+	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "amd64p32-nacl"); err != nil {
 		return nil, err
 	}
 	return runJSTest(ctx, testName, testDir, target, cleanFn, env)

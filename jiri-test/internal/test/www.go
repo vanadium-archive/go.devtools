@@ -34,7 +34,7 @@ func commonVanadiumWWW(ctx *tool.Context, testName, makeTarget string, timeout t
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	cleanup2, err := initTestForTarget(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl")
+	cleanup2, err := initTestForTarget(ctx, testName, []string{"nacl"}, "amd64p32-nacl")
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}

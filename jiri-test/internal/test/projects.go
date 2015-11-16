@@ -68,7 +68,7 @@ func runProjectTest(ctx *tool.Context, testName, projectName, target string, env
 }
 
 func runProjectTestWithNacl(ctx *tool.Context, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
-	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "nacl=amd64p32-nacl"); err != nil {
+	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "amd64p32-nacl"); err != nil {
 		return nil, err
 	}
 	return runProjectTest(ctx, testName, projectName, target, env, profiles)
