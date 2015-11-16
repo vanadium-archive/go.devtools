@@ -208,7 +208,7 @@ func runNodeCreate(env *cmdline.Env, args []string) error {
 		"--image", flagImage,
 		"--machine-type", flagMachineType,
 		"--zone", flagZone,
-		"--scopes", "storage-full,logging-write",
+		"--scopes", flagScopes,
 	)
 	if err := ctx.Run().Command("gcloud", createArgs...); err != nil {
 		return err
