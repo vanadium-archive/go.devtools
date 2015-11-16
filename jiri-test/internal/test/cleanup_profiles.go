@@ -36,7 +36,7 @@ func cleanupProfilesImpl(ctx *tool.Context) error {
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
 	cmds = append(cmds, "list")
-	removals := []string{"uninstall nacl"}
+	removals := []string{"uninstall --all-targets nacl"}
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
 	cmds = append(cmds, removals...)
 	cmds = append(cmds, "list")
