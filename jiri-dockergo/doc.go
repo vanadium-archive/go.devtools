@@ -57,7 +57,7 @@ The jiri dockergo flags are:
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<tag>[@version]|<tag>=<arch>-<val>[@<version>]
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
