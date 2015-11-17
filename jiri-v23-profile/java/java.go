@@ -182,23 +182,24 @@ func checkInstall(ctx *tool.Context, home, version string) error {
 	opts.Stderr = &out
 	ctx.Run().CommandWithOpts(opts, javacPath, "-version")
 	if out.Len() == 0 {
-		return errors.New("Couldn't find a valid javac at: " + javacPath)
+		return errors.New("couldn't find a valid javac at: " + javacPath)
 	}
 	javacVersion := strings.TrimPrefix(out.String(), "javac ")
-	version = strings.TrimSuffix(version, "+")
-	if !strings.HasPrefix(javacVersion, version) {
-		return fmt.Errorf("Couldn't find javac with version %v, got %v.", version, javacVersion)
+	if !strings.HasPrefix(javacVersion, strings.TrimSuffix(version, "+")) {
+		return fmt.Errorf("want javac version %v, got %v.", version, javacVersion)
 	}
 	return err
 }
 
 func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
-		if err := checkInstall(ctx, javaHome, spec.jdkVersion); err != nil {
-			return "", fmt.Errorf("JAVA_HOME (%s) is incompatible with required profile version: %v", javaHome, err)
+		err := checkInstall(ctx, javaHome, spec.jdkVersion)
+		if err == nil {
+			return javaHome, nil
 		}
-		return javaHome, nil
+		fmt.Fprintf(os.Stderr, "JAVA_HOME (%s) is incompatible with required profile version: %v; trying to find a compatible system installation.", javaHome, err)
 	}
+	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javacBin := "/usr/bin/javac"
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
@@ -218,11 +219,13 @@ func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 
 func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
-		if err := checkInstall(ctx, javaHome, spec.jdkVersion); err != nil {
-			return "", fmt.Errorf("JAVA_HOME (%s) is incompatible with required profile version: %v", javaHome, err)
+		err := checkInstall(ctx, javaHome, spec.jdkVersion)
+		if err == nil {
+			return javaHome, nil
 		}
-		return javaHome, nil
+		fmt.Fprintf(os.Stderr, "JAVA_HOME (%s) is incompatible with required profile version %v; trying to find a compatible system installation", javaHome, err)
 	}
+	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javaHomeBin := "/usr/libexec/java_home"
 	var out bytes.Buffer
 	opts := ctx.Run().Opts()
