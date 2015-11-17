@@ -27,7 +27,7 @@ const (
 type versionSpec struct {
 	ndkDownloadURL string
 	// seq's chain may be already in progress.
-	ndkExtract  func(seq *runutil.Sequence, src, dst string)
+	ndkExtract  func(seq *runutil.Sequence, src, dst string) *runutil.Sequence
 	ndkAPILevel int
 }
 
@@ -42,12 +42,12 @@ func ndkArch() (string, error) {
 	}
 }
 
-func tarExtract(seq *runutil.Sequence, src, dst string) {
-	seq.Run("tar", "-C", dst, "-xjf", src)
+func tarExtract(seq *runutil.Sequence, src, dst string) *runutil.Sequence {
+	return seq.Run("tar", "-C", dst, "-xjf", src)
 }
 
-func selfExtract(seq *runutil.Sequence, src, dst string) {
-	seq.Chmod(src, profiles.DefaultDirPerm).Run(src, "-y", "-o"+dst)
+func selfExtract(seq *runutil.Sequence, src, dst string) *runutil.Sequence {
+	return seq.Chmod(src, profiles.DefaultDirPerm).Run(src, "-y", "-o"+dst)
 }
 
 func init() {
@@ -167,7 +167,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 	if err := profiles.EnsureProfileTargetIsUninstalled(ctx, "base", root, target); err != nil {
 		return err
 	}
-	if err := ctx.Seq().RemoveAll(m.androidRoot.Expand()).Done(); err != nil {
+	if err := ctx.NewSeq().RemoveAll(m.androidRoot.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -198,19 +198,20 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context) (e error) {
 	}
 	// Download Android NDK.
 	installNdkFn := func() error {
-		tmpDir, err := ctx.Seq().TempDir("", "")
+		s := ctx.NewSeq()
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer collect.Error(func() error { return ctx.Seq().RemoveAll(tmpDir).Done() }, &e)
-		extractDir, err := ctx.Seq().TempDir(tmpDir, "extract")
+		defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+		extractDir, err := s.TempDir(tmpDir, "extract")
 		if err != nil {
 			return err
 		}
 		local := filepath.Join(tmpDir, path.Base(m.spec.ndkDownloadURL))
-		ctx.Seq().Run("curl", "-Lo", local, m.spec.ndkDownloadURL)
-		m.spec.ndkExtract(ctx.Seq(), local, extractDir)
-		files, err := ctx.Seq().ReadDir(extractDir)
+		s.Run("curl", "-Lo", local, m.spec.ndkDownloadURL)
+		files, err := m.spec.ndkExtract(s, local, extractDir).
+			ReadDir(extractDir)
 		if err != nil {
 			return err
 		}
@@ -219,7 +220,7 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context) (e error) {
 		}
 		ndkBin := filepath.Join(extractDir, files[0].Name(), "build", "tools", "make-standalone-toolchain.sh")
 		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), "--arch=arm", "--install-dir=" + m.ndkRoot.Expand()}
-		return ctx.Seq().Run("bash", ndkArgs...).Done()
+		return s.Last("bash", ndkArgs...)
 	}
 	return profiles.AtomicAction(ctx, installNdkFn, m.ndkRoot.Expand(), "Download Android NDK")
 }
