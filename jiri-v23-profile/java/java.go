@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
@@ -25,14 +24,15 @@ const (
 )
 
 type versionSpec struct {
-	jdkVersion, jdkPackage string
+	jdkVersion string
 }
 
 func init() {
 	m := &Manager{
 		versionInfo: profiles.NewVersionInfo(profileName, map[string]interface{}{
-			"1.7+": &versionSpec{"1.7+", "openjdk-7-jdk"},
-		}, "1.7+"),
+			"1.7+": versionSpec{"1.7+"},
+			"1.8+": versionSpec{"1.8+"},
+		}, "1.8+"),
 	}
 	profiles.Register(profileName, m)
 }
@@ -136,48 +136,68 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, error) {
 	switch target.OS() {
 	case "darwin":
-		profiles.InstallPackages(ctx, []string{"gradle"})
-		if javaHome, err := getJDKDarwin(ctx, m.spec); err == nil {
-			return javaHome, nil
-		}
-		// Prompt the user to install JDK 1.7+, if not already installed.
-		// (Note that JDK cannot be installed via Homebrew.)
-		javaHomeBin := "/usr/libexec/java_home"
-		if err := profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "-v", m.spec.jdkVersion); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "Couldn't find a valid JDK installation under JAVA_HOME (%s): installing a new JDK.\n", os.Getenv("JAVA_HOME"))
-			profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "--request")
-			// Wait for JDK to be installed.
-			fmt.Println("Please follow the OS X prompt instructions to install JDK 1.7+.")
-			for true {
-				time.Sleep(5 * time.Second)
-				if err = profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "-v", m.spec.jdkVersion); err == nil {
-					break
-				}
-			}
-		}
-		return getJDKDarwin(ctx, m.spec)
-	case "linux":
-		pkgs := []string{"gradle"}
-		if _, err := getJDKLinux(ctx, m.spec); err != nil {
-			pkgs = append(pkgs, m.spec.jdkPackage)
-		}
-		if err := profiles.InstallPackages(ctx, pkgs); err != nil {
+		if err := profiles.InstallPackages(ctx, []string{"gradle"}); err != nil {
 			return "", err
 		}
-		return getJDKLinux(ctx, m.spec)
+		javaHome, err := getJDKDarwin(ctx, m.spec)
+		if err == nil {
+			return javaHome, nil
+		}
+		fmt.Fprintf(os.Stderr, "Couldn't find an existing Java installation: %v", err)
+
+		// Prompt the user to install JDK.
+		// (Note that JDK cannot be installed via Homebrew.)
+		javaHomeBin := "/usr/libexec/java_home"
+		profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "--request")
+		return "", fmt.Errorf("Please follow the OS X prompt instructions to install JDK, then set JAVA_HOME and re-run the profile installation command.")
+	case "linux":
+		if err := profiles.InstallPackages(ctx, []string{"gradle"}); err != nil {
+			return "", err
+		}
+		javaHome, err := getJDKLinux(ctx, m.spec)
+		if err == nil {
+			return javaHome, nil
+		}
+		fmt.Fprintf(os.Stderr, "Couldn't find an existing Java installation: %v", err)
+
+		// Prompt the user to install JDK.
+		// (Note that Oracle JDKs cannot be installed via apt-get.)
+		dlURL := "http://www.oracle.com/technetwork/java/javase/downloads/index.html"
+		profiles.RunCommand(ctx, nil, "xdg-open", dlURL)
+		return "", fmt.Errorf("Please follow the instructions in the browser to install JDK, then set JAVA_HOME and re-run the profile installation command")
 	default:
-		return "", fmt.Errorf("%q is not supported", target.OS)
+		return "", fmt.Errorf("OS %q is not supported", target.OS)
 	}
 }
 
-func checkInstall(ctx *tool.Context, home string) error {
+func checkInstall(ctx *tool.Context, home, version string) error {
 	_, err := ctx.Run().Stat(filepath.Join(home, "include", "jni.h"))
+	if err != nil {
+		return err
+	}
+	javacPath := filepath.Join(home, "bin", "javac")
+	var out bytes.Buffer
+	opts := ctx.Run().Opts()
+	opts.Stdout = &out
+	opts.Stderr = &out
+	ctx.Run().CommandWithOpts(opts, javacPath, "-version")
+	if out.Len() == 0 {
+		return errors.New("Couldn't find a valid javac at: " + javacPath)
+	}
+	javacVersion := strings.TrimPrefix(out.String(), "javac ")
+	version = strings.TrimSuffix(version, "+")
+	if !strings.HasPrefix(javacVersion, version) {
+		return fmt.Errorf("Couldn't find javac with version %v, got %v.", version, javacVersion)
+	}
 	return err
 }
 
 func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
-		return javaHome, checkInstall(ctx, javaHome)
+		if err := checkInstall(ctx, javaHome, spec.jdkVersion); err != nil {
+			return "", fmt.Errorf("JAVA_HOME (%s) is incompatible with required profile version: %v", javaHome, err)
+		}
+		return javaHome, nil
 	}
 	javacBin := "/usr/bin/javac"
 	var out bytes.Buffer
@@ -186,17 +206,22 @@ func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	opts.Stderr = &out
 	ctx.Run().CommandWithOpts(opts, "readlink", "-f", javacBin)
 	if out.Len() == 0 {
-		return "", errors.New("Couldn't find a valid Java installation: did you run \"jiri profile install java\"?")
+		return "", errors.New("No Java installed under /usr/bin/javac")
 	}
-
 	// Strip "/bin/javac" from the returned path.
 	javaHome := strings.TrimSuffix(out.String(), "/bin/javac\n")
-	return javaHome, checkInstall(ctx, javaHome)
+	if err := checkInstall(ctx, javaHome, spec.jdkVersion); err != nil {
+		return "", errors.New("Java installed in /usr/bin/javac is incompatible with profile version: " + spec.jdkVersion)
+	}
+	return javaHome, nil
 }
 
 func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
-		return javaHome, checkInstall(ctx, javaHome)
+		if err := checkInstall(ctx, javaHome, spec.jdkVersion); err != nil {
+			return "", fmt.Errorf("JAVA_HOME (%s) is incompatible with required profile version: %v", javaHome, err)
+		}
+		return javaHome, nil
 	}
 	javaHomeBin := "/usr/libexec/java_home"
 	var out bytes.Buffer
@@ -205,11 +230,14 @@ func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	opts.Stderr = &out
 	ctx.Run().CommandWithOpts(opts, javaHomeBin, "-t", "CommandLine", "-v", spec.jdkVersion)
 	if out.Len() == 0 {
-		return "", errors.New("Couldn't find a valid Java installation: did you run \"jiri profile install java\"?")
+		return "", errors.New("Couldn't find a valid Java system installation.")
 	}
 	jdkLoc, _, err := bufio.NewReader(strings.NewReader(out.String())).ReadLine()
 	if err != nil {
-		return "", fmt.Errorf("Couldn't find a valid Java installation: %v", err)
+		return "", fmt.Errorf("Couldn't find a valid Java system installation: %v", err)
 	}
-	return string(jdkLoc), checkInstall(ctx, string(jdkLoc))
+	if err := checkInstall(ctx, string(jdkLoc), spec.jdkVersion); err != nil {
+		return "", fmt.Errorf("Java system installation is incompatible with profile version %s: %v", spec.jdkVersion, err)
+	}
+	return string(jdkLoc), nil
 }
