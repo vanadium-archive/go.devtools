@@ -16,7 +16,7 @@ import (
 var cleanupOnce sync.Once
 var cleanupError error
 
-// sanitizeProfiles is the entry point for ensuring profiles are in a sane
+// cleanupProfiles is the entry point for ensuring profiles are in a sane
 // state prior to running tests. There is often a need to get the current
 // profiles installation into a sane state, either because of previous bugs,
 // or to prepare for a subsequent change. This function is the entry point for that.
@@ -36,14 +36,16 @@ func cleanupProfilesImpl(ctx *tool.Context) error {
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
 	cmds = append(cmds, "list")
-	removals := []string{""}
-	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
+	removals := []string{}
 	if isCI() {
-		cmds = append(cmds, removals...)
+		fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
+		if len(removals) > 0 {
+			cmds = append(cmds, removals...)
+			cmds = append(cmds, "list")
+		}
 	} else {
 		fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: skipping removals when not on CI\n")
 	}
-	cmds = append(cmds, "list")
 	for _, args := range cmds {
 		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
 		err := ctx.Run().CommandWithOpts(opts, "jiri", clargs...)
