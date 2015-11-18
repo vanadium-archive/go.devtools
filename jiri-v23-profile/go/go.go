@@ -121,7 +121,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 		return err
 	}
 
-	ctx.Run().RemoveAll(m.goRoot.Join("go-bootstrap").Expand())
+	ctx.NewSeq().RemoveAll(m.goRoot.Join("go-bootstrap").Expand())
 	cgo := true
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
@@ -185,13 +185,14 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 			}
 		}
 	}
-	if err := ctx.Run().RemoveAll(m.targetDir.Expand()); err != nil {
+	s := ctx.NewSeq()
+	if err := s.RemoveAll(m.targetDir.Expand()).Done(); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
 		// If there are no more targets then remove the entire go directory,
 		// including the bootstrap one.
-		return ctx.Run().RemoveAll(m.goRoot.Expand())
+		return s.RemoveAll(m.goRoot.Expand()).Done()
 	}
 	return nil
 }
@@ -200,41 +201,34 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 // environment during compilation.
 func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 	installGo14Fn := func() error {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		s := ctx.NewSeq()
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer ctx.NewSeq().RemoveAll(tmpDir)
+
 		name := "go1.4.2.src.tar.gz"
 		remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
-		if err := profiles.RunCommand(ctx, nil, "curl", "-Lo", local, remote); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "tar", "-C", tmpDir, "-xzf", local); err != nil {
-			return err
-		}
-		if err := ctx.Run().RemoveAll(local); err != nil {
-			return err
-		}
-		if ctx.Run().DirectoryExists(go14Dir) {
-			ctx.Run().RemoveAll(go14Dir)
-		}
 		parentDir := filepath.Dir(go14Dir)
-		if !ctx.Run().DirectoryExists(parentDir) {
-			ctx.Run().MkdirAll(parentDir, profiles.DefaultDirPerm)
-		}
-		if err := ctx.Run().Rename(filepath.Join(tmpDir, "go"), go14Dir); err != nil {
-			return err
-		}
 		goSrcDir := filepath.Join(go14Dir, "src")
-		if err := ctx.Run().Chdir(goSrcDir); err != nil {
-			return err
-		}
 		makeBin := filepath.Join(goSrcDir, "make.bash")
-		if err := profiles.RunCommand(ctx, env.ToMap(), makeBin, "--no-clean"); err != nil {
+
+		if err := s.Run("curl", "-Lo", local, remote).
+			Run("tar", "-C", tmpDir, "-xzf", local).
+			Remove(local).Done(); err != nil {
 			return err
 		}
-		return nil
+
+		// It's ok for these to fail.
+		s.RemoveAll(go14Dir).Done()
+		s.MkdirAll(parentDir, profiles.DefaultDirPerm).Done()
+
+		opts := s.GetOpts()
+		opts.Env = env.ToMap()
+		return s.Rename(filepath.Join(tmpDir, "go"), go14Dir).
+			Chdir(goSrcDir).
+			Opts(opts).Last(makeBin, "--no-clean")
 	}
 	return profiles.AtomicAction(ctx, installGo14Fn, go14Dir, "Build and install Go 1.4")
 }
@@ -248,45 +242,48 @@ func (m *Manager) installGo15Plus(ctx *tool.Context, version string, env *envvar
 		return err
 	}
 	installGo15Fn := func() error {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		// Clone go1.5 into a tmp directory and then rename it to the
+		// final destination.
+		s := ctx.NewSeq()
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer ctx.NewSeq().RemoveAll(tmpDir)
 
-		if err := ctx.Run().MkdirAll(m.targetDir.Expand(), profiles.DefaultDirPerm); err != nil {
+		s.Pushd(tmpDir)
+		if err := ctx.Git().Clone(go15GitRemote, tmpDir); err != nil {
 			return err
 		}
-
-		if err := profiles.GitCloneRepo(ctx, go15GitRemote, m.spec.gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
+		if err := ctx.Git().Reset(m.spec.gitRevision); err != nil {
 			return err
 		}
-		if err := ctx.Run().Chdir(tmpDir); err != nil {
-			return err
-		}
+		s.Popd()
 
 		goInstDir := m.goInstDir.Expand()
-		if ctx.Run().DirectoryExists(goInstDir) {
-			ctx.Run().RemoveAll(goInstDir)
-		}
-
-		if err := ctx.Run().Rename(tmpDir, goInstDir); err != nil {
-			return err
-		}
 		goSrcDir := filepath.Join(goInstDir, "src")
-		if err := ctx.Run().Chdir(goSrcDir); err != nil {
+
+		if err := s.RemoveAll(goInstDir).
+			Rename(tmpDir, goInstDir).
+			Done(); err != nil {
 			return err
 		}
+		s.MkdirAll(m.targetDir.Expand(), profiles.DefaultDirPerm).
+			Chdir(goSrcDir)
 		// Apply patches, if any.
 		for _, patchFile := range m.spec.patchFiles {
-			if err := profiles.RunCommand(ctx, nil, "git", "apply", patchFile); err != nil {
-				return err
-			}
+			s.Run("git", "apply", patchFile)
 		}
+		if err := s.Done(); err != nil {
+			return err
+		}
+
 		makeBin := filepath.Join(goSrcDir, "make.bash")
 		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Expand())
-		if err := profiles.RunCommand(ctx, env.ToMap(), makeBin); err != nil {
-			ctx.Run().RemoveAll(filepath.Join(goInstDir, "bin"))
+		opts := s.GetOpts()
+		opts.Env = env.ToMap()
+		if err := s.Opts(opts).Last(makeBin); err != nil {
+			s.RemoveAll(filepath.Join(goInstDir, "bin")).Done()
 			return err
 		}
 		return nil
@@ -313,7 +310,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	if action == profiles.Uninstall {
 		profiles.RunCommand(ctx, nil, "chmod", "-R", "+w", xgccInstDir)
 		for _, dir := range []string{xtoolInstDir, xgccInstDir, xgccLinkInstDir} {
-			if err := ctx.Run().RemoveAll(dir); err != nil {
+			if err := ctx.NewSeq().RemoveAll(dir).Done(); err != nil {
 				return "", nil, err
 			}
 		}
@@ -331,25 +328,13 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	// Build and install crosstool-ng.
 	installNgFn := func() error {
 		xgccSrcDir := filepath.Join(m.root.RootJoin("third_party", "csrc", "crosstool-ng-1.20.0").Expand())
-		if err := ctx.Run().Chdir(xgccSrcDir); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "autoreconf", "--install", "--force", "--verbose"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "./configure", fmt.Sprintf("--prefix=%v", xtoolInstDir)); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "install"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "distclean"); err != nil {
-			return err
-		}
-		return nil
+		return ctx.NewSeq().
+			Pushd(xgccSrcDir).
+			Run("autoreconf", "--install", "--force", "--verbose").
+			Run("./configure", fmt.Sprintf("--prefix=%v", xtoolInstDir)).
+			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
+			Run("make", "install").
+			Last("make", "distclean")
 	}
 	if err := profiles.AtomicAction(ctx, installNgFn, xtoolInstDir, "Build and install crosstool-ng"); err != nil {
 		return "", nil, err
@@ -357,16 +342,15 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 
 	// Build arm/linux gcc tools.
 	installXgccFn := func() error {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		s := ctx.NewSeq()
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-		if err := ctx.Run().Chdir(tmpDir); err != nil {
-			return err
-		}
+		defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+
 		bin := filepath.Join(xtoolInstDir, "bin", "ct-ng")
-		if err := profiles.RunCommand(ctx, nil, bin, targetABI); err != nil {
+		if err := s.Chdir(tmpDir).Last(bin, targetABI); err != nil {
 			return err
 		}
 		dataPath, err := project.DataDirPath(ctx, "")
@@ -381,27 +365,20 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 		old, new := "/usr/local/vanadium", filepath.Join(m.root.Expand(), "profiles", "cout")
 		newConfig := strings.Replace(string(config), old, new, -1)
 		newConfigFile := filepath.Join(tmpDir, ".config")
-		if err := ctx.Run().WriteFile(newConfigFile, []byte(newConfig), profiles.DefaultFilePerm); err != nil {
+		if err := s.WriteFile(newConfigFile, []byte(newConfig), profiles.DefaultFilePerm).Done(); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", newConfigFile, err)
 		}
-		if err := profiles.RunCommand(ctx, nil, bin, "oldconfig"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, bin, "build"); err != nil {
-			// Temp to get saved output
+
+		dirinfo, err := s.Run(bin, "oldconfig").
+			Run(bin, "build").
+			Stat(xgccInstDir)
+		if err != nil {
 			return err
 		}
 		// crosstool-ng build creates the tool output directory with no write
 		// permissions. Change it so that AtomicAction can create the
 		// "action completed" file.
-		dirinfo, err := ctx.Run().Stat(xgccInstDir)
-		if err != nil {
-			return err
-		}
-		if err := os.Chmod(xgccInstDir, dirinfo.Mode()|0755); err != nil {
-			return err
-		}
-		return nil
+		return s.Chmod(xgccInstDir, dirinfo.Mode()|0755).Done()
 	}
 	if err := profiles.AtomicAction(ctx, installXgccFn, xgccInstDir, "Build arm/linux gcc tools"); err != nil {
 		return "", nil, err
@@ -410,10 +387,10 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	linkBinDir := filepath.Join(xgccLinkInstDir, "bin")
 	// Create arm/linux gcc symlinks.
 	installLinksFn := func() error {
-		if err := ctx.Run().MkdirAll(linkBinDir, profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-		if err := ctx.Run().Chdir(xgccLinkInstDir); err != nil {
+		s := ctx.NewSeq()
+		err := s.MkdirAll(linkBinDir, profiles.DefaultDirPerm).
+			Chdir(xgccLinkInstDir).Done()
+		if err != nil {
 			return err
 		}
 		binDir := filepath.Join(xgccInstDir, "bin")
@@ -426,7 +403,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 			if strings.HasPrefix(fileInfo.Name(), prefix) {
 				src := filepath.Join(binDir, fileInfo.Name())
 				dst := filepath.Join(linkBinDir, strings.TrimPrefix(fileInfo.Name(), prefix))
-				if err := ctx.Run().Symlink(src, dst); err != nil {
+				if err := s.Symlink(src, dst).Done(); err != nil {
 					return err
 				}
 			}

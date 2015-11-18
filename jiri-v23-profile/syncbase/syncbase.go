@@ -94,7 +94,7 @@ func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]stri
 		cflags := env.GetTokens("CGO_CFLAGS", " ")
 		cxxflags := env.GetTokens("CGO_CXXFLAGS", " ")
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
-		if _, err := ctx.Run().Stat(dir.Expand()); err != nil {
+		if _, err := ctx.NewSeq().Stat(dir.Expand()); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
 			}
@@ -140,10 +140,9 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 
 func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
 	m.initForTarget(ctx, root, target)
-	if err := ctx.Run().RemoveAll(m.snappyInstDir.Expand()); err != nil {
-		return err
-	}
-	if err := ctx.Run().RemoveAll(m.leveldbInstDir.Expand()); err != nil {
+	if err := ctx.NewSeq().
+		RemoveAll(m.snappyInstDir.Expand()).
+		RemoveAll(m.leveldbInstDir.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -179,10 +178,9 @@ func getAndroidRoot() (string, error) {
 func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
-		if err := ctx.Run().Chdir(m.snappySrcDir.Expand()); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "autoreconf", "--install", "--force", "--verbose"); err != nil {
+		s := ctx.NewSeq()
+		if err := s.Chdir(m.snappySrcDir.Expand()).
+			Last("autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
 		}
 		args := []string{
@@ -231,22 +229,13 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			           --host=arm-linux-gnueabi
 			*/
 		}
-		if err := profiles.RunCommand(ctx, env, "./configure", args...); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "clean"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "install"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "distclean"); err != nil {
-			return err
-		}
-		return nil
+		opts := s.GetOpts()
+		opts.Env = env
+		return s.Opts(opts).Run("./configure", args...).
+			Run("make", "clean").
+			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
+			Run("make", "install").
+			Last("make", "distclean")
 	}
 	if err := profiles.AtomicAction(ctx, installSnappyFn, m.snappyInstDir.Expand(), "Build and install Snappy"); err != nil {
 		return err
@@ -254,20 +243,18 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 
 	// Build and install LevelDB.
 	installLeveldbFn := func() error {
-		if err := ctx.Run().Chdir(m.leveldbSrcDir.Expand()); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "mkdir", "-p", m.leveldbInstDir.Expand()); err != nil {
-			return err
-		}
 		leveldbIncludeDir := m.leveldbInstDir.Join("include").Expand()
-		if err := profiles.RunCommand(ctx, nil, "cp", "-R", "include", leveldbIncludeDir); err != nil {
-			return err
-		}
 		leveldbLibDir := m.leveldbInstDir.Join("lib").Expand()
-		if err := profiles.RunCommand(ctx, nil, "mkdir", leveldbLibDir); err != nil {
+
+		s := ctx.NewSeq()
+		err := s.Chdir(m.leveldbSrcDir.Expand()).
+			Run("mkdir", "-p", m.leveldbInstDir.Expand()).
+			Run("cp", "-R", "include", leveldbIncludeDir).
+			Last("mkdir", leveldbLibDir)
+		if err != nil {
 			return err
 		}
+
 		env := map[string]string{
 			"PREFIX": leveldbLibDir,
 			// NOTE(nlacasse): The -fPIC flag is needed to compile Syncbase Mojo service.
@@ -314,13 +301,10 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 				cp -r ./include/leveldb ../../cout/linux_arm/leveldb/include
 			*/
 		}
-		if err := profiles.RunCommand(ctx, env, "make", "clean"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, env, "make", "static"); err != nil {
-			return err
-		}
-		return nil
+		opts := s.GetOpts()
+		opts.Env = env
+		return s.Opts(opts).Run("make", "clean").
+			Opts(opts).Last("make", "static")
 	}
 	if err := profiles.AtomicAction(ctx, installLeveldbFn, m.leveldbInstDir.Expand(), "Build and install LevelDB"); err != nil {
 		return err
