@@ -151,7 +151,7 @@ The jiri v23-profile list flags are:
    	Note: if no profiles are specified then the requested field will be displayed for all profiles.
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
- -show-manifest=false
+ -show-profiles-manifest=false
    print out the manifest file
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
@@ -242,8 +242,10 @@ The jiri v23-profile cleanup flags are:
    uninstall profile targets that are older than the current default
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -rewrite-profiles-manifest=false
+   rewrite the profiles manifest file to use the latest schema version
  -rm-all=false
-   remove profile manifest and all profile generated output files.
+   remove profiles manifest and all profile generated output files.
  -v=false
    print more detailed information
 

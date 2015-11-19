@@ -162,7 +162,6 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	if profiles.SchemaVersion() >= 4 {
 		target.InstallationDir = m.goInstDir.RelativePath()
 		profiles.InstallProfile(profileName, m.goRoot.RelativePath())
-
 	} else {
 		target.InstallationDir = m.goInstDir.Expand()
 		profiles.InstallProfile(profileName, m.goRoot.Expand())
