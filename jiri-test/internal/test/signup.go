@@ -285,13 +285,11 @@ func vanadiumSignupGroupHelper(ctx *tool.Context, schema, testName string, discu
 	}
 
 	// Add them to Google Group.
-	keyFile := os.Getenv("KEYFILE")
-	serviceAccount := os.Getenv("SERVICE_ACCOUNT")
 	groupEmail := os.Getenv("GROUP_EMAIL")
 	opts := ctx.Run().Opts()
 	opts.Stdin = bytes.NewReader(data)
 	groupSrc := filepath.Join(root, "infrastructure", "signup", "group.go")
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "run", groupSrc, "-keyFile="+keyFile, "-account="+serviceAccount, "-groupEmail="+groupEmail); err != nil {
+	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "run", groupSrc, "-credentials="+credentials, "-group-email="+groupEmail); err != nil {
 		return nil, internalTestError{err, "group"}
 	}
 
