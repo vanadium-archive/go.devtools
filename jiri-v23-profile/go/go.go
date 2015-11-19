@@ -28,7 +28,7 @@ var (
 
 // Supported cross compilation toolchains.
 type xspec struct{ arch, os string }
-type xbuilder func(*tool.Context, *Manager, profiles.Target, profiles.Action) (bindir string, env []string, e error)
+type xbuilder func(*tool.Context, *Manager, profiles.RelativePath, profiles.Target, profiles.Action) (bindir string, env []string, e error)
 
 var xcompilers = map[xspec]map[xspec]xbuilder{
 	xspec{"amd64", "darwin"}: {
@@ -127,7 +127,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
 		if builder := xcompilers[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch(), target.OS()}]; builder != nil {
-			_, vars, err := builder(ctx, m, target, profiles.Install)
+			_, vars, err := builder(ctx, m, root, target, profiles.Install)
 			if err != nil {
 				return err
 			}
@@ -179,7 +179,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 		// for cgo to work.
 		def := profiles.DefaultTarget()
 		if builder := xcompilers[xspec{def.Arch(), def.OS()}][xspec{target.Arch(), target.OS()}]; builder != nil {
-			if _, _, err := builder(ctx, m, target, profiles.Uninstall); err != nil {
+			if _, _, err := builder(ctx, m, root, target, profiles.Uninstall); err != nil {
 				return err
 			}
 		}
@@ -215,13 +215,11 @@ func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 
 		if err := s.Run("curl", "-Lo", local, remote).
 			Run("tar", "-C", tmpDir, "-xzf", local).
-			Remove(local).Done(); err != nil {
+			Remove(local).
+			RemoveAll(go14Dir).
+			MkdirAll(parentDir, profiles.DefaultDirPerm).Done(); err != nil {
 			return err
 		}
-
-		// It's ok for these to fail.
-		s.RemoveAll(go14Dir).Done()
-		s.MkdirAll(parentDir, profiles.DefaultDirPerm).Done()
 
 		opts := s.GetOpts()
 		opts.Env = env.ToMap()
@@ -250,33 +248,26 @@ func (m *Manager) installGo15Plus(ctx *tool.Context, version string, env *envvar
 		}
 		defer ctx.NewSeq().RemoveAll(tmpDir)
 
-		s.Pushd(tmpDir)
-		if err := ctx.Git().Clone(go15GitRemote, tmpDir); err != nil {
-			return err
-		}
-		if err := ctx.Git().Reset(m.spec.gitRevision); err != nil {
-			return err
-		}
-		s.Popd()
-
 		goInstDir := m.goInstDir.Expand()
 		goSrcDir := filepath.Join(goInstDir, "src")
 
-		if err := s.RemoveAll(goInstDir).
+		// Git clone the code and get into the right directory.
+		if err := s.Pushd(tmpDir).
+			Call(func() error { return ctx.Git().Clone(go15GitRemote, tmpDir) }, "").
+			Call(func() error { return ctx.Git().Reset(m.spec.gitRevision) }, "").
+			Popd().
+			RemoveAll(goInstDir).
 			Rename(tmpDir, goInstDir).
+			MkdirAll(m.targetDir.Expand(), profiles.DefaultDirPerm).
 			Done(); err != nil {
 			return err
 		}
-		s.MkdirAll(m.targetDir.Expand(), profiles.DefaultDirPerm).
-			Chdir(goSrcDir)
-		// Apply patches, if any.
+
+		// Apply patches, if any and build.
+		s.Pushd(goSrcDir)
 		for _, patchFile := range m.spec.patchFiles {
 			s.Run("git", "apply", patchFile)
 		}
-		if err := s.Done(); err != nil {
-			return err
-		}
-
 		makeBin := filepath.Join(goSrcDir, "make.bash")
 		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Expand())
 		opts := s.GetOpts()
@@ -294,7 +285,7 @@ func (m *Manager) installGo15Plus(ctx *tool.Context, version string, env *envvar
 	return nil
 }
 
-func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	targetABI := ""
 	switch target.Arch() {
 	case "arm":
@@ -419,16 +410,17 @@ func linux_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, actio
 	return linkBinDir, vars, nil
 }
 
-func darwin_to_linux(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func darwin_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	return "", nil, fmt.Errorf("cross compilation from darwin to linux is not yet supported.")
 }
 
-func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func to_android(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	if action == profiles.Uninstall {
 		return "", nil, nil
 	}
-	ev := envvar.SliceToMap(target.CommandLineEnv().Vars)
-	ndk := ev["ANDROID_NDK_DIR"]
+	ev := envvar.VarsFromSlice(target.CommandLineEnv().Vars)
+	root.ExpandEnv(ev)
+	ndk := ev.Get("ANDROID_NDK_DIR")
 	if len(ndk) == 0 {
 		return "", nil, fmt.Errorf("ANDROID_NDK_DIR not specified in the command line environment")
 	}
@@ -440,15 +432,15 @@ func to_android(ctx *tool.Context, m *Manager, target profiles.Target, action pr
 	return ndkBin, vars, nil
 }
 
-func to_fnl(ctx *tool.Context, m *Manager, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func to_fnl(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	if action == profiles.Uninstall {
 		return "", nil, nil
 	}
-	root := os.Getenv("FNL_JIRI_ROOT")
-	if len(root) == 0 {
+	fnlRoot := os.Getenv("FNL_JIRI_ROOT")
+	if len(fnlRoot) == 0 {
 		return "", nil, fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
 	}
-	muslBin := filepath.Join(root, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
+	muslBin := filepath.Join(fnlRoot, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
 	// This cross compiles by building a go compiler with HOST=386 rather than amd64 because
 	// the go compiler build process doesn't support building two different versions when
 	// host and target are the same.

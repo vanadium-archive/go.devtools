@@ -118,7 +118,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	if err := m.installDependencies(ctx, target.Arch(), target.OS()); err != nil {
 		return err
 	}
-	if err := m.installCommon(ctx, target); err != nil {
+	if err := m.installCommon(ctx, root, target); err != nil {
 		return err
 	}
 	env := envvar.VarsFromSlice(target.Env.Vars)
@@ -166,16 +166,24 @@ func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error 
 	return profiles.InstallPackages(ctx, pkgs)
 }
 
-func getAndroidRoot() (string, error) {
+func handleRelativePath(root profiles.RelativePath, s string) string {
+	// Handle the transition from absolute to relative paths.
+	if filepath.IsAbs(s) {
+		return s
+	}
+	return root.RootJoin(s).Expand()
+}
+
+func getAndroidRoot(root profiles.RelativePath) (string, error) {
 	androidProfile := profiles.LookupProfile("android")
 	if androidProfile == nil {
 		return "", fmt.Errorf("android profile is not installed")
 	}
-	return androidProfile.Root, nil
+	return handleRelativePath(root, androidProfile.Root), nil
 }
 
 // installSyncbaseCommon installs the syncbase profile.
-func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e error) {
+func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
 		s := ctx.NewSeq()
@@ -195,7 +203,7 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
 		} else if target.Arch() == "arm" && target.OS() == "android" {
-			androidRoot, err := getAndroidRoot()
+			androidRoot, err := getAndroidRoot(root)
 			if err != nil {
 				return err
 			}
@@ -265,7 +273,7 @@ func (m *Manager) installCommon(ctx *tool.Context, target profiles.Target) (e er
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
 		} else if target.Arch() == "arm" && target.OS() == "android" {
-			androidRoot, err := getAndroidRoot()
+			androidRoot, err := getAndroidRoot(root)
 			if err != nil {
 				return err
 			}

@@ -125,6 +125,10 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	if err := m.initForTarget(ctx, "installed", root, &target); err != nil {
 		return err
 	}
+	if p := profiles.LookupProfileTarget(profileName, target); p != nil {
+		fmt.Fprintf(ctx.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
+		return nil
+	}
 	if err := m.installAndroidNDK(ctx); err != nil {
 		return err
 	}

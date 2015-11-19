@@ -75,16 +75,16 @@ func regTestBinDirPath() string {
 
 // initTest carries out the initial actions for the given test.
 func initTest(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, testName, "v23-profile", profileNames, "", opts...)
+	return initTestImpl(ctx, true, testName, profileNames, "", opts...)
 }
 
 // initTestForTarget carries out the initial actions for the given test using
 // a specific profile Target..
 func initTestForTarget(ctx *tool.Context, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, testName, "v23-profile", profileNames, target, opts...)
+	return initTestImpl(ctx, true, testName, profileNames, target, opts...)
 }
 
-func initTestImpl(ctx *tool.Context, testName string, profileCommand string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
+func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -125,8 +125,10 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 		return nil, err
 	}
 
-	if err := cleanupProfiles(ctx); err != nil {
-		return nil, internalTestError{err, "Init"}
+	if needCleanup {
+		if err := cleanupProfiles(ctx); err != nil {
+			return nil, internalTestError{err, "Init"}
+		}
 	}
 
 	insertTarget := func(profile string) []string {
@@ -137,20 +139,18 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	}
 
 	// Install profiles.
-	args := []string{"-v", profileCommand, "install"}
+	args := []string{"-v", "v23-profile", "install"}
 	for _, profile := range profileNames {
-		if profileCommand == "v23-profile" {
-			t := profiles.NativeTarget()
-			if len(target) > 0 {
-				var err error
-				t, err = profiles.NewTarget(target)
-				if err != nil {
-					return nil, fmt.Errorf("NewTarget(%v): %v", target, err)
-				}
+		t := profiles.NativeTarget()
+		if len(target) > 0 {
+			var err error
+			t, err = profiles.NewTarget(target)
+			if err != nil {
+				return nil, fmt.Errorf("NewTarget(%v): %v", target, err)
 			}
-			if profiles.LookupProfileTarget(profile, t) != nil {
-				continue
-			}
+		}
+		if profiles.LookupProfileTarget(profile, t) != nil {
+			continue
 		}
 		clargs := append(args, insertTarget(profile)...)
 		fmt.Fprintf(ctx.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
@@ -161,7 +161,7 @@ func initTestImpl(ctx *tool.Context, testName string, profileCommand string, pro
 	}
 
 	// Update profiles.
-	args = []string{profileCommand, "update"}
+	args = []string{"v23-profile", "update"}
 
 	if err := ctx.Run().Command("jiri", args...); err != nil {
 		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)

@@ -371,7 +371,7 @@ var (
 func TestGoBuild(t *testing.T) {
 	ctx := tool.NewDefaultContext()
 	testName := "test-go-build"
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -428,7 +428,7 @@ func TestGoCoverage(t *testing.T) {
 	ctx := tool.NewDefaultContext()
 	testName, pkgName := "test-go-coverage", "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
 
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -532,7 +532,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	ctx := tool.NewDefaultContext()
 	testName, pkgName := "test-go-test", fmt.Sprintf("v.io/x/devtools/jiri-test/internal/test/testdata/%s", subPkg)
 
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

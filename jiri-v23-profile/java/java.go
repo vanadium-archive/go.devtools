@@ -126,7 +126,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
-	if err := ctx.Run().RemoveAll(m.javaRoot.Expand()); err != nil {
+	if err := ctx.NewSeq().RemoveAll(m.javaRoot.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -171,16 +171,15 @@ func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, er
 }
 
 func checkInstall(ctx *tool.Context, home, version string) error {
-	_, err := ctx.Run().Stat(filepath.Join(home, "include", "jni.h"))
-	if err != nil {
+	s := ctx.NewSeq()
+	if _, err := s.Stat(filepath.Join(home, "include", "jni.h")); err != nil {
 		return err
 	}
-	javacPath := filepath.Join(home, "bin", "javac")
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	ctx.Run().CommandWithOpts(opts, javacPath, "-version")
+	javacPath := filepath.Join(home, "bin", "javac")
+	if err := s.Capture(&out, &out).Last(javacPath, "-version"); err != nil {
+		return err
+	}
 	if out.Len() == 0 {
 		return errors.New("couldn't find a valid javac at: " + javacPath)
 	}
@@ -188,7 +187,7 @@ func checkInstall(ctx *tool.Context, home, version string) error {
 	if !strings.HasPrefix(javacVersion, strings.TrimSuffix(version, "+")) {
 		return fmt.Errorf("want javac version %v, got %v.", version, javacVersion)
 	}
-	return err
+	return nil
 }
 
 func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
@@ -202,10 +201,9 @@ func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javacBin := "/usr/bin/javac"
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	ctx.Run().CommandWithOpts(opts, "readlink", "-f", javacBin)
+	if err := ctx.NewSeq().Capture(&out, &out).Last("readlink", "-f", javacBin); err != nil {
+		return "", err
+	}
 	if out.Len() == 0 {
 		return "", errors.New("No Java installed under /usr/bin/javac")
 	}
@@ -228,10 +226,9 @@ func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javaHomeBin := "/usr/libexec/java_home"
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	ctx.Run().CommandWithOpts(opts, javaHomeBin, "-t", "CommandLine", "-v", spec.jdkVersion)
+	if err := ctx.NewSeq().Capture(&out, &out).Last(javaHomeBin, "-t", "CommandLine", "-v", spec.jdkVersion); err != nil {
+		return "", err
+	}
 	if out.Len() == 0 {
 		return "", errors.New("Couldn't find a valid Java system installation.")
 	}

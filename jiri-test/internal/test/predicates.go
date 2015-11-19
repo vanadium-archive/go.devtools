@@ -16,7 +16,7 @@ func is386() bool {
 }
 
 func isCI() bool {
-	return os.Getenv("USER") == "veyron"
+	return os.Getenv("USER") == "veyron" || os.Getenv("V23_FORCE_CI") == "yes"
 }
 
 func isDarwin() bool {

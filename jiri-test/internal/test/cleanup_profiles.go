@@ -36,7 +36,7 @@ func cleanupProfilesImpl(ctx *tool.Context) error {
 	fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
 	cmds = append(cmds, "list")
-	removals := []string{}
+	removals := []string{"cleanup -rm-all"}
 	if isCI() {
 		fmt.Fprintf(ctx.Stdout(), "cleanupProfiles: remove: %s\n", removals)
 		if len(removals) > 0 {

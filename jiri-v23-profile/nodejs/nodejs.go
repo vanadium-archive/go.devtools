@@ -92,7 +92,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
-	if err := ctx.Run().RemoveAll(m.nodeInstDir.Expand()); err != nil {
+	if err := ctx.NewSeq().RemoveAll(m.nodeInstDir.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -111,22 +111,11 @@ func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
 	}
 	// Build and install NodeJS.
 	installNodeFn := func() error {
-		if err := ctx.Run().Chdir(m.nodeSrcDir.Expand()); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir.Expand())); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "clean"); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", fmt.Sprintf("-j%d", runtime.NumCPU())); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "make", "install"); err != nil {
-			return err
-		}
-		return nil
+		return ctx.NewSeq().Pushd(m.nodeSrcDir.Expand()).
+			Run("./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir.Expand())).
+			Run("make", "clean").
+			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
+			Last("make", "install")
 	}
 	return profiles.AtomicAction(ctx, installNodeFn, m.nodeInstDir.Expand(), "Build and install node.js")
 }

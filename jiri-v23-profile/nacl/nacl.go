@@ -66,7 +66,6 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 func (m *Manager) initForTarget(ctx *tool.Context, action string, root profiles.RelativePath, target *profiles.Target) error {
 	m.root = root
 	m.naclRoot = root.Join("nacl")
-
 	if !target.IsSet() {
 		def := *target
 		target.Set("amd64p32-nacl")
@@ -95,7 +94,10 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	if err := m.initForTarget(ctx, "installed", root, &target); err != nil {
 		return err
 	}
-
+	if p := profiles.LookupProfileTarget(profileName, target); p != nil {
+		fmt.Fprintf(ctx.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
+		return nil
+	}
 	if err := m.installNacl(ctx, target, m.spec); err != nil {
 		return err
 	}
@@ -119,14 +121,13 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 	// ignore errors to allow for older installs to be removed.
 	m.initForTarget(ctx, "uninstalled", root, &target)
 
-	if err := ctx.Run().RemoveAll(m.naclInstDir.Expand()); err != nil {
-		return err
-	}
-	if err := ctx.Run().RemoveAll(m.naclSrcDir.Expand()); err != nil {
+	s := ctx.NewSeq()
+	if err := s.RemoveAll(m.naclInstDir.Expand()).
+		RemoveAll(m.naclSrcDir.Expand()).Done(); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
-		return ctx.Run().RemoveAll(m.naclRoot.Expand())
+		return s.RemoveAll(m.naclRoot.Expand()).Done()
 	}
 	return nil
 }
@@ -143,30 +144,19 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec ve
 	naclSrcDir := m.naclSrcDir.Expand()
 	naclInstDir := m.naclInstDir.Expand()
 	cloneGoPpapiFn := func() error {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		s := ctx.NewSeq()
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
-
-		if err := profiles.GitCloneRepo(ctx, gitRemote, spec.gitRevision, tmpDir, profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-		if err := ctx.Run().Chdir(tmpDir); err != nil {
-			return err
-		}
-
-		if err := ctx.Run().MkdirAll(m.naclRoot.Expand(), profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-
-		if ctx.Run().DirectoryExists(naclSrcDir) {
-			ctx.Run().RemoveAll(naclSrcDir)
-		}
-		if err := ctx.Run().Rename(tmpDir, naclSrcDir); err != nil {
-			return err
-		}
-		return nil
+		defer ctx.NewSeq().RemoveAll(tmpDir)
+		return s.Pushd(tmpDir).
+			Call(func() error { return ctx.Git().Clone(gitRemote, tmpDir) }, "").
+			Call(func() error { return ctx.Git().Reset(m.spec.gitRevision) }, "").
+			Popd().
+			MkdirAll(m.naclRoot.Expand(), profiles.DefaultDirPerm).
+			RemoveAll(naclSrcDir).
+			Rename(tmpDir, naclSrcDir).Done()
 	}
 	// Cloning is slow so we handle it as an atomic action and then create
 	// a copy for the actual build.
@@ -177,17 +167,10 @@ func (m *Manager) installNacl(ctx *tool.Context, target profiles.Target, spec ve
 	// Compile the Go Ppapi compiler.
 	compileGoPpapiFn := func() error {
 		dir := filepath.Dir(naclInstDir)
-		if err := ctx.Run().MkdirAll(dir, profiles.DefaultDirPerm); err != nil {
-			return err
-		}
-		if err := profiles.RunCommand(ctx, nil, "cp", "-r", naclSrcDir, naclInstDir); err != nil {
-			return err
-		}
 		goPpapiCompileScript := filepath.Join(naclInstDir, "src", "make-nacl-amd64p32.sh")
-		if err := profiles.RunCommand(ctx, nil, goPpapiCompileScript); err != nil {
-			return err
-		}
-		return nil
+		return ctx.NewSeq().MkdirAll(dir, profiles.DefaultDirPerm).
+			Run("cp", "-r", naclSrcDir, naclInstDir).
+			Last(goPpapiCompileScript)
 	}
 	return profiles.AtomicAction(ctx, compileGoPpapiFn, naclInstDir, "Compile Go Ppapi compiler")
 }
