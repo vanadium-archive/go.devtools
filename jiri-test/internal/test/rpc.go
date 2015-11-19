@@ -48,7 +48,7 @@ const (
 	waitTimeForServerUp = 1 * time.Minute
 
 	gceProject           = "vanadium-internal"
-	gceZone              = "asia-east1-b"
+	gceZone              = "us-east1-b"
 	gceServerMachineType = "n1-highcpu-8"
 	gceClientMachineType = "n1-highcpu-4"
 	gceNodePrefix        = "tmpnode-rpc"
