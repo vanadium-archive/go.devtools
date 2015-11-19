@@ -8,22 +8,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
-	"strings"
-	"time"
 
-	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/envvar"
 )
-
-func init() {
-	tool.InitializeRunFlags(&cmdEnv.Flags)
-}
 
 // cmdEnv represents the "jiri env" command.
 var cmdEnv = &cmdline.Command{
@@ -31,69 +20,11 @@ var cmdEnv = &cmdline.Command{
 	Name:   "env",
 	Short:  "Print vanadium environment variables (deprecated: use jiri v23-profile env instead)",
 	Long: `
-NOTE: this command is deprecated, please use jiri v23-profile env instead.
-
-Print vanadium environment variables.
-
-If no arguments are given, prints all variables in NAME="VALUE" format,
-each on a separate line ordered by name.  This format makes it easy to set
-all vars by running the following bash command (or similar for other shells):
-   eval $(jiri env)
-
-If arguments are given, prints only the value of each named variable,
-each on a separate line in the same order as the arguments.
-`,
-	ArgsName: "[name ...]",
-	ArgsLong: "[name ...] is an optional list of variable names.",
-}
-
-var (
-	manifestFlag, profilesFlag string
-	profilesModeFlag           profiles.ProfilesMode
-	targetFlag                 profiles.Target
-	mergePoliciesFlag          profiles.MergePolicies
-	verboseFlag                bool
-)
-
-func init() {
-	mergePoliciesFlag = profiles.JiriMergePolicies()
-	profiles.RegisterProfileFlags(&cmdEnv.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &mergePoliciesFlag, &targetFlag)
-	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
+NOTE: this command is deprecated, please use jiri v23-profile env instead.`,
 }
 
 func runEnv(cmdlineEnv *cmdline.Env, args []string) error {
 	fmt.Fprintf(os.Stdout, "jiri env is deprecated - please use jiri v23-profile env instead. This tool will be deleted before thanksgiving.\n")
-	duration := time.Duration(15 * time.Second)
-	fmt.Fprintf(os.Stderr, "Sleeping for %s to encourage you to use the new tool......\n", duration)
-	time.Sleep(duration)
-	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
-	if err != nil {
-		return err
-	}
-	profileNames := profiles.InitProfilesFromFlag(profilesFlag, profiles.DoNotAppendJiriProfile)
-	if err := ch.ValidateRequestedProfilesAndTarget(profileNames, targetFlag); err != nil {
-		return err
-	}
-	ch.MergeEnvFromProfiles(mergePoliciesFlag, targetFlag, profileNames...)
-	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
-		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
-		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
-	}
-	if len(args) > 0 {
-		for _, name := range args {
-			fmt.Fprintln(cmdlineEnv.Stdout, ch.Get(name))
-		}
-		return nil
-	}
-	for key, delta := range ch.Deltas() {
-		var value string
-		if delta != nil {
-			value = `"` + strings.Replace(*delta, `"`, `\"`, -1) + `"`
-		}
-		fmt.Fprintln(cmdlineEnv.Stdout, envvar.JoinKeyValue(key, value))
-	}
 	return nil
 }
 

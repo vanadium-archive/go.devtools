@@ -548,39 +548,8 @@ Jiri env
 
 NOTE: this command is deprecated, please use jiri v23-profile env instead.
 
-Print vanadium environment variables.
-
-If no arguments are given, prints all variables in NAME="VALUE" format, each on
-a separate line ordered by name.  This format makes it easy to set all vars by
-running the following bash command (or similar for other shells):
-   eval $(jiri env)
-
-If arguments are given, prints only the value of each named variable, each on a
-separate line in the same order as the arguments.
-
 Usage:
-   jiri env [flags] [name ...]
-
-[name ...] is an optional list of variable names.
-
-The jiri env flags are:
- -color=true
-   Use color to format output.
- -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
-   specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
- -profiles=base,jiri
-   a comma separated list of profiles to use
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
- -skip-profiles=false
-   if set, no profiles will be used
- -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
- -v=false
-   Print verbose output.
+   jiri env
 
 Jiri go - Execute the go tool using the vanadium environment
 
@@ -683,85 +652,8 @@ Jiri profile
 
 NOTE: this command is deprecated, please use jiri v23-profile instead.
 
-To facilitate development across different host platforms, vanadium defines
-platform-independent "profiles" that map different platforms to a set of
-libraries and tools that can be used for a facet of vanadium development.
-
-Each profile can be in one of three states: absent, up-to-date, or out-of-date.
-The subcommands of the profile command realize the following transitions:
-
-  install:   absent => up-to-date
-  update:    out-of-date => up-to-date
-  uninstall: up-to-date or out-of-date => absent
-
-In addition, a profile can transition from being up-to-date to out-of-date by
-the virtue of a new version of the profile being released.
-
-To enable cross-compilation, a profile can be installed for multiple targets. If
-a profile supports multiple targets the above state transitions are applied on a
-profile + target basis.
-
 Usage:
-   jiri profile [flags] <command>
-
-The jiri profile commands are:
-   install     Install the given vanadium profiles
-   list        List known vanadium profiles
-   setup       Set up the given vanadium profiles
-   uninstall   Uninstall the given vanadium profiles
-   update      Update the given vanadium profiles
-
-The jiri profile flags are:
- -color=true
-   Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
- -v=false
-   Print verbose output.
-
-Jiri profile install - Install the given vanadium profiles
-
-Install the given vanadium profiles.
-
-Usage:
-   jiri profile install <profiles>
-
-<profiles> is a list of profiles to install.
-
-Jiri profile list - List known vanadium profiles
-
-List known vanadium profiles.
-
-Usage:
-   jiri profile list
-
-Jiri profile setup - Set up the given vanadium profiles
-
-Set up the given vanadium profiles. This command is identical to 'install' and
-is provided for backwards compatibility.
-
-Usage:
-   jiri profile setup <profiles>
-
-<profiles> is a list of profiles to set up.
-
-Jiri profile uninstall - Uninstall the given vanadium profiles
-
-Uninstall the given vanadium profiles.
-
-Usage:
-   jiri profile uninstall <profiles>
-
-<profiles> is a list of profiles to uninstall.
-
-Jiri profile update - Update the given vanadium profiles
-
-Update the given vanadium profiles.
-
-Usage:
-   jiri profile update <profiles>
-
-<profiles> is a list of profiles to update.
+   jiri profile
 
 Jiri run - Run an executable using the specified profile and target's
 environment
