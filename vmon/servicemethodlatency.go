@@ -81,9 +81,10 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 	// Run "debug stats read" for the corresponding object.
 	debug := filepath.Join(binDirFlag, "debug")
 	var buf bytes.Buffer
+	var stderr bytes.Buffer
 	opts := ctx.Run().Opts()
 	opts.Stdout = &buf
-	opts.Stderr = &buf
+	opts.Stderr = &stderr
 	args := []string{
 		"--v23.credentials",
 		credentialsFlag,
@@ -94,9 +95,9 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 	}
 	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, debug, args...); err != nil {
 		if err != runutil.CommandTimedOutErr {
-			return nil, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
+			return nil, fmt.Errorf("debug command failed: %v\n%s", err, stderr.String())
 		}
-		fmt.Fprintf(ctx.Stdout(), "%s %s TIMED OUT: %s\n", debug, args, buf.String())
+		fmt.Fprintf(ctx.Stdout(), "%s %s TIMED OUT: %s\n", debug, args, stderr.String())
 		return nil, err
 	}
 
