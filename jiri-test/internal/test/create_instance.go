@@ -21,15 +21,16 @@ import (
 )
 
 const (
-	scriptEnvVar        = "CREATE_INSTANCE_SCRIPT"
-	testInstancePrefix  = "create-instance-test"
-	testInstanceProject = "vanadium-internal"
-	testInstanceZone    = "us-central1-c"
+	scriptEnvVar       = "CREATE_INSTANCE_SCRIPT"
+	projectEnvVar      = "CREATE_INSTANCE_PROJECT_ID"
+	testInstancePrefix = "create-instance-test"
+	testInstanceZone   = "us-central1-c"
 )
 
 var (
 	defaultCreateInstanceTimeout = time.Minute * 10
 	defaultCheckInstanceTimeout  = time.Minute * 5
+	testInstanceProject          = os.Getenv(projectEnvVar)
 )
 
 type instance struct {
@@ -49,6 +50,10 @@ func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt)
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
+	}
+
+	if testInstanceProject == "" {
+		return nil, internalTestError{fmt.Errorf("project not defined in %s environment variable", projectEnvVar), "Env"}
 	}
 
 	// Check CREATE_INSTANCE_SCRIPT environment variable.
