@@ -23,7 +23,7 @@ import (
 const (
 	scriptEnvVar        = "CREATE_INSTANCE_SCRIPT"
 	testInstancePrefix  = "create-instance-test"
-	testInstanceProject = "google.com:veyron"
+	testInstanceProject = "vanadium-internal"
 	testInstanceZone    = "us-central1-c"
 )
 
