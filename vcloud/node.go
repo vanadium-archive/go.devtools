@@ -103,11 +103,12 @@ func runNodeAuthorize(env *cmdline.Env, args []string) error {
 	// Copy the public SSH key for <userA> from <hostA> to the local
 	// machine.
 	ctx := newContext(env)
-	tmpDir, err := ctx.Run().TempDir("", "")
+	s := ctx.NewSeq()
+	tmpDir, err := s.TempDir("", "")
 	if err != nil {
 		return fmt.Errorf("TempDir() failed: %v", err)
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer ctx.NewSeq().RemoveAll(tmpDir)
 	allNodes, err := listAll(ctx, tool.DryRunFlag)
 	if err != nil {
 		return err
@@ -253,12 +254,9 @@ func runNodeCreate(env *cmdline.Env, args []string) error {
 
 func runNodeDelete(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
-
 	// Delete the GCE node(s).
 	var in bytes.Buffer
 	in.WriteString("Y\n") // answers the [Y/n] prompt
-	opts := ctx.Run().Opts()
-	opts.Stdin = &in
 	deleteArgs := []string{
 		"compute",
 		"--project", *flagProject,
@@ -267,9 +265,5 @@ func runNodeDelete(env *cmdline.Env, args []string) error {
 	}
 	deleteArgs = append(deleteArgs, args...)
 	deleteArgs = append(deleteArgs, "--zone", flagZone)
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", deleteArgs...); err != nil {
-		return err
-	}
-
-	return nil
+	return ctx.NewSeq().Read(&in).Last("gcloud", deleteArgs...)
 }
