@@ -235,10 +235,7 @@
       <test>vanadium-android-build</test>
     </group>
     <group name="javascript">
-      <!-- TODO(mattr): Re-enable this once the vanadium-js-browser-integration
-           test is fixed.
       <test>vanadium-js-browser-integration</test>
-      -->
       <test>vanadium-js-build-extension</test>
       <test>vanadium-js-doc</test>
       <test>vanadium-js-doc-syncbase</test>
