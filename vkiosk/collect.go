@@ -54,7 +54,7 @@ func runCollect(env *cmdline.Env, args []string) error {
 	}
 
 	// A tmp dir to store screenshots.
-	tmpDir, err := ctx.Run().TempDir("", "vkiosk")
+	tmpDir, err := ctx.NewSeq().TempDir("", "vkiosk")
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func runCollect(env *cmdline.Env, args []string) error {
 	// automatically.
 	cleanupFn := func() {
 		// Ignore all errors.
-		os.RemoveAll(tmpDir)
+		ctx.NewSeq().RemoveAll(tmpDir)
 		p.Kill()
 	}
 	defer cleanupFn()
@@ -172,8 +172,8 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 	scrotArgs := []string{
 		screenshotFile,
 	}
-	scrotOpts := ctx.Run().Opts()
-	scrotOpts.Env = map[string]string{"DISPLAY": displayFlag}
+	s := ctx.NewSeq()
+	env := map[string]string{"DISPLAY": displayFlag}
 	gsutilArgs := []string{
 		"-q",
 		"cp",
@@ -184,7 +184,7 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 	for range ticker.C {
 		// Use "scrot" command to take screenshots.
 		fmt.Fprintf(ctx.Stdout(), "[%s]: take screenshot to %q...\n", nowTimestamp(), screenshotFile)
-		if err := ctx.Run().CommandWithOpts(scrotOpts, "scrot", scrotArgs...); err != nil {
+		if err := s.Env(env).Last("scrot", scrotArgs...); err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			continue
 		}
@@ -192,11 +192,11 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 		// Store the screenshots to export dir.
 		fmt.Fprintf(ctx.Stdout(), "[%s]: copying screenshot to %s...\n", nowTimestamp(), exportDirFlag)
 		if strings.HasPrefix(exportDirFlag, "gs://") {
-			if err := ctx.Run().Command("gsutil", gsutilArgs...); err != nil {
+			if err := s.Last("gsutil", gsutilArgs...); err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			}
 		} else {
-			if err := ctx.Run().Rename(screenshotFile, filepath.Join(exportDirFlag, screenshotNameFlag)); err != nil {
+			if err := s.Rename(screenshotFile, filepath.Join(exportDirFlag, screenshotNameFlag)).Done(); err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			}
 		}
