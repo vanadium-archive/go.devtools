@@ -237,9 +237,7 @@ func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, t
 			           --host=arm-linux-gnueabi
 			*/
 		}
-		opts := s.GetOpts()
-		opts.Env = env
-		return s.Opts(opts).Run("./configure", args...).
+		return s.Env(env).Run("./configure", args...).
 			Run("make", "clean").
 			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
 			Run("make", "install").
@@ -309,10 +307,8 @@ func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, t
 				cp -r ./include/leveldb ../../cout/linux_arm/leveldb/include
 			*/
 		}
-		opts := s.GetOpts()
-		opts.Env = env
-		return s.Opts(opts).Run("make", "clean").
-			Opts(opts).Last("make", "static")
+		return s.Env(env).Run("make", "clean").
+			Env(env).Last("make", "static")
 	}
 	if err := profiles.AtomicAction(ctx, installLeveldbFn, m.leveldbInstDir.Expand(), "Build and install LevelDB"); err != nil {
 		return err
