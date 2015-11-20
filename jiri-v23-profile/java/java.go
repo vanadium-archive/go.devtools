@@ -185,7 +185,7 @@ func checkInstall(ctx *tool.Context, home, version string) error {
 	}
 	javacVersion := strings.TrimPrefix(out.String(), "javac ")
 	if !strings.HasPrefix(javacVersion, strings.TrimSuffix(version, "+")) {
-		return fmt.Errorf("want javac version %v, got %v.", version, javacVersion)
+		return fmt.Errorf("want javac version %v, got %v from output %v.", version, javacVersion, out.String())
 	}
 	return nil
 }
