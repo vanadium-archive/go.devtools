@@ -298,9 +298,10 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 	xgccInstDir := filepath.Join(xgccOutDir, targetABI)
 	xgccLinkInstDir := filepath.Join(xgccOutDir, "links-"+targetABI)
 	if action == profiles.Uninstall {
-		profiles.RunCommand(ctx, nil, "chmod", "-R", "+w", xgccInstDir)
+		s := ctx.NewSeq()
+		s.Last("chmod", "-R", "+w", xgccInstDir)
 		for _, dir := range []string{xtoolInstDir, xgccInstDir, xgccLinkInstDir} {
-			if err := ctx.NewSeq().RemoveAll(dir).Done(); err != nil {
+			if err := s.RemoveAll(dir).Done(); err != nil {
 				return "", nil, err
 			}
 		}

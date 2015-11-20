@@ -148,7 +148,7 @@ func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, er
 		// Prompt the user to install JDK.
 		// (Note that JDK cannot be installed via Homebrew.)
 		javaHomeBin := "/usr/libexec/java_home"
-		profiles.RunCommand(ctx, nil, javaHomeBin, "-t", "CommandLine", "--request")
+		ctx.NewSeq().Last(javaHomeBin, "-t", "CommandLine", "--request")
 		return "", fmt.Errorf("Please follow the OS X prompt instructions to install JDK, then set JAVA_HOME and re-run the profile installation command.")
 	case "linux":
 		if err := profiles.InstallPackages(ctx, []string{"gradle"}); err != nil {
@@ -163,7 +163,7 @@ func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, er
 		// Prompt the user to install JDK.
 		// (Note that Oracle JDKs cannot be installed via apt-get.)
 		dlURL := "http://www.oracle.com/technetwork/java/javase/downloads/index.html"
-		profiles.RunCommand(ctx, nil, "xdg-open", dlURL)
+		ctx.NewSeq().Last("xdg-open", dlURL)
 		return "", fmt.Errorf("Please follow the instructions in the browser to install JDK, then set JAVA_HOME and re-run the profile installation command")
 	default:
 		return "", fmt.Errorf("OS %q is not supported", target.OS)
