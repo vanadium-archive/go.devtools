@@ -92,9 +92,7 @@ func newContext(env *cmdline.Env) *tool.Context {
 // lookupIPAddress looks up the IP address for the given GCE node.
 func lookupIPAddress(ctx *tool.Context, node string) (string, error) {
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "compute", "instances",
+	if err := ctx.NewSeq().Capture(&out, ctx.Stderr()).Last("gcloud", "compute", "instances",
 		"--project", flagProject,
 		"list", "--zones", flagZone, "-r", node, "--format=json"); err != nil {
 		return "", err
