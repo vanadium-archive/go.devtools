@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"v.io/jiri/jenkins"
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
@@ -94,7 +95,7 @@ Result processes all the test statuses and results files collected from all the
 presubmit test configuration builds, creates a result summary, and posts the
 summary back to the corresponding Gerrit review thread.
 `,
-	Runner: cmdline.RunnerFunc(runResult),
+	Runner: jiri.RunnerFunc(runResult),
 }
 
 type testResultInfo struct {
@@ -202,11 +203,9 @@ func (ri testResultInfo) key() string {
 // Each individual presubmit test will generate the .json file and the .xml file
 // at the end of their run, and the presubmit "master" job is configured to
 // collect all those files and store them in the above directory structure.
-func runResult(env *cmdline.Env, args []string) (e error) {
-	ctx := tool.NewContextFromEnv(env)
-
+func runResult(jirix *jiri.X, args []string) (e error) {
 	// Load Jenkins matrix jobs config.
-	config, err := util.LoadConfig(ctx)
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
@@ -241,16 +240,16 @@ func runResult(env *cmdline.Env, args []string) (e error) {
 
 	// Post results.
 	refs := strings.Split(reviewTargetRefsFlag, ":")
-	postSubmitResults, err := getPostSubmitBuildData(ctx, testResults, matrixJobsConf)
+	postSubmitResults, err := getPostSubmitBuildData(jirix, testResults, matrixJobsConf)
 	if err != nil {
 		return err
 	}
 	reporter := testReporter{matrixJobsConf, testResults, postSubmitResults, refs, &bytes.Buffer{}}
-	if allTestsPassed, err := reporter.postReport(ctx); err != nil {
+	if allTestsPassed, err := reporter.postReport(jirix); err != nil {
 		return err
 	} else if allTestsPassed {
-		if err := submitPresubmitCLs(ctx, refs); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		if err := submitPresubmitCLs(jirix, refs); err != nil {
+			fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 		}
 	}
 
@@ -260,8 +259,8 @@ func runResult(env *cmdline.Env, args []string) (e error) {
 // getPostSubmitBuildData returns a map from job names to the data of the
 // corresponding postsubmit builds that ran before the recorded test result
 // timestamps.
-func getPostSubmitBuildData(ctx *tool.Context, testResults []testResultInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (map[string]*postSubmitBuildData, error) {
-	jenkinsObj, err := ctx.Jenkins(jenkinsHostFlag)
+func getPostSubmitBuildData(jirix *jiri.X, testResults []testResultInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (map[string]*postSubmitBuildData, error) {
+	jenkinsObj, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -272,25 +271,25 @@ outer:
 		name := resultInfo.TestName
 		timestamp := resultInfo.Timestamp
 		axisValues := resultInfo.AxisValues
-		fmt.Fprintf(ctx.Stdout(), "Getting postsubmit build info for %q before timestamp %d...\n", resultInfo.key(), timestamp)
+		fmt.Fprintf(jirix.Stdout(), "Getting postsubmit build info for %q before timestamp %d...\n", resultInfo.key(), timestamp)
 
-		buildInfo, err := lastCompletedBuildStatus(ctx, name, axisValues, matrixJobsConf)
+		buildInfo, err := lastCompletedBuildStatus(jirix, name, axisValues, matrixJobsConf)
 		if err != nil {
-			test.Fail(ctx, "%v\n", err)
+			test.Fail(jirix.Context, "%v\n", err)
 			continue
 		}
 		curIdStr := buildInfo.Id
 		curId, err := strconv.Atoi(curIdStr)
 		if err != nil {
-			test.Fail(ctx, "Atoi(%v) failed: %v\n", curIdStr, err)
+			test.Fail(jirix.Context, "Atoi(%v) failed: %v\n", curIdStr, err)
 			continue
 		}
 		for i := curId; i >= 0; i-- {
-			fmt.Fprintf(ctx.Stdout(), "Checking build %d...\n", i)
+			fmt.Fprintf(jirix.Stdout(), "Checking build %d...\n", i)
 			buildSpec := genBuildSpec(name, resultInfo.AxisValues, fmt.Sprintf("%d", i), matrixJobsConf)
 			curBuildInfo, err := jenkinsObj.BuildInfoForSpec(buildSpec)
 			if err != nil {
-				test.Fail(ctx, "%v\n", err)
+				test.Fail(jirix.Context, "%v\n", err)
 				continue outer
 			}
 			if curBuildInfo.Timestamp > timestamp {
@@ -298,7 +297,7 @@ outer:
 			}
 			// "cases" will be empty on error.
 			cases, _ := jenkinsObj.FailedTestCasesForBuildSpec(buildSpec)
-			test.Pass(ctx, "Got build status of build %d: %s\n", i, curBuildInfo.Result)
+			test.Pass(jirix.Context, "Got build status of build %d: %s\n", i, curBuildInfo.Result)
 			data[resultInfo.key()] = &postSubmitBuildData{
 				result:          curBuildInfo.Result,
 				failedTestCases: cases,
@@ -330,41 +329,41 @@ type postSubmitBuildData struct {
 
 // postReport generates a test report and posts it to Gerrit.
 // It returns whether the presubmit test is considered successful.
-func (r *testReporter) postReport(ctx *tool.Context) (bool, error) {
+func (r *testReporter) postReport(jirix *jiri.X) (bool, error) {
 	// Do not post a test report if no tests were run.
 	if len(r.testResults) == 0 {
 		return true, nil
 	}
 
-	printf(ctx.Stdout(), "### Preparing report\n")
+	printf(jirix.Stdout(), "### Preparing report\n")
 
-	if r.reportFailedPresubmitBuild(ctx) {
+	if r.reportFailedPresubmitBuild(jirix) {
 		return false, nil
 	}
 
 	// Report failures from presubmit itself.
 	// If any failures are found and reported, don't generate any further report.
-	if r.reportPresubmitFailure(ctx) {
+	if r.reportPresubmitFailure(jirix) {
 		return false, nil
 	}
 
-	r.reportOncall(ctx)
+	r.reportOncall(jirix)
 
 	failedTestNames := map[string]struct{}{}
 	numNewFailures := 0
-	if failedTestNames = r.reportTestResultsSummary(ctx); len(failedTestNames) != 0 {
+	if failedTestNames = r.reportTestResultsSummary(jirix); len(failedTestNames) != 0 {
 		// Report failed test cases grouped by failure types.
 		var err error
-		if numNewFailures, err = r.reportFailedTestCases(ctx); err != nil {
+		if numNewFailures, err = r.reportFailedTestCases(jirix); err != nil {
 			return false, err
 		}
 	}
 
 	r.reportUsefulLinks(failedTestNames)
 
-	printf(ctx.Stdout(), "### Posting test results to Gerrit\n")
+	printf(jirix.Stdout(), "### Posting test results to Gerrit\n")
 	success := numNewFailures == 0
-	if err := postMessage(ctx, r.report.String(), r.refs, success); err != nil {
+	if err := postMessage(jirix, r.report.String(), r.refs, success); err != nil {
 		return false, err
 	}
 	return success, nil
@@ -376,16 +375,16 @@ func (r *testReporter) postReport(ctx *tool.Context) (bool, error) {
 // In theory, a failed presubmit master build won't even execute the
 // result reporting step (the cmdResult command implemented in this file),
 // but just in case.
-func (r *testReporter) reportFailedPresubmitBuild(ctx *tool.Context) bool {
-	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+func (r *testReporter) reportFailedPresubmitBuild(jirix *jiri.X) bool {
+	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 		return false
 	}
 
 	masterJobInfo, err := jenkins.BuildInfo(presubmitTestJobFlag, jenkinsBuildNumberFlag)
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 		return false
 	}
 	if masterJobInfo.Result == "FAILURE" {
@@ -397,7 +396,7 @@ func (r *testReporter) reportFailedPresubmitBuild(ctx *tool.Context) bool {
 
 // reportPresubmitFailure posts a review about failure from presubmit itself
 // (not from the test it runs).
-func (r *testReporter) reportPresubmitFailure(ctx *tool.Context) bool {
+func (r *testReporter) reportPresubmitFailure(jirix *jiri.X) bool {
 	for _, resultInfo := range r.testResults {
 		message := ""
 		switch resultInfo.Result.Status {
@@ -408,8 +407,8 @@ func (r *testReporter) reportPresubmitFailure(ctx *tool.Context) bool {
 		}
 
 		if message != "" {
-			if err := postMessage(ctx, message, r.refs, false); err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
+			if err := postMessage(jirix, message, r.refs, false); err != nil {
+				printf(jirix.Stderr(), "%v\n", err)
 			}
 			return true
 		}
@@ -418,10 +417,10 @@ func (r *testReporter) reportPresubmitFailure(ctx *tool.Context) bool {
 }
 
 // reportOncall reports current vanadium oncall.
-func (r *testReporter) reportOncall(ctx *tool.Context) {
-	shift, err := util.Oncall(ctx, time.Now())
+func (r *testReporter) reportOncall(jirix *jiri.X) {
+	shift, err := util.Oncall(jirix, time.Now())
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	} else {
 		fmt.Fprintf(r.report, "\nCurrent Oncall: %s, %s\n\n", shift.Primary, shift.Secondary)
 	}
@@ -430,7 +429,7 @@ func (r *testReporter) reportOncall(ctx *tool.Context) {
 // reportTestResultsSummary populates the given buffer with a test
 // results summary (one transition for each test) and returns a list of
 // failed tests.
-func (r *testReporter) reportTestResultsSummary(ctx *tool.Context) map[string]struct{} {
+func (r *testReporter) reportTestResultsSummary(jirix *jiri.X) map[string]struct{} {
 	fmt.Fprintf(r.report, "Test results:\n")
 	// This set will be used to generate the "retry failed tests only" link where
 	// we should use the names with the part suffix.
@@ -543,8 +542,8 @@ func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *test
 
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given Jenkins job.
-func lastCompletedBuildStatus(ctx *tool.Context, jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (*jenkins.BuildInfo, error) {
-	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+func lastCompletedBuildStatus(jirix *jiri.X, jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (*jenkins.BuildInfo, error) {
+	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -583,9 +582,9 @@ type failedTestLinksMap map[failureType][]string
 
 // reportFailedTestCasesByFailureTypes reports failed test cases grouped by
 // failure types: new failures, known failures, and fixed failures.
-func (r *testReporter) reportFailedTestCases(ctx *tool.Context) (int, error) {
+func (r *testReporter) reportFailedTestCases(jirix *jiri.X) (int, error) {
 	// Get groups.
-	groups, err := r.genFailedTestCasesGroupsForAllTests(ctx)
+	groups, err := r.genFailedTestCasesGroupsForAllTests(jirix)
 	if err != nil {
 		return -1, err
 	}
@@ -627,7 +626,7 @@ type failedTestCasesGroups map[failureType][]failedTestCaseInfo
 // tests into three groups: new failures, known failures, and fixed failures.
 // Each group has a slice of failedTestLinkInfo which is used to generate
 // dashboard links.
-func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (failedTestCasesGroups, error) {
+func (r *testReporter) genFailedTestCasesGroupsForAllTests(jirix *jiri.X) (failedTestCasesGroups, error) {
 	groups := failedTestCasesGroups{}
 
 	for _, testResult := range r.testResults {
@@ -648,7 +647,7 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (f
 		bytes, err := ioutil.ReadFile(xUnitReportFile)
 		if err != nil {
 			// It is normal that certain tests don't have report available.
-			printf(ctx.Stderr(), "ReadFile(%v) failed: %v\n", xUnitReportFile, err)
+			printf(jirix.Stderr(), "ReadFile(%v) failed: %v\n", xUnitReportFile, err)
 			continue
 		}
 
@@ -658,9 +657,9 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (f
 		if data := r.postSubmitResults[testResult.key()]; data != nil {
 			postsubmitFailedTestCases = data.failedTestCases
 		}
-		curFailedTestCasesGroups, err := r.genFailedTestCasesGroupsForOneTest(ctx, testResult, bytes, postsubmitFailedTestCases)
+		curFailedTestCasesGroups, err := r.genFailedTestCasesGroupsForOneTest(jirix, testResult, bytes, postsubmitFailedTestCases)
 		if err != nil {
-			printf(ctx.Stderr(), "%v\n", err)
+			printf(jirix.Stderr(), "%v\n", err)
 			continue
 		}
 		for curFailureType, curFailedTestCaseInfos := range *curFailedTestCasesGroups {
@@ -672,7 +671,7 @@ func (r *testReporter) genFailedTestCasesGroupsForAllTests(ctx *tool.Context) (f
 
 // genFailedTestCasesGroupsForOneTest generates groups for failed tests.
 // See comments of genFailedTestsGroupsForAllTests.
-func (r *testReporter) genFailedTestCasesGroupsForOneTest(ctx *tool.Context, testResult testResultInfo, presubmitXUnitReport []byte, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
+func (r *testReporter) genFailedTestCasesGroupsForOneTest(jirix *jiri.X, testResult testResultInfo, presubmitXUnitReport []byte, postsubmitFailedTestCases []jenkins.TestCase) (*failedTestCasesGroups, error) {
 	testName := testResult.TestName
 
 	// Parse xUnit report of the presubmit test.
@@ -793,16 +792,16 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 }
 
 // submitPresubmitCLs tries to submit CLs in the current presubmit test.
-func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
+func submitPresubmitCLs(jirix *jiri.X, refs []string) error {
 	// Query open CLs.
-	openCLs, err := ctx.Gerrit(gerritBaseUrlFlag).Query(defaultQueryString)
+	openCLs, err := jirix.Gerrit(gerritBaseUrlFlag).Query(defaultQueryString)
 	if err != nil {
 		return err
 	}
 
 	// Check whether all of the current CLs (refs) are in one of the
 	// submittable CL lists. If so, submit that whole CL list.
-	submittableCLs := getSubmittableCLs(ctx, openCLs)
+	submittableCLs := getSubmittableCLs(jirix, openCLs)
 	for _, curCLList := range submittableCLs {
 		refsSet := map[string]struct{}{}
 		for _, cl := range curCLList {
@@ -816,7 +815,7 @@ func submitPresubmitCLs(ctx *tool.Context, refs []string) error {
 			}
 		}
 		if allRefsSubmittable {
-			if err := submitCLs(ctx, curCLList); err != nil {
+			if err := submitCLs(jirix, curCLList); err != nil {
 				return err
 			}
 			break

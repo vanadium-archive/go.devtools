@@ -6,6 +6,7 @@ package golib
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,8 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"fmt"
-
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
@@ -29,29 +29,29 @@ import (
 // TestGoVDLGeneration checks that PrepareGo generates up-to-date VDL files for
 // select go tool commands.
 func TestGoVDLGeneration(t *testing.T) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	// Create a temporary directory for all our work.
 	const tmpDirPrefix = "test_vgo"
-	tmpDir, err := ctx.Run().TempDir("", tmpDirPrefix)
+	tmpDir, err := jirix.Run().TempDir("", tmpDirPrefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer jirix.Run().RemoveAll(tmpDir)
 
 	// Create test files <tmpDir>/src/testpkg/test.vdl and
 	// <tmpDir>/src/testpkg/doc.go
 	pkgdir := filepath.Join(tmpDir, "src", "testpkg")
 	const perm = os.ModePerm
-	if err := ctx.Run().MkdirAll(pkgdir, perm); err != nil {
+	if err := jirix.Run().MkdirAll(pkgdir, perm); err != nil {
 		t.Fatalf(`MkdirAll(%q) failed: %v`, pkgdir, err)
 	}
 	goFile := filepath.Join(pkgdir, "doc.go")
-	if err := ctx.Run().WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
+	if err := jirix.Run().WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
 		t.Fatalf(`WriteFile(%q) failed: %v`, goFile, err)
 	}
 	inFile := filepath.Join(pkgdir, "test.vdl")
 	outFile := inFile + ".go"
-	if err := ctx.Run().WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
+	if err := jirix.Run().WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
 		t.Fatalf(`WriteFile(%q) failed: %v`, inFile, err)
 	}
 	// Add <tmpDir> as first component of GOPATH and VDLPATH, so
@@ -69,10 +69,10 @@ func TestGoVDLGeneration(t *testing.T) {
 		},
 	}
 	// Check that the 'env' go command does not generate the test VDL file.
-	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"env", "GOPATH"}, "", ""); err != nil {
+	if _, err := PrepareGo(jirix, cmdlineEnv.Vars, []string{"env", "GOPATH"}, "", ""); err != nil {
 		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
 	}
-	if _, err := ctx.Run().Stat(outFile); err != nil {
+	if _, err := jirix.Run().Stat(outFile); err != nil {
 		if !os.IsNotExist(err) {
 			t.Fatalf("%v", err)
 		}
@@ -80,10 +80,10 @@ func TestGoVDLGeneration(t *testing.T) {
 		t.Fatalf("file %v exists and it should not.", outFile)
 	}
 	// Check that the 'build' go command generates the test VDL file.
-	if _, err := PrepareGo(ctx, cmdlineEnv.Vars, []string{"build", "testpkg"}, "", ""); err != nil {
+	if _, err := PrepareGo(jirix, cmdlineEnv.Vars, []string{"build", "testpkg"}, "", ""); err != nil {
 		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
 	}
-	if _, err := ctx.Run().Stat(outFile); err != nil {
+	if _, err := jirix.Run().Stat(outFile); err != nil {
 		t.Fatalf("%v", err)
 	}
 }
@@ -268,9 +268,12 @@ func TestProcessGoCmdAndArgs(t *testing.T) {
 // TestComputeGoDeps tests the internal function that calls "go list" to get
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
-	ctx := tool.NewDefaultContext()
-	root, _ := project.JiriRoot()
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
+	root, err := project.JiriRoot()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	jirix := &jiri.X{Context: tool.NewDefaultContext(), Root: root}
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -300,7 +303,7 @@ func TestComputeGoDeps(t *testing.T) {
 		{[]string{"v.io/x/devtools/internal/golib/..."}, testDeps, true},
 	}
 	for _, test := range tests {
-		got, err := computeGoDeps(ctx, ch.ToMap(), test.Pkgs, "", test.Test)
+		got, err := computeGoDeps(jirix, ch.ToMap(), test.Pkgs, "", test.Test)
 		if err != nil {
 			t.Errorf("%v test=%v failed: %v", test.Pkgs, test.Test, err)
 		}
@@ -334,19 +337,19 @@ func extractFlag(args []string, name string) (string, error) {
 }
 
 func TestSetBuildInfo(t *testing.T) {
-	ctx, start := tool.NewDefaultContext(), time.Now().UTC()
+	jirix, start := &jiri.X{Context: tool.NewDefaultContext()}, time.Now().UTC()
 	// Set up a temp directory.
-	dir, err := ctx.Run().TempDir("", "v23_metadata_test")
+	dir, err := jirix.Run().TempDir("", "v23_metadata_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
-	defer ctx.Run().RemoveAll(dir)
+	defer jirix.Run().RemoveAll(dir)
 
 	env := map[string]string{
 		"PATH":   os.Getenv("PATH"),
 		"GOPATH": os.Getenv("GOPATH"),
 	}
-	args, err := PrepareGo(ctx, env, []string{"build"}, "-when=now -why", "mypath")
+	args, err := PrepareGo(jirix, env, []string{"build"}, "-when=now -why", "mypath")
 	if err != nil {
 		t.Fatal(err)
 	}

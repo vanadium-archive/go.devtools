@@ -75,18 +75,5 @@ var cmdRoot = &cmdline.Command{
 	Long: `
 Command presubmit performs Vanadium presubmit related functions.
 `,
-	Children: []*cmdline.Command{cmdQuery, cmdResult, cmdTest, cmdVersion},
-}
-
-// cmdVersion represent the 'version' command of the presubmit tool.
-var cmdVersion = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runVersion),
-	Name:   "version",
-	Short:  "Print version",
-	Long:   "Print version of the presubmit tool.",
-}
-
-func runVersion(env *cmdline.Env, _ []string) error {
-	printf(env.Stdout, "presubmit tool version %v\n", tool.Version)
-	return nil
+	Children: []*cmdline.Command{cmdQuery, cmdResult, cmdTest},
 }

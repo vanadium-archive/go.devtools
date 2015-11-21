@@ -15,7 +15,6 @@ The presubmit commands are:
    query       Query open CLs from Gerrit
    result      Process and post test results
    test        Run tests for a CL
-   version     Print version
    help        Display help for commands or topics
 
 The presubmit flags are:
@@ -98,13 +97,6 @@ The presubmit test flags are:
    The review references separated by ':'.
  -test=
    The name of a single test to run.
-
-Presubmit version - Print version
-
-Print version of the presubmit tool.
-
-Usage:
-   presubmit version
 
 Presubmit help - Display help for commands or topics
 

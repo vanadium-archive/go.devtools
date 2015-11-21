@@ -6,15 +6,15 @@ package test
 
 import (
 	"v.io/jiri/collect"
-	"v.io/jiri/tool"
+	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/test"
 )
 
 // vanadiumPostsubmitPoll polls for new changes in all projects' master branches,
 // and starts the corresponding Jenkins targets based on the changes.
-func vanadiumPostsubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumPostsubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
+	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -22,7 +22,7 @@ func vanadiumPostsubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 
 	// Run the "postsubmit poll" command.
 	args := []string{}
-	if ctx.Verbose() {
+	if jirix.Verbose() {
 		args = append(args, "-v")
 	}
 	args = append(args,
@@ -30,7 +30,7 @@ func vanadiumPostsubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 		"poll",
 		"-manifest", "mirror/tools",
 	)
-	if err := ctx.Run().Command("postsubmit", args...); err != nil {
+	if err := jirix.Run().Command("postsubmit", args...); err != nil {
 		return nil, err
 	}
 

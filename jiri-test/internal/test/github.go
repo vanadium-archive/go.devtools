@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
@@ -167,9 +168,9 @@ type Mirror struct {
 
 // vanadiumGitHubMirror mirrors googlesource.com vanadium projects to
 // github.com.
-func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGitHubMirror(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test/task.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -182,14 +183,14 @@ func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 
 	projects := filepath.Join(root, "projects")
 	mode := os.FileMode(0755)
-	if err := ctx.Run().MkdirAll(projects, mode); err != nil {
+	if err := jirix.Run().MkdirAll(projects, mode); err != nil {
 		return nil, internalTestError{err, "MkdirAll"}
 	}
 
 	allPassed := true
 	suites := []xunit.TestSuite{}
 	for _, mirror := range mirrors {
-		suite, err := gitHubSync(ctx, mirror, projects)
+		suite, err := gitHubSync(jirix, mirror, projects)
 		if err != nil {
 			return nil, internalTestError{err, "sync"}
 		}
@@ -198,7 +199,7 @@ func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 		suites = append(suites, *suite)
 	}
 
-	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
 		return nil, err
 	}
 
@@ -209,24 +210,24 @@ func vanadiumGitHubMirror(ctx *tool.Context, testName string, _ ...Opt) (_ *test
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func gitHubSync(ctx *tool.Context, mirror Mirror, projects string) (*xunit.TestSuite, error) {
+func gitHubSync(jirix *jiri.X, mirror Mirror, projects string) (*xunit.TestSuite, error) {
 	suite := xunit.TestSuite{Name: mirror.name}
 	dirname := filepath.Join(projects, mirror.name)
 
 	// If dirname does not exist `git clone` otherwise `git pull`.
-	if _, err := ctx.Run().Stat(dirname); err != nil {
+	if _, err := jirix.Run().Stat(dirname); err != nil {
 		if !os.IsNotExist(err) {
 			return nil, internalTestError{err, "stat"}
 		}
 
-		err := clone(ctx, mirror, projects)
+		err := clone(jirix, mirror, projects)
 		testCase := makeTestCase("clone", err)
 		if err != nil {
 			suite.Failures++
 		}
 		suite.Cases = append(suite.Cases, *testCase)
 	} else {
-		err := pull(ctx, mirror, projects)
+		err := pull(jirix, mirror, projects)
 		testCase := makeTestCase("pull", err)
 		if err != nil {
 			suite.Failures++
@@ -234,7 +235,7 @@ func gitHubSync(ctx *tool.Context, mirror Mirror, projects string) (*xunit.TestS
 		suite.Cases = append(suite.Cases, *testCase)
 	}
 
-	err := push(ctx, mirror, projects)
+	err := push(jirix, mirror, projects)
 	testCase := makeTestCase("push", err)
 	if err != nil {
 		suite.Failures++
@@ -261,19 +262,19 @@ func makeTestCase(action string, err error) *xunit.TestCase {
 	return &c
 }
 
-func clone(ctx *tool.Context, mirror Mirror, projects string) error {
+func clone(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
-	return ctx.Git().Clone(mirror.googlesource, dirname)
+	return jirix.Git().Clone(mirror.googlesource, dirname)
 }
 
-func pull(ctx *tool.Context, mirror Mirror, projects string) error {
+func pull(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
 	opts := tool.RootDirOpt(dirname)
-	return ctx.Git(opts).Pull("origin", "master")
+	return jirix.Git(opts).Pull("origin", "master")
 }
 
-func push(ctx *tool.Context, mirror Mirror, projects string) error {
+func push(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
 	opts := tool.RootDirOpt(dirname)
-	return ctx.Git(opts).Push(mirror.github, "master")
+	return jirix.Git(opts).Push(mirror.github, "master")
 }

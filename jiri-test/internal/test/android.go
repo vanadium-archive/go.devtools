@@ -8,21 +8,21 @@ import (
 	"path/filepath"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/lib/envvar"
 )
 
 // vanadiumAndroidBuild tests that the android files build.
-func vanadiumAndroidBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumAndroidBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"java"})
+	cleanup, err := initTest(jirix, testName, []string{"java"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, ManifestFilename)
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -32,12 +32,12 @@ func vanadiumAndroidBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *t
 	env.Set("JAVA_HOME", ch.Get("JAVA_HOME"))
 	// Run tests.
 	javaDir := filepath.Join(ch.Root(), "release", "java")
-	if err := ctx.Run().Chdir(javaDir); err != nil {
+	if err := jirix.Run().Chdir(javaDir); err != nil {
 		return nil, err
 	}
-	runOpts := ctx.Run().Opts()
+	runOpts := jirix.Run().Opts()
 	runOpts.Env = env.ToMap()
-	if err := ctx.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":android-lib:assemble"); err != nil {
+	if err := jirix.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":android-lib:assemble"); err != nil {
 		return nil, err
 	}
 	return &test.Result{Status: test.Passed}, nil

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
@@ -22,7 +23,7 @@ func init() {
 
 // cmdOncall represents the "jiri oncall" command.
 var cmdOncall = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runOncall),
+	Runner: jiri.RunnerFunc(runOncall),
 	Name:   "oncall",
 	Short:  "Manage vanadium oncall schedule",
 	Long: `
@@ -34,25 +35,23 @@ of the current oncall.
 
 // cmdOncallList represents the "jiri oncall list" command.
 var cmdOncallList = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runOncallList),
+	Runner: jiri.RunnerFunc(runOncallList),
 	Name:   "list",
 	Short:  "List available oncall schedule",
 	Long:   "List available oncall schedule.",
 }
 
-func runOncall(env *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(env)
-	shift, err := util.Oncall(ctx, time.Now())
+func runOncall(jirix *jiri.X, _ []string) error {
+	shift, err := util.Oncall(jirix, time.Now())
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(ctx.Stdout(), "%s,%s\n", shift.Primary, shift.Secondary)
+	fmt.Fprintf(jirix.Stdout(), "%s,%s\n", shift.Primary, shift.Secondary)
 	return nil
 }
 
-func runOncallList(env *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(env)
-	rotation, err := util.LoadOncallRotation(ctx)
+func runOncallList(jirix *jiri.X, _ []string) error {
+	rotation, err := util.LoadOncallRotation(jirix)
 	if err != nil {
 		return err
 	}
@@ -66,7 +65,7 @@ func runOncallList(env *cmdline.Env, _ []string) error {
 			nextDate := rotation.Shifts[i+1].Date
 			nextTimestamp, err := time.Parse(layout, nextDate)
 			if err != nil {
-				fmt.Fprintf(ctx.Stderr(), "Parse(%q, %v) failed: %v", layout, nextDate, err)
+				fmt.Fprintf(jirix.Stderr(), "Parse(%q, %v) failed: %v", layout, nextDate, err)
 				continue
 			}
 			if now < nextTimestamp.Unix() {
@@ -77,7 +76,7 @@ func runOncallList(env *cmdline.Env, _ []string) error {
 		if i == len(rotation.Shifts)-1 && !foundOncall {
 			prefix = "-> "
 		}
-		fmt.Fprintf(ctx.Stdout(), "%s%25s: %s\n", prefix, shift.Date, shift.Primary)
+		fmt.Fprintf(jirix.Stdout(), "%s%25s: %s\n", prefix, shift.Date, shift.Primary)
 	}
 	return nil
 }

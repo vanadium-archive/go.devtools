@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -57,15 +58,14 @@ func TestInvalidPackages(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	stdout := bytes.NewBuffer(nil)
-	ctx := tool.NewDefaultContext()
-	ctx = ctx.Clone(tool.ContextOpts{Stdout: stdout})
-	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
+	jirix := &jiri.X{Context: tool.NewContext(tool.ContextOpts{Stdout: stdout})}
+	if _, err := configureDefaultBuildConfig(jirix, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
 	pkg := path.Join(testPackagePrefix, "passeschecks")
 
 	diffOnlyFlag = true
-	if err := runRemover(ctx, []string{pkg}); err != nil {
+	if err := runRemover(jirix, []string{pkg}); err != nil {
 		t.Fatal(err)
 	}
 	diffs := []string{}
@@ -168,8 +168,8 @@ func TestInjectCommandLine(t *testing.T) {
 }
 
 func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
-	ctx := tool.NewDefaultContext()
-	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	if _, err := configureDefaultBuildConfig(jirix, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
 	ifc := path.Join(testPackagePrefix, iface)
@@ -177,10 +177,10 @@ func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 	diffOnlyFlag = true
 	for i := 1; i <= testPackageCount; i++ {
 		stdout := bytes.NewBuffer(nil)
-		ctx = ctx.Clone(tool.ContextOpts{Stdout: stdout})
+		jirix = jirix.Clone(tool.ContextOpts{Stdout: stdout})
 		testPkg := "test" + strconv.Itoa(i)
 		pkg := path.Join(testPackagePrefix, prefix, testPkg)
-		if err := runInjector(ctx, []string{ifc}, []string{pkg}, false); err != nil {
+		if err := runInjector(jirix, []string{ifc}, []string{pkg}, false); err != nil {
 			t.Fatal(err)
 		}
 		diffs := []string{}
@@ -209,8 +209,8 @@ func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 	}
 }
 
-func configureDefaultBuildConfig(ctx *tool.Context, tags []string) (cleanup func(), err error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+func configureDefaultBuildConfig(jirix *jiri.X, tags []string) (cleanup func(), err error) {
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}
@@ -228,20 +228,20 @@ func configureDefaultBuildConfig(ctx *tool.Context, tags []string) (cleanup func
 }
 
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
-	ctx := tool.NewDefaultContext()
-	if _, err := configureDefaultBuildConfig(ctx, []string{"testpackage"}); err != nil {
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	if _, err := configureDefaultBuildConfig(jirix, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
 
 	initInjectorFlags()
 	interfaceList := []string{path.Join(testPackagePrefix, "iface")}
 
-	ifcs, err := importPkgs(ctx, interfaceList)
+	ifcs, err := importPkgs(jirix, interfaceList)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	impls, err := importPkgs(ctx, packages)
+	impls, err := importPkgs(jirix, packages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	ps := newState(ctx)
+	ps := newState(jirix)
 
 	ifc := ifcs[0]
 	_, ifcpkg, err := ps.parseAndTypeCheckPackage(ifc)
@@ -258,7 +258,7 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 		t.Fatal(err)
 	}
 
-	interfaces := findPublicInterfaces(ctx, []*types.Package{ifcpkg})
+	interfaces := findPublicInterfaces(jirix, []*types.Package{ifcpkg})
 	if len(interfaces) == 0 {
 		t.Fatalf("Log injector did not find any interfaces in %s for %s", interfaceList, ifcpkg.Path())
 	}
@@ -269,7 +269,7 @@ func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]er
 		t.Fatal(err)
 	}
 
-	methods := findMethodsImplementing(ctx, ps.fset, tpkg, interfaces)
+	methods := findMethodsImplementing(jirix, ps.fset, tpkg, interfaces)
 	if len(methods) == 0 {
 		t.Fatalf("Log injector could not find any methods implementing the test interfaces in %v", impls)
 	}

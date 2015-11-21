@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
@@ -55,7 +56,7 @@ var cmdAPI = &cmdline.Command{
 
 // cmdAPICheck represents the "jiri api check" command.
 var cmdAPICheck = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runAPICheck),
+	Runner:   jiri.RunnerFunc(runAPICheck),
 	Name:     "check",
 	Short:    "Check if any changes have been made to the public API",
 	Long:     "Check if any changes have been made to the public API.",
@@ -63,9 +64,9 @@ var cmdAPICheck = &cmdline.Command{
 	ArgsLong: "<projects> is a list of vanadium projects to check. If none are specified, all projects that require a public API check upon presubmit are checked.",
 }
 
-func readAPIFileContents(ctx *tool.Context, path string) (_ []byte, e error) {
+func readAPIFileContents(jirix *jiri.X, path string) (_ []byte, e error) {
 	var buf bytes.Buffer
-	file, err := ctx.Run().Open(path)
+	file, err := jirix.Run().Open(path)
 	defer collect.Error(file.Close, &e)
 	if err != nil {
 		return nil, err
@@ -104,14 +105,14 @@ type packageChange struct {
 //
 // If the gotools_bin flag is specified, that path, a no-op cleanup and a
 // nil error are returned.
-func buildGotools(ctx *tool.Context) (string, func() error, error) {
+func buildGotools(jirix *jiri.X) (string, func() error, error) {
 	nopCleanup := func() error { return nil }
 	if gotoolsBinPathFlag != "" {
 		return gotoolsBinPathFlag, nopCleanup, nil
 	}
 
 	// Determine the location of the gotools source.
-	projects, _, err := project.ReadManifest(ctx)
+	projects, _, err := project.ReadManifest(jirix)
 	if err != nil {
 		return "", nopCleanup, err
 	}
@@ -123,16 +124,16 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 	newGoPath := filepath.Join(project.Path, "go")
 
 	// Build the gotools binary.
-	tempDir, err := ctx.Run().TempDir("", "")
+	tempDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
 		return "", nopCleanup, err
 	}
-	cleanup := func() error { return ctx.Run().RemoveAll(tempDir) }
+	cleanup := func() error { return jirix.Run().RemoveAll(tempDir) }
 
 	gotoolsBin := filepath.Join(tempDir, "gotools")
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Env["GOPATH"] = newGoPath
-	if err := ctx.Run().CommandWithOpts(opts, "go", "build", "-o", gotoolsBin, "github.com/visualfc/gotools"); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "go", "build", "-o", gotoolsBin, "github.com/visualfc/gotools"); err != nil {
 		return "", cleanup, err
 	}
 
@@ -141,18 +142,18 @@ func buildGotools(ctx *tool.Context) (string, func() error, error) {
 
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
-func getCurrentAPI(ctx *tool.Context, gotoolsBin, dir string) ([]byte, error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, manifestFlag)
+func getCurrentAPI(jirix *jiri.X, gotoolsBin, dir string) ([]byte, error) {
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, manifestFlag)
 	if err != nil {
 		return nil, err
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	env := ch.Vars
 	var output bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &output
 	opts.Env = env.ToMap()
-	if err := ctx.Run().CommandWithOpts(opts, gotoolsBin, "goapi", dir); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, gotoolsBin, "goapi", dir); err != nil {
 		return nil, err
 	}
 	return output.Bytes(), nil
@@ -199,23 +200,23 @@ func packageName(path string) string {
 	return ""
 }
 
-func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, args []string) (changes []packageChange, e error) {
-	gotoolsBin, cleanup, err := buildGotools(ctx)
+func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args []string) (changes []packageChange, e error) {
+	gotoolsBin, cleanup, err := buildGotools(jirix)
 	if err != nil {
 		return nil, err
 	}
 	defer collect.Error(cleanup, &e)
-	projects, err := project.ParseNames(ctx, args, apiCheckProjects)
+	projects, err := project.ParseNames(jirix, args, apiCheckProjects)
 	if err != nil {
 		return nil, err
 	}
 	for name, project := range projects {
 		path := project.Path
-		branch, err := ctx.Git(tool.RootDirOpt(path)).CurrentBranchName()
+		branch, err := jirix.Git(tool.RootDirOpt(path)).CurrentBranchName()
 		if err != nil {
 			return nil, err
 		}
-		files, err := ctx.Git(tool.RootDirOpt(path)).ModifiedFiles("master", branch)
+		files, err := jirix.Git(tool.RootDirOpt(path)).ModifiedFiles("master", branch)
 		if err != nil {
 			return nil, err
 		}
@@ -231,13 +232,13 @@ func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, 
 		}
 		for dir := range dirs {
 			// Read the API state in the working directory.
-			currentAPI, err := getCurrentAPI(ctx, gotoolsBin, dir)
+			currentAPI, err := getCurrentAPI(jirix, gotoolsBin, dir)
 			if err != nil {
 				return nil, err
 			}
 			// Read the existing public API file.
 			apiFilePath := filepath.Join(dir, ".api")
-			apiFileContents, apiFileError := readAPIFileContents(ctx, apiFilePath)
+			apiFileContents, apiFileError := readAPIFileContents(jirix, apiFilePath)
 			if apiFileError != nil {
 				if os.IsNotExist(apiFileError) && len(currentAPI) == 0 {
 					// The API file doesn't exist but the
@@ -248,8 +249,8 @@ func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, 
 				if !isFailedAPICheckFatal(name, apiCheckProjects, apiFileError) {
 					// We couldn't read the API file, but this project doesn't
 					// require one.  Just warn the user.
-					fmt.Fprintf(ctx.Stderr(), "WARNING: could not read public API from %s: %v\n", apiFilePath, err)
-					fmt.Fprintf(ctx.Stderr(), "WARNING: skipping public API check for %s\n", dir)
+					fmt.Fprintf(jirix.Stderr(), "WARNING: could not read public API from %s: %v\n", apiFilePath, err)
+					fmt.Fprintf(jirix.Stderr(), "WARNING: skipping public API check for %s\n", dir)
 					continue
 				}
 			}
@@ -276,8 +277,8 @@ func getPackageChanges(ctx *tool.Context, apiCheckProjects map[string]struct{}, 
 	return
 }
 
-func runAPICheck(env *cmdline.Env, args []string) error {
-	return doAPICheck(env.Stdout, env.Stderr, args, detailedOutputFlag)
+func runAPICheck(jirix *jiri.X, args []string) error {
+	return doAPICheck(jirix, args, detailedOutputFlag)
 }
 
 func printChangeSummary(out io.Writer, change packageChange, detailedOutput bool) {
@@ -312,29 +313,21 @@ func printChangeSummary(out io.Writer, change packageChange, detailedOutput bool
 	}
 }
 
-func doAPICheck(stdout, stderr io.Writer, args []string, detailedOutput bool) error {
-	ctx := tool.NewContext(tool.ContextOpts{
-		Color:    &tool.ColorFlag,
-		DryRun:   &tool.DryRunFlag,
-		Manifest: &tool.ManifestFlag,
-		Verbose:  &tool.VerboseFlag,
-		Stdout:   stdout,
-		Stderr:   stderr,
-	})
-	config, err := util.LoadConfig(ctx)
+func doAPICheck(jirix *jiri.X, args []string, detailedOutput bool) error {
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
-	changes, err := getPackageChanges(ctx, config.APICheckProjects(), args)
+	changes, err := getPackageChanges(jirix, config.APICheckProjects(), args)
 	if err != nil {
 		return err
 	} else if len(changes) > 0 {
 		for _, change := range changes {
 			if change.apiFileError != nil {
-				fmt.Fprintf(stdout, "ERROR: package %s: could not read the package's .api file: %v\n", change.name, change.apiFileError)
-				fmt.Fprintf(stdout, "ERROR: a readable .api file is required for all packages in project %s\n", change.projectName)
+				fmt.Fprintf(jirix.Stdout(), "ERROR: package %s: could not read the package's .api file: %v\n", change.name, change.apiFileError)
+				fmt.Fprintf(jirix.Stdout(), "ERROR: a readable .api file is required for all packages in project %s\n", change.projectName)
 			} else {
-				printChangeSummary(stdout, change, detailedOutput)
+				printChangeSummary(jirix.Stdout(), change, detailedOutput)
 			}
 		}
 	}
@@ -343,7 +336,7 @@ func doAPICheck(stdout, stderr io.Writer, args []string, detailedOutput bool) er
 
 // cmdAPIUpdate represents the "jiri api fix" command.
 var cmdAPIUpdate = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runAPIFix),
+	Runner:   jiri.RunnerFunc(runAPIFix),
 	Name:     "fix",
 	Short:    "Update api files to reflect changes to the public API",
 	Long:     "Update .api files to reflect changes to the public API.",
@@ -351,31 +344,30 @@ var cmdAPIUpdate = &cmdline.Command{
 	ArgsLong: "<projects> is a list of vanadium projects to update. If none are specified, all project APIs are updated.",
 }
 
-func runAPIFix(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
-	config, err := util.LoadConfig(ctx)
+func runAPIFix(jirix *jiri.X, args []string) error {
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
-	changes, err := getPackageChanges(ctx, config.APICheckProjects(), args)
+	changes, err := getPackageChanges(jirix, config.APICheckProjects(), args)
 	if err != nil {
 		return err
 	}
 	for _, change := range changes {
 		if len(change.newAPIContent) == 0 {
-			if _, err := ctx.Run().Stat(change.apiFilePath); !os.IsNotExist(err) {
+			if _, err := jirix.Run().Stat(change.apiFilePath); !os.IsNotExist(err) {
 				if err != nil {
 					return err
 				}
 				// No API contents? Remove the file.
-				if err := ctx.Run().RemoveAll(change.apiFilePath); err != nil {
+				if err := jirix.Run().RemoveAll(change.apiFilePath); err != nil {
 					return err
 				}
 			}
-		} else if err := ctx.Run().WriteFile(change.apiFilePath, []byte(change.newAPIContent), 0644); err != nil {
+		} else if err := jirix.Run().WriteFile(change.apiFilePath, []byte(change.newAPIContent), 0644); err != nil {
 			return fmt.Errorf("WriteFile(%s) failed: %v", change.apiFilePath, err)
 		}
-		fmt.Fprintf(ctx.Stdout(), "Updated %s.\n", change.apiFilePath)
+		fmt.Fprintf(jirix.Stdout(), "Updated %s.\n", change.apiFilePath)
 	}
 	return nil
 }

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -22,7 +22,7 @@ const (
 // vanadiumPlaygroundTest runs integration tests for the Vanadium playground.
 //
 // TODO(ivanpi): Port the namespace browser test logic from shell to Go. Add more tests.
-func vanadiumPlaygroundTest(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func vanadiumPlaygroundTest(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTest(ctx, testName, []string{"base", "nodejs"})
+	cleanup, err := initTest(jirix, testName, []string{"base", "nodejs"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -42,20 +42,20 @@ func vanadiumPlaygroundTest(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 	clientDir := filepath.Join(playgroundDir, "client")
 
 	// Clean the playground client build.
-	if err := ctx.Run().Chdir(clientDir); err != nil {
+	if err := jirix.Run().Chdir(clientDir); err != nil {
 		return nil, err
 	}
-	if err := ctx.Run().Command("make", "clean"); err != nil {
+	if err := jirix.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
 
 	// Run builder integration test.
-	if testResult, err := vanadiumPlaygroundSubtest(ctx, testName, "builder integration", backendDir, "test"); testResult != nil || err != nil {
+	if testResult, err := vanadiumPlaygroundSubtest(jirix, testName, "builder integration", backendDir, "test"); testResult != nil || err != nil {
 		return testResult, err
 	}
 
 	// Run client embedded example test.
-	if testResult, err := vanadiumPlaygroundSubtest(ctx, testName, "client embedded example", clientDir, "test"); testResult != nil || err != nil {
+	if testResult, err := vanadiumPlaygroundSubtest(jirix, testName, "client embedded example", clientDir, "test"); testResult != nil || err != nil {
 		return testResult, err
 	}
 
@@ -64,11 +64,11 @@ func vanadiumPlaygroundTest(ctx *tool.Context, testName string, _ ...Opt) (_ *te
 
 // Runs specified make target in the specified directory as a test case.
 // On success, both return values are nil.
-func vanadiumPlaygroundSubtest(ctx *tool.Context, testName, caseName, casePath, caseTarget string) (tr *test.Result, err error) {
-	if err = ctx.Run().Chdir(casePath); err != nil {
+func vanadiumPlaygroundSubtest(jirix *jiri.X, testName, caseName, casePath, caseTarget string) (tr *test.Result, err error) {
+	if err = jirix.Run().Chdir(casePath); err != nil {
 		return
 	}
-	if err := ctx.Run().TimedCommand(defaultPlaygroundTestTimeout, "make", caseTarget); err != nil {
+	if err := jirix.Run().TimedCommand(defaultPlaygroundTestTimeout, "make", caseTarget); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &test.Result{
 				Status:       test.TimedOut,

@@ -1,6 +1,6 @@
 pkg syncbase, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg syncbase, method (*Manager) Install(*tool.Context, profiles.RelativePath, profiles.Target) error
-pkg syncbase, method (*Manager) Uninstall(*tool.Context, profiles.RelativePath, profiles.Target) error
+pkg syncbase, method (*Manager) Install(*jiri.X, profiles.RelativePath, profiles.Target) error
+pkg syncbase, method (*Manager) Uninstall(*jiri.X, profiles.RelativePath, profiles.Target) error
 pkg syncbase, method (Manager) Info() string
 pkg syncbase, method (Manager) Name() string
 pkg syncbase, method (Manager) String() string

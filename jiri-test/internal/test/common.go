@@ -11,9 +11,9 @@ import (
 	"regexp"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
@@ -74,23 +74,23 @@ func regTestBinDirPath() string {
 }
 
 // initTest carries out the initial actions for the given test.
-func initTest(ctx *tool.Context, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, true, testName, profileNames, "", opts...)
+func initTest(jirix *jiri.X, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
+	return initTestImpl(jirix, true, testName, profileNames, "", opts...)
 }
 
 // initTestForTarget carries out the initial actions for the given test using
 // a specific profile Target..
-func initTestForTarget(ctx *tool.Context, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(ctx, true, testName, profileNames, target, opts...)
+func initTestForTarget(jirix *jiri.X, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
+	return initTestImpl(jirix, true, testName, profileNames, target, opts...)
 }
 
-func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
+func initTestImpl(jirix *jiri.X, needCleanup bool, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("Hostname() failed: %v", err)
 	}
-	fmt.Fprintf(ctx.Stdout(), "hostname = %q\n", hostname)
+	fmt.Fprintf(jirix.Stdout(), "hostname = %q\n", hostname)
 
 	// Create a working test directory under $HOME/tmp and set the
 	// TMPDIR environment variable to it.
@@ -101,10 +101,10 @@ func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileN
 			rootDir = string(typedOpt)
 		}
 	}
-	if err := ctx.Run().MkdirAll(rootDir, os.FileMode(0755)); err != nil {
+	if err := jirix.Run().MkdirAll(rootDir, os.FileMode(0755)); err != nil {
 		return nil, err
 	}
-	workDir, err := ctx.Run().TempDir(rootDir, "")
+	workDir, err := jirix.Run().TempDir(rootDir, "")
 	if err != nil {
 		return nil, fmt.Errorf("TempDir() failed: %v", err)
 	}
@@ -112,21 +112,21 @@ func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileN
 		return nil, err
 	}
 	testTmpDir = workDir
-	fmt.Fprintf(ctx.Stdout(), "workdir = %q\n", workDir)
-	fmt.Fprintf(ctx.Stdout(), "bin dir = %q\n", binDirPath())
+	fmt.Fprintf(jirix.Stdout(), "workdir = %q\n", workDir)
+	fmt.Fprintf(jirix.Stdout(), "bin dir = %q\n", binDirPath())
 
 	// Create a directory for storing built binaries.
-	if err := ctx.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
+	if err := jirix.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
 		return nil, fmt.Errorf("MkdirAll(%s): %v", binDirPath(), err)
 	}
 
 	// Create a directory for storing regression test binaries.
-	if err := ctx.Run().MkdirAll(regTestBinDirPath(), os.FileMode(0755)); err != nil {
+	if err := jirix.Run().MkdirAll(regTestBinDirPath(), os.FileMode(0755)); err != nil {
 		return nil, err
 	}
 
 	if needCleanup {
-		if err := cleanupProfiles(ctx); err != nil {
+		if err := cleanupProfiles(jirix); err != nil {
 			return nil, internalTestError{err, "Init"}
 		}
 	}
@@ -153,21 +153,21 @@ func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileN
 			continue
 		}
 		clargs := append(args, insertTarget(profile)...)
-		fmt.Fprintf(ctx.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
-		if err := ctx.Run().Command("jiri", clargs...); err != nil {
+		fmt.Fprintf(jirix.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
+		if err := jirix.Run().Command("jiri", clargs...); err != nil {
 			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
 		}
-		fmt.Fprintf(ctx.Stdout(), "jiri %v: success\n", strings.Join(clargs, " "))
+		fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(clargs, " "))
 	}
 
 	// Update profiles.
 	args = []string{"v23-profile", "update"}
 
-	if err := ctx.Run().Command("jiri", args...); err != nil {
+	if err := jirix.Run().Command("jiri", args...); err != nil {
 		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
 	}
-	fmt.Fprintf(ctx.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
-	displayProfiles(ctx, "initTest:")
+	fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
+	displayProfiles(jirix, "initTest:")
 
 	// Descend into the working directory (unless doing a "dry
 	// run" in which case the working directory does not exist).
@@ -175,8 +175,8 @@ func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileN
 	if err != nil {
 		return nil, err
 	}
-	if !ctx.DryRun() {
-		if err := ctx.Run().Chdir(workDir); err != nil {
+	if !jirix.DryRun() {
+		if err := jirix.Run().Chdir(workDir); err != nil {
 			return nil, fmt.Errorf("Chdir(%s): %v", workDir, err)
 		}
 	}
@@ -189,29 +189,29 @@ func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileN
 		if err != nil {
 			return nil, err
 		}
-		if err := ctx.Run().RemoveAll(filepath.Join(root, "release", "go", "pkg")); err != nil {
+		if err := jirix.Run().RemoveAll(filepath.Join(root, "release", "go", "pkg")); err != nil {
 			return nil, err
 		}
 
-		if err := ctx.Run().Command("jiri", "goext", "distclean"); err != nil {
+		if err := jirix.Run().Command("jiri", "goext", "distclean"); err != nil {
 			return nil, fmt.Errorf("jiri goext distclean: %v", err)
 		}
 	}
 
 	// Cleanup the test results possibly left behind by the
 	// previous test.
-	testResultFiles, err := findTestResultFiles(ctx, testName)
+	testResultFiles, err := findTestResultFiles(jirix, testName)
 	if err != nil {
 		return nil, err
 	}
 	for _, file := range testResultFiles {
-		if err := ctx.Run().RemoveAll(file); err != nil {
+		if err := jirix.Run().RemoveAll(file); err != nil {
 			return nil, fmt.Errorf("RemoveAll(%s): %v", file, err)
 		}
 	}
 
 	return func() error {
-		if err := ctx.Run().Chdir(cwd); err != nil {
+		if err := jirix.Run().Chdir(cwd); err != nil {
 			return fmt.Errorf("Chdir(%s): %v", cwd, err)
 		}
 		return nil
@@ -219,7 +219,7 @@ func initTestImpl(ctx *tool.Context, needCleanup bool, testName string, profileN
 }
 
 // findTestResultFiles returns a slice of paths to test result related files.
-func findTestResultFiles(ctx *tool.Context, testName string) ([]string, error) {
+func findTestResultFiles(jirix *jiri.X, testName string) ([]string, error) {
 	result := []string{}
 	root, err := project.JiriRoot()
 	if err != nil {
@@ -228,8 +228,8 @@ func findTestResultFiles(ctx *tool.Context, testName string) ([]string, error) {
 
 	// Collect javascript test results.
 	jsDir := filepath.Join(root, "release", "javascript", "core", "test_out")
-	if _, err := ctx.Run().Stat(jsDir); err == nil {
-		fileInfoList, err := ctx.Run().ReadDir(jsDir)
+	if _, err := jirix.Run().Stat(jsDir); err == nil {
+		fileInfoList, err := jirix.Run().ReadDir(jsDir)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +250,7 @@ func findTestResultFiles(ctx *tool.Context, testName string) ([]string, error) {
 	if workspaceDir == "" {
 		workspaceDir = filepath.Join(os.Getenv("HOME"), "tmp", testName)
 	}
-	fileInfoList, err := ctx.Run().ReadDir(workspaceDir)
+	fileInfoList, err := jirix.Run().ReadDir(workspaceDir)
 	if err != nil {
 		return nil, err
 	}

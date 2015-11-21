@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -43,7 +44,7 @@ var cmdGoExt = &cmdline.Command{
 
 // cmdGoExtDistClean represents the "jiri goext distclean" command.
 var cmdGoExtDistClean = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runGoExtDistClean),
+	Runner: jiri.RunnerFunc(runGoExtDistClean),
 	Name:   "distclean",
 	Short:  "Restore the vanadium Go workspaces to their pristine state",
 	Long: `
@@ -55,17 +56,16 @@ packages that no longer exist in the source tree.
 `,
 }
 
-func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, manifestFlag)
+func runGoExtDistClean(jirix *jiri.X, _ []string) error {
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, manifestFlag)
 	if err != nil {
 		return err
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	failed := false
 	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "GOPATH:\n%s\n", strings.Join(ch.GetTokens("GOPATH", ":"), "\n"))
-		fmt.Fprintf(ctx.Stdout(), "Jiri Root: %v\n", ch.Root())
+		fmt.Fprintf(jirix.Stdout(), "GOPATH:\n%s\n", strings.Join(ch.GetTokens("GOPATH", ":"), "\n"))
+		fmt.Fprintf(jirix.Stdout(), "Jiri Root: %v\n", ch.Root())
 	}
 	for _, workspace := range ch.GetTokens("GOPATH", ":") {
 		if !strings.HasPrefix(workspace, ch.Root()) {
@@ -74,9 +74,9 @@ func runGoExtDistClean(cmdlineEnv *cmdline.Env, _ []string) error {
 		for _, name := range []string{"bin", "pkg"} {
 			dir := filepath.Join(workspace, name)
 			if verboseFlag {
-				fmt.Fprintf(ctx.Stdout(), "removing: %s\n", dir)
+				fmt.Fprintf(jirix.Stdout(), "removing: %s\n", dir)
 			}
-			if err := ctx.Run().RemoveAll(dir); err != nil {
+			if err := jirix.Run().RemoveAll(dir); err != nil {
 				failed = true
 			}
 		}

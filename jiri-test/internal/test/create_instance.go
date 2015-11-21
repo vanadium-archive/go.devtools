@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -46,7 +46,7 @@ type instance struct {
 // vanadiumCreateInstanceTest creates a test instance using the
 // create_instance.sh script (specified in the CREATE_INSTANCE_SCRIPT
 // environment variable) and run prod service test and load test againest it.
-func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
@@ -62,35 +62,35 @@ func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt)
 		return nil, internalTestError{fmt.Errorf("script not defined in %s environment variable", scriptEnvVar), "Env"}
 	}
 
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Clean up test instances possibly left by previous test runs.
-	if err := cleanupTestInstances(ctx); err != nil {
+	if err := cleanupTestInstances(jirix); err != nil {
 		return nil, internalTestError{err, "Delete old test instances"}
 	}
 
 	// Run script.
-	printBanner(ctx, fmt.Sprintf("Running instance creation script: %s", script))
+	printBanner(jirix, fmt.Sprintf("Running instance creation script: %s", script))
 	instanceName := fmt.Sprintf("%s-%s", testInstancePrefix, time.Now().Format("20060102150405"))
 	defer collect.Error(func() error {
 		// TODO(caprita): Commenting this out so we can debug failures.
-		// return cleanupTestInstances(ctx)
+		// return cleanupTestInstances(jirix)
 		return nil
 	}, &e)
 	go func() {
 		sigchan := make(chan os.Signal, 1)
 		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		<-sigchan
-		if err := cleanupTestInstances(ctx); err != nil {
+		if err := cleanupTestInstances(jirix); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 		os.Exit(0)
 	}()
-	if err := runScript(ctx, script, instanceName); err != nil {
+	if err := runScript(jirix, script, instanceName); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &test.Result{
 				Status:       test.TimedOut,
@@ -101,8 +101,8 @@ func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt)
 	}
 
 	// Check the test instance.
-	printBanner(ctx, "Checking test instance")
-	if err := checkTestInstance(ctx, root, instanceName); err != nil {
+	printBanner(jirix, "Checking test instance")
+	if err := checkTestInstance(jirix, root, instanceName); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &test.Result{
 				Status:       test.TimedOut,
@@ -115,27 +115,27 @@ func vanadiumCreateInstanceTest(ctx *tool.Context, testName string, opts ...Opt)
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func cleanupTestInstances(ctx *tool.Context) error {
-	printBanner(ctx, "Cleaning up test instances")
+func cleanupTestInstances(jirix *jiri.X) error {
+	printBanner(jirix, "Cleaning up test instances")
 
 	// List all test instances.
-	instances, err := listInstances(ctx, testInstancePrefix+".*")
+	instances, err := listInstances(jirix, testInstancePrefix+".*")
 	if err != nil {
 		return err
 	}
 
 	// Delete them.
 	for _, instance := range instances {
-		if err := deleteInstance(ctx, instance.Name, instance.Zone); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v", err)
+		if err := deleteInstance(jirix, instance.Name, instance.Zone); err != nil {
+			fmt.Fprintf(jirix.Stderr(), "%v", err)
 		}
 	}
 	return nil
 }
 
-func listInstances(ctx *tool.Context, instanceRegEx string) ([]instance, error) {
+func listInstances(jirix *jiri.X, instanceRegEx string) ([]instance, error) {
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	args := []string{
 		"-q",
@@ -147,7 +147,7 @@ func listInstances(ctx *tool.Context, instanceRegEx string) ([]instance, error) 
 		fmt.Sprintf("--regexp=%s", instanceRegEx),
 		"--format=json",
 	}
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", args...); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "gcloud", args...); err != nil {
 		return nil, err
 	}
 	instances := []instance{}
@@ -157,7 +157,7 @@ func listInstances(ctx *tool.Context, instanceRegEx string) ([]instance, error) 
 	return instances, nil
 }
 
-func deleteInstance(ctx *tool.Context, instanceName, instanceZone string) error {
+func deleteInstance(jirix *jiri.X, instanceName, instanceZone string) error {
 	args := []string{
 		"-q",
 		"compute",
@@ -169,30 +169,30 @@ func deleteInstance(ctx *tool.Context, instanceName, instanceZone string) error 
 		instanceZone,
 		instanceName,
 	}
-	if err := ctx.Run().Command("gcloud", args...); err != nil {
+	if err := jirix.Run().Command("gcloud", args...); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runScript(ctx *tool.Context, script, instanceName string) error {
+func runScript(jirix *jiri.X, script, instanceName string) error {
 	// Build all binaries.
 	args := []string{"go", "install", "v.io/..."}
-	if err := ctx.Run().Command("jiri", args...); err != nil {
+	if err := jirix.Run().Command("jiri", args...); err != nil {
 		return err
 	}
 
 	// Run script.
 	args = []string{instanceName}
-	if err := ctx.Run().TimedCommand(defaultCreateInstanceTimeout, script, args...); err != nil {
+	if err := jirix.Run().TimedCommand(defaultCreateInstanceTimeout, script, args...); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func checkTestInstance(ctx *tool.Context, root, instanceName string) error {
-	instances, err := listInstances(ctx, instanceName)
+func checkTestInstance(jirix *jiri.X, root, instanceName string) error {
+	instances, err := listInstances(jirix, instanceName)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func checkTestInstance(ctx *tool.Context, root, instanceName string) error {
 		return fmt.Errorf("no matching instance for %q", instanceName)
 	}
 	externalIP := instances[0].NetworkInterfaces[0].AccessConfigs[0].NatIP
-	suites := testAllProdServices(ctx, root, "", fmt.Sprintf("/%s:8101", externalIP))
+	suites := testAllProdServices(jirix, root, "", fmt.Sprintf("/%s:8101", externalIP))
 	allPassed := true
 	for _, suite := range suites {
 		allPassed = allPassed && (suite.Failures == 0)
@@ -211,6 +211,6 @@ func checkTestInstance(ctx *tool.Context, root, instanceName string) error {
 	return nil
 }
 
-func printBanner(ctx *tool.Context, msg string) {
-	fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", msg)
+func printBanner(jirix *jiri.X, msg string) {
+	fmt.Fprintf(jirix.Stdout(), "##### %s #####\n", msg)
 }

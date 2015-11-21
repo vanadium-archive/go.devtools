@@ -14,18 +14,16 @@ import (
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/jiri-test/internal/test"
-	"v.io/x/lib/cmdline"
 )
 
 func TestTestProject(t *testing.T) {
 	// Setup a fake JIRI_ROOT.
-	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeJiriRoot(ctx)
+	root, err := project.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer func() {
-		if err := root.Cleanup(ctx); err != nil {
+		if err := root.Cleanup(); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}()
@@ -45,15 +43,15 @@ func TestTestProject(t *testing.T) {
 
 	// Setup a fake config.
 	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{"https://test-project": []string{"ignore-this"}}))
-	if err := util.SaveConfig(ctx, config); err != nil {
+	if err := util.SaveConfig(root.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Check that running the tests for the test project generates
 	// the expected output.
 	var out bytes.Buffer
-	env := &cmdline.Env{Stdout: &out, Stderr: &out}
-	if err := runTestProject(env, []string{"https://test-project"}); err != nil {
+	root.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runTestProject(root.X, []string{"https://test-project"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	got, want := out.String(), `##### Running test "ignore-this" #####
@@ -68,13 +66,12 @@ ignore-this PASSED
 
 func TestTestRun(t *testing.T) {
 	// Setup a fake JIRI_ROOT.
-	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeJiriRoot(ctx)
+	root, err := project.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer func() {
-		if err := root.Cleanup(ctx); err != nil {
+		if err := root.Cleanup(); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}()
@@ -94,8 +91,8 @@ func TestTestRun(t *testing.T) {
 
 	// Check that running the test generates the expected output.
 	var out bytes.Buffer
-	env := &cmdline.Env{Stdout: &out, Stderr: &out}
-	if err := runTestRun(env, []string{"ignore-this"}); err != nil {
+	root.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runTestRun(root.X, []string{"ignore-this"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	got, want := out.String(), `##### Running test "ignore-this" #####
@@ -110,13 +107,12 @@ ignore-this PASSED
 
 func TestTestList(t *testing.T) {
 	// Setup a fake JIRI_ROOT.
-	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeJiriRoot(ctx)
+	root, err := project.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer func() {
-		if err := root.Cleanup(ctx); err != nil {
+		if err := root.Cleanup(); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}()
@@ -136,8 +132,8 @@ func TestTestList(t *testing.T) {
 
 	// Check that listing existing tests generates the expected output.
 	var out bytes.Buffer
-	env := &cmdline.Env{Stdout: &out, Stderr: &out}
-	if err := runTestList(env, []string{}); err != nil {
+	root.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runTestList(root.X, []string{}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	testList, err := test.ListTests()

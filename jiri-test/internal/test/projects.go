@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -21,11 +21,11 @@ const (
 )
 
 // runProjectTest is a helper for running project tests.
-func runProjectTest(ctx *tool.Context, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
+func runProjectTest(jirix *jiri.X, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTest(ctx, testName, append([]string{"base"}, profiles...))
+	cleanup, err := initTest(jirix, testName, append([]string{"base"}, profiles...))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -37,23 +37,23 @@ func runProjectTest(ctx *tool.Context, testName, projectName, target string, env
 		return nil, err
 	}
 	testDir := filepath.Join(root, "release", "projects", projectName)
-	if err := ctx.Run().Chdir(testDir); err != nil {
+	if err := jirix.Run().Chdir(testDir); err != nil {
 		return nil, err
 	}
 
 	// Clean.
-	if err := ctx.Run().Command("make", "clean"); err != nil {
+	if err := jirix.Run().Command("make", "clean"); err != nil {
 		return nil, err
 	}
 
 	// Set environment from the env argument map.
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	for k, v := range env {
 		opts.Env[k] = v
 	}
 
 	// Run the tests.
-	if err := ctx.Run().TimedCommandWithOpts(defaultProjectTestTimeout, opts, "make", target); err != nil {
+	if err := jirix.Run().TimedCommandWithOpts(defaultProjectTestTimeout, opts, "make", target); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &test.Result{
 				Status:       test.TimedOut,
@@ -67,51 +67,51 @@ func runProjectTest(ctx *tool.Context, testName, projectName, target string, env
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func runProjectTestWithNacl(ctx *tool.Context, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
-	if err := installExtraDeps(ctx, testName, []string{"nacl"}, "amd64p32-nacl"); err != nil {
+func runProjectTestWithNacl(jirix *jiri.X, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
+	if err := installExtraDeps(jirix, testName, []string{"nacl"}, "amd64p32-nacl"); err != nil {
 		return nil, err
 	}
-	return runProjectTest(ctx, testName, projectName, target, env, profiles)
+	return runProjectTest(jirix, testName, projectName, target, env, profiles)
 }
 
 // vanadiumBrowserTest runs the tests for the Vanadium browser.
-func vanadiumBrowserTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
+func vanadiumBrowserTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	env := map[string]string{
 		"XUNIT_OUTPUT_FILE": xunit.ReportPath(testName),
 	}
-	return runProjectTestWithNacl(ctx, testName, "browser", "test", env, []string{"nodejs"})
+	return runProjectTestWithNacl(jirix, testName, "browser", "test", env, []string{"nodejs"})
 }
 
 // vanadiumBrowserTestWeb runs the ui tests for the Vanadium browser.
-func vanadiumBrowserTestWeb(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(ctx, testName, "browser", "test-ui", nil, []string{"nodejs"})
+func vanadiumBrowserTestWeb(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTestWithNacl(jirix, testName, "browser", "test-ui", nil, []string{"nodejs"})
 }
 
 // vanadiumChatShellTest runs the tests for the chat shell client.
-func vanadiumChatShellTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "chat", "test-shell", nil, nil)
+func vanadiumChatShellTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTest(jirix, testName, "chat", "test-shell", nil, nil)
 }
 
 // vanadiumChatWebTest runs the tests for the chat web client.
-func vanadiumChatWebTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(ctx, testName, "chat", "test-web", nil, []string{"nodejs"})
+func vanadiumChatWebTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTestWithNacl(jirix, testName, "chat", "test-web", nil, []string{"nodejs"})
 }
 
 // vanadiumChatWebUITest runs the ui tests for the chat web client.
-func vanadiumChatWebUITest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(ctx, testName, "chat", "test-ui", nil, []string{"nodejs"})
+func vanadiumChatWebUITest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTestWithNacl(jirix, testName, "chat", "test-ui", nil, []string{"nodejs"})
 }
 
 // vanadiumPipe2BrowserTest runs the tests for pipe2browser.
-func vanadiumPipe2BrowserTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(ctx, testName, "pipe2browser", "test", nil, []string{"nodejs"})
+func vanadiumPipe2BrowserTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTestWithNacl(jirix, testName, "pipe2browser", "test", nil, []string{"nodejs"})
 }
 
 // vanadiumReaderTest runs the tests for the reader example application.
-func vanadiumReaderTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "reader", "test", nil, []string{"nodejs"})
+func vanadiumReaderTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTest(jirix, testName, "reader", "test", nil, []string{"nodejs"})
 }
 
-func vanadiumTravelTest(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(ctx, testName, "travel", "test", nil, []string{"nodejs"})
+func vanadiumTravelTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runProjectTest(jirix, testName, "travel", "test", nil, []string{"nodejs"})
 }

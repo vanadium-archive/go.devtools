@@ -6,15 +6,15 @@ package test
 
 import (
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/retry"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 
 // vanadiumGoSnapshot create a snapshot of Vanadium Go code base.
-func vanadiumGoSnapshot(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGoSnapshot(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -22,9 +22,9 @@ func vanadiumGoSnapshot(ctx *tool.Context, testName string, _ ...Opt) (_ *test.R
 
 	// Create a new snapshot.
 	fn := func() error {
-		return ctx.Run().Command("jiri", "snapshot", "-remote", "create", "stable-go")
+		return jirix.Run().Command("jiri", "snapshot", "-remote", "create", "stable-go")
 	}
-	if err := retry.Function(ctx, fn); err != nil {
+	if err := retry.Function(jirix.Context, fn); err != nil {
 		return nil, internalTestError{err, "Snapshot"}
 	}
 	return &test.Result{Status: test.Passed}, nil

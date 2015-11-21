@@ -22,6 +22,7 @@ import (
 	"unicode"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
 )
@@ -55,7 +56,7 @@ var (
 // type checking. It makes sure that any give file or package
 // is parsed or type checked once and only once.
 type parseState struct {
-	ctx      *tool.Context
+	jirix    *jiri.X
 	config   *types.Config
 	fset     *token.FileSet
 	info     *types.Info
@@ -63,9 +64,9 @@ type parseState struct {
 	asts     map[string][]*ast.File    // keyed by the package path name
 }
 
-func newState(ctx *tool.Context) *parseState {
+func newState(jirix *jiri.X) *parseState {
 	ps := &parseState{
-		ctx:      ctx,
+		jirix:    jirix,
 		fset:     token.NewFileSet(),
 		packages: make(map[string]*types.Package),
 		asts:     make(map[string][]*ast.File),
@@ -92,7 +93,7 @@ func (ps *parseState) parsedPackage(path string) (*types.Package, []*ast.File) {
 
 func (ps *parseState) addParsedPackage(path string, pkg *types.Package, asts []*ast.File) {
 	if p, _ := ps.parsedPackage(path); p != nil {
-		fmt.Fprintf(ps.ctx.Stdout(), "Warning: %s is already cached\n", path)
+		fmt.Fprintf(ps.jirix.Stdout(), "Warning: %s is already cached\n", path)
 		return
 	}
 	ps.packages[path] = pkg
@@ -108,7 +109,7 @@ func (ps *parseState) sourceImporter(path string) (*types.Package, error) {
 	if pkg, _ := ps.parsedPackage(path); pkg != nil {
 		return pkg, nil
 	}
-	progressMsg(ps.ctx.Stdout(), "importing from source: %s\n", path)
+	progressMsg(ps.jirix.Stdout(), "importing from source: %s\n", path)
 	bpkg, err := build.Default.Import(path, ".", build.ImportMode(build.ImportComment))
 	_, pkg, err := ps.parseAndTypeCheckPackage(bpkg)
 	if err != nil {
@@ -145,7 +146,7 @@ func (ps *parseState) parseAndTypeCheckPackage(bpkg *build.Package) ([]*ast.File
 	if !tpkg.Complete() {
 		return nil, nil, fmt.Errorf("checked %q is not completely parsed+checked", bpkg.Name)
 	}
-	progressMsg(ps.ctx.Stdout(), "parsed from source: %s\n", bpkg.ImportPath)
+	progressMsg(ps.jirix.Stdout(), "parsed from source: %s\n", bpkg.ImportPath)
 	ps.addParsedPackage(bpkg.ImportPath, tpkg, asts)
 	return asts, tpkg, nil
 }
@@ -153,8 +154,8 @@ func (ps *parseState) parseAndTypeCheckPackage(bpkg *build.Package) ([]*ast.File
 // importPkgs will expand the supplied list of  packages using go list
 // (so v.io/v23/... can be used as an interface package spec for example) and
 // then import those packages.
-func importPkgs(ctx *tool.Context, packageSpec []string) (ifcs []*build.Package, err error) {
-	pkgs, err := goutil.List(ctx, []string{"--merge-policies=" + mergePoliciesFlag.String()}, packageSpec...)
+func importPkgs(jirix *jiri.X, packageSpec []string) (ifcs []*build.Package, err error) {
+	pkgs, err := goutil.List(jirix.Context, []string{"--merge-policies=" + mergePoliciesFlag.String()}, packageSpec...)
 	if err != nil {
 		return nil, err
 	}
@@ -206,30 +207,30 @@ func initInjectorFlags() error {
 }
 
 // run runs the log injector.
-func runInjector(ctx *tool.Context, interfaceList, implementationList []string, checkOnly bool) error {
+func runInjector(jirix *jiri.X, interfaceList, implementationList []string, checkOnly bool) error {
 	if err := initInjectorFlags(); err != nil {
 		return err
 	}
 	// use 'go list' and the builder to import all of the packages
 	// specified as interfaces and implementations.
-	ifcs, err := importPkgs(ctx, interfaceList)
+	ifcs, err := importPkgs(jirix, interfaceList)
 	if err != nil {
 		return err
 	}
 
-	impls, err := importPkgs(ctx, implementationList)
+	impls, err := importPkgs(jirix, implementationList)
 	if err != nil {
 		return err
 	}
 
-	printHeader(ctx.Stdout(), "Package Summary")
-	progressMsg(ctx.Stdout(), "%v expands to %d interface packages\n", interfaceList, len(ifcs))
-	progressMsg(ctx.Stdout(), "%v expands to %d implementation packages\n", implementationList, len(impls))
+	printHeader(jirix.Stdout(), "Package Summary")
+	progressMsg(jirix.Stdout(), "%v expands to %d interface packages\n", interfaceList, len(ifcs))
+	progressMsg(jirix.Stdout(), "%v expands to %d implementation packages\n", implementationList, len(impls))
 
-	ps := newState(ctx)
+	ps := newState(jirix)
 	checkFailed := []string{}
 
-	printHeader(ctx.Stdout(), "Parsing and Type Checking Interface Packages")
+	printHeader(jirix.Stdout(), "Parsing and Type Checking Interface Packages")
 
 	ifcPkgs := []*types.Package{}
 	for _, ifc := range ifcs {
@@ -239,17 +240,17 @@ func runInjector(ctx *tool.Context, interfaceList, implementationList []string, 
 		}
 		ifcPkgs = append(ifcPkgs, tpkg)
 	}
-	publicInterfaces := findPublicInterfaces(ctx, ifcPkgs)
+	publicInterfaces := findPublicInterfaces(jirix, ifcPkgs)
 
 	for _, impl := range impls {
-		printHeader(ctx.Stdout(), "Parsing and Type Checking Implementation Packages")
+		printHeader(jirix.Stdout(), "Parsing and Type Checking Implementation Packages")
 		asts, tpkg, err := ps.parseAndTypeCheckPackage(impl)
 		if err != nil {
 			return fmt.Errorf("failed to parse+type check: %s: %s", impl.ImportPath, err)
 		}
 
 		// Now find the methods that implement those public interfaces.
-		methods := findMethodsImplementing(ctx, ps.fset, tpkg, publicInterfaces)
+		methods := findMethodsImplementing(jirix, ps.fset, tpkg, publicInterfaces)
 
 		// and their positions in the files.
 		methodPositions, err := functionDeclarationsAtPositions(ps.fset, asts, ps.info, methods)
@@ -261,12 +262,12 @@ func runInjector(ctx *tool.Context, interfaceList, implementationList []string, 
 
 		if checkOnly {
 			if len(needsInjection) > 0 {
-				printHeader(ctx.Stdout(), "Check Results")
-				reportResults(ctx, ps.fset, needsInjection)
+				printHeader(jirix.Stdout(), "Check Results")
+				reportResults(jirix, ps.fset, needsInjection)
 				checkFailed = append(checkFailed, impl.ImportPath)
 			}
 		} else {
-			if err := inject(ctx, ps.fset, needsInjection); err != nil {
+			if err := inject(jirix, ps.fset, needsInjection); err != nil {
 				return fmt.Errorf("injection failed for: %s: %s", impl.ImportPath, err)
 			}
 		}
@@ -274,7 +275,7 @@ func runInjector(ctx *tool.Context, interfaceList, implementationList []string, 
 
 	if checkOnly && len(checkFailed) > 0 {
 		for _, p := range checkFailed {
-			fmt.Fprintf(ctx.Stdout(), "check failed for: %s\n", p)
+			fmt.Fprintf(jirix.Stdout(), "check failed for: %s\n", p)
 		}
 		os.Exit(1)
 	}
@@ -294,35 +295,35 @@ func initRemoverFlags() error {
 	return nil
 }
 
-func runRemover(ctx *tool.Context, implementationList []string) error {
+func runRemover(jirix *jiri.X, implementationList []string) error {
 	if err := initRemoverFlags(); err != nil {
 		return err
 	}
 
 	// use 'go list' and the builder to import all of the packages
 	// specified as implementations.
-	impls, err := importPkgs(ctx, implementationList)
+	impls, err := importPkgs(jirix, implementationList)
 	if err != nil {
 		return err
 	}
 
-	ps := newState(ctx)
+	ps := newState(jirix)
 
-	printHeader(ctx.Stdout(), "Package Summary")
-	progressMsg(ctx.Stdout(), "%v expands to %d implementation packages\n", implementationList, len(impls))
+	printHeader(jirix.Stdout(), "Package Summary")
+	progressMsg(jirix.Stdout(), "%v expands to %d implementation packages\n", implementationList, len(impls))
 
 	for _, impl := range impls {
 		asts, tpkg, err := ps.parseAndTypeCheckPackage(impl)
 		if err != nil {
 			return fmt.Errorf("failed to parse+type check: %s: %s", impl.ImportPath, err)
 		}
-		methods := findMethods(ctx, ps.fset, tpkg)
+		methods := findMethods(jirix, ps.fset, tpkg)
 		methodPositions, err := functionDeclarationsAtPositions(ps.fset, asts, ps.info, methods)
 		if err != nil {
 			return err
 		}
 		needsRemoval := findRemovals(methodPositions)
-		if err := remove(ctx, ps.fset, needsRemoval); err != nil {
+		if err := remove(jirix, ps.fset, needsRemoval); err != nil {
 			return fmt.Errorf("removal failed for: %s: %s", impl.ImportPath, err)
 		}
 	}
@@ -377,11 +378,11 @@ func hasV23Context(info *types.Info, parameters *ast.FieldList) (*ast.FieldList,
 		name := named.Obj()
 		if name.Pkg().Path() == v23ContextPackage && name.Name() == v23ContextTypeName {
 			filtered.List = append(filtered.List[:i], filtered.List[i+1:]...)
-			ctxname := "nil"
+			jirixname := "nil"
 			if len(field.Names) > 0 && field.Names[0].Name != "_" {
-				ctxname = field.Names[0].Name
+				jirixname = field.Names[0].Name
 			}
-			return &filtered, ctxname
+			return &filtered, jirixname
 		}
 	}
 	return &filtered, "nil"
@@ -530,7 +531,7 @@ func functionDeclarationsAtPositions(fset *token.FileSet, files []*ast.File, inf
 // findMethodsImplementing searches the specified packages and returns
 // a list of function declarations that are implementations for
 // the specified interfaces.
-func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types.Package, interfaces []*types.Interface) map[token.Pos]struct{} {
+func findMethodsImplementing(jirix *jiri.X, fset *token.FileSet, tpkg *types.Package, interfaces []*types.Interface) map[token.Pos]struct{} {
 	// positions will hold the set of Pos values of methods
 	// that should be logged.  Each element will be the position of
 	// the identifier token representing the method name of such
@@ -540,7 +541,7 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 	// declarations and find everything that has a matching position.
 	positions := map[token.Pos]struct{}{}
 
-	printHeader(ctx.Stdout(), "Methods Implementing Public Interfaces in %s", tpkg.Path())
+	printHeader(jirix.Stdout(), "Methods Implementing Public Interfaces in %s", tpkg.Path())
 
 	scope := tpkg.Scope()
 	for _, child := range scope.Names() {
@@ -573,7 +574,7 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 						// Embedded functions show up with a zero pos.
 						continue
 					}
-					progressMsg(ctx.Stdout(), "%s.%s: %s\n", tpkg.Path(), fn.Name(), fset.Position(fn.Pos()))
+					progressMsg(jirix.Stdout(), "%s.%s: %s\n", tpkg.Path(), fn.Name(), fset.Position(fn.Pos()))
 					positions[fn.Pos()] = exists
 				}
 			}
@@ -582,7 +583,7 @@ func findMethodsImplementing(ctx *tool.Context, fset *token.FileSet, tpkg *types
 	return positions
 }
 
-func findMethodsInScope(ctx *tool.Context, fset *token.FileSet, positions map[token.Pos]struct{}, scope *types.Scope) {
+func findMethodsInScope(jirix *jiri.X, fset *token.FileSet, positions map[token.Pos]struct{}, scope *types.Scope) {
 	for _, child := range scope.Names() {
 		object := scope.Lookup(child)
 		typ := object.Type()
@@ -598,11 +599,11 @@ func findMethodsInScope(ctx *tool.Context, fset *token.FileSet, positions map[to
 	}
 }
 
-func findMethods(ctx *tool.Context, fset *token.FileSet, tpkg *types.Package) map[token.Pos]struct{} {
+func findMethods(jirix *jiri.X, fset *token.FileSet, tpkg *types.Package) map[token.Pos]struct{} {
 	positions := map[token.Pos]struct{}{}
-	printHeader(ctx.Stdout(), "Methods in %s", tpkg.Path())
+	printHeader(jirix.Stdout(), "Methods in %s", tpkg.Path())
 	scope := tpkg.Scope()
-	findMethodsInScope(ctx, fset, positions, scope)
+	findMethodsInScope(jirix, fset, positions, scope)
 	return positions
 }
 
@@ -769,15 +770,15 @@ func checkMethod(method funcDeclRef) error {
 }
 
 // gofmt runs "gofmt -w files...".
-func gofmt(ctx *tool.Context, files []string) error {
+func gofmt(jirix *jiri.X, files []string) error {
 	if len(files) == 0 || !gofmtFlag {
 		return nil
 	}
-	return ctx.Run().Command("gofmt", append([]string{"-w"}, files...)...)
+	return jirix.Run().Command("gofmt", append([]string{"-w"}, files...)...)
 }
 
 // writeFiles writes out files modified by the patch sets supplied to it.
-func writeFiles(ctx *tool.Context, fset *token.FileSet, files map[*ast.File][]patch) (e error) {
+func writeFiles(jirix *jiri.X, fset *token.FileSet, files map[*ast.File][]patch) (e error) {
 	filesToFormat := []string{}
 
 	// Write out files in a fixed order so that other tools/tests can count on the
@@ -809,32 +810,32 @@ func writeFiles(ctx *tool.Context, fset *token.FileSet, files map[*ast.File][]pa
 		}
 		patchedSrc = append(patchedSrc, src[beginOffset:]...)
 		if diffOnlyFlag {
-			tmpDir, err := ctx.Run().TempDir("", "")
+			tmpDir, err := jirix.Run().TempDir("", "")
 			if err != nil {
 				return err
 			}
 			tmpFilename := filepath.Join(tmpDir, "gologcop-"+filepath.Base(filename))
-			defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-			if err := ctx.Run().WriteFile(tmpFilename, patchedSrc, os.FileMode(0644)); err != nil {
+			defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
+			if err := jirix.Run().WriteFile(tmpFilename, patchedSrc, os.FileMode(0644)); err != nil {
 				return err
 			}
-			progressMsg(ctx.Stdout(), "Diffing %s with %s\n", filename, tmpFilename)
+			progressMsg(jirix.Stdout(), "Diffing %s with %s\n", filename, tmpFilename)
 			verbose := false
-			nctx := ctx.Clone(tool.ContextOpts{Verbose: &verbose})
-			gofmt(nctx, []string{tmpFilename})
-			nctx.Run().Command("diff", filename, tmpFilename)
+			njirix := jirix.Clone(tool.ContextOpts{Verbose: &verbose})
+			gofmt(njirix, []string{tmpFilename})
+			njirix.Run().Command("diff", filename, tmpFilename)
 		} else {
-			ctx.Run().WriteFile(filename, patchedSrc, 644)
+			jirix.Run().WriteFile(filename, patchedSrc, 644)
 		}
 	}
 	if diffOnlyFlag {
 		return nil
 	}
-	return gofmt(ctx, filesToFormat)
+	return gofmt(jirix, filesToFormat)
 }
 
 // remove removes a log call at the beginning of each method in methods.
-func remove(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
+func remove(jirix *jiri.X, fset *token.FileSet, methods map[funcDeclRef]error) error {
 	files := map[*ast.File][]patch{}
 	comments := map[*ast.File]ast.CommentMap{}
 	for fdRef, _ := range methods {
@@ -885,11 +886,11 @@ func remove(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 		end := endAt(m.Decl, comments[m.File])
 		files[file] = append(files[file], removeRange(start, end))
 	}
-	return writeFiles(ctx, fset, files)
+	return writeFiles(jirix, fset, files)
 }
 
 // inject injects a log call at the beginning of each method in methods.
-func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) error {
+func inject(jirix *jiri.X, fset *token.FileSet, methods map[funcDeclRef]error) error {
 	// Warn the user for methods that already have something at
 	// their beginning that looks like a logging construct, but it
 	// is invalid for some reason.
@@ -898,7 +899,7 @@ func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 			method := m.Decl
 			position := fset.Position(method.Pos())
 			methodName := method.Name.Name
-			fmt.Fprintf(ctx.Stdout(), "Warning: %v: %s: %v\n", position, methodName, err)
+			fmt.Fprintf(jirix.Stdout(), "Warning: %v: %s: %v\n", position, methodName, err)
 		}
 	}
 
@@ -921,14 +922,14 @@ func inject(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]erro
 			files[file] = append(deltas, delta)
 		}
 	}
-	return writeFiles(ctx, fset, files)
+	return writeFiles(jirix, fset, files)
 }
 
 // reportResults prints out the validation results from checkMethods
 // in a human-readable form.
-func reportResults(ctx *tool.Context, fset *token.FileSet, methods map[funcDeclRef]error) {
+func reportResults(jirix *jiri.X, fset *token.FileSet, methods map[funcDeclRef]error) {
 	for m, err := range methods {
-		fmt.Fprintf(ctx.Stdout(), "%v: %s: %v\n", fset.Position(m.Decl.Pos()), m.Decl.Name.Name, err)
+		fmt.Fprintf(jirix.Stdout(), "%v: %s: %v\n", fset.Position(m.Decl.Pos()), m.Decl.Name.Name, err)
 	}
 }
 
@@ -1032,9 +1033,9 @@ func progressMsg(out io.Writer, format string, args ...interface{}) {
 
 // findPublicInterfaces returns all the public interfaces defined in the
 // supplied packages.
-func findPublicInterfaces(ctx *tool.Context, ifcs []*types.Package) (interfaces []*types.Interface) {
+func findPublicInterfaces(jirix *jiri.X, ifcs []*types.Package) (interfaces []*types.Interface) {
 	for _, ifc := range ifcs {
-		printHeader(ctx.Stdout(), "Public Interfaces for %s", ifc.Path())
+		printHeader(jirix.Stdout(), "Public Interfaces for %s", ifc.Path())
 		scope := ifc.Scope()
 		for _, child := range scope.Names() {
 			object := scope.Lookup(child)
@@ -1044,7 +1045,7 @@ func findPublicInterfaces(ctx *tool.Context, ifcs []*types.Package) (interfaces 
 				ifcType := typ.Underlying().(*types.Interface)
 
 				if !ifcType.Empty() {
-					progressMsg(ctx.Stdout(), "%s.%s\n", ifc.Path(), object.Name())
+					progressMsg(jirix.Stdout(), "%s.%s\n", ifc.Path(), object.Name())
 					interfaces = append(interfaces, ifcType)
 				}
 			}

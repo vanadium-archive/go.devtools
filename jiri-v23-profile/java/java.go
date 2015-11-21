@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/lib/envvar"
 )
 
@@ -76,18 +76,18 @@ func (m *Manager) initForTarget(root profiles.RelativePath, target profiles.Targ
 	return nil
 }
 
-func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
 
-	javaHome, err := m.install(ctx, target)
+	javaHome, err := m.install(jirix, target)
 	if err != nil {
 		return err
 	}
 	baseTarget := target
 	baseTarget.SetVersion("")
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "base", root, baseTarget); err != nil {
+	if err := profiles.EnsureProfileTargetIsInstalled(jirix, "base", root, baseTarget); err != nil {
 		return err
 	}
 	// NOTE(spetrovic): For now, we install android profile along with Java,
@@ -96,7 +96,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	if err != nil {
 		return err
 	}
-	if err := profiles.EnsureProfileTargetIsInstalled(ctx, "android", root, androidTarget); err != nil {
+	if err := profiles.EnsureProfileTargetIsInstalled(jirix, "android", root, androidTarget); err != nil {
 		return err
 	}
 
@@ -122,24 +122,24 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
-	if err := ctx.NewSeq().RemoveAll(m.javaRoot.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.javaRoot.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
 }
 
-func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, error) {
+func (m *Manager) install(jirix *jiri.X, target profiles.Target) (string, error) {
 	switch target.OS() {
 	case "darwin":
-		if err := profiles.InstallPackages(ctx, []string{"gradle"}); err != nil {
+		if err := profiles.InstallPackages(jirix, []string{"gradle"}); err != nil {
 			return "", err
 		}
-		javaHome, err := getJDKDarwin(ctx, m.spec)
+		javaHome, err := getJDKDarwin(jirix, m.spec)
 		if err == nil {
 			return javaHome, nil
 		}
@@ -148,13 +148,13 @@ func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, er
 		// Prompt the user to install JDK.
 		// (Note that JDK cannot be installed via Homebrew.)
 		javaHomeBin := "/usr/libexec/java_home"
-		ctx.NewSeq().Last(javaHomeBin, "-t", "CommandLine", "--request")
+		jirix.NewSeq().Last(javaHomeBin, "-t", "CommandLine", "--request")
 		return "", fmt.Errorf("Please follow the OS X prompt instructions to install JDK, then set JAVA_HOME and re-run the profile installation command.")
 	case "linux":
-		if err := profiles.InstallPackages(ctx, []string{"gradle"}); err != nil {
+		if err := profiles.InstallPackages(jirix, []string{"gradle"}); err != nil {
 			return "", err
 		}
-		javaHome, err := getJDKLinux(ctx, m.spec)
+		javaHome, err := getJDKLinux(jirix, m.spec)
 		if err == nil {
 			return javaHome, nil
 		}
@@ -163,15 +163,15 @@ func (m *Manager) install(ctx *tool.Context, target profiles.Target) (string, er
 		// Prompt the user to install JDK.
 		// (Note that Oracle JDKs cannot be installed via apt-get.)
 		dlURL := "http://www.oracle.com/technetwork/java/javase/downloads/index.html"
-		ctx.NewSeq().Last("xdg-open", dlURL)
+		jirix.NewSeq().Last("xdg-open", dlURL)
 		return "", fmt.Errorf("Please follow the instructions in the browser to install JDK, then set JAVA_HOME and re-run the profile installation command")
 	default:
 		return "", fmt.Errorf("OS %q is not supported", target.OS)
 	}
 }
 
-func checkInstall(ctx *tool.Context, home, version string) error {
-	s := ctx.NewSeq()
+func checkInstall(jirix *jiri.X, home, version string) error {
+	s := jirix.NewSeq()
 	if _, err := s.Stat(filepath.Join(home, "include", "jni.h")); err != nil {
 		return err
 	}
@@ -190,9 +190,9 @@ func checkInstall(ctx *tool.Context, home, version string) error {
 	return nil
 }
 
-func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
+func getJDKLinux(jirix *jiri.X, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
-		err := checkInstall(ctx, javaHome, spec.jdkVersion)
+		err := checkInstall(jirix, javaHome, spec.jdkVersion)
 		if err == nil {
 			return javaHome, nil
 		}
@@ -201,7 +201,7 @@ func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javacBin := "/usr/bin/javac"
 	var out bytes.Buffer
-	if err := ctx.NewSeq().Capture(&out, &out).Last("readlink", "-f", javacBin); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).Last("readlink", "-f", javacBin); err != nil {
 		return "", err
 	}
 	if out.Len() == 0 {
@@ -209,15 +209,15 @@ func getJDKLinux(ctx *tool.Context, spec versionSpec) (string, error) {
 	}
 	// Strip "/bin/javac" from the returned path.
 	javaHome := strings.TrimSuffix(out.String(), "/bin/javac\n")
-	if err := checkInstall(ctx, javaHome, spec.jdkVersion); err != nil {
+	if err := checkInstall(jirix, javaHome, spec.jdkVersion); err != nil {
 		return "", errors.New("Java installed in /usr/bin/javac is incompatible with profile version: " + spec.jdkVersion)
 	}
 	return javaHome, nil
 }
 
-func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
+func getJDKDarwin(jirix *jiri.X, spec versionSpec) (string, error) {
 	if javaHome := os.Getenv("JAVA_HOME"); len(javaHome) > 0 {
-		err := checkInstall(ctx, javaHome, spec.jdkVersion)
+		err := checkInstall(jirix, javaHome, spec.jdkVersion)
 		if err == nil {
 			return javaHome, nil
 		}
@@ -226,7 +226,7 @@ func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javaHomeBin := "/usr/libexec/java_home"
 	var out bytes.Buffer
-	if err := ctx.NewSeq().Capture(&out, &out).Last(javaHomeBin, "-t", "CommandLine", "-v", spec.jdkVersion); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).Last(javaHomeBin, "-t", "CommandLine", "-v", spec.jdkVersion); err != nil {
 		return "", err
 	}
 	if out.Len() == 0 {
@@ -236,7 +236,7 @@ func getJDKDarwin(ctx *tool.Context, spec versionSpec) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Couldn't find a valid Java system installation: %v", err)
 	}
-	if err := checkInstall(ctx, string(jdkLoc), spec.jdkVersion); err != nil {
+	if err := checkInstall(jirix, string(jdkLoc), spec.jdkVersion); err != nil {
 		return "", fmt.Errorf("Java system installation is incompatible with profile version %s: %v", spec.jdkVersion, err)
 	}
 	return string(jdkLoc), nil

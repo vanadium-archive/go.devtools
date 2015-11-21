@@ -13,7 +13,6 @@ Usage:
 
 The postsubmit commands are:
    poll        Poll changes and start corresponding builds on Jenkins
-   version     Print version
    help        Display help for commands or topics
 
 The postsubmit flags are:
@@ -42,13 +41,6 @@ Usage:
 The postsubmit poll flags are:
  -manifest=
    Name of the project manifest.
-
-Postsubmit version - Print version
-
-Print version of the postsubmit tool.
-
-Usage:
-   postsubmit version
 
 Postsubmit help - Display help for commands or topics
 

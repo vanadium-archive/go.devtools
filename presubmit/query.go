@@ -17,6 +17,7 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/gerrit"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -118,31 +119,30 @@ query results, and sends each one with related metadata (ref, project, changeId)
 to a Jenkins job which will run tests against the corresponding CL and post
 review with test results.
 `,
-	Runner: cmdline.RunnerFunc(runQuery),
+	Runner: jiri.RunnerFunc(runQuery),
 }
 
 // runQuery implements the "query" subcommand.
-func runQuery(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
+func runQuery(jirix *jiri.X, args []string) error {
 	numSentCLs := 0
 	defer func() {
-		printf(ctx.Stdout(), "%d sent.\n", numSentCLs)
+		printf(jirix.Stdout(), "%d sent.\n", numSentCLs)
 	}()
 
 	// Load Jenkins matrix jobs config.
-	config, err := util.LoadConfig(ctx)
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
 	matrixJobsConf := config.JenkinsMatrixJobs()
 
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastBuildInfo, err := lastCompletedBuildStatus(ctx, presubmitTestJobFlag, axisValuesInfo{}, matrixJobsConf)
+	lastBuildInfo, err := lastCompletedBuildStatus(jirix, presubmitTestJobFlag, axisValuesInfo{}, matrixJobsConf)
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	} else {
 		if lastBuildInfo.Result == "FAILURE" {
-			printf(ctx.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJobFlag)
+			printf(jirix.Stdout(), "%s is failing. Skipping this round.\n", presubmitTestJobFlag)
 			return nil
 		}
 	}
@@ -154,35 +154,35 @@ func runQuery(env *cmdline.Env, args []string) error {
 	}
 
 	// Query Gerrit.
-	curCLs, err := ctx.Gerrit(gerritBaseUrlFlag).Query(queryStringFlag)
+	curCLs, err := jirix.Gerrit(gerritBaseUrlFlag).Query(queryStringFlag)
 	if err != nil {
 		return fmt.Errorf("Query(%q) failed: %v", queryStringFlag, err)
 	}
 
 	// Write current CLs to the log file.
-	err = writeLog(ctx, curCLs)
+	err = writeLog(jirix, curCLs)
 	if err != nil {
 		return err
 	}
 
 	// Don't send anything if jenkins host is not specified.
 	if jenkinsHostFlag == "" {
-		printf(ctx.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
+		printf(jirix.Stdout(), "Not sending CLs to run presubmit tests due to empty Jenkins host.\n")
 		return nil
 	}
 
 	// Don't send anything if prevCLsMap is empty.
 	if len(prevCLsMap) == 0 {
-		printf(ctx.Stdout(), "Not sending CLs to run presubmit tests due to empty log file.\n")
+		printf(jirix.Stdout(), "Not sending CLs to run presubmit tests due to empty log file.\n")
 		return nil
 	}
 
 	// Get new clLists.
-	newCLLists := newOpenCLs(ctx, prevCLsMap, curCLs)
+	newCLLists := newOpenCLs(jirix, prevCLsMap, curCLs)
 
 	// Send the new open CLs one by one to the given Jenkins
 	// project to run presubmit-test builds.
-	projects, _, err := project.ReadManifest(ctx)
+	projects, _, err := project.ReadManifest(jirix)
 	if err != nil {
 		return err
 	}
@@ -194,18 +194,18 @@ func runQuery(env *cmdline.Env, args []string) error {
 		addPresubmitFn:   addPresubmitTestBuild,
 		postMessageFn:    postMessage,
 	}
-	if err := sender.sendCLListsToPresubmitTest(ctx); err != nil {
+	if err := sender.sendCLListsToPresubmitTest(jirix); err != nil {
 		return err
 	}
 	numSentCLs += sender.clsSent
 
 	// Get all submittable CLs and submit them.
-	submittableCLs := getSubmittableCLs(ctx, curCLs)
+	submittableCLs := getSubmittableCLs(jirix, curCLs)
 	if len(submittableCLs) > 0 {
-		fmt.Fprintf(ctx.Stdout(), "Submitting CLs...\n")
+		fmt.Fprintf(jirix.Stdout(), "Submitting CLs...\n")
 	}
 	for _, curCLList := range submittableCLs {
-		if err := submitCLs(ctx, curCLList); err != nil {
+		if err := submitCLs(jirix, curCLList); err != nil {
 			return err
 		}
 	}
@@ -232,7 +232,7 @@ func readLog() (clRefMap, error) {
 }
 
 // writeLog writes the refs of the given CLs to the log file.
-func writeLog(ctx *tool.Context, cls clList) (e error) {
+func writeLog(jirix *jiri.X, cls clList) (e error) {
 	// Index CLs with their refs.
 	results := clRefMap{}
 	for _, cl := range cls {
@@ -249,7 +249,7 @@ func writeLog(ctx *tool.Context, cls clList) (e error) {
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", results, err)
 	}
-	if err := ctx.Run().WriteFile(path, bytes, os.FileMode(0644)); err != nil {
+	if err := jirix.Run().WriteFile(path, bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%q) failed: %v", path, err)
 	}
 	return nil
@@ -275,7 +275,7 @@ func writeLog(ctx *tool.Context, cls clList) (e error) {
 //   a clList [3001/1 3002/1] will be returned. Then suppose in the next query,
 //   we got cl 3002/2 which is newer then 3002/1. In this case, a clList
 //   [3001/1 3002/2] will be returned.
-func newOpenCLs(ctx *tool.Context, prevCLsMap clRefMap, curCLs clList) []clList {
+func newOpenCLs(jirix *jiri.X, prevCLsMap clRefMap, curCLs clList) []clList {
 	newCLs := []clList{}
 	topicsInNewCLs := map[string]struct{}{}
 	multiPartCLs := clList{}
@@ -320,10 +320,10 @@ func newOpenCLs(ctx *tool.Context, prevCLsMap clRefMap, curCLs clList) []clList 
 		if err := curSet.addCL(curCL); err != nil {
 			curCLRef := curCL.Reference()
 			message := fmt.Sprintf("failed to process multi-part CL %s:\n%v\n", curCLRef, err.Error())
-			if err := postMessage(ctx, message, []string{curCLRef}, false); err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
+			if err := postMessage(jirix, message, []string{curCLRef}, false); err != nil {
+				printf(jirix.Stderr(), "%v\n", err)
 			}
-			printf(ctx.Stderr(), "%v\n", err)
+			printf(jirix.Stderr(), "%v\n", err)
 		}
 	}
 	for _, set := range setMap {
@@ -339,20 +339,20 @@ type clsSender struct {
 	clLists          []clList
 	projects         map[string]project.Project
 	clsSent          int
-	removeOutdatedFn func(*tool.Context, clNumberToPatchsetMap) []error
-	addPresubmitFn   func(*tool.Context, clList, []string) error
-	postMessageFn    func(*tool.Context, string, []string, bool) error
+	removeOutdatedFn func(*jiri.X, clNumberToPatchsetMap) []error
+	addPresubmitFn   func(*jiri.X, clList, []string) error
+	postMessageFn    func(*jiri.X, string, []string, bool) error
 }
 
 // sendCLListsToPresubmitTest sends the given clLists to presubmit-test Jenkins
 // job one by one to run presubmit-test builds. It returns how many CLs have
 // been sent successfully.
-func (s *clsSender) sendCLListsToPresubmitTest(ctx *tool.Context) error {
+func (s *clsSender) sendCLListsToPresubmitTest(jirix *jiri.X) error {
 	for _, curCLList := range s.clLists {
-		clListInfo := s.processCLList(ctx, curCLList)
+		clListInfo := s.processCLList(jirix, curCLList)
 		curCLList = clListInfo.filteredCLList
 		if len(curCLList) == 0 {
-			printf(ctx.Stdout(), "SKIP: Empty CL set\n")
+			printf(jirix.Stdout(), "SKIP: Empty CL set\n")
 			continue
 		}
 
@@ -360,24 +360,24 @@ func (s *clsSender) sendCLListsToPresubmitTest(ctx *tool.Context) error {
 		// have PresubmitTest set to none.
 		if clListInfo.skipPresubmitTest {
 			// Set verified+1 label.
-			if err := s.postMessageFn(ctx, "Presubmit tests skipped.\n", clListInfo.refs, true); err != nil {
+			if err := s.postMessageFn(jirix, "Presubmit tests skipped.\n", clListInfo.refs, true); err != nil {
 				return err
 			}
-			printf(ctx.Stdout(), "SKIP: Add %s (presubmit=none)\n", clListInfo.clString)
+			printf(jirix.Stdout(), "SKIP: Add %s (presubmit=none)\n", clListInfo.clString)
 			continue
 		}
 
 		// Skip if there is no tests to run.
-		tests, err := s.getTestsToRun(ctx, clListInfo.projects)
+		tests, err := s.getTestsToRun(jirix, clListInfo.projects)
 		if err != nil {
 			return err
 		}
 		if len(tests) == 0 {
 			// Set verified+1 label when there is no tests to run.
-			if err := s.postMessageFn(ctx, "No tests found.\n", clListInfo.refs, true); err != nil {
+			if err := s.postMessageFn(jirix, "No tests found.\n", clListInfo.refs, true); err != nil {
 				return err
 			}
-			printf(ctx.Stdout(), "SKIP: Add %s (no tests found)\n", clListInfo.clString)
+			printf(jirix.Stdout(), "SKIP: Add %s (no tests found)\n", clListInfo.clString)
 			continue
 		}
 
@@ -385,27 +385,27 @@ func (s *clsSender) sendCLListsToPresubmitTest(ctx *tool.Context) error {
 		// has an non-google owner. Instead, post a link that one of our
 		// team members has to click to trigger the presubmit-test manually.
 		if clListInfo.hasNonGoogleOwner {
-			if err := s.handleNonGoogleOwner(ctx, clListInfo.refs, clListInfo.projects, tests); err != nil {
+			if err := s.handleNonGoogleOwner(jirix, clListInfo.refs, clListInfo.projects, tests); err != nil {
 				return err
 			}
-			printf(ctx.Stdout(), "SKIP: Add %s (non-google owner)\n", clListInfo.clString)
+			printf(jirix.Stdout(), "SKIP: Add %s (non-google owner)\n", clListInfo.clString)
 			continue
 		}
 
 		// Check and cancel matched outdated builds.
-		for _, err := range s.removeOutdatedFn(ctx, clListInfo.clMap) {
+		for _, err := range s.removeOutdatedFn(jirix, clListInfo.clMap) {
 			if err != nil {
-				printf(ctx.Stderr(), "%v\n", err)
+				printf(jirix.Stderr(), "%v\n", err)
 			}
 		}
 
 		// Send curCLList to presubmit-test.
 		strCLs := fmt.Sprintf("Add %s", clListInfo.clString)
-		if err := s.addPresubmitFn(ctx, curCLList, tests); err != nil {
-			printf(ctx.Stdout(), "FAIL: %s\n", strCLs)
-			printf(ctx.Stderr(), "addPresubmitTestBuild failed: %v\n", err)
+		if err := s.addPresubmitFn(jirix, curCLList, tests); err != nil {
+			printf(jirix.Stdout(), "FAIL: %s\n", strCLs)
+			printf(jirix.Stderr(), "addPresubmitTestBuild failed: %v\n", err)
 		} else {
-			printf(ctx.Stdout(), "PASS: %s\n", strCLs)
+			printf(jirix.Stdout(), "PASS: %s\n", strCLs)
 			s.clsSent += len(curCLList)
 		}
 	}
@@ -423,7 +423,7 @@ type clListInfo struct {
 	filteredCLList    clList
 }
 
-func (s *clsSender) processCLList(ctx *tool.Context, curCLList clList) *clListInfo {
+func (s *clsSender) processCLList(jirix *jiri.X, curCLList clList) *clListInfo {
 	curCLMap := clNumberToPatchsetMap{}
 	clStrings := []string{}
 	skipPresubmitTest := false
@@ -434,14 +434,14 @@ func (s *clsSender) processCLList(ctx *tool.Context, curCLList clList) *clListIn
 	for _, curCL := range curCLList {
 		// Ignore all CLs that are not in projects identified by the manifestFlag.
 		// TODO(jingjin): find a better way so we can remove this check.
-		if s.projects != nil && !isKnowProject(ctx, curCL, s.projects) {
+		if s.projects != nil && !isKnowProject(jirix, curCL, s.projects) {
 			continue
 		}
 		filteredCLList = append(filteredCLList, curCL)
 
 		cl, patchset, err := parseRefString(curCL.Reference())
 		if err != nil {
-			printf(ctx.Stderr(), "%v\n", err)
+			printf(jirix.Stderr(), "%v\n", err)
 			return nil
 		}
 		curCLMap[cl] = patchset
@@ -469,8 +469,8 @@ func (s *clsSender) processCLList(ctx *tool.Context, curCLList clList) *clListIn
 	}
 }
 
-func (s *clsSender) getTestsToRun(ctx *tool.Context, projects []string) ([]string, error) {
-	config, err := util.LoadConfig(ctx)
+func (s *clsSender) getTestsToRun(jirix *jiri.X, projects []string) ([]string, error) {
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -490,10 +490,10 @@ func (s *clsSender) getTestsToRun(ctx *tool.Context, projects []string) ([]strin
 	return tests, nil
 }
 
-func (s *clsSender) handleNonGoogleOwner(ctx *tool.Context, refs, projects, tests []string) error {
+func (s *clsSender) handleNonGoogleOwner(jirix *jiri.X, refs, projects, tests []string) error {
 	link := genStartPresubmitBuildLink(strings.Join(refs, ":"), strings.Join(projects, ":"), strings.Join(tests, " "))
 	message := fmt.Sprintf("A Vanadium team member will manually trigger presubmit tests for this change:\n%s\n", link)
-	if err := s.postMessageFn(ctx, message, refs, false); err != nil {
+	if err := s.postMessageFn(jirix, message, refs, false); err != nil {
 		return err
 	}
 	return nil
@@ -501,9 +501,9 @@ func (s *clsSender) handleNonGoogleOwner(ctx *tool.Context, refs, projects, test
 
 // isKnownProject checks whether the given cl's project is in the
 // given set of projects.
-func isKnowProject(ctx *tool.Context, cl gerrit.Change, projects map[string]project.Project) bool {
+func isKnowProject(jirix *jiri.X, cl gerrit.Change, projects map[string]project.Project) bool {
 	if _, ok := projects[cl.Project]; !ok {
-		printf(ctx.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
+		printf(jirix.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
 		return false
 	}
 	return true
@@ -515,14 +515,14 @@ func isKnowProject(ctx *tool.Context, cl gerrit.Change, projects map[string]proj
 //
 // Since this is not a critical operation, we simply print out the
 // errors if we see any.
-func removeOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) (errs []error) {
-	collect.Errors(func() error { return removeQueuedOutdatedBuilds(ctx, cls) }, &errs)
-	collect.Errors(func() error { return removeOngoingOutdatedBuilds(ctx, cls) }, &errs)
+func removeOutdatedBuilds(jirix *jiri.X, cls clNumberToPatchsetMap) (errs []error) {
+	collect.Errors(func() error { return removeQueuedOutdatedBuilds(jirix, cls) }, &errs)
+	collect.Errors(func() error { return removeOngoingOutdatedBuilds(jirix, cls) }, &errs)
 	return
 }
 
-func removeQueuedOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) error {
-	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+func removeQueuedOutdatedBuilds(jirix *jiri.X, cls clNumberToPatchsetMap) error {
+	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
 	}
@@ -546,14 +546,14 @@ func removeQueuedOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) er
 			if err := jenkins.CancelQueuedBuild(fmt.Sprintf("%d", build.Id)); err != nil {
 				return err
 			}
-			printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", refs)
+			printf(jirix.Stdout(), "Cancelled build %s as it is no longer current.\n", refs)
 		}
 	}
 	return nil
 }
 
-func removeOngoingOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) error {
-	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+func removeOngoingOutdatedBuilds(jirix *jiri.X, cls clNumberToPatchsetMap) error {
+	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
 	}
@@ -571,7 +571,7 @@ func removeOngoingOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) e
 		if refs != "" {
 			buildOutdated, err := isBuildOutdated(refs, cls)
 			if err != nil {
-				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+				fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 				continue
 			}
 			// Cancel outdated running build.
@@ -579,7 +579,7 @@ func removeOngoingOutdatedBuilds(ctx *tool.Context, cls clNumberToPatchsetMap) e
 				if err := jenkins.CancelOngoingBuild(presubmitTestJobFlag, buildInfo.Number); err != nil {
 					return err
 				}
-				printf(ctx.Stdout(), "Cancelled build %s as it is no longer current.\n", refs)
+				printf(jirix.Stdout(), "Cancelled build %s as it is no longer current.\n", refs)
 			}
 		}
 	}
@@ -657,8 +657,8 @@ func parseRefString(ref string) (int, int, error) {
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
 // a set of open CLs to run presubmit tests.
-func addPresubmitTestBuild(ctx *tool.Context, cls clList, tests []string) error {
-	jenkins, err := ctx.Jenkins(jenkinsHostFlag)
+func addPresubmitTestBuild(jirix *jiri.X, cls clList, tests []string) error {
+	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
 	}

@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
@@ -43,14 +44,14 @@ func TestProjectTests(t *testing.T) {
 }
 
 func TestGenXUnitReportForError(t *testing.T) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 
 	// Set WORKSPACE to a tmp dir.
-	workspaceDir, err := ctx.Run().TempDir("", "")
+	workspaceDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer ctx.Run().RemoveAll(workspaceDir)
+	defer jirix.Run().RemoveAll(workspaceDir)
 	oldWorkspaceDir := os.Getenv("WORKSPACE")
 	if err := os.Setenv("WORKSPACE", workspaceDir); err != nil {
 		t.Fatalf("%v", err)
@@ -177,7 +178,7 @@ func TestGenXUnitReportForError(t *testing.T) {
 				t.Fatalf("WriteFile(%v) failed: %v", xUnitFileName, err)
 			}
 		}
-		testResult, err := generateXUnitReportForError(ctx, "vanadium-go-test", internalErr, "output message")
+		testResult, err := generateXUnitReportForError(jirix, "vanadium-go-test", internalErr, "output message")
 		if err != nil {
 			t.Fatalf("want no errors, got %v", err)
 		}

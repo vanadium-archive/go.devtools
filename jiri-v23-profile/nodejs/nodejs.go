@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"runtime"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 )
 
 const (
@@ -68,14 +68,14 @@ func (m *Manager) initForTarget(root profiles.RelativePath, target profiles.Targ
 	return nil
 }
 
-func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
 	if target.CrossCompiling() {
 		return fmt.Errorf("the %q profile does not support cross compilation to %v", profileName, target)
 	}
-	if err := m.installNode(ctx, target); err != nil {
+	if err := m.installNode(jirix, target); err != nil {
 		return err
 	}
 	if profiles.SchemaVersion() >= 4 {
@@ -88,22 +88,22 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
-	if err := ctx.NewSeq().RemoveAll(m.nodeInstDir.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.nodeInstDir.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
 }
 
-func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
+func (m *Manager) installNode(jirix *jiri.X, target profiles.Target) error {
 	switch target.OS() {
 	case "darwin":
 	case "linux":
-		if err := profiles.InstallPackages(ctx, []string{"g++"}); err != nil {
+		if err := profiles.InstallPackages(jirix, []string{"g++"}); err != nil {
 			return err
 		}
 	default:
@@ -111,11 +111,11 @@ func (m *Manager) installNode(ctx *tool.Context, target profiles.Target) error {
 	}
 	// Build and install NodeJS.
 	installNodeFn := func() error {
-		return ctx.NewSeq().Pushd(m.nodeSrcDir.Expand()).
+		return jirix.NewSeq().Pushd(m.nodeSrcDir.Expand()).
 			Run("./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir.Expand())).
 			Run("make", "clean").
 			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
 			Last("make", "install")
 	}
-	return profiles.AtomicAction(ctx, installNodeFn, m.nodeInstDir.Expand(), "Build and install node.js")
+	return profiles.AtomicAction(jirix, installNodeFn, m.nodeInstDir.Expand(), "Build and install node.js")
 }

@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/buildinfo"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
-	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
 )
 
@@ -25,18 +25,18 @@ import (
 // "jiri go" command sets up the vanadium environment and then
 // dispatches calls to the go tool.
 func TestGoVanadiumEnvironment(t *testing.T) {
-	ctx := tool.NewDefaultContext()
 	var stdout, stderr bytes.Buffer
-	cmdlineEnv := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
+	ctx := tool.NewContext(tool.ContextOpts{Stdout: &stdout, Stderr: &stderr})
+	jirix := &jiri.X{Context: ctx}
 	oldGoPath := os.Getenv("GOPATH")
 	if err := os.Setenv("GOPATH", ""); err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer os.Setenv("GOPATH", oldGoPath)
-	if err := runGo(cmdlineEnv, []string{"env", "GOPATH"}); err != nil {
+	if err := runGo(jirix, []string{"env", "GOPATH"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -47,23 +47,23 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 }
 
 func TestGoBuildWithMetaData(t *testing.T) {
-	ctx, start := tool.NewDefaultContext(), time.Now().UTC()
+	jirix, start := tool.NewDefaultContext(), time.Now().UTC()
 	// Set up a temp directory.
-	dir, err := ctx.Run().TempDir("", "v23_metadata_test")
+	dir, err := jirix.Run().TempDir("", "v23_metadata_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
-	defer ctx.Run().RemoveAll(dir)
+	defer jirix.Run().RemoveAll(dir)
 	// Build the jiri binary itself.
 	var buf bytes.Buffer
 	opts := runutil.Opts{Stdout: &buf, Stderr: &buf, Verbose: true}
 	testbin := filepath.Join(dir, "testbin")
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "build", "-o", testbin); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "build", "-o", testbin); err != nil {
 		t.Fatalf("build of jiri failed: %v\n%s", err, buf.String())
 	}
 	// Run the jiri binary.
 	buf.Reset()
-	if err := ctx.Run().CommandWithOpts(opts, testbin, "-metadata"); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, testbin, "-metadata"); err != nil {
 		t.Errorf("run of jiri -metadata failed: %v\n%s", err, buf.String())
 	}
 	// Decode the output metadata and spot-check some values.

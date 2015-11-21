@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"v.io/jiri/gerrit"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -104,7 +105,7 @@ func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[
 }
 
 func TestNewOpenCLs(t *testing.T) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	nonMultiPartCLs := clList{
 		genCL(1010, 1, "release.go.core"),
 		genCL(1020, 2, "release.go.tools"),
@@ -213,7 +214,7 @@ func TestNewOpenCLs(t *testing.T) {
 	}
 
 	for index, test := range testCases {
-		got := newOpenCLs(ctx, test.prevCLsMap, test.curCLs)
+		got := newOpenCLs(jirix, test.prevCLsMap, test.curCLs)
 		if !reflect.DeepEqual(test.expected, got) {
 			t.Fatalf("case %d: want: %v, got: %v", index, test.expected, got)
 		}
@@ -255,6 +256,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		Stderr:  &buf,
 		Verbose: &f,
 	})
+	jirix := &jiri.X{Context: ctx}
 	sender := clsSender{
 		clLists: clLists,
 		projects: map[string]project.Project{
@@ -263,11 +265,11 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 
 		// Mock out the removeOutdatedBuilds function.
-		removeOutdatedFn: func(ctx *tool.Context, cls clNumberToPatchsetMap) []error { return nil },
+		removeOutdatedFn: func(jirix *jiri.X, cls clNumberToPatchsetMap) []error { return nil },
 
 		// Mock out the addPresubmitTestBuild function.
 		// It will return error for the first clList.
-		addPresubmitFn: func(ctx *tool.Context, cls clList, tests []string) error {
+		addPresubmitFn: func(jirix *jiri.X, cls clList, tests []string) error {
 			if reflect.DeepEqual(cls, clLists[0]) {
 				return fmt.Errorf("err")
 			} else {
@@ -276,9 +278,9 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		},
 
 		// Mock out postMessage function.
-		postMessageFn: func(ctx *tool.Context, message string, refs []string, success bool) error { return nil },
+		postMessageFn: func(jirix *jiri.X, message string, refs []string, success bool) error { return nil },
 	}
-	if err := sender.sendCLListsToPresubmitTest(ctx); err != nil {
+	if err := sender.sendCLListsToPresubmitTest(jirix); err != nil {
 		t.Fatalf("want no error, got: %v", err)
 	}
 
@@ -303,13 +305,12 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 }
 
 func TestGetTestsToRun(t *testing.T) {
-	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeJiriRoot(ctx)
+	root, err := project.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer func() {
-		if err := root.Cleanup(ctx); err != nil {
+		if err := root.Cleanup(); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}()
@@ -336,7 +337,7 @@ func TestGetTestsToRun(t *testing.T) {
 			"vanadium-go-race": []string{"v.io/x/ref/services/device/...", "v.io/x/ref/runtime/..."},
 		}),
 	)
-	if err := util.SaveConfig(ctx, config); err != nil {
+	if err := util.SaveConfig(root.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -349,7 +350,7 @@ func TestGetTestsToRun(t *testing.T) {
 		"vanadium-go-test",
 	}
 	sender := clsSender{}
-	got, err := sender.getTestsToRun(ctx, []string{"release.go.core"})
+	got, err := sender.getTestsToRun(root.X, []string{"release.go.core"})
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
 	}

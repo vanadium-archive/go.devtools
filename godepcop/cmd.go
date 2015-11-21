@@ -12,7 +12,6 @@ import (
 	"go/build"
 
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 )
 
@@ -78,7 +77,7 @@ Command godepcop checks Go package dependencies against constraints described in
 .godepcop files.  In addition to user-defined constraints, the Go 1.5 internal
 package rules are also enforced.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdList, cmdListImporters, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdList, cmdListImporters},
 }
 
 var cmdCheck = &cmdline.Command{
@@ -285,17 +284,5 @@ func runListImporters(env *cmdline.Env, args []string) error {
 	for _, pkg := range sortPackages(matches) {
 		fmt.Fprintln(env.Stdout, pkg.ImportPath)
 	}
-	return nil
-}
-
-var cmdVersion = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runVersion),
-	Name:   "version",
-	Short:  "Print version",
-	Long:   "Print version of the godepcop tool.",
-}
-
-func runVersion(env *cmdline.Env, _ []string) error {
-	fmt.Fprintf(env.Stdout, "godepcop tool version %v\n", tool.Version)
 	return nil
 }

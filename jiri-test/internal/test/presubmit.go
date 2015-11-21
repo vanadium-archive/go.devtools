@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -31,14 +31,14 @@ func requireEnv(names []string) error {
 
 // vanadiumPresubmitPoll polls vanadium projects for new patchsets for
 // which to run presubmit tests.
-func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -47,7 +47,7 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 	// Use the "presubmit query" command to poll for new changes.
 	logfile := filepath.Join(root, ".presubmit_log")
 	args := []string{}
-	if ctx.Verbose() {
+	if jirix.Verbose() {
 		args = append(args, "-v")
 	} else {
 		// append this for testing this CL only - remove on checkin.
@@ -59,7 +59,7 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 		"-log-file", logfile,
 		"-manifest", "tools",
 	)
-	if err := ctx.Run().Command("presubmit", args...); err != nil {
+	if err := jirix.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
 
@@ -68,27 +68,27 @@ func vanadiumPresubmitPoll(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 
 // vanadiumPresubmitTest runs presubmit tests for a given project specified
 // in TEST environment variable.
-func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "TEST", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
 
-	if err := cleanupProfiles(ctx); err != nil {
+	if err := cleanupProfiles(jirix); err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 
 	// Initialize the test.
-	cleanup, err := initTestImpl(ctx, false, testName, nil, "")
+	cleanup, err := initTestImpl(jirix, false, testName, nil, "")
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	displayProfiles(ctx, "presubmit")
+	displayProfiles(jirix, "presubmit")
 
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{}
-	if ctx.Verbose() {
+	if jirix.Verbose() {
 		args = append(args, "-v")
 	}
 	name := os.Getenv("TEST")
@@ -101,22 +101,22 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 		"-refs", os.Getenv("REFS"),
 		"-test", name,
 	)
-	if err := ctx.Run().Command("presubmit", args...); err != nil {
+	if err := jirix.Run().Command("presubmit", args...); err != nil {
 		return nil, internalTestError{err, "Presubmit"}
 	}
 
 	// Remove any test result files that are empty.
-	testResultFiles, err := findTestResultFiles(ctx, name)
+	testResultFiles, err := findTestResultFiles(jirix, name)
 	if err != nil {
 		return nil, err
 	}
 	for _, file := range testResultFiles {
-		fileInfo, err := ctx.Run().Stat(file)
+		fileInfo, err := jirix.Run().Stat(file)
 		if err != nil {
 			return nil, err
 		}
 		if fileInfo.Size() == 0 {
-			if err := ctx.Run().RemoveAll(file); err != nil {
+			if err := jirix.Run().RemoveAll(file); err != nil {
 				return nil, err
 			}
 		}
@@ -126,13 +126,13 @@ func vanadiumPresubmitTest(ctx *tool.Context, testName string, _ ...Opt) (_ *tes
 }
 
 // vanadiumPresubmitResult runs "presubmit result" command to process and post test results.
-func vanadiumPresubmitResult(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumPresubmitResult(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -140,7 +140,7 @@ func vanadiumPresubmitResult(ctx *tool.Context, testName string, _ ...Opt) (_ *t
 
 	// Run "presubmit result".
 	args := []string{}
-	if ctx.Verbose() {
+	if jirix.Verbose() {
 		args = append(args, "-v")
 	}
 	args = append(args,
@@ -151,7 +151,7 @@ func vanadiumPresubmitResult(ctx *tool.Context, testName string, _ ...Opt) (_ *t
 		"-refs", os.Getenv("REFS"),
 		"-projects", os.Getenv("PROJECTS"),
 	)
-	if err := ctx.Run().Command("presubmit", args...); err != nil {
+	if err := jirix.Run().Command("presubmit", args...); err != nil {
 		return nil, err
 	}
 

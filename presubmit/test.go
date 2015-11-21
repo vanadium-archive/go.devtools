@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -62,7 +63,7 @@ var cmdTest = &cmdline.Command{
 This subcommand pulls the open CLs from Gerrit, runs tests specified in a config
 file, and posts test results back to the corresponding Gerrit review thread.
 `,
-	Runner: cmdline.RunnerFunc(runTest),
+	Runner: jiri.RunnerFunc(runTest),
 }
 
 const (
@@ -84,17 +85,15 @@ func (c cl) String() string {
 }
 
 // runTest implements the 'test' subcommand.
-func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
-	ctx := tool.NewContextFromEnv(cmdlineEnv)
-
+func runTest(jirix *jiri.X, args []string) (e error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("Hostname() failed: %v", err)
 	}
-	printf(ctx.Stdout(), "### Running the presubmit binary on %s\n", hostname)
+	printf(jirix.Stdout(), "### Running the presubmit binary on %s\n", hostname)
 
 	// Basic sanity checks.
-	if err := sanityChecks(ctx, cmdlineEnv); err != nil {
+	if err := sanityChecks(jirix); err != nil {
 		return err
 	}
 
@@ -118,7 +117,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 		return err
 	}
 
-	projects, tools, err := project.ReadManifest(ctx)
+	projects, tools, err := project.ReadManifest(jirix)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() error {
 		os.RemoveAll(tmpBinDir)
-		return cleanupAllPresubmitTestBranches(ctx, projects)
+		return cleanupAllPresubmitTestBranches(jirix, projects)
 	}
 	defer collect.Error(func() error { return cleanupFn() }, &e)
 
@@ -158,12 +157,12 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 
 	// Prepare presubmit test branch.
 	for i := 1; i <= prepareTestBranchAttempts; i++ {
-		if failedCL, err := preparePresubmitTestBranch(ctx, cls, projects); err != nil {
+		if failedCL, err := preparePresubmitTestBranch(jirix, cls, projects); err != nil {
 			if i > 1 {
-				fmt.Fprintf(ctx.Stdout(), "Attempt #%d:\n", i)
+				fmt.Fprintf(jirix.Stdout(), "Attempt #%d:\n", i)
 			}
 			if failedCL != nil {
-				fmt.Fprintf(ctx.Stderr(), "%s: %v\n", failedCL.String(), err)
+				fmt.Fprintf(jirix.Stderr(), "%s: %v\n", failedCL.String(), err)
 			}
 			errMsg := err.Error()
 			if strings.Contains(errMsg, "unable to access") {
@@ -181,7 +180,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 					Status:          test.MergeConflict,
 					MergeConflictCL: failedCL.String(),
 				}
-				if err := recordPresubmitFailure(ctx, "MergeConflict", "Merge conflict detected", message, testName, -1, result); err != nil {
+				if err := recordPresubmitFailure(jirix, "MergeConflict", "Merge conflict detected", message, testName, -1, result); err != nil {
 					return err
 				}
 				return nil
@@ -192,27 +191,27 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	}
 
 	// Rebuild developer tools and override JIRI_ROOT/devtools/bin.
-	env, err := rebuildDeveloperTools(ctx, tools, tmpBinDir)
+	env, err := rebuildDeveloperTools(jirix, tools, tmpBinDir)
 	if err != nil {
 		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, err.Error())
 		result := test.Result{
 			Status:               test.ToolsBuildFailure,
 			ToolsBuildFailureMsg: err.Error(),
 		}
-		if err := recordPresubmitFailure(ctx, "BuildTools", "Failed to build tools", message, testName, -1, result); err != nil {
+		if err := recordPresubmitFailure(jirix, "BuildTools", "Failed to build tools", message, testName, -1, result); err != nil {
 			return err
 		}
-		fmt.Fprintf(ctx.Stderr(), "failed to build tools:\n%s\n", err.Error())
+		fmt.Fprintf(jirix.Stderr(), "failed to build tools:\n%s\n", err.Error())
 		return nil
 	}
 
 	// Run the tests via "jiri test run" and collect the test results.
-	printf(ctx.Stdout(), "### Running the presubmit test\n")
-	outputDir, err := ctx.Run().TempDir("", "")
+	printf(jirix.Stdout(), "### Running the presubmit test\n")
+	outputDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer collect.Error(func() error { return ctx.Run().RemoveAll(outputDir) }, &e)
+	defer collect.Error(func() error { return jirix.Run().RemoveAll(outputDir) }, &e)
 
 	jiriArgs := []string{
 		"run",
@@ -225,11 +224,11 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 
 	var out bytes.Buffer
 	out.Grow(1 << 20)
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Env = env
 	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
 	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
-	if err := ctx.Run().TimedCommandWithOpts(jiriTestTimeout, opts, "jiri-test", jiriArgs...); err != nil {
+	if err := jirix.Run().TimedCommandWithOpts(jiriTestTimeout, opts, "jiri-test", jiriArgs...); err != nil {
 		// jiri-test command times out.
 		if err == runutil.CommandTimedOutErr {
 			result := test.Result{
@@ -237,7 +236,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 				TimeoutValue: jiriTestTimeout,
 			}
 			failureMessage := fmt.Sprintf("Test timed out after %v", jiriTestTimeout)
-			if err := recordPresubmitFailure(ctx, "Timeout", failureMessage, out.String(), testName, partIndex, result); err != nil {
+			if err := recordPresubmitFailure(jirix, "Timeout", failureMessage, out.String(), testName, partIndex, result); err != nil {
 				return err
 			}
 		}
@@ -256,7 +255,7 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 	}
 	var results map[string]*test.Result
 	resultsFile := filepath.Join(outputDir, "results")
-	bytes, err := ctx.Run().ReadFile(resultsFile)
+	bytes, err := jirix.Run().ReadFile(resultsFile)
 	if err != nil {
 		return err
 	}
@@ -270,15 +269,15 @@ func runTest(cmdlineEnv *cmdline.Env, args []string) (e error) {
 
 	// Upload the test results to Google Storage.
 	path := gsPrefix + fmt.Sprintf("presubmit/%d/%s/%s", jenkinsBuildNumberFlag, os.Getenv("OS"), os.Getenv("ARCH"))
-	if err := persistTestData(ctx, outputDir, testName, partIndex, path); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "failed to store test results: %v\n", err)
+	if err := persistTestData(jirix, outputDir, testName, partIndex, path); err != nil {
+		fmt.Fprintf(jirix.Stderr(), "failed to store test results: %v\n", err)
 	}
 
-	return writeTestStatusFile(ctx, *result, curTimestamp, testName, partIndex)
+	return writeTestStatusFile(jirix, *result, curTimestamp, testName, partIndex)
 }
 
 // persistTestData uploads test data to Google Storage.
-func persistTestData(ctx *tool.Context, outputDir string, testName string, partIndex int, path string) error {
+func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex int, path string) error {
 	// Write out a file that records the host configuration.
 	conf := struct {
 		Arch string
@@ -292,7 +291,7 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 		return fmt.Errorf("Marshal(%v) failed: %v", conf, err)
 	}
 	confFile := filepath.Join(outputDir, "conf")
-	if err := ctx.Run().WriteFile(confFile, bytes, os.FileMode(0600)); err != nil {
+	if err := jirix.Run().WriteFile(confFile, bytes, os.FileMode(0600)); err != nil {
 		return err
 	}
 	if partIndex == -1 {
@@ -301,13 +300,13 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 	// Upload test data to Google Storage.
 	dstDir := fmt.Sprintf("%s/%s/%d", path, testName, partIndex)
 	args := []string{"-q", "-m", "cp", filepath.Join(outputDir, "*"), dstDir}
-	if err := ctx.Run().Command("gsutil", args...); err != nil {
+	if err := jirix.Run().Command("gsutil", args...); err != nil {
 		return err
 	}
 	xUnitFile := xunit.ReportPath(testName)
-	if _, err := ctx.Run().Stat(xUnitFile); err == nil {
+	if _, err := jirix.Run().Stat(xUnitFile); err == nil {
 		args := []string{"-q", "cp", xUnitFile, dstDir + "/" + "xunit.xml"}
-		if err := ctx.Run().Command("gsutil", args...); err != nil {
+		if err := jirix.Run().Command("gsutil", args...); err != nil {
 			return err
 		}
 	} else {
@@ -319,19 +318,19 @@ func persistTestData(ctx *tool.Context, outputDir string, testName string, partI
 }
 
 // sanityChecks performs basic sanity checks for various flags.
-func sanityChecks(ctx *tool.Context, env *cmdline.Env) error {
+func sanityChecks(jirix *jiri.X) error {
 	manifestFilePath, err := project.ManifestFile(tool.ManifestFlag)
 	if err != nil {
 		return err
 	}
-	if _, err := ctx.Run().Stat(manifestFilePath); err != nil {
+	if _, err := jirix.Run().Stat(manifestFilePath); err != nil {
 		return err
 	}
 	if projectsFlag == "" {
-		return env.UsageErrorf("-projects flag is required")
+		return jirix.UsageErrorf("-projects flag is required")
 	}
 	if reviewTargetRefsFlag == "" {
-		return env.UsageErrorf("-refs flag is required")
+		return jirix.UsageErrorf("-refs flag is required")
 	}
 	return nil
 }
@@ -369,7 +368,7 @@ func presubmitTestBranchName(ref string) string {
 
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
-func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string]project.Project) (_ *cl, e error) {
+func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects map[string]project.Project) (_ *cl, e error) {
 	strCLs := []string{}
 	for _, cl := range cls {
 		strCLs = append(strCLs, cl.String())
@@ -378,53 +377,53 @@ func preparePresubmitTestBranch(ctx *tool.Context, cls []cl, projects map[string
 	if err != nil {
 		return nil, fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer collect.Error(func() error { return ctx.Run().Chdir(wd) }, &e)
-	if err := cleanupAllPresubmitTestBranches(ctx, projects); err != nil {
+	defer collect.Error(func() error { return jirix.Run().Chdir(wd) }, &e)
+	if err := cleanupAllPresubmitTestBranches(jirix, projects); err != nil {
 		return nil, fmt.Errorf("%v\n", err)
 	}
 	// Pull changes for each cl.
-	printf(ctx.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
+	printf(jirix.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
 	prepareFn := func(curCL cl) error {
 		localRepo, ok := projects[curCL.project]
 		if !ok {
 			return fmt.Errorf("project %q not found", curCL.project)
 		}
 		localRepoDir := localRepo.Path
-		if err := ctx.Run().Chdir(localRepoDir); err != nil {
+		if err := jirix.Run().Chdir(localRepoDir); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 		}
 		branchName := presubmitTestBranchName(curCL.ref)
-		if err := ctx.Git().CreateAndCheckoutBranch(branchName); err != nil {
+		if err := jirix.Git().CreateAndCheckoutBranch(branchName); err != nil {
 			return err
 		}
-		gitHost, err := project.GitHost(ctx)
+		gitHost, err := project.GitHost(jirix)
 		if err != nil {
 			return err
 		}
-		if err := ctx.Git().Pull(gitHost+localRepo.Name, curCL.ref); err != nil {
+		if err := jirix.Git().Pull(gitHost+localRepo.Name, curCL.ref); err != nil {
 			return err
 		}
 		return nil
 	}
 	for _, cl := range cls {
 		if err := prepareFn(cl); err != nil {
-			test.Fail(ctx, "pull changes from %s\n", cl.String())
+			test.Fail(jirix.Context, "pull changes from %s\n", cl.String())
 			return &cl, err
 		}
-		test.Pass(ctx, "pull changes from %s\n", cl.String())
+		test.Pass(jirix.Context, "pull changes from %s\n", cl.String())
 	}
 	return nil, nil
 }
 
 // recordPresubmitFailure records failure from presubmit binary itself
 // (not from the test it runs) in the test status file and xUnit report.
-func recordPresubmitFailure(ctx *tool.Context, testCaseName, failureMessage, failureOutput, testName string, partIndex int, result test.Result) error {
-	if err := xunit.CreateFailureReport(ctx, testName, testName, testCaseName, failureMessage, failureOutput); err != nil {
+func recordPresubmitFailure(jirix *jiri.X, testCaseName, failureMessage, failureOutput, testName string, partIndex int, result test.Result) error {
+	if err := xunit.CreateFailureReport(jirix.Context, testName, testName, testCaseName, failureMessage, failureOutput); err != nil {
 		return nil
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest
 	// build before the given timestamp terminates after the first iteration.
-	if err := writeTestStatusFile(ctx, result, math.MaxInt64, testName, partIndex); err != nil {
+	if err := writeTestStatusFile(jirix, result, math.MaxInt64, testName, partIndex); err != nil {
 		return err
 	}
 	return nil
@@ -433,8 +432,8 @@ func recordPresubmitFailure(ctx *tool.Context, testCaseName, failureMessage, fai
 // rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in a
 // temporary directory, which is used to replace JIRI_ROOT/devtools/bin in the
 // PATH.
-func rebuildDeveloperTools(ctx *tool.Context, tools project.Tools, tmpBinDir string) (map[string]string, error) {
-	if err := project.BuildTools(ctx, tools, tmpBinDir); err != nil {
+func rebuildDeveloperTools(jirix *jiri.X, tools project.Tools, tmpBinDir string) (map[string]string, error) {
+	if err := project.BuildTools(jirix, tools, tmpBinDir); err != nil {
 		return nil, err
 	}
 	// Create a new PATH that replaces JIRI_ROOT/devtools/bin with the
@@ -465,9 +464,9 @@ func processTestPartSuffix(testName string) (string, int, error) {
 }
 
 // cleanupPresubmitTestBranch removes the presubmit test branch.
-func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects project.Projects) (e error) {
-	printf(ctx.Stdout(), "### Cleaning up\n")
-	if err := project.CleanupProjects(ctx, projects, true); err != nil {
+func cleanupAllPresubmitTestBranches(jirix *jiri.X, projects project.Projects) (e error) {
+	printf(jirix.Stdout(), "### Cleaning up\n")
+	if err := project.CleanupProjects(jirix, projects, true); err != nil {
 		return err
 	}
 	return nil
@@ -478,7 +477,7 @@ func cleanupAllPresubmitTestBranches(ctx *tool.Context, projects project.Project
 // "master" presubmit project for generating final test results message.
 //
 // For more details, see comments in result.go.
-func writeTestStatusFile(ctx *tool.Context, result test.Result, curTimestamp int64, testName string, partIndex int) error {
+func writeTestStatusFile(jirix *jiri.X, result test.Result, curTimestamp int64, testName string, partIndex int) error {
 	// Get the file path.
 	workspace, fileName := os.Getenv("WORKSPACE"), fmt.Sprintf("status_%s.json", strings.Replace(testName, "-", "_", -1))
 	statusFilePath := ""
@@ -503,7 +502,7 @@ func writeTestStatusFile(ctx *tool.Context, result test.Result, curTimestamp int
 	if err != nil {
 		return fmt.Errorf("Marshal(%v) failed: %v", r, err)
 	}
-	if err := ctx.Run().WriteFile(statusFilePath, bytes, os.FileMode(0644)); err != nil {
+	if err := jirix.Run().WriteFile(statusFilePath, bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", statusFilePath, err)
 	}
 	return nil

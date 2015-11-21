@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
@@ -130,7 +131,7 @@ func getOptsFromTestOpts(opts []goTestOpt) []Opt {
 }
 
 // goBuild is a helper function for running Go builds.
-func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Result, e error) {
+func goBuild(jirix *jiri.X, testName string, opts ...goBuildOpt) (_ *test.Result, e error) {
 	args, pkgs := []string{}, []string{}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -153,10 +154,10 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 		// details.
 		args := append([]string{"go", "build", "-v", "-tags=leveldb"}, args...)
 		args = append(args, pkg)
-		opts := ctx.Run().Opts()
+		opts := jirix.Run().Opts()
 		opts.Stdout = io.MultiWriter(&out, opts.Stdout)
 		opts.Stderr = io.MultiWriter(&out, opts.Stdout)
-		err := ctx.Run().CommandWithOpts(opts, "jiri", args...)
+		err := jirix.Run().CommandWithOpts(opts, "jiri", args...)
 		if err == nil {
 			continue
 		}
@@ -187,7 +188,7 @@ func goBuild(ctx *tool.Context, testName string, opts ...goBuildOpt) (_ *test.Re
 
 	// Create the xUnit report when some builds failed.
 	if !allPassed {
-		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -227,7 +228,7 @@ type coverageResult struct {
 const defaultTestCoverageTimeout = "5m"
 
 // goCoverage is a helper function for running Go coverage tests.
-func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *test.Result, e error) {
+func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.Result, e error) {
 	timeout := defaultTestCoverageTimeout
 	args, pkgs := []string{}, []string{}
 	for _, opt := range opts {
@@ -242,42 +243,42 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 	}
 
 	// Install required tools.
-	if err := ctx.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
 		return nil, internalTestError{err, "install-go-cover"}
 	}
-	if err := ctx.Run().Command("jiri", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
 		return nil, internalTestError{err, "install-gocover-cobertura"}
 	}
-	if err := ctx.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 		return nil, internalTestError{err, "install-go2xunit"}
 	}
 
 	// Build dependencies of test packages.
-	if err := buildTestDeps(ctx, pkgs); err != nil {
-		if err := xunit.CreateFailureReport(ctx, testName, "BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error()); err != nil {
+	if err := buildTestDeps(jirix, pkgs); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
 	}
 
 	// Enumerate the packages for which coverage is to be computed.
-	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
-	pkgList, err := goutil.List(ctx, goListOpts(opts), pkgs...)
+	fmt.Fprintf(jirix.Stdout(), "listing test packages and functions ... ")
+	pkgList, err := goutil.List(jirix.Context, goListOpts(opts), pkgs...)
 	if err != nil {
-		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
-		if err := xunit.CreateFailureReport(ctx, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
+		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
 	}
-	fmt.Fprintf(ctx.Stdout(), "ok\n")
+	fmt.Fprintf(jirix.Stdout(), "ok\n")
 
 	// Create a pool of workers.
 	numPkgs := len(pkgList)
 	tasks := make(chan string, numPkgs)
 	taskResults := make(chan coverageResult, numPkgs)
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go coverageWorker(ctx, timeout, args, tasks, taskResults)
+		go coverageWorker(jirix, timeout, args, tasks, taskResults)
 	}
 
 	// Distribute work to workers.
@@ -313,7 +314,7 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 			fallthrough
 		case testFailed:
 			if strings.Index(result.output, "no test files") == -1 {
-				ss, err := xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(result.output))
+				ss, err := xunit.TestSuiteFromGoTestOutput(jirix.Context, bytes.NewBufferString(result.output))
 				if err != nil {
 					// Token too long error.
 					if !strings.HasSuffix(err.Error(), "token too long") {
@@ -326,16 +327,16 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 		}
 		if result.coverage != nil {
 			result.coverage.Close()
-			if err := ctx.Run().RemoveAll(result.coverage.Name()); err != nil {
+			if err := jirix.Run().RemoveAll(result.coverage.Name()); err != nil {
 				return nil, err
 			}
 		}
 		if s != nil {
 			if s.Failures > 0 {
 				allPassed = false
-				test.Fail(ctx, "%s\n%v\n", result.pkg, result.output)
+				test.Fail(jirix.Context, "%s\n%v\n", result.pkg, result.output)
 			} else {
-				test.Pass(ctx, "%s\n", result.pkg)
+				test.Pass(jirix.Context, "%s\n", result.pkg)
 			}
 			suites = append(suites, *s)
 		}
@@ -343,14 +344,14 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 	close(taskResults)
 
 	// Create the xUnit and cobertura reports.
-	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
 		return nil, err
 	}
-	coverage, err := coverageFromGoTestOutput(ctx, &coverageData)
+	coverage, err := coverageFromGoTestOutput(jirix, &coverageData)
 	if err != nil {
 		return nil, err
 	}
-	if err := createCoberturaReport(ctx, testName, coverage); err != nil {
+	if err := createCoberturaReport(jirix, testName, coverage); err != nil {
 		return nil, err
 	}
 	if !allPassed {
@@ -360,8 +361,8 @@ func goCoverage(ctx *tool.Context, testName string, opts ...goCoverageOpt) (_ *t
 }
 
 // coverageWorker generates test coverage.
-func coverageWorker(ctx *tool.Context, timeout string, args []string, pkgs <-chan string, results chan<- coverageResult) {
-	opts := ctx.Run().Opts()
+func coverageWorker(jirix *jiri.X, timeout string, args []string, pkgs <-chan string, results chan<- coverageResult) {
+	opts := jirix.Run().Opts()
 	opts.Verbose = false
 	for pkg := range pkgs {
 		// Compute the test coverage.
@@ -377,7 +378,7 @@ func coverageWorker(ctx *tool.Context, timeout string, args []string, pkgs <-cha
 		opts.Stdout = &out
 		opts.Stderr = &out
 		start := time.Now()
-		err = ctx.Run().CommandWithOpts(opts, "jiri", args...)
+		err = jirix.Run().CommandWithOpts(opts, "jiri", args...)
 		result := coverageResult{
 			pkg:      pkg,
 			coverage: coverageFile,
@@ -451,17 +452,17 @@ var (
 // goListPackagesAndFuncs is a helper function for listing Go
 // packages and obtaining lists of function names that are matched
 // by the matcher interface.
-func goListPackagesAndFuncs(ctx *tool.Context, opts []Opt, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
-	fmt.Fprintf(ctx.Stdout(), "listing test packages and functions ... ")
+func goListPackagesAndFuncs(jirix *jiri.X, opts []Opt, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
+	fmt.Fprintf(jirix.Stdout(), "listing test packages and functions ... ")
 
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, ManifestFilename)
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, nil, err
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
-	pkgList, err := goutil.List(ctx, goListOpts(opts), pkgs...)
+	pkgList, err := goutil.List(jirix.Context, goListOpts(opts), pkgs...)
 	if err != nil {
-		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
+		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
 		return nil, nil, err
 	}
 
@@ -473,7 +474,7 @@ func goListPackagesAndFuncs(ctx *tool.Context, opts []Opt, pkgs []string, matche
 	for _, pkg := range pkgList {
 		pi, err := buildContext.Import(pkg, ".", build.ImportMode(0))
 		if err != nil {
-			fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
+			fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
 			return nil, nil, err
 		}
 		testFiles := append(pi.TestGoFiles, pi.XTestGoFiles...)
@@ -482,7 +483,7 @@ func goListPackagesAndFuncs(ctx *tool.Context, opts []Opt, pkgs []string, matche
 			file := filepath.Join(pi.Dir, testFile)
 			testAST, err := parser.ParseFile(fset, file, nil, parser.Mode(0))
 			if err != nil {
-				fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", err.Error())
+				fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
 				return nil, nil, err
 			}
 			for _, decl := range testAST.Decls {
@@ -500,7 +501,7 @@ func goListPackagesAndFuncs(ctx *tool.Context, opts []Opt, pkgs []string, matche
 		}
 	}
 
-	fmt.Fprintf(ctx.Stdout(), "ok\n")
+	fmt.Fprintf(jirix.Stdout(), "ok\n")
 	return pkgsWithTests, matched, nil
 }
 
@@ -560,17 +561,17 @@ type goTestTask struct {
 }
 
 // goTestAndReport runs goTest and writes an xml report.
-func goTestAndReport(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Result, e error) {
-	res, suites, err := goTest(ctx, testName, opts...)
+func goTestAndReport(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, e error) {
+	res, suites, err := goTest(jirix, testName, opts...)
 	if err != nil {
 		return nil, err
 	}
 	// Create the xUnit report.
-	return res, xunit.CreateReport(ctx, testName, suites)
+	return res, xunit.CreateReport(jirix.Context, testName, suites)
 }
 
 // goTest is a helper function for running Go tests.
-func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Result, _ []xunit.TestSuite, e error) {
+func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, _ []xunit.TestSuite, e error) {
 	timeout := defaultTestTimeout
 	args, suffix, exclusions, pkgs := []string{}, "", []exclusion{}, []string{}
 	var matcher funcMatcher
@@ -605,12 +606,12 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 	// TODO(cnicolaou): this gets run for every test case, which is going
 	// to be pretty slow. We should refactor so that it only gets run once.
 	// Install required tools.
-	if err := ctx.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
 		return nil, nil, internalTestError{err, "install-go2xunit"}
 	}
 
 	// Build dependencies of test packages.
-	if err := buildTestDeps(ctx, pkgs); err != nil {
+	if err := buildTestDeps(jirix, pkgs); err != nil {
 		originalTestName := testName
 		if len(suffix) != 0 {
 			testName += " " + suffix
@@ -620,7 +621,7 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 	}
 
 	// Enumerate the packages to be built and tests to be executed.
-	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(ctx, getOptsFromTestOpts(opts), pkgs, matcher)
+	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(jirix, getOptsFromTestOpts(opts), pkgs, matcher)
 	if err != nil {
 		originalTestName := testName
 		if len(suffix) != 0 {
@@ -635,21 +636,21 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 	tasks := make(chan goTestTask, numPkgs)
 	taskResults := make(chan testResult, numPkgs)
 
-	fmt.Fprintf(ctx.Stdout(), "running tests using %d workers...\n", numWorkers)
-	fmt.Fprintf(ctx.Stdout(), "running tests concurrently...\n")
+	fmt.Fprintf(jirix.Stdout(), "running tests using %d workers...\n", numWorkers)
+	fmt.Fprintf(jirix.Stdout(), "running tests concurrently...\n")
 	staggeredWorker := func() {
 		delay := time.Duration(rand.Int63n(30*1000)) * time.Millisecond
-		if ctx.Verbose() {
-			fmt.Fprintf(ctx.Stdout(), "staggering start of test worker by %s\n", delay)
+		if jirix.Verbose() {
+			fmt.Fprintf(jirix.Stdout(), "staggering start of test worker by %s\n", delay)
 		}
 		time.Sleep(delay)
-		testWorker(ctx, timeout, args, nonTestArgs, tasks, taskResults)
+		testWorker(jirix, timeout, args, nonTestArgs, tasks, taskResults)
 	}
 	for i := 0; i < numWorkers; i++ {
 		if numWorkers > 1 {
 			go staggeredWorker()
 		} else {
-			go testWorker(ctx, timeout, args, nonTestArgs, tasks, taskResults)
+			go testWorker(jirix, timeout, args, nonTestArgs, tasks, taskResults)
 		}
 	}
 
@@ -696,7 +697,7 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 					// temporary solution until someone finds the enthusiasm to
 					// implement benchmark output parsing, tracking and
 					// graphing.
-					fmt.Fprintf(ctx.Stdout(), result.output)
+					fmt.Fprintf(jirix.Stdout(), result.output)
 				}
 				var ss *xunit.TestSuite
 				// Escape test output to make sure go2xunit can process it.
@@ -711,7 +712,7 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 					output := strings.Replace(escapedOutput.String(), escNewline, "\n", -1)
 					output = strings.Replace(output, escTab, "\t", -1)
 					var err error
-					if ss, err = xunit.TestSuiteFromGoTestOutput(ctx, bytes.NewBufferString(output)); err != nil {
+					if ss, err = xunit.TestSuiteFromGoTestOutput(jirix.Context, bytes.NewBufferString(output)); err != nil {
 						errMsg := ""
 						if strings.Contains(err.Error(), "package build failed") {
 							// Package build failure.
@@ -744,15 +745,15 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 			if s.Failures > 0 {
 				allPassed = false
 				if result.status == testTimedout {
-					test.Fail(ctx, "[TIMED OUT after %s] %s\n", timeout, result.pkg)
+					test.Fail(jirix.Context, "[TIMED OUT after %s] %s\n", timeout, result.pkg)
 				} else {
-					test.Fail(ctx, "%s\n%v\n", result.pkg, result.output)
+					test.Fail(jirix.Context, "%s\n%v\n", result.pkg, result.output)
 				}
 			} else {
-				test.Pass(ctx, "%s\n", result.pkg)
+				test.Pass(jirix.Context, "%s\n", result.pkg)
 			}
 			if s.Skip > 0 {
-				test.Pass(ctx, "%s (skipped tests: %v)\n", result.pkg, skippedTests[result.pkg])
+				test.Pass(jirix.Context, "%s (skipped tests: %v)\n", result.pkg, skippedTests[result.pkg])
 			}
 
 			newCases := []xunit.TestCase{}
@@ -766,7 +767,7 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 			suites = append(suites, *s)
 		}
 		if excluded := excludedTests[result.pkg]; excluded != nil {
-			test.Pass(ctx, "%s (excluded tests: %v)\n", result.pkg, excluded)
+			test.Pass(jirix.Context, "%s (excluded tests: %v)\n", result.pkg, excluded)
 		}
 	}
 	close(taskResults)
@@ -789,8 +790,8 @@ func goTest(ctx *tool.Context, testName string, opts ...goTestOpt) (_ *test.Resu
 }
 
 // testWorker tests packages.
-func testWorker(ctx *tool.Context, timeout string, args, nonTestArgs []string, tasks <-chan goTestTask, results chan<- testResult) {
-	opts := ctx.Run().Opts()
+func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks <-chan goTestTask, results chan<- testResult) {
+	opts := jirix.Run().Opts()
 	opts.Verbose = false
 	for task := range tasks {
 		// Run the test.
@@ -836,7 +837,7 @@ func testWorker(ctx *tool.Context, timeout string, args, nonTestArgs []string, t
 			}
 			continue
 		}
-		err = ctx.Run().TimedCommandWithOpts(timeoutDuration+time.Minute, opts, "jiri", taskArgs...)
+		err = jirix.Run().TimedCommandWithOpts(timeoutDuration+time.Minute, opts, "jiri", taskArgs...)
 		result := testResult{
 			pkg:      task.pkg,
 			time:     time.Now().Sub(start),
@@ -859,19 +860,19 @@ func testWorker(ctx *tool.Context, timeout string, args, nonTestArgs []string, t
 }
 
 // buildTestDeps builds dependencies for the given test packages
-func buildTestDeps(ctx *tool.Context, pkgs []string) error {
-	fmt.Fprintf(ctx.Stdout(), "building test dependencies ... ")
+func buildTestDeps(jirix *jiri.X, pkgs []string) error {
+	fmt.Fprintf(jirix.Stdout(), "building test dependencies ... ")
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
 	args := append([]string{"go", "test", "-tags=leveldb", "-i"}, pkgs...)
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", args...); err != nil {
-		fmt.Fprintf(ctx.Stdout(), "failed\n%s\n", out.String())
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", args...); err != nil {
+		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", out.String())
 		return fmt.Errorf("%v\n%s", err, out.String())
 	}
-	fmt.Fprintf(ctx.Stdout(), "ok\n")
+	fmt.Fprintf(jirix.Stdout(), "ok\n")
 	return nil
 }
 
@@ -906,7 +907,7 @@ func isBuildFailure(err error, out, pkg string) bool {
 // getListenerPID finds the process ID of the process listening on the
 // given port. If no process is listening on the given port (or an
 // error is encountered), the function returns -1.
-func getListenerPID(ctx *tool.Context, port string) (int, error) {
+func getListenerPID(jirix *jiri.X, port string) (int, error) {
 	// Make sure "lsof" exists.
 	_, err := exec.LookPath("lsof")
 	if err != nil {
@@ -915,10 +916,10 @@ func getListenerPID(ctx *tool.Context, port string) (int, error) {
 
 	// Use "lsof" to find the process ID of the listener.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "lsof", "-i", ":"+port, "-sTCP:LISTEN", "-F", "p"); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "lsof", "-i", ":"+port, "-sTCP:LISTEN", "-F", "p"); err != nil {
 		// When no listener exists, "lsof" exits with non-zero
 		// status.
 		return -1, nil
@@ -1061,7 +1062,7 @@ func excludedTests(exclusions []exclusion) []string {
 // If no packages are requested, the defaults are returned.
 // TODO(cnicolaou): ideally there'd be one piece of code that understands
 //   go package specifications that could be used here.
-func validateAgainstDefaultPackages(ctx *tool.Context, opts []Opt, defaults []string) (pkgsOpt, error) {
+func validateAgainstDefaultPackages(jirix *jiri.X, opts []Opt, defaults []string) (pkgsOpt, error) {
 
 	optPkgs := []string{}
 	for _, opt := range opts {
@@ -1076,12 +1077,12 @@ func validateAgainstDefaultPackages(ctx *tool.Context, opts []Opt, defaults []st
 		return defsOpt, nil
 	}
 
-	defPkgs, err := goutil.List(ctx, goListOpts(opts), defaults...)
+	defPkgs, err := goutil.List(jirix.Context, goListOpts(opts), defaults...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := goutil.List(ctx, goListOpts(opts), optPkgs...)
+	pkgs, err := goutil.List(jirix.Context, goListOpts(opts), optPkgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1113,9 +1114,9 @@ func getNumWorkersOpt(opts []Opt) numWorkersOpt {
 }
 
 // thirdPartyGoBuild runs Go build for third-party projects.
-func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func thirdPartyGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1126,7 +1127,7 @@ func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test
 	if err != nil {
 		return nil, err
 	}
-	_, err = validateAgainstDefaultPackages(ctx, opts, pkgs)
+	_, err = validateAgainstDefaultPackages(jirix, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1143,13 +1144,13 @@ func thirdPartyGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test
 		optPkgs = pkgs
 	}
 
-	return goBuild(ctx, testName, pkgsOpt(optPkgs))
+	return goBuild(jirix, testName, pkgsOpt(optPkgs))
 }
 
 // thirdPartyGoTest runs Go tests for the third-party projects.
-func thirdPartyGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func thirdPartyGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1160,18 +1161,18 @@ func thirdPartyGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	if err != nil {
 		return nil, err
 	}
-	validatedPkgs, err := validateAgainstDefaultPackages(ctx, opts, pkgs)
+	validatedPkgs, err := validateAgainstDefaultPackages(jirix, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
 	suffix := suffixOpt(genTestNameSuffix("GoTest"))
-	return goTestAndReport(ctx, testName, suffix, exclusionsOpt(goExclusions), validatedPkgs)
+	return goTestAndReport(jirix, testName, suffix, exclusionsOpt(goExclusions), validatedPkgs)
 }
 
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
-func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func thirdPartyGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -1182,18 +1183,18 @@ func thirdPartyGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.
 	if err != nil {
 		return nil, err
 	}
-	validatedPkgs, err := validateAgainstDefaultPackages(ctx, opts, pkgs)
+	validatedPkgs, err := validateAgainstDefaultPackages(jirix, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
-	partPkgs, err := identifyPackagesToTest(ctx, testName, opts, validatedPkgs)
+	partPkgs, err := identifyPackagesToTest(jirix, testName, opts, validatedPkgs)
 	if err != nil {
 		return nil, err
 	}
 	args := argsOpt([]string{"-race"})
 	exclusions := append(goExclusions, goRaceExclusions...)
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
-	return goTestAndReport(ctx, testName, suffix, args, timeoutOpt("1h"), exclusionsOpt(exclusions), partPkgs)
+	return goTestAndReport(jirix, testName, suffix, args, timeoutOpt("1h"), exclusionsOpt(exclusions), partPkgs)
 }
 
 // thirdPartyPkgs returns a list of Go expressions that describe all
@@ -1220,9 +1221,9 @@ func thirdPartyPkgs() ([]string, error) {
 }
 
 // vanadiumCopyright checks the copyright for vanadium projects.
-func vanadiumCopyright(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumCopyright(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1230,27 +1231,27 @@ func vanadiumCopyright(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Re
 
 	// Run the jiri copyright check.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "copyright", "check"); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", "copyright", "check"); err != nil {
 		report := fmt.Sprintf(`%v
 
 To fix the above copyright violations run "jiri copyright fix" and commit the changes.
 `, out.String())
-		if err := xunit.CreateFailureReport(ctx, testName, "RunCopyright", "CheckCopyright", "copyright check failure", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunCopyright", "CheckCopyright", "copyright check failure", report); err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(ctx.Stderr(), "%v", report)
+		fmt.Fprintf(jirix.Stderr(), "%v", report)
 		return &test.Result{Status: test.Failed}, nil
 	}
 	return &test.Result{Status: test.Passed}, nil
 }
 
 // vanadiumGoAPI checks the public Go api for vanadium projects.
-func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGoAPI(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1258,12 +1259,12 @@ func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 
 	// Run the jiri api check.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "api", "check"); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", "api", "check"); err != nil {
 		report := fmt.Sprintf("error running 'jiri api check': %v", err)
-		if err := xunit.CreateFailureReport(ctx, testName, "RunV23API", "CheckGoAPI", "failed to run the api check tool", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunV23API", "CheckGoAPI", "failed to run the api check tool", report); err != nil {
 			return &test.Result{Status: test.Failed}, nil
 		}
 	}
@@ -1275,46 +1276,46 @@ func vanadiumGoAPI(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 If the above changes to public Go API are intentional, run "jiri api fix",
 to update the corresponding .api files and commit the changes.
 `, out.String())
-		if err := xunit.CreateFailureReport(ctx, testName, "RunV23API", "CheckGoAPI", "public api check failure", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunV23API", "CheckGoAPI", "public api check failure", report); err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(ctx.Stderr(), "%v", report)
+		fmt.Fprintf(jirix.Stderr(), "%v", report)
 		return &test.Result{Status: test.Failed}, nil
 	}
 	return &test.Result{Status: test.Passed}, nil
 }
 
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
-func vanadiumGoBench(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumGoBench(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Benchmark the Vanadium Go packages.
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
 	args := argsOpt([]string{"-bench", "."})
 	matcher := funcMatcherOpt{&matchGoTestFunc{testNameRE: goBenchNameRE}}
 	timeout := timeoutOpt("1h")
-	return goTestAndReport(ctx, testName, args, matcher, timeout, pkgs)
+	return goTestAndReport(jirix, testName, args, matcher, timeout, pkgs)
 }
 
 // vanadiumGoBuild runs Go build for the vanadium projects.
-func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 
 	// Validate packages.
 	defer collect.Error(func() error { return cleanup() }, &e)
-	_, err = validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	_, err = validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
@@ -1330,65 +1331,65 @@ func vanadiumGoBuild(ctx *tool.Context, testName string, opts ...Opt) (_ *test.R
 	if len(optPkgs) == 0 {
 		optPkgs = []string{"v.io/..."}
 	}
-	return goBuild(ctx, testName, pkgsOpt(optPkgs))
+	return goBuild(jirix, testName, pkgsOpt(optPkgs))
 }
 
 // vanadiumGoCoverage runs Go coverage tests for vanadium projects.
-func vanadiumGoCoverage(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumGoCoverage(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Compute coverage for Vanadium Go packages.
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
-	return goCoverage(ctx, testName, pkgs)
+	return goCoverage(jirix, testName, pkgs)
 }
 
 // vanadiumGoDepcop runs Go dependency checks for vanadium projects.
-func vanadiumGoDepcop(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGoDepcop(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Build the godepcop tool in a temporary directory.
-	tmpDir, err := ctx.Run().TempDir("", "godepcop-test")
+	tmpDir, err := jirix.Run().TempDir("", "godepcop-test")
 	if err != nil {
 		return nil, internalTestError{err, "godepcop-build"}
 	}
-	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
+	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
 	binary := filepath.Join(tmpDir, "godepcop")
-	if err := ctx.Run().Command("jiri", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
 		return nil, internalTestError{err, "godepcop-build"}
 	}
 
 	// Run the godepcop tool.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "run", binary, "check", "v.io/..."); err != nil {
-		if err := xunit.CreateFailureReport(ctx, testName, "RunGoDepcop", "CheckDependencies", "dependencies check failure", out.String()); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", "run", binary, "check", "v.io/..."); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunGoDepcop", "CheckDependencies", "dependencies check failure", out.String()); err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(ctx.Stderr(), "%v", out.String())
+		fmt.Fprintf(jirix.Stderr(), "%v", out.String())
 		return &test.Result{Status: test.Failed}, nil
 	}
 	return &test.Result{Status: test.Passed}, nil
 }
 
 // vanadiumGoFormat runs Go format check for vanadium projects.
-func vanadiumGoFormat(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
@@ -1396,18 +1397,18 @@ func vanadiumGoFormat(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Res
 
 	// Run the gofmt tool.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "fmt", "v.io/..."); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "fmt", "v.io/..."); err != nil {
 		report := fmt.Sprintf(`The following files do not adhere to the Go formatting conventions:
 %v
 To resolve this problem, run "gofmt -w <file>" for each of them and commit the changes.
 `, out.String())
-		if err := xunit.CreateFailureReport(ctx, testName, "RunGoFmt", "CheckFormat", "format check failure", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunGoFmt", "CheckFormat", "format check failure", report); err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(ctx.Stderr(), "%v", report)
+		fmt.Fprintf(jirix.Stderr(), "%v", report)
 		return &test.Result{Status: test.Failed}, nil
 	}
 	return &test.Result{Status: test.Passed}, nil
@@ -1422,38 +1423,38 @@ type goGenerateDiff struct {
 
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
-func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
 	pkgStr := strings.Join([]string(pkgs), " ")
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'jiri go generate %s'.\n", pkgStr)
+	fmt.Fprintf(jirix.Stdout(), "NOTE: This test checks that files created by 'go generate' are up-to-date.\nIf it fails, regenerate them using 'jiri go generate %s'.\n", pkgStr)
 
 	// Stash any uncommitted changes and defer functions that undo any
 	// changes created by this function and then unstash the original
 	// uncommitted changes.
-	projects, err := project.LocalProjects(ctx, false)
+	projects, err := project.LocalProjects(jirix, false)
 	if err != nil {
 		return nil, err
 	}
 	for _, project := range projects {
-		if err := ctx.Run().Chdir(project.Path); err != nil {
+		if err := jirix.Run().Chdir(project.Path); err != nil {
 			return nil, err
 		}
-		stashed, err := ctx.Git().Stash()
+		stashed, err := jirix.Git().Stash()
 		if err != nil {
 			return nil, err
 		}
@@ -1462,14 +1463,14 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 		// project.
 		localProject := project
 		defer collect.Error(func() error {
-			if err := ctx.Run().Chdir(localProject.Path); err != nil {
+			if err := jirix.Run().Chdir(localProject.Path); err != nil {
 				return err
 			}
-			if err := ctx.Git().Reset("HEAD"); err != nil {
+			if err := jirix.Git().Reset("HEAD"); err != nil {
 				return err
 			}
 			if stashed {
-				return ctx.Git().StashPop()
+				return jirix.Git().StashPop()
 			}
 			return nil
 		}, &e)
@@ -1477,7 +1478,7 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 
 	// Check if 'go generate' creates any changes.
 	args := append([]string{"go", "generate"}, []string(pkgs)...)
-	if err := ctx.Run().Command("jiri", args...); err != nil {
+	if err := jirix.Run().Command("jiri", args...); err != nil {
 		return nil, internalTestError{err, "Go Generate"}
 	}
 	dirtyFiles := []goGenerateDiff{}
@@ -1485,25 +1486,25 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 		return nil, err
 	} else {
 		defer collect.Error(func() error {
-			return ctx.Run().Chdir(currentDir)
+			return jirix.Run().Chdir(currentDir)
 		}, &e)
 	}
 	for _, project := range projects {
-		files, err := ctx.Git(tool.RootDirOpt(project.Path)).FilesWithUncommittedChanges()
+		files, err := jirix.Git(tool.RootDirOpt(project.Path)).FilesWithUncommittedChanges()
 		if err != nil {
 			return nil, err
 		}
 		if len(files) > 0 {
-			if err := ctx.Run().Chdir(project.Path); err != nil {
+			if err := jirix.Run().Chdir(project.Path); err != nil {
 				return nil, err
 			}
 			for _, file := range files {
 				var diff string
 				var out bytes.Buffer
-				opts := ctx.Run().Opts()
+				opts := jirix.Run().Opts()
 				opts.Stdout = &out
-				if err := ctx.Run().CommandWithOpts(opts, "git", "diff", file); err != nil {
-					fmt.Fprintf(ctx.Stderr(), "git diff failed, no diff will be available for %s: %v\n", file, err)
+				if err := jirix.Run().CommandWithOpts(opts, "git", "diff", file); err != nil {
+					fmt.Fprintf(jirix.Stderr(), "git diff failed, no diff will be available for %s: %v\n", file, err)
 					diff = fmt.Sprintf("<not available: %v>", err)
 				} else {
 					diff = out.String()
@@ -1519,19 +1520,19 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 		}
 	}
 	if len(dirtyFiles) != 0 {
-		fmt.Fprintf(ctx.Stdout(), "\nThe following go generated files are not up-to-date:\n")
+		fmt.Fprintf(jirix.Stdout(), "\nThe following go generated files are not up-to-date:\n")
 		for _, dirtyFile := range dirtyFiles {
-			fmt.Fprintf(ctx.Stdout(), "\t* %s\n", dirtyFile.path)
+			fmt.Fprintf(jirix.Stdout(), "\t* %s\n", dirtyFile.path)
 		}
-		fmt.Fprintln(ctx.Stdout())
+		fmt.Fprintln(jirix.Stdout())
 		// Generate xUnit report.
 		suites := []xunit.TestSuite{}
 		for _, dirtyFile := range dirtyFiles {
-			fmt.Fprintf(ctx.Stdout(), "Diff for %s:\n%s\n", dirtyFile.path, dirtyFile.diff)
+			fmt.Fprintf(jirix.Stdout(), "Diff for %s:\n%s\n", dirtyFile.path, dirtyFile.diff)
 			s := xunit.CreateTestSuiteWithFailure("GoGenerate", dirtyFile.path, "go generate failure", fmt.Sprintf("Outdated file: %s\nDiff: %s\n", dirtyFile.path, dirtyFile.diff), 0)
 			suites = append(suites, *s)
 		}
-		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -1540,19 +1541,19 @@ func vanadiumGoGenerate(ctx *tool.Context, testName string, opts ...Opt) (_ *tes
 }
 
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
-func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
-	partPkgs, err := identifyPackagesToTest(ctx, testName, opts, pkgs)
+	partPkgs, err := identifyPackagesToTest(jirix, testName, opts, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1560,7 +1561,7 @@ func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Re
 	args := argsOpt([]string{"-race"})
 	timeout := timeoutOpt("30m")
 	suffix := suffixOpt(genTestNameSuffix("GoRace"))
-	return goTestAndReport(ctx, testName, args, timeout, suffix, exclusionsOpt(exclusions), partPkgs)
+	return goTestAndReport(jirix, testName, args, timeout, suffix, exclusionsOpt(exclusions), partPkgs)
 }
 
 // identifyPackagesToTest returns a slice of packages to test using the
@@ -1572,9 +1573,9 @@ func vanadiumGoRace(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Re
 //   only specify the packages for the first N-1 parts in the config file. The
 //   last part will automatically include all the packages that are not found
 //   in the first N-1 parts.
-func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allPkgs []string) (pkgsOpt, error) {
+func identifyPackagesToTest(jirix *jiri.X, testName string, opts []Opt, allPkgs []string) (pkgsOpt, error) {
 	// Read config file to get the part.
-	config, err := util.LoadConfig(ctx)
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -1598,7 +1599,7 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 	// Get packages specified in test-parts before the current index.
 	existingPartsPkgs := map[string]struct{}{}
 	for i := 0; i < index; i++ {
-		curPkgs, err := getPkgsFromSpec(ctx, opts, parts[i])
+		curPkgs, err := getPkgsFromSpec(jirix, opts, parts[i])
 		if err != nil {
 			return nil, err
 		}
@@ -1606,12 +1607,12 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 	}
 
 	// Get packages for the current index.
-	pkgs, err := goutil.List(ctx, goListOpts(opts), allPkgs...)
+	pkgs, err := goutil.List(jirix.Context, goListOpts(opts), allPkgs...)
 	if err != nil {
 		return nil, err
 	}
 	if index < len(parts) {
-		curPkgs, err := getPkgsFromSpec(ctx, opts, parts[index])
+		curPkgs, err := getPkgsFromSpec(jirix, opts, parts[index])
 		if err != nil {
 			return nil, err
 		}
@@ -1631,11 +1632,11 @@ func identifyPackagesToTest(ctx *tool.Context, testName string, opts []Opt, allP
 // getPkgsFromSpec parses the given pkgSpec (a common-separated pkg names) and
 // returns a union of all expanded packages.
 // TODO(jingjin): test this function.
-func getPkgsFromSpec(ctx *tool.Context, opts []Opt, pkgSpec string) ([]string, error) {
+func getPkgsFromSpec(jirix *jiri.X, opts []Opt, pkgSpec string) ([]string, error) {
 	expandedPkgs := map[string]struct{}{}
 	pkgs := strings.Split(pkgSpec, ",")
 	for _, pkg := range pkgs {
-		curPkgs, err := goutil.List(ctx, goListOpts(opts), pkg)
+		curPkgs, err := goutil.List(jirix.Context, goListOpts(opts), pkg)
 		if err != nil {
 			return nil, err
 		}
@@ -1645,76 +1646,76 @@ func getPkgsFromSpec(ctx *tool.Context, opts []Opt, pkgSpec string) ([]string, e
 }
 
 // vanadiumGoVet runs go vet checks for vanadium projects.
-func vanadiumGoVet(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGoVet(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the go vet tool.
-	if err := ctx.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
 		return nil, internalTestError{err, "install-go-vet"}
 	}
 
 	// Run the go vet tool.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "vet", "v.io/..."); err != nil {
-		if err := xunit.CreateFailureReport(ctx, testName, "RunGoVet", "GoVetChecks", "go vet check failure", out.String()); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "vet", "v.io/..."); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunGoVet", "GoVetChecks", "go vet check failure", out.String()); err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(ctx.Stderr(), "%v", out.String())
+		fmt.Fprintf(jirix.Stderr(), "%v", out.String())
 		return &test.Result{Status: test.Failed}, nil
 	}
 	return &test.Result{Status: test.Passed}, nil
 }
 
 // vanadiumGoTest runs Go tests for vanadium projects.
-func vanadiumGoTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Test the Vanadium Go packages.
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
 	args := argsOpt([]string{})
 	suffix := suffixOpt(genTestNameSuffix("GoTest"))
-	return goTestAndReport(ctx, testName, suffix, exclusionsOpt(goExclusions), getNumWorkersOpt(opts), pkgs, args)
+	return goTestAndReport(jirix, testName, suffix, exclusionsOpt(goExclusions), getNumWorkersOpt(opts), pkgs, args)
 }
 
 // vanadiumIntegrationTest runs integration tests for Vanadium
 // projects.
-func vanadiumIntegrationTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumIntegrationTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
 	// We need a shorter root/tmp dir to keep the length of unix domain socket
 	// path under limit (108 for linux and 104 for darwin).
 	shorterRootDir := filepath.Join(os.Getenv("HOME"), "tmp", "vit")
-	cleanup, err := initTest(ctx, testName, []string{"base"}, rootDirOpt(shorterRootDir))
+	cleanup, err := initTest(jirix, testName, []string{"base"}, rootDirOpt(shorterRootDir))
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
 	suffix := suffixOpt(genTestNameSuffix("V23Test"))
 	nonTestArgs := nonTestArgsOpt([]string{"-v23.tests"})
 	matcher := funcMatcherOpt{&matchV23TestFunc{testNameRE: integrationTestNameRE}}
-	env := ctx.Env()
+	env := jirix.Env()
 	env["V23_BIN_DIR"] = binDirPath()
-	newCtx := ctx.Clone(tool.ContextOpts{Env: env})
+	newCtx := jirix.Clone(tool.ContextOpts{Env: env})
 	return goTestAndReport(newCtx, testName, suffix, getNumWorkersOpt(opts), nonTestArgs, matcher, exclusionsOpt(goIntegrationExclusions), pkgs)
 }
 
@@ -1808,7 +1809,7 @@ func defaultRegressionConfig() *regressionTestConfig {
 
 // vanadiumRegressionTest runs integration tests for Vanadium projects
 // using different versions of Vanadium binaries.
-func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	var config *regressionTestConfig
 	if configStr := os.Getenv("V23_REGTEST_CONFIG"); configStr != "" {
 		config = &regressionTestConfig{}
@@ -1823,16 +1824,16 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(ctx.Stdout(), "Using config:\n%s\n", string(configBytes))
+	fmt.Fprintf(jirix.Stdout(), "Using config:\n%s\n", string(configBytes))
 
 	// Initialize the test.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	pkgs, err := validateAgainstDefaultPackages(ctx, opts, []string{"v.io/..."})
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
 	}
@@ -1848,7 +1849,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	if err := ctx.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
 		return nil, internalTestError{err, "Install"}
 	}
 	root, err := project.JiriRoot()
@@ -1858,16 +1859,16 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 	newDir := filepath.Join(root, "release", "go", "bin")
 	outDir := filepath.Join(regTestBinDirPath(), "bin")
 
-	tmpDir, err := ctx.Run().TempDir("", "")
+	tmpDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
 		return nil, err
 	}
-	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
+	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
 	vbinaryBin := filepath.Join(tmpDir, "vbinary")
-	if err := ctx.Run().Command("jiri", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
 		return nil, err
 	}
-	available, err := listAvailableVanadiumBinaries(ctx, vbinaryBin)
+	available, err := listAvailableVanadiumBinaries(jirix, vbinaryBin)
 	if err != nil {
 		return nil, err
 	}
@@ -1880,41 +1881,41 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 			againstDateStr = againstTime.Format("2006-01-02")
 			if bytes.Contains(available, []byte(runtime.GOOS+"_"+runtime.GOARCH+"/"+againstDateStr)) {
 				if i > 0 {
-					fmt.Fprintf(ctx.Stdout(), "no snapshot found for %s; using %s instead\n", time.Time(againstDate).Format("2006-01-02"), againstDateStr)
+					fmt.Fprintf(jirix.Stdout(), "no snapshot found for %s; using %s instead\n", time.Time(againstDate).Format("2006-01-02"), againstDateStr)
 				}
 				break
 			}
 			if i == config.DatesGrace {
-				fmt.Fprintf(ctx.Stdout(), "#### Skipping tests for %s, no snapshot found (grace: %d) ####\n", againstDateStr, config.DatesGrace)
+				fmt.Fprintf(jirix.Stdout(), "#### Skipping tests for %s, no snapshot found (grace: %d) ####\n", againstDateStr, config.DatesGrace)
 				return nil, fmt.Errorf("no snapshot found for %s (grace: %d)", againstDateStr, config.DatesGrace)
 			}
 			againstTime = againstTime.AddDate(0, 0, -1)
 		}
-		oldDir, err := downloadVanadiumBinaries(ctx, vbinaryBin, againstTime)
+		oldDir, err := downloadVanadiumBinaries(jirix, vbinaryBin, againstTime)
 		if err == noSnapshotErr {
-			fmt.Fprintf(ctx.Stdout(), "#### Skipping tests for %s, no snapshot ####\n", againstDateStr)
+			fmt.Fprintf(jirix.Stdout(), "#### Skipping tests for %s, no snapshot ####\n", againstDateStr)
 			return nil, fmt.Errorf("no snapshot found for %s", againstDateStr)
 		} else if err != nil {
 			return nil, err
 		}
 
-		env := ctx.Env()
+		env := jirix.Env()
 		env["V23_BIN_DIR"] = outDir
 		env["V23_REGTEST_DATE"] = againstDateStr
-		newCtx := ctx.Clone(tool.ContextOpts{Env: env})
+		newCtx := jirix.Clone(tool.ContextOpts{Env: env})
 
 		for _, set := range config.Sets {
 			for _, order := range []binOrder{binSetOld, binSetNew} {
 				if set.Order != binSetBoth && set.Order != order {
 					continue
 				}
-				if err := prepareRegressionBinaries(ctx, oldDir, newDir, outDir, set.Binaries, order); err != nil {
+				if err := prepareRegressionBinaries(jirix, oldDir, newDir, outDir, set.Binaries, order); err != nil {
 					return nil, err
 				}
 				suffix := fmt.Sprintf("Regression(%s, %s, %s)", againstDateStr, set.Name, order)
 				suffixOpt := suffixOpt(genTestNameSuffix(suffix))
 				localOpts := append([]goTestOpt{suffixOpt}, globalOpts...)
-				fmt.Fprintf(ctx.Stdout(), "#### Running %s ####\n", suffix)
+				fmt.Fprintf(jirix.Stdout(), "#### Running %s ####\n", suffix)
 				result, cursuites, err := goTest(newCtx, testName, localOpts...)
 				if err != nil {
 					return nil, err
@@ -1928,7 +1929,7 @@ func vanadiumRegressionTest(ctx *tool.Context, testName string, opts ...Opt) (_ 
 			}
 		}
 	}
-	return out, xunit.CreateReport(ctx, testName, suites)
+	return out, xunit.CreateReport(jirix.Context, testName, suites)
 }
 
 func mergeTestSet(into map[string][]string, from map[string][]string) {
@@ -1941,24 +1942,24 @@ func mergeTestSet(into map[string][]string, from map[string][]string) {
 // binaries for the given date.
 var noSnapshotErr = fmt.Errorf("no snapshots for specified date.")
 
-func listAvailableVanadiumBinaries(ctx *tool.Context, bin string) ([]byte, error) {
+func listAvailableVanadiumBinaries(jirix *jiri.X, bin string) ([]byte, error) {
 	args := []string{
 		"-key-file", os.Getenv("V23_KEY_FILE"),
 		"list",
 	}
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	var out bytes.Buffer
 	opts.Stdout = &out
-	if err := ctx.Run().CommandWithOpts(opts, bin, args...); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, bin, args...); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
 }
 
-func downloadVanadiumBinaries(ctx *tool.Context, bin string, date time.Time) (binDir string, e error) {
+func downloadVanadiumBinaries(jirix *jiri.X, bin string, date time.Time) (binDir string, e error) {
 	dateStr := date.Format("2006-01-02")
 	binDir = filepath.Join(regTestBinDirPath(), dateStr)
-	if _, err := ctx.Run().Stat(binDir); err == nil {
+	if _, err := jirix.Run().Stat(binDir); err == nil {
 		return binDir, nil
 	} else if !os.IsNotExist(err) {
 		return "", err
@@ -1970,7 +1971,7 @@ func downloadVanadiumBinaries(ctx *tool.Context, bin string, date time.Time) (bi
 		"-attempts=3",
 		"-output-dir", binDir,
 	}
-	if err := ctx.Run().Command(bin, args...); err != nil {
+	if err := jirix.Run().Command(bin, args...); err != nil {
 		exiterr, ok := err.(*exec.ExitError)
 		if !ok {
 			return "", err
@@ -1990,11 +1991,11 @@ func downloadVanadiumBinaries(ctx *tool.Context, bin string, date time.Time) (bi
 // prepareRegressionBinaries assembles binaries into the directory out by taking
 // binaries from in1 and in2.  Binaries in the list take1 will be taken
 // from 1, other will be taken from 2.
-func prepareRegressionBinaries(ctx *tool.Context, in1, in2, out string, targetBinaries []string, order binOrder) error {
-	if err := ctx.Run().RemoveAll(out); err != nil {
+func prepareRegressionBinaries(jirix *jiri.X, in1, in2, out string, targetBinaries []string, order binOrder) error {
+	if err := jirix.Run().RemoveAll(out); err != nil {
 		return err
 	}
-	if err := ctx.Run().MkdirAll(out, os.FileMode(0755)); err != nil {
+	if err := jirix.Run().MkdirAll(out, os.FileMode(0755)); err != nil {
 		return err
 	}
 	if order != binSetNew {
@@ -2033,11 +2034,11 @@ func prepareRegressionBinaries(ctx *tool.Context, in1, in2, out string, targetBi
 	}
 	sort.Strings(sortedBinaries)
 
-	fmt.Fprintf(ctx.Stdout(), "Using binaries from %s and %s out of %s\n", in1, in2, out)
+	fmt.Fprintf(jirix.Stdout(), "Using binaries from %s and %s out of %s\n", in1, in2, out)
 	for _, name := range sortedBinaries {
 		src := binaries[name]
 		dst := filepath.Join(out, name)
-		if err := ctx.Run().Symlink(src, dst); err != nil {
+		if err := jirix.Run().Symlink(src, dst); err != nil {
 			return err
 		}
 	}

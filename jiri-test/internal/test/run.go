@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -62,11 +63,11 @@ type testNode struct {
 // testDepGraph captures the test dependency graph.
 type testDepGraph map[string]*testNode
 
-var testMock = func(*tool.Context, string, ...Opt) (*test.Result, error) {
+var testMock = func(*jiri.X, string, ...Opt) (*test.Result, error) {
 	return &test.Result{Status: test.Passed}, nil
 }
 
-var testFunctions = map[string]func(*tool.Context, string, ...Opt) (*test.Result, error){
+var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, error){
 	// TODO(jsimsa,cnicolaou): consider getting rid of the vanadium- prefix.
 	"ignore-this":                         testMock,
 	"third_party-go-build":                thirdPartyGoBuild,
@@ -145,15 +146,15 @@ var testFunctions = map[string]func(*tool.Context, string, ...Opt) (*test.Result
 	"vanadium-www-tutorials-js-web":       vanadiumWWWTutorialsJSWeb,
 }
 
-func newTestContext(ctx *tool.Context, env map[string]string) *tool.Context {
+func newTestContext(jirix *jiri.X, env map[string]string) *jiri.X {
 	tmpEnv := map[string]string{}
-	for key, value := range ctx.Env() {
+	for key, value := range jirix.Env() {
 		tmpEnv[key] = value
 	}
 	for key, value := range env {
 		tmpEnv[key] = value
 	}
-	return ctx.Clone(tool.ContextOpts{
+	return jirix.Clone(tool.ContextOpts{
 		Env: tmpEnv,
 	})
 }
@@ -233,11 +234,11 @@ func ListTests() ([]string, error) {
 }
 
 // RunProjectTests runs all tests associated with the given projects.
-func RunProjectTests(ctx *tool.Context, env map[string]string, projects []string, opts ...Opt) (map[string]*test.Result, error) {
-	testCtx := newTestContext(ctx, env)
+func RunProjectTests(jirix *jiri.X, env map[string]string, projects []string, opts ...Opt) (map[string]*test.Result, error) {
+	testCtx := newTestContext(jirix, env)
 
 	// Parse tests and dependencies from config file.
-	config, err := util.LoadConfig(ctx)
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -294,12 +295,12 @@ run:
 }
 
 // RunTests executes the given tests and reports the test results.
-func RunTests(ctx *tool.Context, env map[string]string, tests []string, opts ...Opt) (map[string]*test.Result, error) {
+func RunTests(jirix *jiri.X, env map[string]string, tests []string, opts ...Opt) (map[string]*test.Result, error) {
 	results := make(map[string]*test.Result, len(tests))
 	for _, t := range tests {
 		results[t] = &test.Result{}
 	}
-	testCtx := newTestContext(ctx, env)
+	testCtx := newTestContext(jirix, env)
 	if err := runTests(testCtx, tests, results, opts...); err != nil {
 		return nil, err
 	}
@@ -317,7 +318,7 @@ func (nopWriteCloser) Write([]byte) (int, error) {
 }
 
 // runTests runs the given tests, populating the results map.
-func runTests(ctx *tool.Context, tests []string, results map[string]*test.Result, opts ...Opt) (e error) {
+func runTests(jirix *jiri.X, tests []string, results map[string]*test.Result, opts ...Opt) (e error) {
 	outputDir := ""
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -345,14 +346,14 @@ func runTests(ctx *tool.Context, tests []string, results map[string]*test.Result
 		if !ok {
 			return fmt.Errorf("test %v does not exist", t)
 		}
-		fmt.Fprintf(ctx.Stdout(), "##### Running test %q #####\n", t)
+		fmt.Fprintf(jirix.Stdout(), "##### Running test %q #####\n", t)
 
 		// Create a 1MB buffer to capture the test function output.
 		var out bytes.Buffer
 		const largeBufferSize = 1 << 20
 		out.Grow(largeBufferSize)
-		runOpts := ctx.Run().Opts()
-		newCtx := ctx.Clone(tool.ContextOpts{
+		runOpts := jirix.Run().Opts()
+		newCtx := jirix.Clone(tool.ContextOpts{
 			Stdout: io.MultiWriter(&out, runOpts.Stdout),
 			Stderr: io.MultiWriter(&out, runOpts.Stderr),
 		})
@@ -377,7 +378,7 @@ func runTests(ctx *tool.Context, tests []string, results map[string]*test.Result
 		if _, err := outputFile.Write(out.Bytes()); err != nil {
 			return err
 		}
-		fmt.Fprintf(ctx.Stdout(), "##### %s #####\n", results[t].Status)
+		fmt.Fprintf(jirix.Stdout(), "##### %s #####\n", results[t].Status)
 	}
 
 	if outputDir != "" {
@@ -387,7 +388,7 @@ func runTests(ctx *tool.Context, tests []string, results map[string]*test.Result
 			return fmt.Errorf("Marshal(%v) failed: %v", results, err)
 		}
 		resultsFile := filepath.Join(outputDir, "results")
-		if err := ctx.Run().WriteFile(resultsFile, bytes, os.FileMode(0644)); err != nil {
+		if err := jirix.Run().WriteFile(resultsFile, bytes, os.FileMode(0644)); err != nil {
 			return err
 		}
 	}
@@ -396,14 +397,14 @@ func runTests(ctx *tool.Context, tests []string, results map[string]*test.Result
 }
 
 // writeTimedOutTestReport writes a xUnit test report for the given timed-out test.
-func writeTimedOutTestReport(ctx *tool.Context, testName string, result test.Result) {
+func writeTimedOutTestReport(jirix *jiri.X, testName string, result test.Result) {
 	timeoutValue := test.DefaultTimeout
 	if result.TimeoutValue != 0 {
 		timeoutValue = result.TimeoutValue
 	}
 	errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
-	if err := xunit.CreateFailureReport(ctx, testName, testName, "Timeout", errorMessage, errorMessage); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+	if err := xunit.CreateFailureReport(jirix.Context, testName, testName, "Timeout", errorMessage, errorMessage); err != nil {
+		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	}
 }
 
@@ -411,20 +412,20 @@ func writeTimedOutTestReport(ctx *tool.Context, testName string, result test.Res
 // valid xUnit test report, and the set of test cases is non-empty. If any of
 // these is not true, the function generates a dummy test report file that
 // meets these requirements.
-func checkTestReportFile(ctx *tool.Context, testName string) error {
+func checkTestReportFile(jirix *jiri.X, testName string) error {
 	// Skip the checks for presubmit-test itself.
 	if testName == "vanadium-presubmit-test" {
 		return nil
 	}
 
 	xUnitReportFile := xunit.ReportPath(testName)
-	if _, err := ctx.Run().Stat(xUnitReportFile); err != nil {
+	if _, err := jirix.Run().Stat(xUnitReportFile); err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
 		// No test report.
 		dummyFile, perm := filepath.Join(filepath.Dir(xUnitReportFile), "tests_dummy.xml"), os.FileMode(0644)
-		if err := ctx.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
+		if err := jirix.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
 		}
 		return nil
@@ -437,8 +438,8 @@ func checkTestReportFile(ctx *tool.Context, testName string) error {
 	}
 	var suites xunit.TestSuites
 	if err := xml.Unmarshal(bytes, &suites); err != nil {
-		ctx.Run().RemoveAll(xUnitReportFile)
-		if err := xunit.CreateFailureReport(ctx, testName, testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error()); err != nil {
+		jirix.Run().RemoveAll(xUnitReportFile)
+		if err := xunit.CreateFailureReport(jirix.Context, testName, testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error()); err != nil {
 			return err
 		}
 		return nil
@@ -450,8 +451,8 @@ func checkTestReportFile(ctx *tool.Context, testName string) error {
 		numTestCases += len(suite.Cases)
 	}
 	if numTestCases == 0 {
-		ctx.Run().RemoveAll(xUnitReportFile)
-		if err := xunit.CreateFailureReport(ctx, testName, testName, "No Test Cases", "No Test Cases", ""); err != nil {
+		jirix.Run().RemoveAll(xUnitReportFile)
+		if err := xunit.CreateFailureReport(jirix.Context, testName, testName, "No Test Cases", "No Test Cases", ""); err != nil {
 			return err
 		}
 		return nil
@@ -462,7 +463,7 @@ func checkTestReportFile(ctx *tool.Context, testName string) error {
 
 // generateXUnitReportForError generates an xUnit test report for the
 // given (internal) error.
-func generateXUnitReportForError(ctx *tool.Context, testName string, err error, output string) (*test.Result, error) {
+func generateXUnitReportForError(jirix *jiri.X, testName string, err error, output string) (*test.Result, error) {
 	// Skip the report generation for presubmit-test itself.
 	if testName == "vanadium-presubmit-test" {
 		return &test.Result{Status: test.Passed}, nil
@@ -473,14 +474,14 @@ func generateXUnitReportForError(ctx *tool.Context, testName string, err error, 
 	// Only create the report when the xUnit file doesn't exist, is
 	// invalid, or exist but doesn't have failed test cases.
 	createXUnitFile := false
-	if _, err := ctx.Run().Stat(xUnitFilePath); err != nil {
+	if _, err := jirix.Run().Stat(xUnitFilePath); err != nil {
 		if os.IsNotExist(err) {
 			createXUnitFile = true
 		} else {
 			return nil, err
 		}
 	} else {
-		bytes, err := ctx.Run().ReadFile(xUnitFilePath)
+		bytes, err := jirix.Run().ReadFile(xUnitFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -510,7 +511,7 @@ func generateXUnitReportForError(ctx *tool.Context, testName string, err error, 
 		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
 		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
 		errMsg := fmt.Sprintf("Error message:\n%s:\n%s\n\n\nConsole output:\n%s\n", errType, err.Error(), consoleOutput)
-		if err := xunit.CreateFailureReport(ctx, testName, testName, errType, errType, errMsg); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, testName, errType, errType, errMsg); err != nil {
 			return nil, err
 		}
 

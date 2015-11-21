@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/lib/envvar"
 )
 
@@ -58,7 +58,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) {
+func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) {
 	m.syncbaseRoot = root.Join("cout")
 	m.snappySrcDir = root.RootJoin("third_party", "csrc", "snappy-1.1.2")
 	m.leveldbSrcDir = root.RootJoin("third_party", "csrc", "leveldb")
@@ -68,11 +68,11 @@ func (m *Manager) initForTarget(ctx *tool.Context, root profiles.RelativePath, t
 	m.snappyInstDir = m.syncbaseInstRoot.Join("snappy")
 	m.leveldbInstDir = m.syncbaseInstRoot.Join("leveldb")
 
-	if ctx.Verbose() {
-		fmt.Fprintf(ctx.Stdout(), "Installation Directories for: %s\n", target)
-		fmt.Fprintf(ctx.Stdout(), "Syncbase installation dir: %s\n", m.syncbaseInstRoot)
-		fmt.Fprintf(ctx.Stdout(), "Snappy: %s\n", m.snappyInstDir)
-		fmt.Fprintf(ctx.Stdout(), "Leveldb: %s\n", m.leveldbInstDir)
+	if jirix.Verbose() {
+		fmt.Fprintf(jirix.Stdout(), "Installation Directories for: %s\n", target)
+		fmt.Fprintf(jirix.Stdout(), "Syncbase installation dir: %s\n", m.syncbaseInstRoot)
+		fmt.Fprintf(jirix.Stdout(), "Snappy: %s\n", m.snappyInstDir)
+		fmt.Fprintf(jirix.Stdout(), "Leveldb: %s\n", m.leveldbInstDir)
 	}
 }
 
@@ -85,7 +85,7 @@ func relPath(rp profiles.RelativePath) string {
 
 // setSyncbaseEnv adds the LevelDB third-party C++ libraries Vanadium
 // Go code depends on to the CGO_CFLAGS and CGO_LDFLAGS variables.
-func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]string, error) {
+func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, error) {
 	env := envvar.VarsFromSlice([]string{})
 	for _, dir := range []profiles.RelativePath{
 		m.leveldbInstDir,
@@ -94,7 +94,7 @@ func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]stri
 		cflags := env.GetTokens("CGO_CFLAGS", " ")
 		cxxflags := env.GetTokens("CGO_CXXFLAGS", " ")
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
-		if _, err := ctx.NewSeq().Stat(dir.Expand()); err != nil {
+		if _, err := jirix.NewSeq().Stat(dir.Expand()); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
 			}
@@ -113,16 +113,16 @@ func (m *Manager) syncbaseEnv(ctx *tool.Context, target profiles.Target) ([]stri
 	return env.ToSlice(), nil
 }
 
-func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
-	m.initForTarget(ctx, root, target)
-	if err := m.installDependencies(ctx, target.Arch(), target.OS()); err != nil {
+func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+	m.initForTarget(jirix, root, target)
+	if err := m.installDependencies(jirix, target.Arch(), target.OS()); err != nil {
 		return err
 	}
-	if err := m.installCommon(ctx, root, target); err != nil {
+	if err := m.installCommon(jirix, root, target); err != nil {
 		return err
 	}
 	env := envvar.VarsFromSlice(target.Env.Vars)
-	syncbaseEnv, err := m.syncbaseEnv(ctx, target)
+	syncbaseEnv, err := m.syncbaseEnv(jirix, target)
 	if err != nil {
 		return err
 	}
@@ -138,9 +138,9 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
-	m.initForTarget(ctx, root, target)
-	if err := ctx.NewSeq().
+func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+	m.initForTarget(jirix, root, target)
+	if err := jirix.NewSeq().
 		RemoveAll(m.snappyInstDir.Expand()).
 		RemoveAll(m.leveldbInstDir.Expand()).Done(); err != nil {
 		return err
@@ -149,7 +149,7 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 	return nil
 }
 
-func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error {
+func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
 	var pkgs []string
 	switch runtime.GOOS {
 	case "darwin":
@@ -163,7 +163,7 @@ func (m *Manager) installDependencies(ctx *tool.Context, arch, OS string) error 
 	default:
 		return fmt.Errorf("%q is not supported", runtime.GOOS)
 	}
-	return profiles.InstallPackages(ctx, pkgs)
+	return profiles.InstallPackages(jirix, pkgs)
 }
 
 func handleRelativePath(root profiles.RelativePath, s string) string {
@@ -183,10 +183,10 @@ func getAndroidRoot(root profiles.RelativePath) (string, error) {
 }
 
 // installSyncbaseCommon installs the syncbase profile.
-func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) (e error) {
+func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		if err := s.Chdir(m.snappySrcDir.Expand()).
 			Last("autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
@@ -245,7 +245,7 @@ func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, t
 			Run("make", "install").
 			Last("make", "distclean")
 	}
-	if err := profiles.AtomicAction(ctx, installSnappyFn, m.snappyInstDir.Expand(), "Build and install Snappy"); err != nil {
+	if err := profiles.AtomicAction(jirix, installSnappyFn, m.snappyInstDir.Expand(), "Build and install Snappy"); err != nil {
 		return err
 	}
 
@@ -254,7 +254,7 @@ func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, t
 		leveldbIncludeDir := m.leveldbInstDir.Join("include").Expand()
 		leveldbLibDir := m.leveldbInstDir.Join("lib").Expand()
 
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		err := s.Chdir(m.leveldbSrcDir.Expand()).
 			Run("mkdir", "-p", m.leveldbInstDir.Expand()).
 			Run("cp", "-R", "include", leveldbIncludeDir).
@@ -314,7 +314,7 @@ func (m *Manager) installCommon(ctx *tool.Context, root profiles.RelativePath, t
 		return s.Opts(opts).Run("make", "clean").
 			Opts(opts).Last("make", "static")
 	}
-	if err := profiles.AtomicAction(ctx, installLeveldbFn, m.leveldbInstDir.Expand(), "Build and install LevelDB"); err != nil {
+	if err := profiles.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Expand(), "Build and install LevelDB"); err != nil {
 		return err
 	}
 	return nil

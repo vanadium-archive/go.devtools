@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -37,7 +38,7 @@ func init() {
 
 // cmdRun represents the "jiri run" command.
 var cmdRun = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runRun),
+	Runner:   jiri.RunnerFunc(runRun),
 	Name:     "run",
 	Short:    "Run an executable using the specified profile and target's environment",
 	Long:     "Run an executable using the specified profile and target's environment.",
@@ -51,12 +52,11 @@ verbatim to the executable.
 // TODO(cnicolaou,nlacasse): consider moving run into the core
 // jiri tool since there really dones't need to be anything
 // project specific in it.
-func runRun(cmdlineEnv *cmdline.Env, args []string) error {
+func runRun(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
-		return cmdlineEnv.UsageErrorf("no command to run")
+		return jirix.UsageErrorf("no command to run")
 	}
-	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
+	ch, err := profiles.NewConfigHelper(jirix, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -66,13 +66,13 @@ func runRun(cmdlineEnv *cmdline.Env, args []string) error {
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, targetFlag, profileNames...)
 	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
-		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
-		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", profileNames)
+		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
 	execCmd := exec.Command(args[0], args[1:]...)
-	execCmd.Stdout = cmdlineEnv.Stdout
-	execCmd.Stderr = cmdlineEnv.Stderr
+	execCmd.Stdout = jirix.Stdout()
+	execCmd.Stderr = jirix.Stderr()
 	execCmd.Env = ch.ToSlice()
 	return util.TranslateExitCode(execCmd.Run())
 }

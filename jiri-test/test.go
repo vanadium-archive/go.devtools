@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
@@ -60,7 +61,7 @@ var cmdTest = &cmdline.Command{
 
 // cmdTestProject represents the "jiri test project" command.
 var cmdTestProject = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runTestProject),
+	Runner: jiri.RunnerFunc(runTestProject),
 	Name:   "project",
 	Short:  "Run tests for a vanadium project",
 	Long: `
@@ -73,17 +74,16 @@ specified using the basename of the URL (e.g. "vanadium.go.core" implies
 	ArgsLong: "<project> identifies the project for which to run tests.",
 }
 
-func runTestProject(env *cmdline.Env, args []string) error {
+func runTestProject(jirix *jiri.X, args []string) error {
 	if len(args) != 1 {
-		return env.UsageErrorf("unexpected number of arguments")
+		return jirix.UsageErrorf("unexpected number of arguments")
 	}
-	ctx := tool.NewContextFromEnv(env)
 	project := args[0]
-	results, err := jiriTest.RunProjectTests(ctx, nil, []string{project}, optsFromFlags()...)
+	results, err := jiriTest.RunProjectTests(jirix, nil, []string{project}, optsFromFlags()...)
 	if err != nil {
 		return err
 	}
-	printSummary(ctx, results)
+	printSummary(jirix, results)
 	for _, result := range results {
 		if result.Status != test.Passed {
 			return cmdline.ErrExitCode(test.FailedExitCode)
@@ -94,7 +94,7 @@ func runTestProject(env *cmdline.Env, args []string) error {
 
 // cmdTestRun represents the "jiri test run" command.
 var cmdTestRun = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runTestRun),
+	Runner:   jiri.RunnerFunc(runTestRun),
 	Name:     "run",
 	Short:    "Run vanadium tests",
 	Long:     "Run vanadium tests.",
@@ -102,16 +102,15 @@ var cmdTestRun = &cmdline.Command{
 	ArgsLong: "<name...> is a list names identifying the tests to run.",
 }
 
-func runTestRun(env *cmdline.Env, args []string) error {
+func runTestRun(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
-		return env.UsageErrorf("unexpected number of arguments")
+		return jirix.UsageErrorf("unexpected number of arguments")
 	}
-	ctx := tool.NewContextFromEnv(env)
-	results, err := jiriTest.RunTests(ctx, nil, args, optsFromFlags()...)
+	results, err := jiriTest.RunTests(jirix, nil, args, optsFromFlags()...)
 	if err != nil {
 		return err
 	}
-	printSummary(ctx, results)
+	printSummary(jirix, results)
 	for _, result := range results {
 		if result.Status != test.Passed {
 			return cmdline.ErrExitCode(test.FailedExitCode)
@@ -145,18 +144,18 @@ func optsFromFlags() (opts []jiriTest.Opt) {
 	return
 }
 
-func printSummary(ctx *tool.Context, results map[string]*test.Result) {
-	fmt.Fprintf(ctx.Stdout(), "SUMMARY:\n")
+func printSummary(jirix *jiri.X, results map[string]*test.Result) {
+	fmt.Fprintf(jirix.Stdout(), "SUMMARY:\n")
 	for name, result := range results {
-		fmt.Fprintf(ctx.Stdout(), "%v %s\n", name, result.Status)
+		fmt.Fprintf(jirix.Stdout(), "%v %s\n", name, result.Status)
 		if len(result.ExcludedTests) > 0 {
 			for pkg, tests := range result.ExcludedTests {
-				fmt.Fprintf(ctx.Stdout(), "  excluded %d tests from packge %v: %v\n", len(tests), pkg, tests)
+				fmt.Fprintf(jirix.Stdout(), "  excluded %d tests from packge %v: %v\n", len(tests), pkg, tests)
 			}
 		}
 		if len(result.SkippedTests) > 0 {
 			for pkg, tests := range result.SkippedTests {
-				fmt.Fprintf(ctx.Stdout(), "  skipped %d tests from pacakge %v: %v\n", len(tests), pkg, tests)
+				fmt.Fprintf(jirix.Stdout(), "  skipped %d tests from pacakge %v: %v\n", len(tests), pkg, tests)
 			}
 		}
 	}
@@ -164,21 +163,20 @@ func printSummary(ctx *tool.Context, results map[string]*test.Result) {
 
 // cmdTestList represents the "jiri test list" command.
 var cmdTestList = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runTestList),
+	Runner: jiri.RunnerFunc(runTestList),
 	Name:   "list",
 	Short:  "List vanadium tests",
 	Long:   "List vanadium tests.",
 }
 
-func runTestList(env *cmdline.Env, _ []string) error {
-	ctx := tool.NewContextFromEnv(env)
+func runTestList(jirix *jiri.X, _ []string) error {
 	testList, err := jiriTest.ListTests()
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 		return err
 	}
 	for _, test := range testList {
-		fmt.Fprintf(ctx.Stdout(), "%v\n", test)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", test)
 	}
 	return nil
 }

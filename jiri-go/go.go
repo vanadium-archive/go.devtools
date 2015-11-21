@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -24,7 +25,7 @@ import (
 
 // cmdGo represents the "jiri go" command.
 var cmdGo = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runGo),
+	Runner: jiri.RunnerFunc(runGo),
 	Name:   "go",
 	Short:  "Execute the go tool using the vanadium environment",
 	Long: `
@@ -60,12 +61,11 @@ func init() {
 	tool.InitializeRunFlags(&cmdGo.Flags)
 }
 
-func runGo(cmdlineEnv *cmdline.Env, args []string) error {
+func runGo(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
-		return cmdlineEnv.UsageErrorf("not enough arguments")
+		return jirix.UsageErrorf("not enough arguments")
 	}
-	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
+	ch, err := profiles.NewConfigHelper(jirix, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -80,16 +80,16 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		}
 	}
 	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
-		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
-		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", profileNames)
+		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
 	envMap := ch.ToMap()
 	var installSuffix string
 	if targetFlag.OS() == "fnl" {
 		installSuffix = "musl"
 	}
-	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags, installSuffix); err != nil {
+	if args, err = golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix); err != nil {
 		return err
 	}
 	// Run the go tool.
@@ -98,11 +98,11 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 		return err
 	}
 	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
+		fmt.Fprintf(jirix.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
 	}
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Env = envMap
-	return util.TranslateExitCode(ctx.Run().CommandWithOpts(opts, goBin, args...))
+	return util.TranslateExitCode(jirix.Run().CommandWithOpts(opts, goBin, args...))
 }
 
 func main() {

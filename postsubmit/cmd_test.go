@@ -10,18 +10,16 @@ import (
 	"testing"
 
 	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/jiri/util"
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {
-	ctx := tool.NewDefaultContext()
-	root, err := project.NewFakeJiriRoot(ctx)
+	root, err := project.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer func() {
-		if err := root.Cleanup(ctx); err != nil {
+		if err := root.Cleanup(); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}()
@@ -47,7 +45,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			"javascript": []string{"vanadium-js-integration", "vanadium-js-unit"},
 		}),
 	)
-	if err := util.SaveConfig(ctx, config); err != nil {
+	if err := util.SaveConfig(root.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -75,7 +73,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		got, err := jenkinsTestsToStart(ctx, test.projects)
+		got, err := jenkinsTestsToStart(root.X, test.projects)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}

@@ -14,16 +14,16 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/retry"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
 
 // generateXUnitTestSuite generates an xUnit test suite that
 // encapsulates the given input.
-func generateXUnitTestSuite(ctx *tool.Context, failure *xunit.Failure, pkg string, duration time.Duration) *xunit.TestSuite {
+func generateXUnitTestSuite(jirix *jiri.X, failure *xunit.Failure, pkg string, duration time.Duration) *xunit.TestSuite {
 	// Generate an xUnit test suite describing the result.
 	s := xunit.TestSuite{Name: pkg}
 	c := xunit.TestCase{
@@ -32,11 +32,11 @@ func generateXUnitTestSuite(ctx *tool.Context, failure *xunit.Failure, pkg strin
 		Time:      fmt.Sprintf("%.2f", duration.Seconds()),
 	}
 	if failure != nil {
-		fmt.Fprintf(ctx.Stdout(), "%s ... failed\n%v\n", pkg, failure.Data)
+		fmt.Fprintf(jirix.Stdout(), "%s ... failed\n%v\n", pkg, failure.Data)
 		c.Failures = append(c.Failures, *failure)
 		s.Failures++
 	} else {
-		fmt.Fprintf(ctx.Stdout(), "%s ... ok\n", pkg)
+		fmt.Fprintf(jirix.Stdout(), "%s ... ok\n", pkg)
 	}
 	s.Tests++
 	s.Cases = append(s.Cases, c)
@@ -44,10 +44,10 @@ func generateXUnitTestSuite(ctx *tool.Context, failure *xunit.Failure, pkg strin
 }
 
 // testSingleProdService test the given production service.
-func testSingleProdService(ctx *tool.Context, vroot, principalDir string, service prodService) *xunit.TestSuite {
+func testSingleProdService(jirix *jiri.X, vroot, principalDir string, service prodService) *xunit.TestSuite {
 	bin := filepath.Join(vroot, "release", "go", "bin", "vrpc")
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Verbose = true
 	opts.Stdout = &out
 	opts.Stderr = &out
@@ -61,15 +61,15 @@ func testSingleProdService(ctx *tool.Context, vroot, principalDir string, servic
 		args = append(args, "--insecure")
 	}
 	args = append(args, service.objectName)
-	if err := ctx.Run().TimedCommandWithOpts(test.DefaultTimeout, opts, bin, args...); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "Failed running %q: %v. Output:\n%v\n", append([]string{bin}, args...), err, out.String())
-		return generateXUnitTestSuite(ctx, &xunit.Failure{Message: "vrpc", Data: out.String()}, service.name, time.Now().Sub(start))
+	if err := jirix.Run().TimedCommandWithOpts(test.DefaultTimeout, opts, bin, args...); err != nil {
+		fmt.Fprintf(jirix.Stderr(), "Failed running %q: %v. Output:\n%v\n", append([]string{bin}, args...), err, out.String())
+		return generateXUnitTestSuite(jirix, &xunit.Failure{Message: "vrpc", Data: out.String()}, service.name, time.Now().Sub(start))
 	}
 	if !service.regexp.Match(out.Bytes()) {
-		fmt.Fprintf(ctx.Stderr(), "couldn't match regexp %q in output:\n%v\n", service.regexp, out.String())
-		return generateXUnitTestSuite(ctx, &xunit.Failure{Message: "vrpc", Data: "mismatching signature"}, service.name, time.Now().Sub(start))
+		fmt.Fprintf(jirix.Stderr(), "couldn't match regexp %q in output:\n%v\n", service.regexp, out.String())
+		return generateXUnitTestSuite(jirix, &xunit.Failure{Message: "vrpc", Data: "mismatching signature"}, service.name, time.Now().Sub(start))
 	}
-	return generateXUnitTestSuite(ctx, nil, service.name, time.Now().Sub(start))
+	return generateXUnitTestSuite(jirix, nil, service.name, time.Now().Sub(start))
 }
 
 type prodService struct {
@@ -79,11 +79,11 @@ type prodService struct {
 }
 
 // vanadiumProdServicesTest runs a test of vanadium production services.
-func vanadiumProdServicesTest(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -95,41 +95,41 @@ func vanadiumProdServicesTest(ctx *tool.Context, testName string, opts ...Opt) (
 	}
 
 	// Install the vrpc tool.
-	if err := ctx.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
 		return nil, internalTestError{err, "Install VRPC"}
 	}
 	// Install the principal tool.
-	if err := ctx.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/principal"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/principal"); err != nil {
 		return nil, internalTestError{err, "Install Principal"}
 	}
-	tmpdir, err := ctx.Run().TempDir("", "prod-services-test")
+	tmpdir, err := jirix.Run().TempDir("", "prod-services-test")
 	if err != nil {
 		return nil, internalTestError{err, "Create temporary directory"}
 	}
-	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpdir) }, &e)
+	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpdir) }, &e)
 
 	blessingRoot, namespaceRoot := getServiceOpts(opts)
 	allPassed, suites := true, []xunit.TestSuite{}
 
 	// Fetch the "root" blessing that all services are blessed by.
-	suite, pubkey, blessingNames := testIdentityProviderHTTP(ctx, blessingRoot)
+	suite, pubkey, blessingNames := testIdentityProviderHTTP(jirix, blessingRoot)
 	suites = append(suites, *suite)
 
 	if suite.Failures == 0 {
 		// Setup a principal that will be used by testAllProdServices and will
 		// recognize the blessings of the prod services.
-		principalDir, err := setupPrincipal(ctx, vroot, tmpdir, pubkey, blessingNames)
+		principalDir, err := setupPrincipal(jirix, vroot, tmpdir, pubkey, blessingNames)
 		if err != nil {
 			return nil, err
 		}
-		for _, suite := range testAllProdServices(ctx, vroot, principalDir, namespaceRoot) {
+		for _, suite := range testAllProdServices(jirix, vroot, principalDir, namespaceRoot) {
 			allPassed = allPassed && (suite.Failures == 0)
 			suites = append(suites, *suite)
 		}
 	}
 
 	// Create the xUnit report.
-	if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+	if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
 		return nil, err
 	}
 	for _, suite := range suites {
@@ -141,7 +141,7 @@ func vanadiumProdServicesTest(ctx *tool.Context, testName string, opts ...Opt) (
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func testAllProdServices(ctx *tool.Context, vroot, principalDir, namespaceRoot string) []*xunit.TestSuite {
+func testAllProdServices(jirix *jiri.X, vroot, principalDir, namespaceRoot string) []*xunit.TestSuite {
 	services := []prodService{
 		prodService{
 			name:       "mounttable",
@@ -184,7 +184,7 @@ func testAllProdServices(ctx *tool.Context, vroot, principalDir, namespaceRoot s
 
 	var suites []*xunit.TestSuite
 	for _, service := range services {
-		suites = append(suites, testSingleProdService(ctx, vroot, principalDir, service))
+		suites = append(suites, testSingleProdService(jirix, vroot, principalDir, service))
 	}
 	return suites
 }
@@ -204,7 +204,7 @@ func testAllProdServices(ctx *tool.Context, vroot, principalDir, namespaceRoot s
 // The attacker in this case will have to be able to mess with the routing
 // tables on the machine running this test, or the network routes of routers
 // used by the machine, or mess up DNS entries.
-func testIdentityProviderHTTP(ctx *tool.Context, blessingRoot string) (suite *xunit.TestSuite, publickey string, blessingNames []string) {
+func testIdentityProviderHTTP(jirix *jiri.X, blessingRoot string) (suite *xunit.TestSuite, publickey string, blessingNames []string) {
 	url := fmt.Sprintf("https://%s/auth/blessing-root", blessingRoot)
 	var response struct {
 		Names     []string `json:"names"`
@@ -218,7 +218,7 @@ func testIdentityProviderHTTP(ctx *tool.Context, blessingRoot string) (suite *xu
 		resp, err = http.Get(url)
 		return err
 	}
-	if err = retry.Function(ctx, fn); err == nil {
+	if err = retry.Function(jirix.Context, fn); err == nil {
 		defer resp.Body.Close()
 		err = json.NewDecoder(resp.Body).Decode(&response)
 	}
@@ -226,19 +226,19 @@ func testIdentityProviderHTTP(ctx *tool.Context, blessingRoot string) (suite *xu
 	if err != nil {
 		failure = &xunit.Failure{Message: "identityd HTTP", Data: err.Error()}
 	}
-	return generateXUnitTestSuite(ctx, failure, url, time.Now().Sub(start)), response.PublicKey, response.Names
+	return generateXUnitTestSuite(jirix, failure, url, time.Now().Sub(start)), response.PublicKey, response.Names
 }
 
-func setupPrincipal(ctx *tool.Context, vroot, tmpdir, pubkey string, blessingNames []string) (string, error) {
+func setupPrincipal(jirix *jiri.X, vroot, tmpdir, pubkey string, blessingNames []string) (string, error) {
 	dir := filepath.Join(tmpdir, "credentials")
 	bin := filepath.Join(vroot, "release", "go", "bin", "principal")
-	if err := ctx.Run().TimedCommand(test.DefaultTimeout, bin, "create", dir, "prod-services-tester"); err != nil {
-		fmt.Fprintf(ctx.Stderr(), "principal create failed: %v\n", err)
+	if err := jirix.Run().TimedCommand(test.DefaultTimeout, bin, "create", dir, "prod-services-tester"); err != nil {
+		fmt.Fprintf(jirix.Stderr(), "principal create failed: %v\n", err)
 		return "", err
 	}
 	for _, name := range blessingNames {
-		if err := ctx.Run().TimedCommand(test.DefaultTimeout, bin, "--v23.credentials", dir, "recognize", name, pubkey); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "principal recognize %v %v failed: %v\n", name, pubkey, err)
+		if err := jirix.Run().TimedCommand(test.DefaultTimeout, bin, "--v23.credentials", dir, "recognize", name, pubkey); err != nil {
+			fmt.Fprintf(jirix.Stderr(), "principal recognize %v %v failed: %v\n", name, pubkey, err)
 			return "", err
 		}
 	}

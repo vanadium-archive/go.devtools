@@ -13,9 +13,9 @@ import (
 	"runtime"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 	"v.io/x/lib/envvar"
 )
 
@@ -102,11 +102,11 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(ctx *tool.Context, action string, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, action string, root profiles.RelativePath, target *profiles.Target) error {
 	if !target.IsSet() {
 		def := *target
 		target.Set("arm-android")
-		fmt.Fprintf(ctx.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
+		fmt.Fprintf(jirix.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
 		if target.Arch() != "arm" && target.OS() != "android" {
 			return fmt.Errorf("this profile can only be %v as arm-android and not as %v", action, target)
@@ -121,15 +121,15 @@ func (m *Manager) initForTarget(ctx *tool.Context, action string, root profiles.
 	return nil
 }
 
-func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
-	if err := m.initForTarget(ctx, "installed", root, &target); err != nil {
+func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
 	}
 	if p := profiles.LookupProfileTarget(profileName, target); p != nil {
-		fmt.Fprintf(ctx.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
+		fmt.Fprintf(jirix.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
 		return nil
 	}
-	if err := m.installAndroidNDK(ctx); err != nil {
+	if err := m.installAndroidNDK(jirix); err != nil {
 		return err
 	}
 	if profiles.SchemaVersion() >= 4 {
@@ -144,7 +144,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	// Install android targets for other profiles.
 	dependency := target
 	dependency.SetVersion("2")
-	if err := m.installAndroidBaseTargets(ctx, dependency); err != nil {
+	if err := m.installAndroidBaseTargets(jirix, dependency); err != nil {
 		return err
 	}
 
@@ -163,15 +163,15 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	return profiles.UpdateProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
-	if err := m.initForTarget(ctx, "uninstalled", root, &target); err != nil {
+func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(jirix, "uninstalled", root, &target); err != nil {
 		return err
 	}
 	target.Env.Vars = append(target.Env.Vars, "GOARM=7")
-	if err := profiles.EnsureProfileTargetIsUninstalled(ctx, "base", root, target); err != nil {
+	if err := profiles.EnsureProfileTargetIsUninstalled(jirix, "base", root, target); err != nil {
 		return err
 	}
-	if err := ctx.NewSeq().RemoveAll(m.androidRoot.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.androidRoot.Expand()).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -186,7 +186,7 @@ func relPath(rp profiles.RelativePath) string {
 }
 
 // installAndroidNDK installs the android NDK toolchain.
-func (m *Manager) installAndroidNDK(ctx *tool.Context) (e error) {
+func (m *Manager) installAndroidNDK(jirix *jiri.X) (e error) {
 	// Install dependencies.
 	var pkgs []string
 	switch runtime.GOOS {
@@ -197,17 +197,17 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context) (e error) {
 	default:
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
-	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
+	if err := profiles.InstallPackages(jirix, pkgs); err != nil {
 		return err
 	}
 	// Download Android NDK.
 	installNdkFn := func() error {
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+		defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 		extractDir, err := s.TempDir(tmpDir, "extract")
 		if err != nil {
 			return err
@@ -226,16 +226,16 @@ func (m *Manager) installAndroidNDK(ctx *tool.Context) (e error) {
 		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), "--arch=arm", "--install-dir=" + m.ndkRoot.Expand()}
 		return s.Last("bash", ndkArgs...)
 	}
-	return profiles.AtomicAction(ctx, installNdkFn, m.ndkRoot.Expand(), "Download Android NDK")
+	return profiles.AtomicAction(jirix, installNdkFn, m.ndkRoot.Expand(), "Download Android NDK")
 }
 
 // installAndroidTargets installs android targets for other profiles, currently
 // just the base profile (i.e. go and syncbase.)
-func (m *Manager) installAndroidBaseTargets(ctx *tool.Context, target profiles.Target) (e error) {
+func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, target profiles.Target) (e error) {
 	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", relPath(m.ndkRoot))
 	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
 	if err != nil {
 		return err
 	}
-	return profiles.EnsureProfileTargetIsInstalled(ctx, "base", m.root, androidTarget)
+	return profiles.EnsureProfileTargetIsInstalled(jirix, "base", m.root, androidTarget)
 }

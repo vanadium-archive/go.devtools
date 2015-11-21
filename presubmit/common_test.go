@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/jiri/gerrit"
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 )
 
@@ -25,7 +26,7 @@ func TestGenStartPresubmitBuildLink(t *testing.T) {
 }
 
 func TestGetSubmittableCLs(t *testing.T) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 
 	cls := clList{
 		// cls[0]:
@@ -229,7 +230,7 @@ func TestGetSubmittableCLs(t *testing.T) {
 		},
 	}
 	for index, test := range testCases {
-		if got, want := getSubmittableCLs(ctx, test.cls), test.expectedSubmittableCLs; !reflect.DeepEqual(got, want) {
+		if got, want := getSubmittableCLs(jirix, test.cls), test.expectedSubmittableCLs; !reflect.DeepEqual(got, want) {
 			t.Fatalf("#%d: want:\n%#v\n\ngot:\n%#v", index, want, got)
 		}
 	}

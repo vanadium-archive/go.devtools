@@ -17,8 +17,8 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
@@ -36,7 +36,7 @@ func init() {
 }
 
 var cmdTestGenerate = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runTestGenerate),
+	Runner: jiri.RunnerFunc(runTestGenerate),
 	Name:   "generate",
 	Short:  "Generate supporting code for v23 integration tests",
 	Long: `
@@ -74,8 +74,8 @@ const (
 	internalSuffix       = "_internal_test.go"
 )
 
-func configureBuilder(ctx *tool.Context) (cleanup func(), err error) {
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, jiriTest.ManifestFilename)
+func configureBuilder(jirix *jiri.X) (cleanup func(), err error) {
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, jiriTest.ManifestFilename)
 	if err != nil {
 		return nil, err
 	}
@@ -88,14 +88,13 @@ func configureBuilder(ctx *tool.Context) (cleanup func(), err error) {
 	return cleanup, nil
 }
 
-func runTestGenerate(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
+func runTestGenerate(jirix *jiri.X, args []string) error {
 	// Delete all files we're going to generate, to start with a clean slate.  We
 	// do this first to avoid any issues where packages in the cache might include
 	// the generated files.
-	dirs, err := goutil.ListDirs(ctx, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	dirs, err := goutil.ListDirs(jirix.Context, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 	if err != nil {
-		return env.UsageErrorf("failed to list %v: %v", args, err)
+		return jirix.UsageErrorf("failed to list %v: %v", args, err)
 	}
 	for _, dir := range dirs {
 		extFile := filepath.Join(dir, prefixFlag+externalSuffix)
@@ -108,23 +107,23 @@ func runTestGenerate(env *cmdline.Env, args []string) error {
 	}
 
 	// Now list the package paths and generate each one.
-	paths, err := goutil.List(ctx, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	paths, err := goutil.List(jirix.Context, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 	if err != nil {
-		return env.UsageErrorf("failed to list %v: %v", args, err)
+		return jirix.UsageErrorf("failed to list %v: %v", args, err)
 	}
 
-	cleanup, err := configureBuilder(ctx)
+	cleanup, err := configureBuilder(jirix)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
 	if progressFlag {
-		fmt.Fprintf(ctx.Stdout(), "test generate %v expands to %v\n", args, paths)
+		fmt.Fprintf(jirix.Stdout(), "test generate %v expands to %v\n", args, paths)
 	}
 
 	for _, path := range paths {
-		if err := generatePackage(ctx, path); err != nil {
+		if err := generatePackage(jirix, path); err != nil {
 			return err
 		}
 	}
@@ -163,7 +162,7 @@ func processFiles(fset *token.FileSet, dir string, files []string) (bool, []stri
 
 var regexpV23Test = regexp.MustCompile(`^V23Test(.*)$`)
 
-func generatePackage(ctx *tool.Context, path string) error {
+func generatePackage(jirix *jiri.X, path string) error {
 	pkg, err := importPackage(path)
 	if err != nil {
 		return err
@@ -219,14 +218,14 @@ func generatePackage(ctx *tool.Context, path string) error {
 	intFile := filepath.Join(pkg.Dir, prefixFlag+internalSuffix)
 
 	if progressFlag {
-		fmt.Fprintf(ctx.Stdout(), "Package: %s\n", pkg.ImportPath)
+		fmt.Fprintf(jirix.Stdout(), "Package: %s\n", pkg.ImportPath)
 		if needIntFile {
-			fmt.Fprintf(ctx.Stdout(), "  Writing internal test file: %s\n", intFile)
-			fmt.Fprintf(ctx.Stdout(), "    Internal v23 tests: %v\n", intV23Tests)
+			fmt.Fprintf(jirix.Stdout(), "  Writing internal test file: %s\n", intFile)
+			fmt.Fprintf(jirix.Stdout(), "    Internal v23 tests: %v\n", intV23Tests)
 		}
 		if needExtFile {
-			fmt.Fprintf(ctx.Stdout(), "  Writing external test file: %s\n", extFile)
-			fmt.Fprintf(ctx.Stdout(), "    External v23 tests: %v\n", extV23Tests)
+			fmt.Fprintf(jirix.Stdout(), "  Writing external test file: %s\n", extFile)
+			fmt.Fprintf(jirix.Stdout(), "    External v23 tests: %v\n", extV23Tests)
 		}
 	}
 

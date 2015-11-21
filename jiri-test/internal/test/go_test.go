@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -369,9 +370,9 @@ var (
 
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	testName := "test-go-build"
-	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
+	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -380,7 +381,7 @@ func TestGoBuild(t *testing.T) {
 	// This package will pass.
 	{
 		pkgName := "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
-		result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
+		result, err := goBuild(jirix, testName, pkgsOpt([]string{pkgName}))
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -398,7 +399,7 @@ func TestGoBuild(t *testing.T) {
 	// This package will fail.
 	{
 		pkgName := "v.io/x/devtools/jiri-test/internal/test/testdata/foo2"
-		result, err := goBuild(ctx, testName, pkgsOpt([]string{pkgName}))
+		result, err := goBuild(jirix, testName, pkgsOpt([]string{pkgName}))
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -425,16 +426,16 @@ func TestGoBuild(t *testing.T) {
 
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	testName, pkgName := "test-go-coverage", "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
 
-	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
+	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer cleanup()
 
-	result, err := goCoverage(ctx, testName, pkgsOpt([]string{pkgName}))
+	result, err := goCoverage(jirix, testName, pkgsOpt([]string{pkgName}))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -529,10 +530,10 @@ func TestRegressionTest(t *testing.T) {
 }
 
 func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTestSuite xunit.TestSuites, expectedStatus test.Status, subPkg string, testOpts ...goTestOpt) {
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	testName, pkgName := "test-go-test", fmt.Sprintf("v.io/x/devtools/jiri-test/internal/test/testdata/%s", subPkg)
 
-	cleanup, err := initTestImpl(ctx, false, testName, []string{"base"}, "")
+	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -544,7 +545,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 		exclusionsOpt(exclusions)}
 	opts = append(opts, testOpts...)
 
-	result, err := goTestAndReport(ctx, testName, opts...)
+	result, err := goTestAndReport(jirix, testName, opts...)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

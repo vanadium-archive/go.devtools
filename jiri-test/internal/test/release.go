@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 )
@@ -69,13 +69,13 @@ var (
 )
 
 // vanadiumReleaseCandidate updates binaries of staging cloud services and run tests for them.
-func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
 
-	cleanup, err := initTest(ctx, testName, []string{"base", "java"})
+	cleanup, err := initTest(jirix, testName, []string{"base", "java"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -99,10 +99,10 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 		step{
 			msg: fmt.Sprintf("Checking existence of credentials in %v (admin) and %v (publisher)\n", adminCredDir, publisherCredDir),
 			fn: func() error {
-				if _, err := ctx.Run().Stat(adminCredDir); err != nil {
+				if _, err := jirix.Run().Stat(adminCredDir); err != nil {
 					return err
 				}
-				if _, err := ctx.Run().Stat(publisherCredDir); err != nil {
+				if _, err := jirix.Run().Stat(publisherCredDir); err != nil {
 					return err
 				}
 				return nil
@@ -110,29 +110,29 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 		},
 		step{
 			msg: "Prepare binaries\n",
-			fn:  func() error { return prepareBinaries(ctx, root, rcLabel) },
+			fn:  func() error { return prepareBinaries(jirix, root, rcLabel) },
 		},
 		step{
 			msg: "Update services\n",
-			fn:  func() error { return updateServices(ctx, root, adminCredDir, publisherCredDir) },
+			fn:  func() error { return updateServices(jirix, root, adminCredDir, publisherCredDir) },
 		},
 		step{
 			msg: "Check services\n",
 			fn: func() error {
 				// Wait 5 minutes.
-				fmt.Fprintf(ctx.Stdout(), "Wait for 5 minutes before checking services...\n")
+				fmt.Fprintf(jirix.Stdout(), "Wait for 5 minutes before checking services...\n")
 				time.Sleep(time.Minute * 5)
 
-				return checkServices(ctx)
+				return checkServices(jirix)
 			},
 		},
 		step{
 			msg: "Update the 'latest' file\n",
-			fn:  func() error { return updateLatestFile(ctx, rcLabel) },
+			fn:  func() error { return updateLatestFile(jirix, rcLabel) },
 		},
 	}
 	for _, step := range steps {
-		if result, err := invoker(ctx, step.msg, step.fn); result != nil || err != nil {
+		if result, err := invoker(jirix, step.msg, step.fn); result != nil || err != nil {
 			return result, err
 		}
 	}
@@ -141,19 +141,19 @@ func vanadiumReleaseCandidate(ctx *tool.Context, testName string, opts ...Opt) (
 
 // invoker invokes the given function and returns test.Result and/or
 // errors based on function's results.
-func invoker(ctx *tool.Context, msg string, fn func() error) (*test.Result, error) {
+func invoker(jirix *jiri.X, msg string, fn func() error) (*test.Result, error) {
 	if err := fn(); err != nil {
-		test.Fail(ctx, msg)
+		test.Fail(jirix.Context, msg)
 		if err == runutil.CommandTimedOutErr {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: defaultReleaseTestTimeout,
 			}, nil
 		}
-		fmt.Fprintf(ctx.Stderr(), "%s\n", err.Error())
+		fmt.Fprintf(jirix.Stderr(), "%s\n", err.Error())
 		return nil, internalTestError{err, msg}
 	}
-	test.Pass(ctx, msg)
+	test.Pass(jirix.Context, msg)
 	return nil, nil
 }
 
@@ -183,13 +183,13 @@ func getCredDirOptValues(opts []Opt) (string, string) {
 }
 
 // prepareBinaries builds all vanadium binaries and uploads them to Google Storage bucket.
-func prepareBinaries(ctx *tool.Context, root, rcLabel string) error {
+func prepareBinaries(jirix *jiri.X, root, rcLabel string) error {
 	// Build binaries.
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
 	args := []string{"go", "install", "-tags=leveldb", "v.io/..."}
-	if err := ctx.Run().Command("jiri", args...); err != nil {
+	if err := jirix.Run().Command("jiri", args...); err != nil {
 		return err
 	}
 
@@ -199,23 +199,23 @@ func prepareBinaries(ctx *tool.Context, root, rcLabel string) error {
 		filepath.Join(root, "release", "go", "bin"),
 		fmt.Sprintf("%s/%s", bucket, rcLabel),
 	}
-	if err := ctx.Run().Command("gsutil", args...); err != nil {
+	if err := jirix.Run().Command("gsutil", args...); err != nil {
 		return err
 	}
 
 	// Upload the .done file to signal that all binaries have been
 	// successfully uploaded.
-	tmpDir, err := ctx.Run().TempDir("", "")
+	tmpDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer jirix.Run().RemoveAll(tmpDir)
 	doneFile := filepath.Join(tmpDir, ".done")
-	if err := ctx.Run().WriteFile(doneFile, nil, os.FileMode(0600)); err != nil {
+	if err := jirix.Run().WriteFile(doneFile, nil, os.FileMode(0600)); err != nil {
 		return err
 	}
 	args = []string{"-q", "cp", doneFile, fmt.Sprintf("%s/%s", bucket, rcLabel)}
-	if err := ctx.Run().Command("gsutil", args...); err != nil {
+	if err := jirix.Run().Command("gsutil", args...); err != nil {
 		return err
 	}
 
@@ -224,7 +224,7 @@ func prepareBinaries(ctx *tool.Context, root, rcLabel string) error {
 
 // updateServices pushes services' binaries to the applications and binaries
 // services and tells the device manager to update all its app.
-func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir string) (e error) {
+func updateServices(jirix *jiri.X, root, adminCredDir, publisherCredDir string) (e error) {
 	debugBin := filepath.Join(root, "release", "go", "bin", "debug")
 	deviceBin := filepath.Join(root, "release", "go", "bin", "device")
 	adminCredentialsArg := fmt.Sprintf("--v23.credentials=%s", adminCredDir)
@@ -233,7 +233,7 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 
 	// Push all binaries.
 	{
-		fmt.Fprintln(ctx.Stdout(), "\n\n### Pushing binaries ###")
+		fmt.Fprintln(jirix.Stdout(), "\n\n### Pushing binaries ###")
 		args := []string{
 			publisherCredentialsArg,
 			nsArg,
@@ -243,11 +243,11 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 		}
 		msg := "Push binaries\n"
 		args = append(args, serviceBinaries...)
-		if err := ctx.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
-			test.Fail(ctx, msg)
+		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
+			test.Fail(jirix.Context, msg)
 			return err
 		}
-		test.Pass(ctx, msg)
+		test.Pass(jirix.Context, msg)
 	}
 
 	// A helper function to update a single app.
@@ -260,11 +260,11 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 			appName + "/...",
 		}
 		msg := fmt.Sprintf("Update %q\n", appName)
-		if err := ctx.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
-			test.Fail(ctx, msg)
+		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
+			test.Fail(jirix.Context, msg)
 			return err
 		}
-		test.Pass(ctx, msg)
+		test.Pass(jirix.Context, msg)
 		return nil
 	}
 
@@ -281,26 +281,26 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 			fmt.Sprintf("%s/*/*/stats/system/metadata/build.Manifest", appName),
 		}
 		var out bytes.Buffer
-		opts := ctx.Run().Opts()
+		opts := jirix.Run().Opts()
 		opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-		if err := ctx.Run().TimedCommandWithOpts(defaultReleaseTestTimeout, opts, debugBin, args...); err != nil {
-			test.Fail(ctx, msg)
+		if err := jirix.Run().TimedCommandWithOpts(defaultReleaseTestTimeout, opts, debugBin, args...); err != nil {
+			test.Fail(jirix.Context, msg)
 			return err
 		}
 		statsOutput := out.String()
 		matches := manifestRE.FindStringSubmatch(statsOutput)
 		if matches == nil || (matches[1] != expectedManifestLabel) {
-			test.Fail(ctx, msg)
+			test.Fail(jirix.Context, msg)
 			return fmt.Errorf("failed to verify manifest label %q.\nCurrent manifest:\n%s",
 				expectedManifestLabel, statsOutput)
 		}
-		test.Pass(ctx, msg)
+		test.Pass(jirix.Context, msg)
 		return nil
 	}
 
 	// Update services except for device manager and mounttable.
 	{
-		fmt.Fprintln(ctx.Stdout(), "\n\n### Updating services other than device manager and mounttable ###")
+		fmt.Fprintln(jirix.Stdout(), "\n\n### Updating services other than device manager and mounttable ###")
 		for _, app := range deviceManagerApplications {
 			if err := updateAppFn(app); err != nil {
 				return err
@@ -313,17 +313,17 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 
 	// Update Device Manager.
 	{
-		fmt.Fprintln(ctx.Stdout(), "\n\n### Updating device manager ###")
+		fmt.Fprintln(jirix.Stdout(), "\n\n### Updating device manager ###")
 		args := []string{
 			adminCredentialsArg,
 			fmt.Sprintf("--v23.namespace.root=%s", globalMountTable),
 			"update",
 			objNameForDeviceManager,
 		}
-		if err := ctx.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
+		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
 			return err
 		}
-		if err := waitForMounttable(ctx, root, adminCredentialsArg, localMountTable, `.*8151/devmgr.*`); err != nil {
+		if err := waitForMounttable(jirix, root, adminCredentialsArg, localMountTable, `.*8151/devmgr.*`); err != nil {
 			return err
 		}
 		// TODO(jingjin): check build time for device manager.
@@ -331,12 +331,12 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 
 	// Update mounttable last.
 	{
-		fmt.Fprintln(ctx.Stdout(), "\n\n### Updating mounttable ###")
+		fmt.Fprintln(jirix.Stdout(), "\n\n### Updating mounttable ###")
 		mounttableName := "devmgr/apps/mounttabled"
 		if err := updateAppFn(mounttableName); err != nil {
 			return err
 		}
-		if err := waitForMounttable(ctx, root, adminCredentialsArg, globalMountTable, `.+`); err != nil {
+		if err := waitForMounttable(jirix, root, adminCredentialsArg, globalMountTable, `.+`); err != nil {
 			return err
 		}
 		if err := checkManifestLabelFn(mounttableName); err != nil {
@@ -349,7 +349,7 @@ func updateServices(ctx *tool.Context, root, adminCredDir, publisherCredDir stri
 // waitForMounttable waits for the given mounttable to be up and optionally
 // checks output against outputRegexp if it is not empty.
 // (timeout: 5 minutes)
-func waitForMounttable(ctx *tool.Context, root, credentialsArg, mounttableRoot, outputRegexp string) error {
+func waitForMounttable(jirix *jiri.X, root, credentialsArg, mounttableRoot, outputRegexp string) error {
 	debugBin := filepath.Join(root, "release", "go", "bin", "debug")
 	args := []string{
 		credentialsArg,
@@ -360,9 +360,9 @@ func waitForMounttable(ctx *tool.Context, root, credentialsArg, mounttableRoot, 
 	outputRE := regexp.MustCompile(outputRegexp)
 	for i := 0; i < numRetries; i++ {
 		var out bytes.Buffer
-		opts := ctx.Run().Opts()
+		opts := jirix.Run().Opts()
 		opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-		err := ctx.Run().CommandWithOpts(opts, debugBin, args...)
+		err := jirix.Run().CommandWithOpts(opts, debugBin, args...)
 		if err != nil || !outputRE.MatchString(out.String()) {
 			time.Sleep(retryPeriod)
 			continue
@@ -379,7 +379,7 @@ func waitForMounttable(ctx *tool.Context, root, credentialsArg, mounttableRoot, 
 
 // checkServices runs "jiri test run vanadium-prod-services-test" against
 // staging.
-func checkServices(ctx *tool.Context) error {
+func checkServices(jirix *jiri.X) error {
 	args := []string{
 		"test",
 		"run",
@@ -387,14 +387,14 @@ func checkServices(ctx *tool.Context) error {
 		fmt.Sprintf("--blessings-root=%s", stagingBlessingsRoot),
 		"vanadium-prod-services-test",
 	}
-	if err := ctx.Run().TimedCommand(defaultReleaseTestTimeout, "jiri", args...); err != nil {
+	if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, "jiri", args...); err != nil {
 		return err
 	}
 	return nil
 }
 
 // createSnapshot creates a snapshot with "release" label.
-func createSnapshot(ctx *tool.Context) (e error) {
+func createSnapshot(jirix *jiri.X) (e error) {
 	args := []string{
 		"snapshot",
 		"--remote",
@@ -402,7 +402,7 @@ func createSnapshot(ctx *tool.Context) (e error) {
 		"--time-format=2006-01-02", // Only include date in label names
 		"release",
 	}
-	if err := ctx.Run().Command("jiri", args...); err != nil {
+	if err := jirix.Run().Command("jiri", args...); err != nil {
 		return err
 	}
 	return nil
@@ -410,18 +410,18 @@ func createSnapshot(ctx *tool.Context) (e error) {
 
 // updateLatestFile updates the "latest" file in Google Storage bucket to the
 // given release candidate label.
-func updateLatestFile(ctx *tool.Context, rcLabel string) error {
-	tmpDir, err := ctx.Run().TempDir("", "")
+func updateLatestFile(jirix *jiri.X, rcLabel string) error {
+	tmpDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer jirix.Run().RemoveAll(tmpDir)
 	latestFile := filepath.Join(tmpDir, "latest")
-	if err := ctx.Run().WriteFile(latestFile, []byte(rcLabel), os.FileMode(0600)); err != nil {
+	if err := jirix.Run().WriteFile(latestFile, []byte(rcLabel), os.FileMode(0600)); err != nil {
 		return err
 	}
 	args := []string{"-q", "cp", latestFile, fmt.Sprintf("%s/latest", bucket)}
-	if err := ctx.Run().Command("gsutil", args...); err != nil {
+	if err := jirix.Run().Command("gsutil", args...); err != nil {
 		return err
 	}
 	return nil
@@ -431,13 +431,13 @@ func updateLatestFile(ctx *tool.Context, rcLabel string) error {
 // writes the symlink target (the relative path to JIRI_ROOT) of that snapshot
 // in the form of "<manifestEnvVar>=<symlinkTarget>" to
 // "JIRI_ROOT/<snapshotManifestFile>".
-func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts ...Opt) (_ *test.Result, e error) {
+func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
 	}
 
-	cleanup, err := initTest(ctx, testName, nil)
+	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
@@ -452,7 +452,7 @@ func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts .
 		"--time-format=2006-01-02.15:04",
 		snapshotName,
 	}
-	if err := ctx.Run().Command("jiri", args...); err != nil {
+	if err := jirix.Run().Command("jiri", args...); err != nil {
 		return nil, internalTestError{err, "Snapshot"}
 	}
 
@@ -475,7 +475,7 @@ func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts .
 	relativePath := strings.TrimPrefix(target, manifestDir+string(filepath.Separator))
 
 	// Get all the tests to run.
-	config, err := util.LoadConfig(ctx)
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return nil, internalTestError{err, "LoadConfig"}
 	}
@@ -495,7 +495,7 @@ func vanadiumReleaseCandidateSnapshot(ctx *tool.Context, testName string, opts .
 
 	// Write to the properties file.
 	content := fmt.Sprintf("%s=%s\n%s=%s", manifestEnvVar, relativePath, testsEnvVar, strings.Join(testsWithParts, " "))
-	if err := ctx.Run().WriteFile(filepath.Join(root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
+	if err := jirix.Run().WriteFile(filepath.Join(root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
 		return nil, internalTestError{err, "Record Properties"}
 	}
 

@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
@@ -25,7 +26,7 @@ import (
 )
 
 var cmd = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runGo),
+	Runner: jiri.RunnerFunc(runGo),
 	Name:   "dockergo",
 	Short:  "Execute the go command in a docker container",
 	Long: `
@@ -86,12 +87,11 @@ func init() {
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 }
 
-func runGo(cmdlineEnv *cmdline.Env, args []string) error {
+func runGo(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
-		return cmdlineEnv.UsageErrorf("not enough arguments")
+		return jirix.UsageErrorf("not enough arguments")
 	}
-	ctx := tool.NewContextFromEnv(cmdlineEnv)
-	ch, err := profiles.NewConfigHelper(ctx, profilesModeFlag, manifestFlag)
+	ch, err := profiles.NewConfigHelper(jirix, profilesModeFlag, manifestFlag)
 	if err != nil {
 		return err
 	}
@@ -101,9 +101,9 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
 	if verboseFlag {
-		fmt.Fprintf(ctx.Stdout(), "Merged profiles: %v\n", profileNames)
-		fmt.Fprintf(ctx.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
-		fmt.Fprintf(ctx.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", profileNames)
+		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
 	envMap := ch.ToMap()
 	// docker can only be used to build linux binaries
@@ -126,14 +126,14 @@ func runGo(cmdlineEnv *cmdline.Env, args []string) error {
 	if targetFlag.OS() == "fnl" {
 		installSuffix = "musl"
 	}
-	if args, err = golib.PrepareGo(ctx, envMap, args, extraLDFlags, installSuffix); err != nil {
+	if args, err = golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix); err != nil {
 		return err
 	}
-	if ctx.Verbose() {
-		fmt.Fprintf(ctx.Stderr(), "Using docker image: %q\n", img)
+	if jirix.Verbose() {
+		fmt.Fprintf(jirix.Stderr(), "Using docker image: %q\n", img)
 	}
 	// Run the go tool.
-	return runDockerGo(ctx, img, envMap, args)
+	return runDockerGo(jirix, img, envMap, args)
 }
 
 // image returns the name of the docker image to use, or the empty string if
@@ -183,7 +183,7 @@ func image(env map[string]string) (string, error) {
 // dies).
 // TODO(ashankar): This and other similar cases can be dealt with by inspecting "args"
 // and handling such cases, but that is left as a future excercise.
-func runDockerGo(ctx *tool.Context, image string, env map[string]string, args []string) error {
+func runDockerGo(jirix *jiri.X, image string, env map[string]string, args []string) error {
 	hostJiriroot, err := project.JiriRoot()
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func runDockerGo(ctx *tool.Context, image string, env map[string]string, args []
 		image,
 		"go")
 	dockerargs = append(dockerargs, args...)
-	return util.TranslateExitCode(ctx.Run().Command(dockerBin, dockerargs...))
+	return util.TranslateExitCode(jirix.Run().Command(dockerBin, dockerargs...))
 }
 
 func main() {

@@ -17,7 +17,6 @@ The godepcop commands are:
    check          Check package dependency constraints
    list           List packages imported by the given packages
    list-importers List packages that import the given packages
-   version        Print version
    help           Display help for commands or topics
 
 The global flags are:
@@ -135,13 +134,6 @@ The godepcop list-importers flags are:
    Show imports from test files in the same package.
  -xtest=false
    Show imports from test files in the same package or in the *_test package.
-
-Godepcop version - Print version
-
-Print version of the godepcop tool.
-
-Usage:
-   godepcop version
 
 Godepcop help - Display help for commands or topics
 

@@ -27,7 +27,6 @@ The gologcop commands are:
    check       Check for log statements in public API implementations
    inject      Inject log statements in public API implementations
    remove      Remove log statements
-   version     Print version
    help        Display help for commands or topics
 
 The gologcop flags are:
@@ -113,13 +112,6 @@ The gologcop remove flags are:
    Show changes that would be made without actually making them.
  -gofmt=true
    Automatically run gofmt on the modified files.
-
-Gologcop version - Print version
-
-Print version of the gologcop tool.
-
-Usage:
-   gologcop version
 
 Gologcop help - Display help for commands or topics
 

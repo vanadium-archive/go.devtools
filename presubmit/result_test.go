@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/jiri/jenkins"
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
@@ -46,7 +47,7 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 </testsuites>
 	`
 	jenkinsBuildNumberFlag = 10
-	ctx := tool.NewDefaultContext()
+	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	type testSpec struct {
 		testResult                testResultInfo
 		postsubmitFailedTestCases []jenkins.TestCase
@@ -108,7 +109,7 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 
 	reporter := testReporter{}
 	for _, curTest := range tests {
-		gotGroups, err := reporter.genFailedTestCasesGroupsForOneTest(ctx, curTest.testResult, []byte(reportFileContent), curTest.postsubmitFailedTestCases)
+		gotGroups, err := reporter.genFailedTestCasesGroupsForOneTest(jirix, curTest.testResult, []byte(reportFileContent), curTest.postsubmitFailedTestCases)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}

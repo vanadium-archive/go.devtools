@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/x/lib/envvar"
 )
 
@@ -28,7 +28,7 @@ var (
 
 // Supported cross compilation toolchains.
 type xspec struct{ arch, os string }
-type xbuilder func(*tool.Context, *Manager, profiles.RelativePath, profiles.Target, profiles.Action) (bindir string, env []string, e error)
+type xbuilder func(*jiri.X, *Manager, profiles.RelativePath, profiles.Target, profiles.Action) (bindir string, env []string, e error)
 
 var xcompilers = map[xspec]map[xspec]xbuilder{
 	xspec{"amd64", "darwin"}: {
@@ -93,7 +93,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 	flags.StringVar(&goSysRootFlag, profileName+".sysroot", "", "sysroot for cross compiling to the currently specified target")
 }
 
-func (m *Manager) initForTarget(ctx *tool.Context, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, target *profiles.Target) error {
 	m.root = root
 	m.goRoot = root.Join("go")
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
@@ -101,10 +101,10 @@ func (m *Manager) initForTarget(ctx *tool.Context, root profiles.RelativePath, t
 	}
 	m.targetDir = m.goRoot.Join(target.TargetSpecificDirname())
 	m.goInstDir = m.targetDir.Join(m.spec.gitRevision)
-	if ctx.Verbose() {
-		fmt.Fprintf(ctx.Stdout(), "Installation Directories for: %s\n", target)
-		fmt.Fprintf(ctx.Stdout(), "Go Profiles: %s\n", m.goRoot)
-		fmt.Fprintf(ctx.Stdout(), "Go Target+Revision %s\n", m.goInstDir)
+	if jirix.Verbose() {
+		fmt.Fprintf(jirix.Stdout(), "Installation Directories for: %s\n", target)
+		fmt.Fprintf(jirix.Stdout(), "Go Profiles: %s\n", m.goRoot)
+		fmt.Fprintf(jirix.Stdout(), "Go Target+Revision %s\n", m.goInstDir)
 	}
 	return nil
 }
@@ -116,18 +116,18 @@ func relPath(rp profiles.RelativePath) string {
 	return rp.Expand()
 }
 
-func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
-	if err := m.initForTarget(ctx, root, &target); err != nil {
+func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
 
-	ctx.NewSeq().RemoveAll(m.goRoot.Join("go-bootstrap").Expand())
+	jirix.NewSeq().RemoveAll(m.goRoot.Join("go-bootstrap").Expand())
 	cgo := true
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
 		// for cgo to work.
 		if builder := xcompilers[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch(), target.OS()}]; builder != nil {
-			_, vars, err := builder(ctx, m, root, target, profiles.Install)
+			_, vars, err := builder(jirix, m, root, target, profiles.Install)
 			if err != nil {
 				return err
 			}
@@ -151,7 +151,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	}
 
 	env := envvar.VarsFromSlice(target.Env.Vars)
-	if err := m.installGo15Plus(ctx, target.Version(), env); err != nil {
+	if err := m.installGo15Plus(jirix, target.Version(), env); err != nil {
 		return err
 	}
 
@@ -169,8 +169,8 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
-	if err := m.initForTarget(ctx, root, &target); err != nil {
+func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
 
@@ -179,12 +179,12 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 		// for cgo to work.
 		def := profiles.DefaultTarget()
 		if builder := xcompilers[xspec{def.Arch(), def.OS()}][xspec{target.Arch(), target.OS()}]; builder != nil {
-			if _, _, err := builder(ctx, m, root, target, profiles.Uninstall); err != nil {
+			if _, _, err := builder(jirix, m, root, target, profiles.Uninstall); err != nil {
 				return err
 			}
 		}
 	}
-	s := ctx.NewSeq()
+	s := jirix.NewSeq()
 	if err := s.RemoveAll(m.targetDir.Expand()).Done(); err != nil {
 		return err
 	}
@@ -198,14 +198,14 @@ func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, targe
 
 // installGo14 installs Go 1.4 at a given location, using the provided
 // environment during compilation.
-func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
+func installGo14(jirix *jiri.X, go14Dir string, env *envvar.Vars) error {
 	installGo14Fn := func() error {
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer ctx.NewSeq().RemoveAll(tmpDir)
+		defer jirix.NewSeq().RemoveAll(tmpDir)
 
 		name := "go1.4.2.src.tar.gz"
 		remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
@@ -227,34 +227,34 @@ func installGo14(ctx *tool.Context, go14Dir string, env *envvar.Vars) error {
 			Chdir(goSrcDir).
 			Opts(opts).Last(makeBin, "--no-clean")
 	}
-	return profiles.AtomicAction(ctx, installGo14Fn, go14Dir, "Build and install Go 1.4")
+	return profiles.AtomicAction(jirix, installGo14Fn, go14Dir, "Build and install Go 1.4")
 }
 
 // installGo15Plus installs any version of go past 1.5 at the specified git and go
 // revision.
-func (m *Manager) installGo15Plus(ctx *tool.Context, version string, env *envvar.Vars) error {
+func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Vars) error {
 	// First install bootstrap Go 1.4 for the host.
 	goBootstrapDir := m.targetDir.Join("go-bootstrap")
-	if err := installGo14(ctx, goBootstrapDir.Expand(), envvar.VarsFromOS()); err != nil {
+	if err := installGo14(jirix, goBootstrapDir.Expand(), envvar.VarsFromOS()); err != nil {
 		return err
 	}
 	installGo15Fn := func() error {
 		// Clone go1.5 into a tmp directory and then rename it to the
 		// final destination.
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer ctx.NewSeq().RemoveAll(tmpDir)
+		defer jirix.NewSeq().RemoveAll(tmpDir)
 
 		goInstDir := m.goInstDir.Expand()
 		goSrcDir := filepath.Join(goInstDir, "src")
 
 		// Git clone the code and get into the right directory.
 		if err := s.Pushd(tmpDir).
-			Call(func() error { return ctx.Git().Clone(go15GitRemote, tmpDir) }, "").
-			Call(func() error { return ctx.Git().Reset(m.spec.gitRevision) }, "").
+			Call(func() error { return jirix.Git().Clone(go15GitRemote, tmpDir) }, "").
+			Call(func() error { return jirix.Git().Reset(m.spec.gitRevision) }, "").
 			Popd().
 			RemoveAll(goInstDir).
 			Rename(tmpDir, goInstDir).
@@ -278,14 +278,14 @@ func (m *Manager) installGo15Plus(ctx *tool.Context, version string, env *envvar
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(ctx, installGo15Fn, m.goInstDir.Expand(), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
+	if err := profiles.AtomicAction(jirix, installGo15Fn, m.goInstDir.Expand(), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
 		return err
 	}
 	env.Set("GOROOT_BOOTSTRAP", relPath(goBootstrapDir))
 	return nil
 }
 
-func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func linux_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	targetABI := ""
 	switch target.Arch() {
 	case "arm":
@@ -298,7 +298,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 	xgccInstDir := filepath.Join(xgccOutDir, targetABI)
 	xgccLinkInstDir := filepath.Join(xgccOutDir, "links-"+targetABI)
 	if action == profiles.Uninstall {
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		s.Last("chmod", "-R", "+w", xgccInstDir)
 		for _, dir := range []string{xtoolInstDir, xgccInstDir, xgccLinkInstDir} {
 			if err := s.RemoveAll(dir).Done(); err != nil {
@@ -312,14 +312,14 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 		"automake", "bison", "bzip2", "curl", "flex", "g++", "gawk", "libexpat1-dev",
 		"gettext", "gperf", "libncurses5-dev", "libtool", "subversion", "texinfo",
 	}
-	if err := profiles.InstallPackages(ctx, pkgs); err != nil {
+	if err := profiles.InstallPackages(jirix, pkgs); err != nil {
 		return "", nil, err
 	}
 
 	// Build and install crosstool-ng.
 	installNgFn := func() error {
 		xgccSrcDir := filepath.Join(m.root.RootJoin("third_party", "csrc", "crosstool-ng-1.20.0").Expand())
-		return ctx.NewSeq().
+		return jirix.NewSeq().
 			Pushd(xgccSrcDir).
 			Run("autoreconf", "--install", "--force", "--verbose").
 			Run("./configure", fmt.Sprintf("--prefix=%v", xtoolInstDir)).
@@ -327,24 +327,24 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 			Run("make", "install").
 			Last("make", "distclean")
 	}
-	if err := profiles.AtomicAction(ctx, installNgFn, xtoolInstDir, "Build and install crosstool-ng"); err != nil {
+	if err := profiles.AtomicAction(jirix, installNgFn, xtoolInstDir, "Build and install crosstool-ng"); err != nil {
 		return "", nil, err
 	}
 
 	// Build arm/linux gcc tools.
 	installXgccFn := func() error {
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
-		defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+		defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 
 		bin := filepath.Join(xtoolInstDir, "bin", "ct-ng")
 		if err := s.Chdir(tmpDir).Last(bin, targetABI); err != nil {
 			return err
 		}
-		dataPath, err := project.DataDirPath(ctx, "")
+		dataPath, err := project.DataDirPath(jirix, "")
 		if err != nil {
 			return err
 		}
@@ -371,14 +371,14 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 		// "action completed" file.
 		return s.Chmod(xgccInstDir, dirinfo.Mode()|0755).Done()
 	}
-	if err := profiles.AtomicAction(ctx, installXgccFn, xgccInstDir, "Build arm/linux gcc tools"); err != nil {
+	if err := profiles.AtomicAction(jirix, installXgccFn, xgccInstDir, "Build arm/linux gcc tools"); err != nil {
 		return "", nil, err
 	}
 
 	linkBinDir := filepath.Join(xgccLinkInstDir, "bin")
 	// Create arm/linux gcc symlinks.
 	installLinksFn := func() error {
-		s := ctx.NewSeq()
+		s := jirix.NewSeq()
 		err := s.MkdirAll(linkBinDir, profiles.DefaultDirPerm).
 			Chdir(xgccLinkInstDir).Done()
 		if err != nil {
@@ -401,7 +401,7 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(ctx, installLinksFn, xgccLinkInstDir, "Create gcc symlinks"); err != nil {
+	if err := profiles.AtomicAction(jirix, installLinksFn, xgccLinkInstDir, "Create gcc symlinks"); err != nil {
 		return "", nil, err
 	}
 	vars := []string{
@@ -411,11 +411,11 @@ func linux_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, t
 	return linkBinDir, vars, nil
 }
 
-func darwin_to_linux(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func darwin_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	return "", nil, fmt.Errorf("cross compilation from darwin to linux is not yet supported.")
 }
 
-func to_android(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func to_android(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	if action == profiles.Uninstall {
 		return "", nil, nil
 	}
@@ -433,7 +433,7 @@ func to_android(ctx *tool.Context, m *Manager, root profiles.RelativePath, targe
 	return ndkBin, vars, nil
 }
 
-func to_fnl(ctx *tool.Context, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func to_fnl(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	if action == profiles.Uninstall {
 		return "", nil, nil
 	}

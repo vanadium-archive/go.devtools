@@ -11,44 +11,44 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
 
 // vanadiumGoVDL checks that all VDL-based Go source files are
 // up-to-date.
-func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result, e error) {
-	fmt.Fprintf(ctx.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'jiri run vdl generate --lang=go all'.\n")
+func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
+	fmt.Fprintf(jirix.Stdout(), "NOTE: This test checks that all VDL-based Go source files are up-to-date.\nIf it fails, you probably just need to run 'jiri run vdl generate --lang=go all'.\n")
 
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vdl tool.
-	if err := ctx.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
 		return nil, internalTestError{err, "Install VDL"}
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = &out
 	opts.Stderr = &out
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, ManifestFilename)
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, err
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	opts.Env["VDLPATH"] = ch.Get("VDLPATH")
 	vdl := filepath.Join(ch.Root(), "release", "go", "bin", "vdl")
-	err = ctx.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
+	err = jirix.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
 	output := strings.TrimSpace(out.String())
 	if err != nil || len(output) != 0 {
-		fmt.Fprintf(ctx.Stdout(), "%v\n", output)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", output)
 		// Create xUnit report.
 		files := strings.Split(output, "\n")
 		suites := []xunit.TestSuite{}
@@ -56,7 +56,7 @@ func vanadiumGoVDL(ctx *tool.Context, testName string, _ ...Opt) (_ *test.Result
 			s := xunit.CreateTestSuiteWithFailure("VDLAudit", file, "VDL audit failure", "Outdated file:\n"+file, 0)
 			suites = append(suites, *s)
 		}
-		if err := xunit.CreateReport(ctx, testName, suites); err != nil {
+		if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil

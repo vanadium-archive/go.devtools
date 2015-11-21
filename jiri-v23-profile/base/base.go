@@ -8,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/tool"
 	"v.io/x/lib/envvar"
 )
 
@@ -64,10 +64,10 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	// Install packages
 	if target.OS() == "linux" {
-		if err := profiles.InstallPackages(ctx, []string{"libssl-dev"}); err != nil {
+		if err := profiles.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
 			return err
 		}
 	}
@@ -79,7 +79,7 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := profiles.EnsureProfileTargetIsInstalled(ctx, profile.name, root, dependency); err != nil {
+		if err := profiles.EnsureProfileTargetIsInstalled(jirix, profile.name, root, dependency); err != nil {
 			return err
 		}
 		installed := profiles.LookupProfileTarget(profile.name, dependency)
@@ -97,14 +97,14 @@ func (m *Manager) Install(ctx *tool.Context, root profiles.RelativePath, target 
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(ctx *tool.Context, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := profiles.EnsureProfileTargetIsUninstalled(ctx, profile.name, root, dependency); err != nil {
+		if err := profiles.EnsureProfileTargetIsUninstalled(jirix, profile.name, root, dependency); err != nil {
 			return err
 		}
 	}

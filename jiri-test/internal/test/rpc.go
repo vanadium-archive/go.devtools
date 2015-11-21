@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -63,56 +63,56 @@ var (
 )
 
 // vanadiumGoRPCStress runs an RPC stress test with multiple GCE instances.
-func vanadiumGoRPCStress(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runRPCTest(ctx, testName, testStressNodeName, testStressNumServerNodes, testStressNumClientNodes, runStressTest)
+func vanadiumGoRPCStress(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runRPCTest(jirix, testName, testStressNodeName, testStressNumServerNodes, testStressNumClientNodes, runStressTest)
 }
 
 // vanadiumGoRPCLoad runs an RPC load test with multiple GCE instances.
-func vanadiumGoRPCLoad(ctx *tool.Context, testName string, _ ...Opt) (*test.Result, error) {
-	return runRPCTest(ctx, testName, testLoadNodeName, testLoadNumServerNodes, testLoadNumClientNodes, runLoadTest)
+func vanadiumGoRPCLoad(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runRPCTest(jirix, testName, testLoadNodeName, testLoadNumServerNodes, testLoadNumClientNodes, runLoadTest)
 }
 
-func runRPCTest(ctx *tool.Context, testName, nodeName string, numServerNodes, numClientNodes int, testFunc func(*tool.Context, string) (*test.Result, error)) (_ *test.Result, e error) {
-	cleanup, err := initTest(ctx, testName, []string{"base"})
+func runRPCTest(jirix *jiri.X, testName, nodeName string, numServerNodes, numClientNodes int, testFunc func(*jiri.X, string) (*test.Result, error)) (_ *test.Result, e error) {
+	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install binaries.
-	if err := ctx.Run().Command("jiri", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
+	if err := jirix.Run().Command("jiri", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
 		return nil, internalTestError{err, "Install Binaries"}
 	}
 
 	// Cleanup old nodes if any.
-	fmt.Fprint(ctx.Stdout(), "Deleting old nodes...\n")
-	if err := deleteNodes(ctx, nodeName, numServerNodes, numClientNodes); err != nil {
-		fmt.Fprintf(ctx.Stdout(), "IGNORED: %v\n", err)
+	fmt.Fprint(jirix.Stdout(), "Deleting old nodes...\n")
+	if err := deleteNodes(jirix, nodeName, numServerNodes, numClientNodes); err != nil {
+		fmt.Fprintf(jirix.Stdout(), "IGNORED: %v\n", err)
 	}
 
 	// Create nodes.
-	fmt.Fprint(ctx.Stdout(), "Creating nodes...\n")
-	if err := createNodes(ctx, nodeName, numServerNodes, numClientNodes); err != nil {
+	fmt.Fprint(jirix.Stdout(), "Creating nodes...\n")
+	if err := createNodes(jirix, nodeName, numServerNodes, numClientNodes); err != nil {
 		return nil, internalTestError{err, "Create Nodes"}
 	}
 
 	// Start servers.
-	fmt.Fprint(ctx.Stdout(), "Starting servers...\n")
-	serverDone, err := startServers(ctx, nodeName, numServerNodes)
+	fmt.Fprint(jirix.Stdout(), "Starting servers...\n")
+	serverDone, err := startServers(jirix, nodeName, numServerNodes)
 	if err != nil {
 		return nil, internalTestError{err, "Start Servers"}
 	}
 
 	// Run the test.
-	fmt.Fprint(ctx.Stdout(), "Running test...\n")
-	result, err := testFunc(ctx, testName)
+	fmt.Fprint(jirix.Stdout(), "Running test...\n")
+	result, err := testFunc(jirix, testName)
 	if err != nil {
 		return nil, internalTestError{err, "Run Test"}
 	}
 
 	// Stop servers.
-	fmt.Fprint(ctx.Stdout(), "Stopping servers...\n")
-	if err := stopServers(ctx, nodeName, numServerNodes); err != nil {
+	fmt.Fprint(jirix.Stdout(), "Stopping servers...\n")
+	if err := stopServers(jirix, nodeName, numServerNodes); err != nil {
 		return nil, internalTestError{err, "Stop Servers"}
 	}
 	if err := <-serverDone; err != nil {
@@ -120,8 +120,8 @@ func runRPCTest(ctx *tool.Context, testName, nodeName string, numServerNodes, nu
 	}
 
 	// Delete nodes.
-	fmt.Fprint(ctx.Stdout(), "Deleting nodes...\n")
-	if err := deleteNodes(ctx, nodeName, numServerNodes, numClientNodes); err != nil {
+	fmt.Fprint(jirix.Stdout(), "Deleting nodes...\n")
+	if err := deleteNodes(jirix, nodeName, numServerNodes, numClientNodes); err != nil {
 		return nil, internalTestError{err, "Delete Nodes"}
 	}
 	return result, nil
@@ -135,7 +135,7 @@ func clientNodeName(nodeName string, n int) string {
 	return fmt.Sprintf("%s-%s-client-%02d", gceNodePrefix, nodeName, n)
 }
 
-func createNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNodes int) error {
+func createNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes int) error {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return err
@@ -151,17 +151,17 @@ func createNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNo
 	for n := 0; n < numServerNodes; n++ {
 		serverArgs = append(serverArgs, serverNodeName(nodeName, n))
 	}
-	if err := ctx.Run().Command(cmd, serverArgs...); err != nil {
+	if err := jirix.Run().Command(cmd, serverArgs...); err != nil {
 		return err
 	}
 	clientArgs := append(args, "-machine-type", gceClientMachineType)
 	for n := 0; n < numClientNodes; n++ {
 		clientArgs = append(clientArgs, clientNodeName(nodeName, n))
 	}
-	return ctx.Run().Command(cmd, clientArgs...)
+	return jirix.Run().Command(cmd, clientArgs...)
 }
 
-func deleteNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNodes int) error {
+func deleteNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes int) error {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return err
@@ -179,10 +179,10 @@ func deleteNodes(ctx *tool.Context, nodeName string, numServerNodes, numClientNo
 	for n := 0; n < numClientNodes; n++ {
 		args = append(args, clientNodeName(nodeName, n))
 	}
-	return ctx.Run().Command(cmd, args...)
+	return jirix.Run().Command(cmd, args...)
 }
 
-func startServers(ctx *tool.Context, nodeName string, numServerNodes int) (<-chan error, error) {
+func startServers(jirix *jiri.X, nodeName string, numServerNodes int) (<-chan error, error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func startServers(ctx *tool.Context, nodeName string, numServerNodes int) (<-cha
 
 	done := make(chan error)
 	go func() {
-		done <- ctx.Run().Command(cmd, args...)
+		done <- jirix.Run().Command(cmd, args...)
 	}()
 
 	// Wait until for a few minute while servers are brought up.
@@ -223,7 +223,7 @@ func startServers(ctx *tool.Context, nodeName string, numServerNodes int) (<-cha
 	return done, nil
 }
 
-func stopServers(ctx *tool.Context, nodeName string, numServerNodes int) error {
+func stopServers(jirix *jiri.X, nodeName string, numServerNodes int) error {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return err
@@ -242,10 +242,10 @@ func stopServers(ctx *tool.Context, nodeName string, numServerNodes int) error {
 	for n := 0; n < numServerNodes; n++ {
 		args = append(args, fmt.Sprintf("/%s:%d", serverNodeName(nodeName, n), serverPort))
 	}
-	return ctx.Run().Command(cmd, args...)
+	return jirix.Run().Command(cmd, args...)
 }
 
-func runStressTest(ctx *tool.Context, testName string) (*test.Result, error) {
+func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
@@ -260,7 +260,7 @@ func runStressTest(ctx *tool.Context, testName string) (*test.Result, error) {
 	}
 
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
 	cmd := filepath.Join(root, binPath, "vcloud")
@@ -279,7 +279,7 @@ func runStressTest(ctx *tool.Context, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err = ctx.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err = jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		return nil, err
 	}
 
@@ -295,28 +295,28 @@ func runStressTest(ctx *tool.Context, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err = ctx.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err = jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		return nil, err
 	}
 
 	// Read the stats.
 	cStats, sStats, err := readStressStats(out.String())
 	if err != nil {
-		if err := xunit.CreateFailureReport(ctx, testName, "StressTest", "ReadStats", "Failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "StressTest", "ReadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
 	}
-	fmt.Fprint(ctx.Stdout(), "\nRESULT:\n")
-	writeStressStats(ctx.Stdout(), "Client Stats:", cStats)
-	writeStressStats(ctx.Stdout(), "Server Stats:", sStats)
-	fmt.Fprint(ctx.Stdout(), "\n")
+	fmt.Fprint(jirix.Stdout(), "\nRESULT:\n")
+	writeStressStats(jirix.Stdout(), "Client Stats:", cStats)
+	writeStressStats(jirix.Stdout(), "Server Stats:", sStats)
+	fmt.Fprint(jirix.Stdout(), "\n")
 
 	// Verify the stats.
 	sStats.BytesRecv, sStats.BytesSent = sStats.BytesSent, sStats.BytesRecv
 	if !reflect.DeepEqual(cStats, sStats) {
 		output := fmt.Sprintf("%+v != %+v", cStats, sStats)
-		if err := xunit.CreateFailureReport(ctx, testName, "StressTest", "VerifyStats", "Mismatched", output); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "StressTest", "VerifyStats", "Mismatched", output); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -380,7 +380,7 @@ func writeStressStats(w io.Writer, title string, stats *stressStats) {
 	fmt.Fprintf(w, "\tNumber of bytes sent:\t\t%d\n", stats.BytesSent)
 }
 
-func runLoadTest(ctx *tool.Context, testName string) (*test.Result, error) {
+func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	root, err := project.JiriRoot()
 	if err != nil {
 		return nil, err
@@ -395,7 +395,7 @@ func runLoadTest(ctx *tool.Context, testName string) (*test.Result, error) {
 	}
 
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
 	cmd := filepath.Join(root, binPath, "vcloud")
@@ -413,36 +413,36 @@ func runLoadTest(ctx *tool.Context, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err = ctx.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err = jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		return nil, err
 	}
 
 	// Read the stats.
 	stats, err := readLoadStats(out.String(), testLoadNumClientNodes)
 	if err != nil {
-		if err := xunit.CreateFailureReport(ctx, testName, "LoadTest", "ReadStats", "Failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "LoadTest", "ReadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
 	}
 
-	fmt.Fprint(ctx.Stdout(), "\nRESULT:\n")
-	fmt.Fprint(ctx.Stdout(), "Load Stats\n")
-	fmt.Fprintf(ctx.Stdout(), "\tNumber of RPCs:\t\t%.2f\n", stats.Iterations)
-	fmt.Fprintf(ctx.Stdout(), "\tLatency (msec/rpc):\t%.2f\n", stats.MsecPerRpc)
-	fmt.Fprintf(ctx.Stdout(), "\tQPS:\t\t\t%.2f\n", stats.Qps)
-	fmt.Fprintf(ctx.Stdout(), "\tQPS/core:\t\t%.2f\n", stats.QpsPerCore)
-	fmt.Fprint(ctx.Stdout(), "\n")
+	fmt.Fprint(jirix.Stdout(), "\nRESULT:\n")
+	fmt.Fprint(jirix.Stdout(), "Load Stats\n")
+	fmt.Fprintf(jirix.Stdout(), "\tNumber of RPCs:\t\t%.2f\n", stats.Iterations)
+	fmt.Fprintf(jirix.Stdout(), "\tLatency (msec/rpc):\t%.2f\n", stats.MsecPerRpc)
+	fmt.Fprintf(jirix.Stdout(), "\tQPS:\t\t\t%.2f\n", stats.Qps)
+	fmt.Fprintf(jirix.Stdout(), "\tQPS/core:\t\t%.2f\n", stats.QpsPerCore)
+	fmt.Fprint(jirix.Stdout(), "\n")
 
 	// Write the test stats in json format for vmon.
 	filename := filepath.Join(os.Getenv("WORKSPACE"), loadStatsOutputFile)
 	if err := writeLoadStatsJSON(filename, stats); err != nil {
-		if err := xunit.CreateFailureReport(ctx, testName, "LoadTest", "WriteLoadStats", "Failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix.Context, testName, "LoadTest", "WriteLoadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
 	}
-	fmt.Fprintf(ctx.Stdout(), "Wrote load stats to %q\n", filename)
+	fmt.Fprintf(jirix.Stdout(), "Wrote load stats to %q\n", filename)
 	return &test.Result{Status: test.Passed}, nil
 }
 

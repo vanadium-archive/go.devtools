@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -129,7 +130,7 @@ line.
 
 // cmdCopyrightCheck represents the "jiri copyright check" command.
 var cmdCopyrightCheck = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runCopyrightCheck),
+	Runner:   jiri.RunnerFunc(runCopyrightCheck),
 	Name:     "check",
 	Short:    "Check copyright headers and licensing files",
 	Long:     "Check copyright headers and licensing files.",
@@ -137,13 +138,13 @@ var cmdCopyrightCheck = &cmdline.Command{
 	ArgsLong: "<projects> is a list of projects to check.",
 }
 
-func runCopyrightCheck(env *cmdline.Env, args []string) error {
-	return copyrightHelper(env.Stdout, env.Stderr, args, false)
+func runCopyrightCheck(jirix *jiri.X, args []string) error {
+	return copyrightHelper(jirix, args, false)
 }
 
 // cmdCopyrightFix represents the "jiri copyright fix" command.
 var cmdCopyrightFix = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runCopyrightFix),
+	Runner:   jiri.RunnerFunc(runCopyrightFix),
 	Name:     "fix",
 	Short:    "Fix copyright headers and licensing files",
 	Long:     "Fix copyright headers and licensing files.",
@@ -151,39 +152,31 @@ var cmdCopyrightFix = &cmdline.Command{
 	ArgsLong: "<projects> is a list of projects to fix.",
 }
 
-func runCopyrightFix(env *cmdline.Env, args []string) error {
-	return copyrightHelper(env.Stdout, env.Stderr, args, true)
+func runCopyrightFix(jirix *jiri.X, args []string) error {
+	return copyrightHelper(jirix, args, true)
 }
 
 // copyrightHelper implements the logic of "jiri copyright {check,fix}".
-func copyrightHelper(stdout, stderr io.Writer, args []string, fix bool) error {
-	ctx := tool.NewContext(tool.ContextOpts{
-		Color:    &tool.ColorFlag,
-		DryRun:   &tool.DryRunFlag,
-		Manifest: &tool.ManifestFlag,
-		Verbose:  &tool.VerboseFlag,
-		Stdout:   stdout,
-		Stderr:   stderr,
-	})
-	dataDir, err := project.DataDirPath(ctx, "jiri")
+func copyrightHelper(jirix *jiri.X, args []string, fix bool) error {
+	dataDir, err := project.DataDirPath(jirix, "jiri")
 	if err != nil {
 		return err
 	}
-	assets, err := loadAssets(ctx, dataDir)
+	assets, err := loadAssets(jirix, dataDir)
 	if err != nil {
 		return err
 	}
-	config, err := util.LoadConfig(ctx)
+	config, err := util.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
-	projects, err := project.ParseNames(ctx, args, config.CopyrightCheckProjects())
+	projects, err := project.ParseNames(jirix, args, config.CopyrightCheckProjects())
 	if err != nil {
 		return err
 	}
 	missingCopyright := false
 	for _, project := range projects {
-		if missing, err := checkProject(ctx, project, assets, fix); err != nil {
+		if missing, err := checkProject(jirix, project, assets, fix); err != nil {
 			return err
 		} else {
 			if missing {
@@ -205,7 +198,7 @@ func createComment(prefix, suffix, header string) string {
 
 // checkFile checks that the given file contains the appropriate
 // copyright header.
-func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool) (bool, error) {
+func checkFile(jirix *jiri.X, path string, assets *copyrightAssets, fix bool) (bool, error) {
 	// Some projects contain third-party files in a "third_party" subdir.
 	// Skip such files for the same reason that we skip the third_party project.
 	if strings.Contains(path, string(filepath.Separator)+"third_party"+string(filepath.Separator)) {
@@ -214,14 +207,14 @@ func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool
 
 	// Peak at the first line of the file looking for the interpreter
 	// directive (e.g. #!/bin/bash).
-	interpreter, err := detectInterpreter(ctx, path)
+	interpreter, err := detectInterpreter(jirix, path)
 	if err != nil {
 		return false, err
 	}
 	missingCopyright := false
 	for _, lang := range languages {
 		if _, ok := lang.Interpreters[filepath.Base(interpreter)]; ok || strings.HasSuffix(path, lang.FileExtension) {
-			data, err := ctx.Run().ReadFile(path)
+			data, err := jirix.Run().ReadFile(path)
 			if err != nil {
 				return false, err
 			}
@@ -236,16 +229,16 @@ func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool
 						copyright = directiveLine + copyright
 					}
 					data := append([]byte(copyright), data...)
-					info, err := ctx.Run().Stat(path)
+					info, err := jirix.Run().Stat(path)
 					if err != nil {
 						return false, err
 					}
-					if err := ctx.Run().WriteFile(path, data, info.Mode()); err != nil {
+					if err := jirix.Run().WriteFile(path, data, info.Mode()); err != nil {
 						return false, err
 					}
 				} else {
 					missingCopyright = true
-					fmt.Fprintf(ctx.Stderr(), "%v copyright is missing\n", path)
+					fmt.Fprintf(jirix.Stderr(), "%v copyright is missing\n", path)
 				}
 			}
 		}
@@ -258,20 +251,20 @@ func checkFile(ctx *tool.Context, path string, assets *copyrightAssets, fix bool
 // appropriate copyright header. If the fix option is set, the
 // function fixes up the project. Otherwise, the function reports
 // violations to standard error output.
-func checkProject(ctx *tool.Context, project project.Project, assets *copyrightAssets, fix bool) (m bool, e error) {
+func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAssets, fix bool) (m bool, e error) {
 	check := func(fileMap map[string]string, isValid func([]byte, []byte) bool) (bool, error) {
 		missing := false
 		for file, want := range fileMap {
 			path := filepath.Join(project.Path, file)
-			got, err := ctx.Run().ReadFile(path)
+			got, err := jirix.Run().ReadFile(path)
 			if err != nil {
 				if os.IsNotExist(err) {
 					if fix {
-						if err := ctx.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
+						if err := jirix.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
 							return false, err
 						}
 					} else {
-						fmt.Fprintf(ctx.Stderr(), "%v is missing\n", path)
+						fmt.Fprintf(jirix.Stderr(), "%v is missing\n", path)
 						missing = true
 					}
 					continue
@@ -281,11 +274,11 @@ func checkProject(ctx *tool.Context, project project.Project, assets *copyrightA
 			}
 			if !isValid(got, []byte(want)) {
 				if fix {
-					if err := ctx.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
+					if err := jirix.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
 						return false, err
 					}
 				} else {
-					fmt.Fprintf(ctx.Stderr(), "%v is not up-to-date\n", path)
+					fmt.Fprintf(jirix.Stderr(), "%v is not up-to-date\n", path)
 					missing = true
 				}
 			}
@@ -317,23 +310,23 @@ func checkProject(ctx *tool.Context, project project.Project, assets *copyrightA
 	if err != nil {
 		return false, fmt.Errorf("Getwd() failed: %v", err)
 	}
-	if err := ctx.Run().Chdir(project.Path); err != nil {
+	if err := jirix.Run().Chdir(project.Path); err != nil {
 		return false, err
 	}
-	defer collect.Error(func() error { return ctx.Run().Chdir(cwd) }, &e)
-	files, err := ctx.Git().TrackedFiles()
+	defer collect.Error(func() error { return jirix.Run().Chdir(cwd) }, &e)
+	files, err := jirix.Git().TrackedFiles()
 	if err != nil {
 		return false, err
 	}
 
-	expressions, err := readV23Ignore(ctx, project)
+	expressions, err := readV23Ignore(jirix, project)
 	if err != nil {
 		return false, err
 	}
 
 	for _, file := range files {
 		if ignore := isIgnored(file, expressions); !ignore {
-			if missingCopyright, err := checkFile(ctx, filepath.Join(project.Path, file), assets, fix); err != nil {
+			if missingCopyright, err := checkFile(jirix, filepath.Join(project.Path, file), assets, fix); err != nil {
 				return missing, err
 			} else {
 				if missingCopyright {
@@ -347,8 +340,8 @@ func checkProject(ctx *tool.Context, project project.Project, assets *copyrightA
 
 // detectInterpret returns the interpreter directive of the given
 // file, if it contains one.
-func detectInterpreter(ctx *tool.Context, path string) (_ string, e error) {
-	file, err := ctx.Run().Open(path)
+func detectInterpreter(jirix *jiri.X, path string) (_ string, e error) {
+	file, err := jirix.Run().Open(path)
 	if err != nil {
 		return "", err
 	}
@@ -394,7 +387,7 @@ func hasCopyright(data []byte, prefix, suffix string) bool {
 
 // loadAssets returns an in-memory representation of the copyright
 // assets.
-func loadAssets(ctx *tool.Context, dir string) (*copyrightAssets, error) {
+func loadAssets(jirix *jiri.X, dir string) (*copyrightAssets, error) {
 	result := copyrightAssets{
 		MatchFiles:       map[string]string{},
 		MatchPrefixFiles: map[string]string{},
@@ -402,7 +395,7 @@ func loadAssets(ctx *tool.Context, dir string) (*copyrightAssets, error) {
 	load := func(files []string, fileMap map[string]string) error {
 		for _, file := range files {
 			path := filepath.Join(dir, file)
-			bytes, err := ctx.Run().ReadFile(path)
+			bytes, err := jirix.Run().ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -417,7 +410,7 @@ func loadAssets(ctx *tool.Context, dir string) (*copyrightAssets, error) {
 		return nil, err
 	}
 	path := filepath.Join(dir, "COPYRIGHT")
-	bytes, err := ctx.Run().ReadFile(path)
+	bytes, err := jirix.Run().ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -436,11 +429,11 @@ func isIgnored(path string, expressions []*regexp.Regexp) bool {
 	return false
 }
 
-func readV23Ignore(ctx *tool.Context, project project.Project) ([]*regexp.Regexp, error) {
+func readV23Ignore(jirix *jiri.X, project project.Project) ([]*regexp.Regexp, error) {
 	// Grab the .jiriignore in from project.Path. Ignore file not found errors, not
 	// all projects will have one of these ignore files.
 	path := filepath.Join(project.Path, jiriIgnore)
-	file, err := ctx.Run().Open(path)
+	file, err := jirix.Run().Open(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err

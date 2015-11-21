@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
@@ -146,17 +147,17 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under testdata/generate. These are normally skipped since they're
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
-	ctx := tool.NewDefaultContext()
 	root, err := project.JiriRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ch, err := profiles.NewConfigHelper(ctx, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
+	jirix := &jiri.X{Context: tool.NewDefaultContext(), Root: root}
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
 	if err != nil {
 		t.Fatal(err)
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
-	opts := ctx.Run().Opts()
+	opts := jirix.Run().Opts()
 	var out bytes.Buffer
 	opts.Stdout = &out
 	opts.Stderr = &out
@@ -170,7 +171,7 @@ func TestV23TestGenerateTestdata(t *testing.T) {
 	// be modified to not generate practically empty TestMain files?
 	// Or should this test be made more sophisticated and add that
 	// flag where appropriate, or just live without re-adding that flag?
-	if err := ctx.Run().CommandWithOpts(opts, "go", "test", "./testdata/generate/...", "-v"); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, "go", "test", "./testdata/generate/...", "-v"); err != nil {
 		t.Log(out.String())
 		t.Errorf("tests under testdata/generate failed: %v", err)
 	}

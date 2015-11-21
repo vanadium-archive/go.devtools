@@ -8,9 +8,9 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
@@ -81,12 +81,12 @@ LIMITATIONS:
 Removal will not automatically remove the package import for the call to
 be removed.
 `,
-	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdRemove, cmdVersion},
+	Children: []*cmdline.Command{cmdCheck, cmdInject, cmdRemove},
 }
 
 // cmdCheck represents the 'check' command of the gologcop tool.
 var cmdCheck = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runCheck),
+	Runner:   jiri.RunnerFunc(runCheck),
 	Name:     "check",
 	Short:    "Check for log statements in public API implementations",
 	Long:     "Check for log statements in public API implementations.",
@@ -112,23 +112,22 @@ func splitCommaSeparatedValues(s string) []string {
 
 // runCheck handles the "check" command and executes
 // the log injector in check-only mode.
-func runCheck(env *cmdline.Env, args []string) error {
+func runCheck(jirix *jiri.X, args []string) error {
 	interfacePackageList := splitCommaSeparatedValues(interfacesFlag)
 	implementationPackageList := args
 	if len(interfacePackageList) == 0 {
-		return env.UsageErrorf("no interface packages listed")
+		return jirix.UsageErrorf("no interface packages listed")
 	}
 
 	if len(implementationPackageList) == 0 {
-		return env.UsageErrorf("no implementation package listed")
+		return jirix.UsageErrorf("no implementation package listed")
 	}
-	ctx := tool.NewContextFromEnv(env)
-	return runInjector(ctx, interfacePackageList, implementationPackageList, true)
+	return runInjector(jirix, interfacePackageList, implementationPackageList, true)
 }
 
 // cmdInject represents the 'inject' command of the gologcop tool.
 var cmdInject = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runInject),
+	Runner: jiri.RunnerFunc(runInject),
 	Name:   "inject",
 	Short:  "Inject log statements in public API implementations",
 	Long: `Inject log statements in public API implementations.
@@ -142,14 +141,13 @@ you can see the diff or revert the changes.
 
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
-func runInject(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
-	return runInjector(ctx, splitCommaSeparatedValues(interfacesFlag), args, false)
+func runInject(jirix *jiri.X, args []string) error {
+	return runInjector(jirix, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 
 // cmdRemove represents the 'remove' command of the gologcop tool.
 var cmdRemove = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runRemove),
+	Runner: jiri.RunnerFunc(runRemove),
 	Name:   "remove",
 	Short:  "Remove log statements",
 	Long: `Remove log statements.
@@ -162,20 +160,6 @@ you can see the diff or revert the changes.
 }
 
 // runRemove handles the "remove" command.
-func runRemove(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
-	return runRemover(ctx, args)
-}
-
-// cmdVersion represents the 'version' command of the gologcop tool.
-var cmdVersion = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runVersion),
-	Name:   "version",
-	Short:  "Print version",
-	Long:   "Print version of the gologcop tool.",
-}
-
-func runVersion(env *cmdline.Env, _ []string) error {
-	fmt.Fprintf(env.Stdout, "gologcop tool version %v\n", tool.Version)
-	return nil
+func runRemove(jirix *jiri.X, args []string) error {
+	return runRemover(jirix, args)
 }
