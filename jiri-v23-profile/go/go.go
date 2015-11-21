@@ -220,12 +220,9 @@ func installGo14(jirix *jiri.X, go14Dir string, env *envvar.Vars) error {
 			MkdirAll(parentDir, profiles.DefaultDirPerm).Done(); err != nil {
 			return err
 		}
-
-		opts := s.GetOpts()
-		opts.Env = env.ToMap()
 		return s.Rename(filepath.Join(tmpDir, "go"), go14Dir).
 			Chdir(goSrcDir).
-			Opts(opts).Last(makeBin, "--no-clean")
+			Env(env.ToMap()).Last(makeBin, "--no-clean")
 	}
 	return profiles.AtomicAction(jirix, installGo14Fn, go14Dir, "Build and install Go 1.4")
 }
@@ -270,9 +267,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 		}
 		makeBin := filepath.Join(goSrcDir, "make.bash")
 		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Expand())
-		opts := s.GetOpts()
-		opts.Env = env.ToMap()
-		if err := s.Opts(opts).Last(makeBin); err != nil {
+		if err := s.Env(env.ToMap()).Last(makeBin); err != nil {
 			s.RemoveAll(filepath.Join(goInstDir, "bin")).Done()
 			return err
 		}
