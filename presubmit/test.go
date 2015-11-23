@@ -124,7 +124,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 
 	// tmpBinDir is where developer tools are built after changes are
 	// pulled from the target CLs.
-	tmpBinDir := filepath.Join(vroot, "tmpBin")
+	tmpBinDir := filepath.Join(jirix.Root, "tmpBin")
 
 	// Setup cleanup function for cleaning up presubmit test branch.
 	cleanupFn := func() error {
@@ -319,10 +319,7 @@ func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex
 
 // sanityChecks performs basic sanity checks for various flags.
 func sanityChecks(jirix *jiri.X) error {
-	manifestFilePath, err := project.ManifestFile(tool.ManifestFlag)
-	if err != nil {
-		return err
-	}
+	manifestFilePath := jirix.ManifestFile(tool.ManifestFlag)
 	if _, err := jirix.Run().Stat(manifestFilePath); err != nil {
 		return err
 	}
@@ -439,7 +436,7 @@ func rebuildDeveloperTools(jirix *jiri.X, tools project.Tools, tmpBinDir string)
 	// Create a new PATH that replaces JIRI_ROOT/devtools/bin with the
 	// temporary directory in which the tools were rebuilt.
 	env := map[string]string{
-		"PATH": strings.Replace(os.Getenv("PATH"), filepath.Join(vroot, "devtools", "bin"), tmpBinDir, -1),
+		"PATH": strings.Replace(os.Getenv("PATH"), filepath.Join(jirix.Root, "devtools", "bin"), tmpBinDir, -1),
 	}
 	return env, nil
 }

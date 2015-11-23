@@ -10,7 +10,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -32,11 +31,7 @@ func runProjectTest(jirix *jiri.X, testName, projectName, target string, env map
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Navigate to project directory.
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "projects", projectName)
+	testDir := filepath.Join(jirix.Root, "release", "projects", projectName)
 	if err := jirix.Run().Chdir(testDir); err != nil {
 		return nil, err
 	}

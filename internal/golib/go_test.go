@@ -14,10 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/profiles"
-	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/buildinfo"
 	_ "v.io/x/devtools/internal/golib/testdata/basedep"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -29,7 +27,7 @@ import (
 // TestGoVDLGeneration checks that PrepareGo generates up-to-date VDL files for
 // select go tool commands.
 func TestGoVDLGeneration(t *testing.T) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
 	// Create a temporary directory for all our work.
 	const tmpDirPrefix = "test_vgo"
 	tmpDir, err := jirix.Run().TempDir("", tmpDirPrefix)
@@ -268,12 +266,8 @@ func TestProcessGoCmdAndArgs(t *testing.T) {
 // TestComputeGoDeps tests the internal function that calls "go list" to get
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	jirix := &jiri.X{Context: tool.NewDefaultContext(), Root: root}
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(jirix.Root, v23_profile.DefaultManifestFilename))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -337,7 +331,7 @@ func extractFlag(args []string, name string) (string, error) {
 }
 
 func TestSetBuildInfo(t *testing.T) {
-	jirix, start := &jiri.X{Context: tool.NewDefaultContext()}, time.Now().UTC()
+	jirix, start := jiritest.NewX_DeprecatedEnv(t, nil), time.Now().UTC()
 	// Set up a temp directory.
 	dir, err := jirix.Run().TempDir("", "v23_metadata_test")
 	if err != nil {

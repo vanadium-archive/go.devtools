@@ -13,7 +13,6 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/project"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
@@ -185,11 +184,7 @@ func initTestImpl(jirix *jiri.X, needCleanup bool, testName string, profileNames
 	if cleanGo {
 		// TODO(nlacasse, cnicolaou): Remove this once goext distclean is fixed
 		// on jenkins.
-		root, err := project.JiriRoot()
-		if err != nil {
-			return nil, err
-		}
-		if err := jirix.Run().RemoveAll(filepath.Join(root, "release", "go", "pkg")); err != nil {
+		if err := jirix.Run().RemoveAll(filepath.Join(jirix.Root, "release", "go", "pkg")); err != nil {
 			return nil, err
 		}
 
@@ -221,13 +216,8 @@ func initTestImpl(jirix *jiri.X, needCleanup bool, testName string, profileNames
 // findTestResultFiles returns a slice of paths to test result related files.
 func findTestResultFiles(jirix *jiri.X, testName string) ([]string, error) {
 	result := []string{}
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	// Collect javascript test results.
-	jsDir := filepath.Join(root, "release", "javascript", "core", "test_out")
+	jsDir := filepath.Join(jirix.Root, "release", "javascript", "core", "test_out")
 	if _, err := jirix.Run().Stat(jsDir); err == nil {
 		fileInfoList, err := jirix.Run().ReadDir(jsDir)
 		if err != nil {

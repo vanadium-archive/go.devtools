@@ -16,7 +16,6 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -184,10 +183,6 @@ func image(env map[string]string) (string, error) {
 // TODO(ashankar): This and other similar cases can be dealt with by inspecting "args"
 // and handling such cases, but that is left as a future excercise.
 func runDockerGo(jirix *jiri.X, image string, env map[string]string, args []string) error {
-	hostJiriroot, err := project.JiriRoot()
-	if err != nil {
-		return err
-	}
 	var (
 		volumeroot  = "/jiri" // All volumes are mounted inside here
 		jiriroot    = fmt.Sprintf("%v/root", volumeroot)
@@ -195,14 +190,14 @@ func runDockerGo(jirix *jiri.X, image string, env map[string]string, args []stri
 		ctr         int
 		workdir     string
 		hostWorkdir = env["PWD"]
-		dockerargs  = []string{"run", "-v", fmt.Sprintf("%v:%v", hostJiriroot, jiriroot)}
+		dockerargs  = []string{"run", "-v", fmt.Sprintf("%v:%v", jirix.Root, jiriroot)}
 	)
-	if strings.HasPrefix(hostWorkdir, hostJiriroot) {
-		workdir = strings.Replace(hostWorkdir, hostJiriroot, jiriroot, 1)
+	if strings.HasPrefix(hostWorkdir, jirix.Root) {
+		workdir = strings.Replace(hostWorkdir, jirix.Root, jiriroot, 1)
 	}
 	for _, p := range strings.Split(env["GOPATH"], ":") {
-		if strings.HasPrefix(p, hostJiriroot) {
-			gopath = append(gopath, strings.Replace(p, hostJiriroot, jiriroot, 1))
+		if strings.HasPrefix(p, jirix.Root) {
+			gopath = append(gopath, strings.Replace(p, jirix.Root, jiriroot, 1))
 			continue
 		}
 		// A non $JIRI_ROOT entry in the GOPATH, include that in the volumes.
@@ -221,7 +216,7 @@ func runDockerGo(jirix *jiri.X, image string, env map[string]string, args []stri
 	}
 	// Figure out the uid/gid to run the container with so that files
 	// written out to the host filesystem have the right owner/group.
-	if gid, ok := fileGid(hostJiriroot); ok {
+	if gid, ok := fileGid(jirix.Root); ok {
 		dockerargs = append(dockerargs, "-u", fmt.Sprintf("%d:%d", os.Getuid(), gid))
 	}
 	dockerargs = append(dockerargs,

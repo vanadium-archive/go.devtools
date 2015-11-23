@@ -10,7 +10,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 )
@@ -23,11 +22,6 @@ const (
 //
 // TODO(ivanpi): Port the namespace browser test logic from shell to Go. Add more tests.
 func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
@@ -37,7 +31,7 @@ func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	playgroundDir := filepath.Join(root, "release", "projects", "playground")
+	playgroundDir := filepath.Join(jirix.Root, "release", "projects", "playground")
 	backendDir := filepath.Join(playgroundDir, "go", "src", "v.io", "x", "playground")
 	clientDir := filepath.Join(playgroundDir, "client")
 

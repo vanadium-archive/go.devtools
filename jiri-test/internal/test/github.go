@@ -11,7 +11,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -176,12 +175,7 @@ func vanadiumGitHubMirror(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Res
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "JiriRoot"}
-	}
-
-	projects := filepath.Join(root, "projects")
+	projects := filepath.Join(jirix.Root, "projects")
 	mode := os.FileMode(0755)
 	if err := jirix.Run().MkdirAll(projects, mode); err != nil {
 		return nil, internalTestError{err, "MkdirAll"}

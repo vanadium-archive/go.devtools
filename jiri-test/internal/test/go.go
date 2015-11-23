@@ -314,7 +314,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 			fallthrough
 		case testFailed:
 			if strings.Index(result.output, "no test files") == -1 {
-				ss, err := xunit.TestSuiteFromGoTestOutput(jirix.Context, bytes.NewBufferString(result.output))
+				ss, err := xunit.TestSuiteFromGoTestOutput(jirix, bytes.NewBufferString(result.output))
 				if err != nil {
 					// Token too long error.
 					if !strings.HasSuffix(err.Error(), "token too long") {
@@ -712,7 +712,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 					output := strings.Replace(escapedOutput.String(), escNewline, "\n", -1)
 					output = strings.Replace(output, escTab, "\t", -1)
 					var err error
-					if ss, err = xunit.TestSuiteFromGoTestOutput(jirix.Context, bytes.NewBufferString(output)); err != nil {
+					if ss, err = xunit.TestSuiteFromGoTestOutput(jirix, bytes.NewBufferString(output)); err != nil {
 						errMsg := ""
 						if strings.Contains(err.Error(), "package build failed") {
 							// Package build failure.
@@ -1123,7 +1123,7 @@ func thirdPartyGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Res
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Build the third-party Go packages.
-	pkgs, err := thirdPartyPkgs()
+	pkgs, err := thirdPartyPkgs(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -1157,7 +1157,7 @@ func thirdPartyGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Test the third-party Go packages.
-	pkgs, err := thirdPartyPkgs()
+	pkgs, err := thirdPartyPkgs(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -1179,7 +1179,7 @@ func thirdPartyGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Test the third-party Go packages for data races.
-	pkgs, err := thirdPartyPkgs()
+	pkgs, err := thirdPartyPkgs(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -1199,13 +1199,8 @@ func thirdPartyGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 
 // thirdPartyPkgs returns a list of Go expressions that describe all
 // third-party packages.
-func thirdPartyPkgs() ([]string, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
-	thirdPartyDir := filepath.Join(root, "third_party", "go", "src")
+func thirdPartyPkgs(jirix *jiri.X) ([]string, error) {
+	thirdPartyDir := filepath.Join(jirix.Root, "third_party", "go", "src")
 	fileInfos, err := ioutil.ReadDir(thirdPartyDir)
 	if err != nil {
 		return nil, fmt.Errorf("ReadDir(%v) failed: %v", thirdPartyDir, err)
@@ -1424,11 +1419,6 @@ type goGenerateDiff struct {
 // vanadiumGoGenerate checks that files created by 'go generate' are
 // up-to-date.
 func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
@@ -1510,7 +1500,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 					diff = out.String()
 				}
 				fullPath := filepath.Join(project.Path, file)
-				fullPath = strings.TrimPrefix(fullPath, root+string(filepath.Separator))
+				fullPath = strings.TrimPrefix(fullPath, jirix.Root+string(filepath.Separator))
 				dirtyFile := goGenerateDiff{
 					path: fullPath,
 					diff: diff,
@@ -1852,11 +1842,7 @@ func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *tes
 	if err := jirix.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
 		return nil, internalTestError{err, "Install"}
 	}
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	newDir := filepath.Join(root, "release", "go", "bin")
+	newDir := filepath.Join(jirix.Root, "release", "go", "bin")
 	outDir := filepath.Join(regTestBinDirPath(), "bin")
 
 	tmpDir, err := jirix.Run().TempDir("", "")

@@ -11,7 +11,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -32,11 +31,6 @@ func requireEnv(names []string) error {
 // vanadiumPresubmitPoll polls vanadium projects for new patchsets for
 // which to run presubmit tests.
 func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
@@ -45,7 +39,7 @@ func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Use the "presubmit query" command to poll for new changes.
-	logfile := filepath.Join(root, ".presubmit_log")
+	logfile := filepath.Join(jirix.Root, ".presubmit_log")
 	args := []string{}
 	if jirix.Verbose() {
 		args = append(args, "-v")

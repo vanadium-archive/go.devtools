@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"v.io/jiri/jiri"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/profiles"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -58,7 +59,7 @@ func TestInvalidPackages(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	stdout := bytes.NewBuffer(nil)
-	jirix := &jiri.X{Context: tool.NewContext(tool.ContextOpts{Stdout: stdout})}
+	jirix := jiritest.NewX_DeprecatedEnv(t, &tool.ContextOpts{Stdout: stdout})
 	if _, err := configureDefaultBuildConfig(jirix, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +169,7 @@ func TestInjectCommandLine(t *testing.T) {
 }
 
 func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
 	if _, err := configureDefaultBuildConfig(jirix, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +229,7 @@ func configureDefaultBuildConfig(jirix *jiri.X, tags []string) (cleanup func(), 
 }
 
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
 	if _, err := configureDefaultBuildConfig(jirix, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}

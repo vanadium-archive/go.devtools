@@ -14,10 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/profiles"
-	"v.io/jiri/project"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
@@ -147,12 +145,8 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under testdata/generate. These are normally skipped since they're
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
-	jirix := &jiri.X{Context: tool.NewDefaultContext(), Root: root}
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(root, v23_profile.DefaultManifestFilename))
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
+	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(jirix.Root, v23_profile.DefaultManifestFilename))
 	if err != nil {
 		t.Fatal(err)
 	}

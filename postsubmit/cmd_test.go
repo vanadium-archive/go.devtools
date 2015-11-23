@@ -5,16 +5,15 @@
 package main
 
 import (
-	"os"
 	"reflect"
 	"testing"
 
-	"v.io/jiri/project"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/util"
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {
-	root, err := project.NewFakeJiriRoot()
+	root, err := jiritest.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -23,16 +22,6 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 	}()
-
-	// Point the JIRI_ROOT environment variable to the fake.
-	oldRoot, err := project.JiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer os.Setenv("JIRI_ROOT", oldRoot)
 
 	// Create a fake configuration file.
 	config := util.NewConfig(

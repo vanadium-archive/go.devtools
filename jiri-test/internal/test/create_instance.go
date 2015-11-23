@@ -15,7 +15,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 )
@@ -47,11 +46,6 @@ type instance struct {
 // create_instance.sh script (specified in the CREATE_INSTANCE_SCRIPT
 // environment variable) and run prod service test and load test againest it.
 func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	if testInstanceProject == "" {
 		return nil, internalTestError{fmt.Errorf("project not defined in %s environment variable", projectEnvVar), "Env"}
 	}
@@ -102,7 +96,7 @@ func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ 
 
 	// Check the test instance.
 	printBanner(jirix, "Checking test instance")
-	if err := checkTestInstance(jirix, root, instanceName); err != nil {
+	if err := checkTestInstance(jirix, instanceName); err != nil {
 		if err == runutil.CommandTimedOutErr {
 			return &test.Result{
 				Status:       test.TimedOut,
@@ -191,7 +185,7 @@ func runScript(jirix *jiri.X, script, instanceName string) error {
 	return nil
 }
 
-func checkTestInstance(jirix *jiri.X, root, instanceName string) error {
+func checkTestInstance(jirix *jiri.X, instanceName string) error {
 	instances, err := listInstances(jirix, instanceName)
 	if err != nil {
 		return err
@@ -200,7 +194,7 @@ func checkTestInstance(jirix *jiri.X, root, instanceName string) error {
 		return fmt.Errorf("no matching instance for %q", instanceName)
 	}
 	externalIP := instances[0].NetworkInterfaces[0].AccessConfigs[0].NatIP
-	suites := testAllProdServices(jirix, root, "", fmt.Sprintf("/%s:8101", externalIP))
+	suites := testAllProdServices(jirix, "", fmt.Sprintf("/%s:8101", externalIP))
 	allPassed := true
 	for _, suite := range suites {
 		allPassed = allPassed && (suite.Failures == 0)

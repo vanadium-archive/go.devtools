@@ -29,7 +29,7 @@ The jiri external commands are:
    run          Run an executable using the specified profile and target's
                 environment
    test         Manage vanadium tests
-   v23-profile  No description available
+   v23-profile  Manage profiles
 
 The jiri additional help topics are:
    manifest    Description of manifest files
@@ -777,7 +777,244 @@ List vanadium tests.
 Usage:
    jiri test list
 
-Jiri v23-profile - No description available
+Jiri v23-profile - Manage profiles
+
+Profiles are used to manage external sofware dependencies and offer a balance
+between providing no support at all and a full blown package manager. Profiles
+can be built natively as well as being cross compiled. A profile is a named
+collection of software required for a given system component or application.
+Current example profiles include 'syncbase' which consists of the leveldb and
+snappy libraries or 'android' which consists of all of the android components
+and downloads needed to build android applications. Profiles are built for
+specific targets.
+
+Targets
+
+Profiles generally refer to uncompiled source code that needs to be compiled for
+a specific "target". Targets hence represent compiled code and consist of:
+
+1. A 'tag' that can be used a short hand for refering to a target
+
+2. An 'architecture' that refers to the CPU to be generate code for
+
+3. An 'operating system' that refers to the operating system to generate code
+for
+
+4. A lexicographically orderd set of supported versions, one of which is
+designated as the default.
+
+5. An 'environment' which is a set of environment variables to use when
+compiling the profile
+
+Targets thus provide the basic support needed for cross compilation.
+
+Targets are versioned and multiple versions may be installed and used
+simultaneously. Versions are ordered lexicographically and each target specifies
+a 'default' version to be used when a specific version is not explicitly
+requested. A request to 'upgrade' the profile will result in the installation of
+the default version of the targets currently installed if that default version
+is not already installed.
+
+The Supported Commands
+
+Profiles, or more correctly, targets for specific profiles may be installed or
+removed. When doing so, the name of the profile is required, but the other
+components of the target are optional and will default to the values of the
+system that the commands are run on (so-called native builds) and the default
+version for that target. Once a profile is installed it may be referred to by
+its tag for subsequent removals.
+
+The are also update and cleanup commands. Update installs the default version of
+the requested profile or for all profiles for the already installed targets.
+Cleanup will uninstall targets whose version is older than the default.
+
+Finally, there are commands to list the available and installed profiles and to
+access the environment variables specified and stored in each profile
+installation and a command (recreate) to generate a list of commands that can be
+run to recreate the currently installed profiles.
+
+The Manifest
+
+The profiles packages manages a manifest that tracks the installed profiles and
+their configurations. Other command line tools and packages are expected to read
+information about the currently installed profiles from this manifest via the
+profiles package. The profile command line tools support displaying the manifest
+(via the list command) or for specifying an alternate version of the file (via
+the -manifest flag) which is generally useful for debugging.
+
+Adding Profiles
+
+Profiles are intended to be provided as go packages that register themselves
+with the profile command line tools via the *v.io/jiri/profiles* package. They
+must implement the interfaces defined by that package and be imported (e.g.
+import _ "myprofile") by the command line tools that are to use them.
+
+Usage:
+   jiri v23-profile [flags] <command>
+
+The jiri v23-profile commands are:
+   install     Install the given profiles
+   list        List available or installed profiles
+   env         Display profile environment variables
+   uninstall   Uninstall the given profiles
+   update      Install the latest default version of the given profiles
+   cleanup     Cleanup the locally installed profiles
+
+The jiri v23-profile flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
+Jiri v23-profile install - Install the given profiles
+
+Install the given profiles.
+
+Usage:
+   jiri v23-profile install [flags] <profiles>
+
+<profiles> is a list of profiles to install.
+
+The jiri v23-profile install flags are:
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
+ -go.sysroot=
+   sysroot for cross compiling to the currently specified target
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+
+Jiri v23-profile list - List available or installed profiles
+
+List available or installed profiles.
+
+Usage:
+   jiri v23-profile list [flags] [<profiles>]
+
+<profiles> is a list of profiles to list, defaulting to all profiles if none are
+specifically requested.
+
+The jiri v23-profile list flags are:
+ -available=false
+   print the list of available profiles
+ -info=
+   The following fields for use with --profile-info are available:
+   	SchemaVersion - the version of the profiles implementation.
+   	Target.InstallationDir - the installation directory of the requested profile.
+   	Target.CommandLineEnv - the environment variables specified via the command line when installing this profile target.
+   	Target.Env - the environment variables computed by the profile installation process for this target.
+   	Target.Command - a command that can be used to create this profile.
+   	Note: if no --target is specified then the requested field will be displayed for all targets.
+   	Profile.Description - description of the requested profile.
+   	Profile.Root - the root directory of the requested profile.
+   	Profile.Versions - the set of supported versions for this profile.
+   	Profile.DefaultVersion - the default version of the requested profile.
+   	Profile.LatestVersion - the latest version available for the requested profile.
+   	Note: if no profiles are specified then the requested field will be displayed for all profiles.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -show-profiles-manifest=false
+   print out the manifest file
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+ -v=false
+   print more detailed information
+
+Jiri v23-profile env - Display profile environment variables
+
+List profile specific and target specific environment variables. If the
+requested environment variable name ends in = then only the value will be
+printed, otherwise both name and value are printed, i.e. GOPATH="foo" vs just
+"foo".
+
+If no environment variable names are requested then all will be printed in
+<name>=<val> format.
+
+Usage:
+   jiri v23-profile env [flags] [<environment variable names>]
+
+[<environment variable names>] is an optional list of environment variables to
+display
+
+The jiri v23-profile env flags are:
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+ -v=false
+   print more detailed information
+
+Jiri v23-profile uninstall - Uninstall the given profiles
+
+Uninstall the given profiles.
+
+Usage:
+   jiri v23-profile uninstall [flags] <profiles>
+
+<profiles> is a list of profiles to uninstall.
+
+The jiri v23-profile uninstall flags are:
+ -all-targets=false
+   apply to all targets for the specified profile(s)
+ -go.sysroot=
+   sysroot for cross compiling to the currently specified target
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+
+Jiri v23-profile update - Install the latest default version of the given
+profiles
+
+Install the latest default version of the given profiles.
+
+Usage:
+   jiri v23-profile update [flags] <profiles>
+
+<profiles> is a list of profiles to update, if omitted all profiles are updated.
+
+The jiri v23-profile update flags are:
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   print more detailed information
+
+Jiri v23-profile cleanup - Cleanup the locally installed profiles
+
+Cleanup the locally installed profiles. This is generally required when
+recovering from earlier bugs or when preparing for a subsequent change to the
+profiles implementation.
+
+Usage:
+   jiri v23-profile cleanup [flags] <profiles>
+
+<profiles> is a list of profiles to cleanup, if omitted all profiles are
+cleaned.
+
+The jiri v23-profile cleanup flags are:
+ -ensure-specific-versions-are-set=false
+   ensure that profile targets have a specific version set
+ -gc=false
+   uninstall profile targets that are older than the current default
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -rewrite-profiles-manifest=false
+   rewrite the profiles manifest file to use the latest schema version
+ -rm-all=false
+   remove profiles manifest and all profile generated output files.
+ -v=false
+   print more detailed information
 
 Jiri manifest - Description of manifest files
 

@@ -14,7 +14,6 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/retry"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
@@ -29,11 +28,6 @@ func vanadiumSignupProxyNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 }
 
 func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "VanadiumRoot"}
-	}
-
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -50,7 +44,7 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 	}
 
 	// Create a feature branch in the infrastructure project.
-	infraDir := tool.RootDirOpt(filepath.Join(root, "infrastructure"))
+	infraDir := tool.RootDirOpt(filepath.Join(jirix.Root, "infrastructure"))
 	if err := jirix.Git(infraDir).CreateAndCheckoutBranch("update"); err != nil {
 		return nil, internalTestError{err, "create"}
 	}
@@ -67,7 +61,7 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 	// Update emails address whitelists.
 	{
 		whitelists := strings.Split(os.Getenv("WHITELISTS"), string(filepath.ListSeparator))
-		mergeSrc := filepath.Join(root, "infrastructure", "signup", "merge.go")
+		mergeSrc := filepath.Join(jirix.Root, "infrastructure", "signup", "merge.go")
 		for _, whitelist := range whitelists {
 			opts := jirix.Run().Opts()
 			opts.Stdin = bytes.NewReader(data)
@@ -98,11 +92,6 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 }
 
 func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "VanadiumRoot"}
-	}
-
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -119,11 +108,11 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 
 	var emails bytes.Buffer
 
-	welcome := filepath.Join(root, "infrastructure", "signup", "welcome.go")
+	welcome := filepath.Join(jirix.Root, "infrastructure", "signup", "welcome.go")
 	welcomeOpts := jirix.Run().Opts()
 	welcomeOpts.Stdin = bytes.NewReader(data)
 	welcomeOpts.Stdout = &emails
-	sentlist := filepath.Join(root, "infrastructure", "signup", "sentlist.json")
+	sentlist := filepath.Join(jirix.Root, "infrastructure", "signup", "sentlist.json")
 	if err := jirix.Run().CommandWithOpts(welcomeOpts, "jiri", "go", "run", welcome, "-sentlist="+sentlist); err != nil {
 		return nil, internalTestError{err, "welcome"}
 	}
@@ -147,14 +136,14 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 
 	// Join the array and convert it to bytes
 	contents := strings.Join(output, " ")
-	filename := filepath.Join(root, ".vanadium_signup_weclome_properties")
+	filename := filepath.Join(jirix.Root, ".vanadium_signup_weclome_properties")
 
 	if err := jirix.Run().WriteFile(filename, []byte(contents), 0644); err != nil {
 		return nil, internalTestError{err, "WriteFile"}
 	}
 
 	// Create a feature branch in the infrastructure project.
-	infraDir := tool.RootDirOpt(filepath.Join(root, "infrastructure"))
+	infraDir := tool.RootDirOpt(filepath.Join(jirix.Root, "infrastructure"))
 	if err := jirix.Git(infraDir).CreateAndCheckoutBranch("update"); err != nil {
 		return nil, internalTestError{err, "create"}
 	}
@@ -190,18 +179,13 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 }
 
 func vanadiumSignupWelcomeStepTwoNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "VanadiumRoot"}
-	}
-
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	mailer := filepath.Join(root, "release", "go", "src", "v.io", "x", "devtools", "mailer", "mailer.go")
+	mailer := filepath.Join(jirix.Root, "release", "go", "src", "v.io", "x", "devtools", "mailer", "mailer.go")
 	mailerFunc := func() error {
 		return jirix.Run().Command("jiri", "go", "run", mailer)
 	}
@@ -221,11 +205,6 @@ func vanadiumSignupGithubNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 }
 
 func vanadiumSignupGithubHelper(jirix *jiri.X, schema, testName string) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "VanadiumRoot"}
-	}
-
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -242,7 +221,7 @@ func vanadiumSignupGithubHelper(jirix *jiri.X, schema, testName string) (_ *test
 
 	// Add them to @vanadium/developers
 	githubToken := os.Getenv("GITHUB_TOKEN")
-	github := filepath.Join(root, "infrastructure", "signup", "github.go")
+	github := filepath.Join(jirix.Root, "infrastructure", "signup", "github.go")
 	githubOpts := jirix.Run().Opts()
 	githubOpts.Stdin = bytes.NewReader(data)
 	if err := jirix.Run().CommandWithOpts(githubOpts, "jiri", "go", "run", github, "-token="+githubToken); err != nil {
@@ -265,11 +244,6 @@ func vanadiumSignupDiscussNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test
 }
 
 func vanadiumSignupGroupHelper(jirix *jiri.X, schema, testName string, discussOnly bool) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "VanadiumRoot"}
-	}
-
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -289,7 +263,7 @@ func vanadiumSignupGroupHelper(jirix *jiri.X, schema, testName string, discussOn
 	groupEmail := os.Getenv("GROUP_EMAIL")
 	opts := jirix.Run().Opts()
 	opts.Stdin = bytes.NewReader(data)
-	groupSrc := filepath.Join(root, "infrastructure", "signup", "group.go")
+	groupSrc := filepath.Join(jirix.Root, "infrastructure", "signup", "group.go")
 	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "run", groupSrc, "-credentials="+credentials, "-group-email="+groupEmail); err != nil {
 		return nil, internalTestError{err, "group"}
 	}
@@ -298,15 +272,10 @@ func vanadiumSignupGroupHelper(jirix *jiri.X, schema, testName string, discussOn
 }
 
 func fetchFieldValues(jirix *jiri.X, credentials, field, schema, sheetID string, discussOnly bool) ([]byte, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "VanadiumRoot"}
-	}
-
 	var buffer bytes.Buffer
 
-	fetchSrc := filepath.Join(root, "infrastructure", "signup", "fetch.go")
-	schemaSrc := filepath.Join(root, "infrastructure", "signup", schema)
+	fetchSrc := filepath.Join(jirix.Root, "infrastructure", "signup", "fetch.go")
+	schemaSrc := filepath.Join(jirix.Root, "infrastructure", "signup", schema)
 	opts := jirix.Run().Opts()
 	opts.Stdout = &buffer
 	args := []string{"go", "run", fetchSrc, schemaSrc, "-credentials=" + credentials, "-field=" + field, "-sheet-id=" + sheetID}

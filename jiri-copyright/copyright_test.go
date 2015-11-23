@@ -13,17 +13,16 @@ import (
 	"regexp"
 	"testing"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 )
 
 func TestCopyright(t *testing.T) {
 	var errOut bytes.Buffer
-	ctx := tool.NewContext(tool.ContextOpts{
+	jirix := jiritest.NewX_DeprecatedEnv(t, &tool.ContextOpts{
 		Stderr: io.MultiWriter(os.Stderr, &errOut),
 	})
-	jirix := &jiri.X{Context: ctx}
 
 	// Load assets.
 	dataDir, err := project.DataDirPath(jirix, "jiri")
@@ -36,7 +35,7 @@ func TestCopyright(t *testing.T) {
 	}
 
 	// Setup a fake JIRI_ROOT.
-	root, err := project.NewFakeJiriRoot()
+	root, err := jiritest.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -58,15 +57,6 @@ func TestCopyright(t *testing.T) {
 	if err := root.UpdateUniverse(false); err != nil {
 		t.Fatalf("%v", err)
 	}
-
-	oldRoot, err := project.JiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
-		t.Fatalf("Setenv() failed: %v", err)
-	}
-	defer os.Setenv("JIRI_ROOT", oldRoot)
 
 	allFiles := map[string]string{}
 	for file, data := range assets.MatchFiles {

@@ -10,11 +10,9 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 
-	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 )
@@ -45,16 +43,9 @@ func init() {
 var (
 	reURLUnsafeChars     *regexp.Regexp = regexp.MustCompile("[\\\\/:\\?#%]")
 	reNotIdentifierChars *regexp.Regexp = regexp.MustCompile("[^0-9A-Za-z_\\$]")
-	vroot                string
 )
 
 func main() {
-	var err error
-	vroot, err = project.JiriRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-		os.Exit(1)
-	}
 	cmdline.Main(cmdRoot)
 }
 

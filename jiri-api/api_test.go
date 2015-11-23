@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"v.io/jiri/jiri"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -25,9 +26,7 @@ func writeFileOrDie(t *testing.T, jirix *jiri.X, path, contents string) {
 }
 
 type testEnv struct {
-	oldRoot        string
-	fakeRoot       *project.FakeJiriRoot
-	gotoolsPath    string
+	fakeRoot       *jiritest.FakeJiriRoot
 	gotoolsCleanup func() error
 }
 
@@ -46,7 +45,17 @@ func (env testEnv) setStderr(w io.Writer) {
 // setupAPITest sets up the test environment and returns a testEnv
 // representing the environment that was created.
 func setupAPITest(t *testing.T) testEnv {
-	root, err := project.NewFakeJiriRoot()
+	// Before we replace the vanadium root with our new fake one, we have
+	// to build gotools. This is because the fake environment does not
+	// contain the gotools source.
+	envX := jiritest.NewX_DeprecatedEnv(t, nil)
+	gotoolsPath, cleanup, err := buildGotools(envX)
+	if err != nil {
+		t.Fatalf("buildGotools failed: %v", err)
+	}
+	gotoolsBinPathFlag = gotoolsPath
+	// Set up a fake jiri environment.
+	root, err := jiritest.NewFakeJiriRoot()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -63,29 +72,10 @@ func setupAPITest(t *testing.T) testEnv {
 	if err := root.UpdateUniverse(false); err != nil {
 		t.Fatalf("%v", err)
 	}
-	// The code under test wants to build visualfc/gotools, but this won't
-	// exist in our fake environment unless we copy it in there.
-	oldRoot, err := project.JiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	// Before we replace the vanadium root with our new fake one, we have
-	// to build gotools. This is because the fake environment does not
-	// contain the gotools source.
-	gotoolsPath, cleanup, err := buildGotools(root.X)
-	if err != nil {
-		t.Fatalf("buildGotools failed: %v", err)
-	}
-	gotoolsBinPathFlag = gotoolsPath
-	if err := os.Setenv("JIRI_ROOT", root.Dir); err != nil {
-		t.Fatalf("Setenv() failed: %v", err)
-	}
-
-	return testEnv{oldRoot, root, gotoolsPath, cleanup}
+	return testEnv{root, cleanup}
 }
 
 func teardownAPITest(t *testing.T, env testEnv) {
-	os.Setenv("JIRI_ROOT", env.oldRoot)
 	if err := env.fakeRoot.Cleanup(); err != nil {
 		t.Fatalf("%v", err)
 	}

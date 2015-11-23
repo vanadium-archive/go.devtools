@@ -15,7 +15,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/retry"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -44,8 +43,8 @@ func generateXUnitTestSuite(jirix *jiri.X, failure *xunit.Failure, pkg string, d
 }
 
 // testSingleProdService test the given production service.
-func testSingleProdService(jirix *jiri.X, vroot, principalDir string, service prodService) *xunit.TestSuite {
-	bin := filepath.Join(vroot, "release", "go", "bin", "vrpc")
+func testSingleProdService(jirix *jiri.X, principalDir string, service prodService) *xunit.TestSuite {
+	bin := filepath.Join(jirix.Root, "release", "go", "bin", "vrpc")
 	var out bytes.Buffer
 	opts := jirix.Run().Opts()
 	opts.Verbose = true
@@ -89,11 +88,6 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	vroot, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	// Install the vrpc tool.
 	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
 		return nil, internalTestError{err, "Install VRPC"}
@@ -118,11 +112,11 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	if suite.Failures == 0 {
 		// Setup a principal that will be used by testAllProdServices and will
 		// recognize the blessings of the prod services.
-		principalDir, err := setupPrincipal(jirix, vroot, tmpdir, pubkey, blessingNames)
+		principalDir, err := setupPrincipal(jirix, tmpdir, pubkey, blessingNames)
 		if err != nil {
 			return nil, err
 		}
-		for _, suite := range testAllProdServices(jirix, vroot, principalDir, namespaceRoot) {
+		for _, suite := range testAllProdServices(jirix, principalDir, namespaceRoot) {
 			allPassed = allPassed && (suite.Failures == 0)
 			suites = append(suites, *suite)
 		}
@@ -141,7 +135,7 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	return &test.Result{Status: test.Passed}, nil
 }
 
-func testAllProdServices(jirix *jiri.X, vroot, principalDir, namespaceRoot string) []*xunit.TestSuite {
+func testAllProdServices(jirix *jiri.X, principalDir, namespaceRoot string) []*xunit.TestSuite {
 	services := []prodService{
 		prodService{
 			name:       "mounttable",
@@ -184,7 +178,7 @@ func testAllProdServices(jirix *jiri.X, vroot, principalDir, namespaceRoot strin
 
 	var suites []*xunit.TestSuite
 	for _, service := range services {
-		suites = append(suites, testSingleProdService(jirix, vroot, principalDir, service))
+		suites = append(suites, testSingleProdService(jirix, principalDir, service))
 	}
 	return suites
 }
@@ -229,9 +223,9 @@ func testIdentityProviderHTTP(jirix *jiri.X, blessingRoot string) (suite *xunit.
 	return generateXUnitTestSuite(jirix, failure, url, time.Now().Sub(start)), response.PublicKey, response.Names
 }
 
-func setupPrincipal(jirix *jiri.X, vroot, tmpdir, pubkey string, blessingNames []string) (string, error) {
+func setupPrincipal(jirix *jiri.X, tmpdir, pubkey string, blessingNames []string) (string, error) {
 	dir := filepath.Join(tmpdir, "credentials")
-	bin := filepath.Join(vroot, "release", "go", "bin", "principal")
+	bin := filepath.Join(jirix.Root, "release", "go", "bin", "principal")
 	if err := jirix.Run().TimedCommand(test.DefaultTimeout, bin, "create", dir, "prod-services-tester"); err != nil {
 		fmt.Fprintf(jirix.Stderr(), "principal create failed: %v\n", err)
 		return "", err

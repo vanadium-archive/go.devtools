@@ -15,8 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/jiri/jiri"
-	"v.io/jiri/tool"
+	"v.io/jiri/jiritest"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -370,7 +369,7 @@ var (
 
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
 	testName := "test-go-build"
 	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
 	if err != nil {
@@ -426,7 +425,7 @@ func TestGoBuild(t *testing.T) {
 
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
 	testName, pkgName := "test-go-coverage", "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
 
 	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
@@ -530,7 +529,7 @@ func TestRegressionTest(t *testing.T) {
 }
 
 func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTestSuite xunit.TestSuites, expectedStatus test.Status, subPkg string, testOpts ...goTestOpt) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
 	testName, pkgName := "test-go-test", fmt.Sprintf("v.io/x/devtools/jiri-test/internal/test/testdata/%s", subPkg)
 
 	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")

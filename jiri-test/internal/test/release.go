@@ -17,7 +17,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
@@ -70,11 +69,6 @@ var (
 
 // vanadiumReleaseCandidate updates binaries of staging cloud services and run tests for them.
 func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	cleanup, err := initTest(jirix, testName, []string{"base", "java"})
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -110,11 +104,11 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 		},
 		step{
 			msg: "Prepare binaries\n",
-			fn:  func() error { return prepareBinaries(jirix, root, rcLabel) },
+			fn:  func() error { return prepareBinaries(jirix, rcLabel) },
 		},
 		step{
 			msg: "Update services\n",
-			fn:  func() error { return updateServices(jirix, root, adminCredDir, publisherCredDir) },
+			fn:  func() error { return updateServices(jirix, adminCredDir, publisherCredDir) },
 		},
 		step{
 			msg: "Check services\n",
@@ -183,7 +177,7 @@ func getCredDirOptValues(opts []Opt) (string, string) {
 }
 
 // prepareBinaries builds all vanadium binaries and uploads them to Google Storage bucket.
-func prepareBinaries(jirix *jiri.X, root, rcLabel string) error {
+func prepareBinaries(jirix *jiri.X, rcLabel string) error {
 	// Build binaries.
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
@@ -196,7 +190,7 @@ func prepareBinaries(jirix *jiri.X, root, rcLabel string) error {
 	// Upload binaries.
 	args = []string{
 		"-q", "-m", "cp", "-r",
-		filepath.Join(root, "release", "go", "bin"),
+		filepath.Join(jirix.Root, "release", "go", "bin"),
 		fmt.Sprintf("%s/%s", bucket, rcLabel),
 	}
 	if err := jirix.Run().Command("gsutil", args...); err != nil {
@@ -224,9 +218,9 @@ func prepareBinaries(jirix *jiri.X, root, rcLabel string) error {
 
 // updateServices pushes services' binaries to the applications and binaries
 // services and tells the device manager to update all its app.
-func updateServices(jirix *jiri.X, root, adminCredDir, publisherCredDir string) (e error) {
-	debugBin := filepath.Join(root, "release", "go", "bin", "debug")
-	deviceBin := filepath.Join(root, "release", "go", "bin", "device")
+func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e error) {
+	debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
+	deviceBin := filepath.Join(jirix.Root, "release", "go", "bin", "device")
 	adminCredentialsArg := fmt.Sprintf("--v23.credentials=%s", adminCredDir)
 	publisherCredentialsArg := fmt.Sprintf("--v23.credentials=%s", publisherCredDir)
 	nsArg := fmt.Sprintf("--v23.namespace.root=%s", globalMountTable)
@@ -323,7 +317,7 @@ func updateServices(jirix *jiri.X, root, adminCredDir, publisherCredDir string) 
 		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
 			return err
 		}
-		if err := waitForMounttable(jirix, root, adminCredentialsArg, localMountTable, `.*8151/devmgr.*`); err != nil {
+		if err := waitForMounttable(jirix, adminCredentialsArg, localMountTable, `.*8151/devmgr.*`); err != nil {
 			return err
 		}
 		// TODO(jingjin): check build time for device manager.
@@ -336,7 +330,7 @@ func updateServices(jirix *jiri.X, root, adminCredDir, publisherCredDir string) 
 		if err := updateAppFn(mounttableName); err != nil {
 			return err
 		}
-		if err := waitForMounttable(jirix, root, adminCredentialsArg, globalMountTable, `.+`); err != nil {
+		if err := waitForMounttable(jirix, adminCredentialsArg, globalMountTable, `.+`); err != nil {
 			return err
 		}
 		if err := checkManifestLabelFn(mounttableName); err != nil {
@@ -349,8 +343,8 @@ func updateServices(jirix *jiri.X, root, adminCredDir, publisherCredDir string) 
 // waitForMounttable waits for the given mounttable to be up and optionally
 // checks output against outputRegexp if it is not empty.
 // (timeout: 5 minutes)
-func waitForMounttable(jirix *jiri.X, root, credentialsArg, mounttableRoot, outputRegexp string) error {
-	debugBin := filepath.Join(root, "release", "go", "bin", "debug")
+func waitForMounttable(jirix *jiri.X, credentialsArg, mounttableRoot, outputRegexp string) error {
+	debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
 	args := []string{
 		credentialsArg,
 		"glob",
@@ -432,11 +426,6 @@ func updateLatestFile(jirix *jiri.X, rcLabel string) error {
 // in the form of "<manifestEnvVar>=<symlinkTarget>" to
 // "JIRI_ROOT/<snapshotManifestFile>".
 func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
 		return nil, internalTestError{err, "Init"}
@@ -457,10 +446,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 
 	// Get the symlink target of the newly created snapshot manifest.
-	snapshotDir, err := project.RemoteSnapshotDir()
-	if err != nil {
-		return nil, err
-	}
+	snapshotDir := jirix.RemoteSnapshotDir()
 	symlink := filepath.Join(snapshotDir, snapshotName)
 	target, err := filepath.EvalSymlinks(symlink)
 	if err != nil {
@@ -468,10 +454,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 
 	// Get manifest file's relative path to the root manifest dir.
-	manifestDir, err := project.ManifestDir()
-	if err != nil {
-		return nil, err
-	}
+	manifestDir := jirix.ManifestDir()
 	relativePath := strings.TrimPrefix(target, manifestDir+string(filepath.Separator))
 
 	// Get all the tests to run.
@@ -495,7 +478,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 
 	// Write to the properties file.
 	content := fmt.Sprintf("%s=%s\n%s=%s", manifestEnvVar, relativePath, testsEnvVar, strings.Join(testsWithParts, " "))
-	if err := jirix.Run().WriteFile(filepath.Join(root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
+	if err := jirix.Run().WriteFile(filepath.Join(jirix.Root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
 		return nil, internalTestError{err, "Record Properties"}
 	}
 

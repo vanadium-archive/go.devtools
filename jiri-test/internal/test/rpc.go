@@ -20,7 +20,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -136,12 +135,7 @@ func clientNodeName(nodeName string, n int) string {
 }
 
 func createNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes int) error {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return err
-	}
-
-	cmd := filepath.Join(root, binPath, "vcloud")
+	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"node", "create",
 		"-project", gceProject,
@@ -162,12 +156,7 @@ func createNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes 
 }
 
 func deleteNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes int) error {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return err
-	}
-
-	cmd := filepath.Join(root, binPath, "vcloud")
+	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"node", "delete",
 		"-project", gceProject,
@@ -183,22 +172,17 @@ func deleteNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes 
 }
 
 func startServers(jirix *jiri.X, nodeName string, numServerNodes int) (<-chan error, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	var servers []string
 	for n := 0; n < numServerNodes; n++ {
 		servers = append(servers, serverNodeName(nodeName, n))
 	}
-	cmd := filepath.Join(root, binPath, "vcloud")
+	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
 		"-failfast",
 		"-project", gceProject,
 		strings.Join(servers, ","),
-		filepath.Join(root, binPath, "stressd"),
+		filepath.Join(jirix.Root, binPath, "stressd"),
 		"++",
 		"./stressd",
 		"-v23.tcp.address", fmt.Sprintf(":%d", serverPort),
@@ -224,18 +208,13 @@ func startServers(jirix *jiri.X, nodeName string, numServerNodes int) (<-chan er
 }
 
 func stopServers(jirix *jiri.X, nodeName string, numServerNodes int) error {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return err
-	}
-
-	cmd := filepath.Join(root, binPath, "vcloud")
+	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
 		"-failfast",
 		"-project", gceProject,
 		clientNodeName(nodeName, 0),
-		filepath.Join(root, binPath, "stress"),
+		filepath.Join(jirix.Root, binPath, "stress"),
 		"++",
 		"./stress", "stop",
 	}
@@ -246,11 +225,6 @@ func stopServers(jirix *jiri.X, nodeName string, numServerNodes int) error {
 }
 
 func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	var servers, clients []string
 	for n := 0; n < testStressNumServerNodes; n++ {
 		servers = append(servers, fmt.Sprintf("/%s:%d", serverNodeName(testStressNodeName, n), serverPort))
@@ -263,13 +237,13 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	opts := jirix.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
-	cmd := filepath.Join(root, binPath, "vcloud")
+	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
 		"-failfast",
 		"-project", gceProject,
 		strings.Join(clients, ","),
-		filepath.Join(root, binPath, "stress"),
+		filepath.Join(jirix.Root, binPath, "stress"),
 		"++",
 		"./stress", "stress",
 		"-workers", strconv.Itoa(testStressNumWorkersPerClient),
@@ -279,7 +253,7 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err = jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		return nil, err
 	}
 
@@ -289,13 +263,13 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		"-failfast",
 		"-project", gceProject,
 		clients[0],
-		filepath.Join(root, binPath, "stress"),
+		filepath.Join(jirix.Root, binPath, "stress"),
 		"++",
 		"./stress", "stats",
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err = jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		return nil, err
 	}
 
@@ -381,11 +355,6 @@ func writeStressStats(w io.Writer, title string, stats *stressStats) {
 }
 
 func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	var servers, clients []string
 	for n := 0; n < testLoadNumServerNodes; n++ {
 		servers = append(servers, fmt.Sprintf("/%s:%d", serverNodeName(testLoadNodeName, n), serverPort))
@@ -398,13 +367,13 @@ func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	opts := jirix.Run().Opts()
 	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
 	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
-	cmd := filepath.Join(root, binPath, "vcloud")
+	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
 		"-failfast",
 		"-project", gceProject,
 		strings.Join(clients, ","),
-		filepath.Join(root, binPath, "stress"),
+		filepath.Join(jirix.Root, binPath, "stress"),
 		"++",
 		"./stress", "load",
 		"-cpu", strconv.Itoa(testLoadCPUs),
@@ -413,7 +382,7 @@ func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err = jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err := jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
 		return nil, err
 	}
 

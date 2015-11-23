@@ -10,7 +10,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -84,11 +83,7 @@ func installExtraDeps(jirix *jiri.X, testName string, deps []string, target stri
 
 // vanadiumJSBuildExtension tests the vanadium javascript build extension.
 func vanadiumJSBuildExtension(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "extension/vanadium.zip"
 	return runJSTestWithNacl(jirix, testName, testDir, target, nil, nil)
 }
@@ -96,11 +91,7 @@ func vanadiumJSBuildExtension(jirix *jiri.X, testName string, _ ...Opt) (*test.R
 // vanadiumJSDoc (re)generates the content of the vanadium core javascript
 // documentation server.
 func vanadiumJSDoc(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "docs"
 
 	result, err := runJSTest(jirix, testName, testDir, target, nil, nil)
@@ -114,11 +105,7 @@ func vanadiumJSDoc(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, erro
 // vanadiumJSDocSyncbase (re)generates the content of the vanadium syncbase
 // javascript documentation server.
 func vanadiumJSDocSyncbase(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "syncbase")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "syncbase")
 	result, err := runJSTest(jirix, testName, testDir, "docs", nil, nil)
 	if err != nil {
 		return nil, err
@@ -147,11 +134,7 @@ func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Res
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", projectName)
+	testDir := filepath.Join(jirix.Root, "release", "javascript", projectName)
 	if err := jirix.Run().Chdir(testDir); err != nil {
 		return nil, err
 	}
@@ -174,11 +157,7 @@ func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Res
 
 // vanadiumJSBrowserIntegration runs the vanadium javascript integration test in a browser environment using nacl plugin.
 func vanadiumJSBrowserIntegration(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "test-integration-browser"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -188,11 +167,7 @@ func vanadiumJSBrowserIntegration(jirix *jiri.X, testName string, _ ...Opt) (*te
 
 // vanadiumJSNodeIntegration runs the vanadium javascript integration test in NodeJS environment using wspr.
 func vanadiumJSNodeIntegration(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "test-integration-node"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -202,11 +177,7 @@ func vanadiumJSNodeIntegration(jirix *jiri.X, testName string, _ ...Opt) (*test.
 
 // vanadiumJSUnit runs the vanadium javascript unit test.
 func vanadiumJSUnit(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "test-unit"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -216,11 +187,7 @@ func vanadiumJSUnit(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, err
 
 // vanadiumJSVdl runs the vanadium javascript vdl test.
 func vanadiumJSVdl(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "test-vdl"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -230,11 +197,7 @@ func vanadiumJSVdl(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, erro
 
 // vanadiumJSVDLAudit checks that all VDL-based JS source files are up-to-date.
 func vanadiumJSVdlAudit(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "test-vdl-audit"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -244,11 +207,7 @@ func vanadiumJSVdlAudit(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 
 // vanadiumJSVom runs the vanadium javascript vom test.
 func vanadiumJSVom(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "core")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "core")
 	target := "test-vom"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -258,11 +217,7 @@ func vanadiumJSVom(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, erro
 
 // vanadiumJSSyncbaseBrowser runs the vanadium javascript syncbase test in a browser.
 func vanadiumJSSyncbaseBrowser(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "syncbase")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "syncbase")
 	target := "test-integration-browser"
 	env := map[string]string{}
 	setCommonJSEnv(env)
@@ -272,11 +227,7 @@ func vanadiumJSSyncbaseBrowser(jirix *jiri.X, testName string, _ ...Opt) (*test.
 
 // vanadiumJSSyncbaseNode runs the vanadium javascript syncbase test in nodejs.
 func vanadiumJSSyncbaseNode(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-	testDir := filepath.Join(root, "release", "javascript", "syncbase")
+	testDir := filepath.Join(jirix.Root, "release", "javascript", "syncbase")
 	target := "test-integration-node"
 	env := map[string]string{}
 	setCommonJSEnv(env)

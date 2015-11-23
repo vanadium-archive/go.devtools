@@ -12,7 +12,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -44,10 +43,7 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	fmt.Fprintf(jirix.Stdout(), "jiri %s: success\n", args)
 
 	// Compute the timestamp for the build snapshot.
-	labelFile, err := project.ManifestFile("snapshot/stable-go")
-	if err != nil {
-		return nil, internalTestError{err, "ManifestFile"}
-	}
+	labelFile := jirix.ManifestFile("snapshot/stable-go")
 	snapshotFile, err := filepath.EvalSymlinks(labelFile)
 	if err != nil {
 		return nil, internalTestError{err, "EvalSymlinks"}
@@ -56,11 +52,7 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 
 	// Upload all v.io binaries to Google Storage.
 	bucket := fmt.Sprintf("gs://vanadium-binaries/%s_%s/", runtime.GOOS, runtime.GOARCH)
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "JiriRoot"}
-	}
-	binaries := filepath.Join(root, "release", "go", "bin", "*")
+	binaries := filepath.Join(jirix.Root, "release", "go", "bin", "*")
 
 	jirix.Run().Command("ls", filepath.Dir(binaries))
 

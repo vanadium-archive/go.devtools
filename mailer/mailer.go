@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -9,14 +12,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	gomail "gopkg.in/gomail.v1"
-	"v.io/jiri/project"
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/cache"
+	"v.io/x/lib/cmdline"
 )
+
+var cmdMailer = &cmdline.Command{
+	Runner: jiri.RunnerFunc(runMailer),
+	Name:   "mailer",
+	Short:  "sends vanadium welcome email",
+	Long: `
+Command mailer sends the vanadium welcome email, including the NDA as an
+attachment.  The email is sent via smtp-relay.gmail.com.
+
+Due to legacy reasons(?), the configuration is via environment variables:
+	EMAIL_USERNAME: Sender email username.
+	EMAIL_PASSWORD: Sender email password.
+	EMAILS:         Space-separated list of recipient email addresses.
+	NDA_BUCKET:     Google-storage bucket that contains the NDA.
+`,
+}
+
+func main() {
+	cmdline.Main(cmdMailer)
+}
 
 const mailerTemplateFile = "gs://vanadium-mailer/template.json"
 
@@ -51,25 +74,16 @@ func (m message) html() string {
 	return result
 }
 
-func main() {
-	ctx := tool.NewDefaultContext()
-
-	root, err := project.JiriRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
-
-	emailUsername := os.Getenv("EMAIL_USERNAME")
-	emailPassword := os.Getenv("EMAIL_PASSWORD")
-	emails := strings.Split(os.Getenv("EMAILS"), " ")
-	bucket := os.Getenv("NDA_BUCKET")
+func runMailer(jirix *jiri.X, args []string) error {
+	emailUsername := jirix.Env()["EMAIL_USERNAME"]
+	emailPassword := jirix.Env()["EMAIL_PASSWORD"]
+	emails := strings.Split(jirix.Env()["EMAILS"], " ")
+	bucket := jirix.Env()["NDA_BUCKET"]
 
 	// Download the NDA attachement from Google Cloud Storage
-	attachment, err := cache.StoreGoogleStorageFile(ctx, root, bucket, "google-agreement.pdf")
+	attachment, err := cache.StoreGoogleStorageFile(jirix.Context, jirix.Root, bucket, "google-agreement.pdf")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	// Use the Google Apps SMTP relay to send the welcome email, this has been
@@ -81,18 +95,16 @@ func main() {
 			continue
 		}
 
-		if err := sendWelcomeEmail(ctx, mailer, email, attachment); err != nil {
+		if err := sendWelcomeEmail(jirix.Context, mailer, email, attachment); err != nil {
 			messages = append(messages, err.Error())
 		}
 	}
 
-	// Log any errors from sending the email messages.
+	// Return errors from sending the email messages.
 	if len(messages) > 0 {
-		message := strings.Join(messages, "\n\n")
-		err := errors.New(message)
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return errors.New(strings.Join(messages, "\n\n"))
 	}
+	return nil
 }
 
 func sendWelcomeEmail(ctx *tool.Context, mailer *gomail.Mailer, email string, attachment string) error {

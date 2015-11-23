@@ -57,13 +57,8 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(jirix *jiri.X, _ []string) error {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return err
-	}
-
 	// Get the latest snapshot file from $JIRI_ROOT/.update_history directory.
-	historyDir := filepath.Join(root, ".update_history")
+	historyDir := filepath.Join(jirix.Root, ".update_history")
 	var maxTime int64
 	latestSnapshotFile := ""
 	filepath.Walk(historyDir, func(path string, info os.FileInfo, err error) error {
@@ -78,7 +73,7 @@ func runPoll(jirix *jiri.X, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("ReadAll() failed: %v", err)
 	}
-	projects, err := getChangedProjectsFromSnapshot(jirix, root, snapshotFileBytes)
+	projects, err := getChangedProjectsFromSnapshot(jirix, snapshotFileBytes)
 	if err != nil {
 		return err
 	}
@@ -107,7 +102,7 @@ func runPoll(jirix *jiri.X, _ []string) error {
 // getChangedProjectsFromSnapshot returns a slice of projects that
 // have changes by comparing the revisions in the given snapshot with
 // master branches.
-func getChangedProjectsFromSnapshot(jirix *jiri.X, vroot string, snapshotContent []byte) ([]string, error) {
+func getChangedProjectsFromSnapshot(jirix *jiri.X, snapshotContent []byte) ([]string, error) {
 	// Parse snapshot.
 	snapshot := project.Manifest{}
 	if err := xml.Unmarshal(snapshotContent, &snapshot); err != nil {
@@ -121,7 +116,7 @@ func getChangedProjectsFromSnapshot(jirix *jiri.X, vroot string, snapshotContent
 	for _, project := range snapshot.Projects {
 		switch project.Protocol {
 		case "git":
-			git := jirix.Git(tool.RootDirOpt(filepath.Join(vroot, project.Path)))
+			git := jirix.Git(tool.RootDirOpt(filepath.Join(jirix.Root, project.Path)))
 			commits, err := git.Log("master", project.Revision, "")
 			if err != nil {
 				return nil, err

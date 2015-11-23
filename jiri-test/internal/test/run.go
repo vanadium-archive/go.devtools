@@ -353,22 +353,22 @@ func runTests(jirix *jiri.X, tests []string, results map[string]*test.Result, op
 		const largeBufferSize = 1 << 20
 		out.Grow(largeBufferSize)
 		runOpts := jirix.Run().Opts()
-		newCtx := jirix.Clone(tool.ContextOpts{
+		newX := jirix.Clone(tool.ContextOpts{
 			Stdout: io.MultiWriter(&out, runOpts.Stdout),
 			Stderr: io.MultiWriter(&out, runOpts.Stderr),
 		})
 
 		// Run the test and collect the test results.
-		result, err := testFn(newCtx, t, opts...)
+		result, err := testFn(newX, t, opts...)
 		if result != nil && result.Status == test.TimedOut {
-			writeTimedOutTestReport(newCtx, t, *result)
+			writeTimedOutTestReport(newX, t, *result)
 		}
 		if err == nil {
-			err = checkTestReportFile(newCtx, t)
+			err = checkTestReportFile(newX, t)
 		}
 		if err != nil {
-			fmt.Fprintf(newCtx.Stderr(), "%v\n", err)
-			r, err := generateXUnitReportForError(newCtx, t, err, out.String())
+			fmt.Fprintf(newX.Stderr(), "%v\n", err)
+			r, err := generateXUnitReportForError(newX, t, err, out.String())
 			if err != nil {
 				return err
 			}

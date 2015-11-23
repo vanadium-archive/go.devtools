@@ -11,7 +11,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 )
@@ -22,11 +21,6 @@ const (
 
 // Runs specified make target in WWW Makefile as a test.
 func commonVanadiumWWW(jirix *jiri.X, testName, makeTarget string, timeout time.Duration, extraDeps []string) (_ *test.Result, e error) {
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, err
-	}
-
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, append([]string{"base", "nodejs"}, extraDeps...))
 	if err != nil {
@@ -40,7 +34,7 @@ func commonVanadiumWWW(jirix *jiri.X, testName, makeTarget string, timeout time.
 	}
 	defer collect.Error(func() error { return cleanup2() }, &e)
 
-	wwwDir := filepath.Join(root, "www")
+	wwwDir := filepath.Join(jirix.Root, "www")
 	if err := jirix.Run().Chdir(wwwDir); err != nil {
 		return nil, err
 	}
@@ -105,12 +99,7 @@ func vanadiumWWWConfigDeployHelper(jirix *jiri.X, testName string, env string, _
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Change dir to infrastructure/nginx.
-	root, err := project.JiriRoot()
-	if err != nil {
-		return nil, internalTestError{err, "JiriRoot"}
-	}
-
-	dir := filepath.Join(root, "infrastructure", "nginx")
+	dir := filepath.Join(jirix.Root, "infrastructure", "nginx")
 	if err := jirix.Run().Chdir(dir); err != nil {
 		return nil, internalTestError{err, "Chdir"}
 	}
