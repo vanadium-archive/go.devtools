@@ -125,7 +125,7 @@ func sendQPSDataToGCM(qpsPerMethod map[string]float64, totalQPS float64, info qp
 		return fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
 	mdQPSPerMethod := monitoring.CustomMetricDescriptors["service-qps-method"]
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

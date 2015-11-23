@@ -87,7 +87,7 @@ func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64,
 		return 0, fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
 	mdLat := monitoring.CustomMetricDescriptors["service-counters"]
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return 0, err
 	}

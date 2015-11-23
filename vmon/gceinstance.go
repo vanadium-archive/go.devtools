@@ -387,7 +387,7 @@ func checkNginxHealth(ctx *tool.Context, instances []*gceInstanceData) error {
 
 // sendToGCM sends instance stats data to GCM.
 func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

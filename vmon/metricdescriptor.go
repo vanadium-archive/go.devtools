@@ -47,7 +47,7 @@ func runMetricDescriptorCreate(env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func runMetricDescriptorDelete(env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ var cmdMetricDescriptorQuery = &cmdline.Command{
 }
 
 func runMetricDescriptorQuery(env *cmdline.Env, _ []string) error {
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

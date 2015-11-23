@@ -39,12 +39,10 @@ Usage:
    oncall collect [flags]
 
 The oncall collect flags are:
- -account=
-   The service account used to communicate with GCM.
  -bin-dir=
    The path where all binaries are downloaded.
  -key=
-   The path to the service account's key file.
+   The path to the service account's JSON credentials file.
  -project=
    The GCM's corresponding GCE project ID.
  -v23.credentials=

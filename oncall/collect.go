@@ -182,9 +182,8 @@ func (a int64arr) Sort()              { sort.Sort(a) }
 
 func init() {
 	cmdCollect.Flags.StringVar(&binDirFlag, "bin-dir", "", "The path where all binaries are downloaded.")
-	cmdCollect.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's key file.")
+	cmdCollect.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's JSON credentials file.")
 	cmdCollect.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
-	cmdCollect.Flags.StringVar(&serviceAccountFlag, "account", "", "The service account used to communicate with GCM.")
 	cmdCollect.Flags.StringVar(&credentialsFlag, "v23.credentials", "", "The path to v23 credentials.")
 }
 
@@ -201,7 +200,7 @@ processed data to Google Storage.
 
 func runCollect(env *cmdline.Env, _ []string) error {
 	ctx := tool.NewContextFromEnv(env)
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

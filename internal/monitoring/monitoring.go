@@ -7,8 +7,10 @@ package monitoring
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 
-	"code.google.com/p/goauth2/oauth/jwt"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 )
 
@@ -126,21 +128,30 @@ func createMetric(metricType, description, valueType string, includeGCELabels bo
 	}
 }
 
-// Authenticate authenticates the given service account's email with the given
-// key. If successful, it returns a service object that can be used in GCM API
-// calls.
-func Authenticate(serviceAccountEmail, keyFilePath string) (*cloudmonitoring.Service, error) {
-	bytes, err := ioutil.ReadFile(keyFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("ReadFile(%s) failed: %v", keyFilePath, err)
+func createClient(keyFilePath string) (*http.Client, error) {
+	if len(keyFilePath) > 0 {
+		data, err := ioutil.ReadFile(keyFilePath)
+		if err != nil {
+			return nil, err
+		}
+		conf, err := google.JWTConfigFromJSON(data, cloudmonitoring.MonitoringScope)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create JWT config file: %v", err)
+		}
+		return conf.Client(oauth2.NoContext), nil
 	}
 
-	token := jwt.NewToken(serviceAccountEmail, cloudmonitoring.MonitoringScope, bytes)
-	transport, err := jwt.NewTransport(token)
+	return google.DefaultClient(oauth2.NoContext, cloudmonitoring.MonitoringScope)
+}
+
+// Authenticate authenticates with the given JSON credentials file (or the
+// default client if the file is not provided). If successful, it returns a
+// service object that can be used in GCM API calls.
+func Authenticate(keyFilePath string) (*cloudmonitoring.Service, error) {
+	c, err := createClient(keyFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("NewTransport() failed: %v", err)
+		return nil, err
 	}
-	c := transport.Client()
 	s, err := cloudmonitoring.New(c)
 	if err != nil {
 		return nil, fmt.Errorf("New() failed: %v", err)

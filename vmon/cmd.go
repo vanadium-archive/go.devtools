@@ -13,22 +13,20 @@ import (
 )
 
 var (
-	binDirFlag         string
-	blessingsRootFlag  string
-	credentialsFlag    string
-	keyFileFlag        string
-	namespaceRootFlag  string
-	queryFilterFlag    string
-	projectFlag        string
-	serviceAccountFlag string
+	binDirFlag        string
+	blessingsRootFlag string
+	credentialsFlag   string
+	keyFileFlag       string
+	namespaceRootFlag string
+	queryFilterFlag   string
+	projectFlag       string
 
 	defaultQueryFilter = "custom.cloudmonitoring.googleapis.com"
 )
 
 func init() {
-	cmdRoot.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's key file.")
+	cmdRoot.Flags.StringVar(&keyFileFlag, "key", "", "The path to the service account's JSON credentials file.")
 	cmdRoot.Flags.StringVar(&projectFlag, "project", "", "The GCM's corresponding GCE project ID.")
-	cmdRoot.Flags.StringVar(&serviceAccountFlag, "account", "", "The service account used to communicate with GCM.")
 	cmdMetricDescriptorQuery.Flags.StringVar(&queryFilterFlag, "filter", defaultQueryFilter, "The filter used for query. Default to only query custom metrics.")
 	cmdCheck.Flags.StringVar(&binDirFlag, "bin-dir", "", "The path where all binaries are downloaded.")
 	cmdCheck.Flags.StringVar(&blessingsRootFlag, "root", "dev.v.io", "The blessings root.")

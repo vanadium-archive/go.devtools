@@ -61,7 +61,7 @@ func checkServiceMetadata(ctx *tool.Context) error {
 	if serviceLocation == nil {
 		return fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

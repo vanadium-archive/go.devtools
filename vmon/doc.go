@@ -17,12 +17,10 @@ The vmon commands are:
    help        Display help for commands or topics
 
 The vmon flags are:
- -account=
-   The service account used to communicate with GCM.
  -color=true
    Use color to format output.
  -key=
-   The path to the service account's key file.
+   The path to the service account's JSON credentials file.
  -n=false
    Show what commands will run but do not execute them.
  -project=

@@ -40,7 +40,7 @@ func checkRPCLoadTest(ctx *tool.Context) error {
 		"qps":     results.Qps,
 	}
 	mdRpcLoadTest := monitoring.CustomMetricDescriptors["rpc-load-test"]
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

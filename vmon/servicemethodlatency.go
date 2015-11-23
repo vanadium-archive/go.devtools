@@ -132,7 +132,7 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 		return nil, fmt.Errorf("service location not found for %q", namespaceRootFlag)
 	}
 	mdLatPerMethod := monitoring.CustomMetricDescriptors["service-permethod-latency"]
-	s, err := monitoring.Authenticate(serviceAccountFlag, keyFileFlag)
+	s, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return nil, err
 	}
