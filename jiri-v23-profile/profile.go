@@ -16,6 +16,8 @@ import (
 	_ "v.io/x/devtools/jiri-v23-profile/base"
 	_ "v.io/x/devtools/jiri-v23-profile/go"
 	_ "v.io/x/devtools/jiri-v23-profile/java"
+	_ "v.io/x/devtools/jiri-v23-profile/mojo"
+	_ "v.io/x/devtools/jiri-v23-profile/mojo-dev"
 	_ "v.io/x/devtools/jiri-v23-profile/nacl"
 	_ "v.io/x/devtools/jiri-v23-profile/nodejs"
 	_ "v.io/x/devtools/jiri-v23-profile/syncbase"

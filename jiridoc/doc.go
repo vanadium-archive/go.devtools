@@ -882,6 +882,8 @@ The jiri v23-profile install flags are:
    specifcy an environment variable in the form: <var>=[<val>],...
  -go.sysroot=
    sysroot for cross compiling to the currently specified target
+ -mojo-dev.dir=
+   Path of mojo repo checkout.
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
