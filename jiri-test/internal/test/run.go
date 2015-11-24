@@ -113,6 +113,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"vanadium-js-vdl":                     vanadiumJSVdl,
 	"vanadium-js-vdl-audit":               vanadiumJSVdlAudit,
 	"vanadium-js-vom":                     vanadiumJSVom,
+	"vanadium-mojo-syncbase-test":         vanadiumMojoSyncbaseTest,
 	"vanadium-pipe2browser-test":          vanadiumPipe2BrowserTest,
 	"vanadium-playground-test":            vanadiumPlaygroundTest,
 	"vanadium-postsubmit-poll":            vanadiumPostsubmitPoll,

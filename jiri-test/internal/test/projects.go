@@ -8,9 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -19,54 +17,11 @@ const (
 	defaultProjectTestTimeout = 10 * time.Minute
 )
 
-// runProjectTest is a helper for running project tests.
-func runProjectTest(jirix *jiri.X, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
-	// Initialize the test.
-	// Need the new-stype base profile since many web tests will build
-	// go apps that need it.
-	cleanup, err := initTest(jirix, testName, append([]string{"base"}, profiles...))
-	if err != nil {
-		return nil, internalTestError{err, "Init"}
-	}
-	defer collect.Error(func() error { return cleanup() }, &e)
-
-	// Navigate to project directory.
-	testDir := filepath.Join(jirix.Root, "release", "projects", projectName)
-	if err := jirix.Run().Chdir(testDir); err != nil {
-		return nil, err
-	}
-
-	// Clean.
-	if err := jirix.Run().Command("make", "clean"); err != nil {
-		return nil, err
-	}
-
-	// Set environment from the env argument map.
-	opts := jirix.Run().Opts()
-	for k, v := range env {
-		opts.Env[k] = v
-	}
-
-	// Run the tests.
-	if err := jirix.Run().TimedCommandWithOpts(defaultProjectTestTimeout, opts, "make", target); err != nil {
-		if err == runutil.CommandTimedOutErr {
-			return &test.Result{
-				Status:       test.TimedOut,
-				TimeoutValue: defaultProjectTestTimeout,
-			}, nil
-		} else {
-			return nil, internalTestError{err, "Make " + target}
-		}
-	}
-
-	return &test.Result{Status: test.Passed}, nil
-}
-
-func runProjectTestWithNacl(jirix *jiri.X, testName, projectName, target string, env map[string]string, profiles []string) (_ *test.Result, e error) {
+func runMakefileTestWithNacl(jirix *jiri.X, testName, testDir, target string, env map[string]string, profiles []string, timeout time.Duration) (_ *test.Result, e error) {
 	if err := installExtraDeps(jirix, testName, []string{"nacl"}, "amd64p32-nacl"); err != nil {
 		return nil, err
 	}
-	return runProjectTest(jirix, testName, projectName, target, env, profiles)
+	return runMakefileTest(jirix, testName, testDir, target, env, profiles, timeout)
 }
 
 // vanadiumBrowserTest runs the tests for the Vanadium browser.
@@ -74,39 +29,47 @@ func vanadiumBrowserTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result
 	env := map[string]string{
 		"XUNIT_OUTPUT_FILE": xunit.ReportPath(testName),
 	}
-	return runProjectTestWithNacl(jirix, testName, "browser", "test", env, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "browser")
+	return runMakefileTestWithNacl(jirix, testName, testDir, "test", env, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
 // vanadiumBrowserTestWeb runs the ui tests for the Vanadium browser.
 func vanadiumBrowserTestWeb(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(jirix, testName, "browser", "test-ui", nil, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "browser")
+	return runMakefileTestWithNacl(jirix, testName, testDir, "test-ui", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
 // vanadiumChatShellTest runs the tests for the chat shell client.
 func vanadiumChatShellTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(jirix, testName, "chat", "test-shell", nil, nil)
+	testDir := filepath.Join(jirix.Root, "release", "projects", "chat")
+	return runMakefileTest(jirix, testName, testDir, "test-shell", nil, nil, defaultProjectTestTimeout)
 }
 
 // vanadiumChatWebTest runs the tests for the chat web client.
 func vanadiumChatWebTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(jirix, testName, "chat", "test-web", nil, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "chat")
+	return runMakefileTestWithNacl(jirix, testName, testDir, "test-web", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
 // vanadiumChatWebUITest runs the ui tests for the chat web client.
 func vanadiumChatWebUITest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(jirix, testName, "chat", "test-ui", nil, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "chat")
+	return runMakefileTestWithNacl(jirix, testName, testDir, "test-ui", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
 // vanadiumPipe2BrowserTest runs the tests for pipe2browser.
 func vanadiumPipe2BrowserTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTestWithNacl(jirix, testName, "pipe2browser", "test", nil, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "pipe2browser")
+	return runMakefileTestWithNacl(jirix, testName, testDir, "test", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
 // vanadiumReaderTest runs the tests for the reader example application.
 func vanadiumReaderTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(jirix, testName, "reader", "test", nil, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "reader")
+	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
 func vanadiumTravelTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return runProjectTest(jirix, testName, "travel", "test", nil, []string{"nodejs"})
+	testDir := filepath.Join(jirix.Root, "release", "projects", "travel")
+	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
