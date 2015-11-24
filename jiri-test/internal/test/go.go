@@ -57,6 +57,8 @@ const (
 	escTab     = "&#x9;"
 )
 
+const timeoutDelay = 2 * time.Minute
+
 type buildResult struct {
 	pkg    string
 	status taskStatus
@@ -837,7 +839,7 @@ func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks
 			}
 			continue
 		}
-		err = jirix.Run().TimedCommandWithOpts(timeoutDuration+time.Minute, opts, "jiri", taskArgs...)
+		err = jirix.Run().TimedCommandWithOpts(timeoutDuration+timeoutDelay, opts, "jiri", taskArgs...)
 		result := testResult{
 			pkg:      task.pkg,
 			time:     time.Now().Sub(start),
