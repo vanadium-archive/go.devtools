@@ -14,6 +14,7 @@ import (
 	// Add profile manager implementations here.
 	_ "v.io/x/devtools/jiri-v23-profile/android"
 	_ "v.io/x/devtools/jiri-v23-profile/base"
+	_ "v.io/x/devtools/jiri-v23-profile/dart"
 	_ "v.io/x/devtools/jiri-v23-profile/go"
 	_ "v.io/x/devtools/jiri-v23-profile/java"
 	_ "v.io/x/devtools/jiri-v23-profile/mojo"

@@ -20,5 +20,5 @@ const (
 // service.
 func vanadiumMojoSyncbaseTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	testDir := filepath.Join(jirix.Root, "release", "mojo", "syncbase")
-	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"mojo"}, defaultMojoTestTimeout)
+	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"dart", "mojo"}, defaultMojoTestTimeout)
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// package mojo implements the mojo profile.
+// package mojo_profile implements the mojo profile.
 package mojo_profile
 
 import (
@@ -124,7 +124,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 }
 
 func (m Manager) Info() string {
-	return `Downloads pre-built mojo binaries and other assets required for building mojo servcies.`
+	return `Downloads pre-built mojo binaries and other assets required for building mojo services.`
 }
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {

@@ -1,0 +1,8 @@
+pkg dart_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
+pkg dart_profile, method (*Manager) Install(*jiri.X, profiles.RelativePath, profiles.Target) error
+pkg dart_profile, method (*Manager) Uninstall(*jiri.X, profiles.RelativePath, profiles.Target) error
+pkg dart_profile, method (Manager) Info() string
+pkg dart_profile, method (Manager) Name() string
+pkg dart_profile, method (Manager) String() string
+pkg dart_profile, method (Manager) VersionInfo() *profiles.VersionInfo
+pkg dart_profile, type Manager struct
