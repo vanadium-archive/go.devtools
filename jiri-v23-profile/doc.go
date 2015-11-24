@@ -124,6 +124,13 @@ The jiri v23-profile install flags are:
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri v23-profile list - List available or installed profiles
 
 List available or installed profiles.
@@ -161,6 +168,11 @@ The jiri v23-profile list flags are:
  -v=false
    print more detailed information
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
 Jiri v23-profile env - Display profile environment variables
 
 List profile specific and target specific environment variables. If the
@@ -190,6 +202,11 @@ The jiri v23-profile env flags are:
  -v=false
    print more detailed information
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
 Jiri v23-profile uninstall - Uninstall the given profiles
 
 Uninstall the given profiles.
@@ -210,6 +227,13 @@ The jiri v23-profile uninstall flags are:
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri v23-profile update - Install the latest default version of the given profiles
 
 Install the latest default version of the given profiles.
@@ -224,6 +248,11 @@ The jiri v23-profile update flags are:
    specify the profiles XML manifest filename.
  -v=false
    print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
 
 Jiri v23-profile cleanup - Cleanup the locally installed profiles
 
@@ -251,6 +280,11 @@ The jiri v23-profile cleanup flags are:
  -v=false
    print more detailed information
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
 Jiri v23-profile help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
@@ -267,9 +301,10 @@ Usage:
 The jiri v23-profile help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

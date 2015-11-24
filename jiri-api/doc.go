@@ -55,15 +55,48 @@ The jiri api check flags are:
    If true, shows each API change in an expanded form. Otherwise, only a summary
    is shown.
 
+ -color=true
+   Use color to format output.
+ -gotools-bin=
+   The path to the gotools binary to use. If empty, gotools will be built if
+   necessary.
+ -manifest=
+   Name of the project manifest.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   Print verbose output.
+
 Jiri api fix - Update api files to reflect changes to the public API
 
 Update .api files to reflect changes to the public API.
 
 Usage:
-   jiri api fix <projects>
+   jiri api fix [flags] <projects>
 
 <projects> is a list of vanadium projects to update. If none are specified, all
 project APIs are updated.
+
+The jiri api fix flags are:
+ -color=true
+   Use color to format output.
+ -gotools-bin=
+   The path to the gotools binary to use. If empty, gotools will be built if
+   necessary.
+ -manifest=
+   Name of the project manifest.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   Print verbose output.
 
 Jiri api help - Display help for commands or topics
 
@@ -81,9 +114,10 @@ Usage:
 The jiri api help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

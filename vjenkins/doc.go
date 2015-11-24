@@ -37,11 +37,21 @@ Vjenkins node - Manage Jenkins slave nodes
 Manage Jenkins slave nodes.
 
 Usage:
-   vjenkins node <command>
+   vjenkins node [flags] <command>
 
 The vjenkins node commands are:
    create      Create Jenkins slave nodes
    delete      Delete Jenkins slave nodes
+
+The vjenkins node flags are:
+ -color=true
+   Use color to format output.
+ -jenkins=http://localhost:8080/jenkins
+   The host of the Jenkins master.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vjenkins node create - Create Jenkins slave nodes
 
@@ -62,14 +72,33 @@ The vjenkins node create flags are:
  -zone=us-central1-f
    GCE zone of the machine.
 
+ -color=true
+   Use color to format output.
+ -jenkins=http://localhost:8080/jenkins
+   The host of the Jenkins master.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vjenkins node delete - Delete Jenkins slave nodes
 
 Delete Jenkins nodes. Uses the Jenkins REST API to delete existing slave nodes.
 
 Usage:
-   vjenkins node delete <names>
+   vjenkins node delete [flags] <names>
 
 <names> is a list of names identifying nodes to be deleted.
+
+The vjenkins node delete flags are:
+ -color=true
+   Use color to format output.
+ -jenkins=http://localhost:8080/jenkins
+   The host of the Jenkins master.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vjenkins help - Display help for commands or topics
 
@@ -87,9 +116,10 @@ Usage:
 The vjenkins help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

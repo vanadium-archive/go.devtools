@@ -42,6 +42,15 @@ The postsubmit poll flags are:
  -manifest=
    Name of the project manifest.
 
+ -color=true
+   Use color to format output.
+ -host=
+   The Jenkins host. Presubmit will not send any CLs to an empty host.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Postsubmit help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
@@ -58,9 +67,10 @@ Usage:
 The postsubmit help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

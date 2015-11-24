@@ -11,7 +11,7 @@ Command godepcop checks Go package dependencies against constraints described in
 package rules are also enforced.
 
 Usage:
-   godepcop <command>
+   godepcop [flags] <command>
 
 The godepcop commands are:
    check          Check package dependency constraints
@@ -64,7 +64,7 @@ package P:
   P.Imports+P.TestImports+P.XTestImports - check xtest, test and pkg rules
 
 Usage:
-   godepcop check <packages>
+   godepcop check [flags] <packages>
 
 <packages> is a list of packages to check
 
@@ -151,9 +151,10 @@ Usage:
 The godepcop help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

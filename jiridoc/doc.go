@@ -53,13 +53,21 @@ Jiri cl - Manage project changelists
 Manage project changelists.
 
 Usage:
-   jiri cl <command>
+   jiri cl [flags] <command>
 
 The jiri cl commands are:
    cleanup     Clean up changelists that have been merged
    mail        Mail a changelist for review
    new         Create a new local branch for a changelist
    sync        Bring a changelist up to date
+
+The jiri cl flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri cl cleanup - Clean up changelists that have been merged
 
@@ -78,6 +86,13 @@ The jiri cl cleanup flags are:
    Ignore unmerged changes.
  -remote-branch=master
    Name of the remote branch the CL pertains to.
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri cl mail - Mail a changelist for review
 
@@ -119,6 +134,13 @@ The jiri cl mail flags are:
  -verify=true
    Run pre-push git hooks.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri cl new - Create a new local branch for a changelist
 
 Command "new" creates a new local branch for a changelist. In particular, it
@@ -129,9 +151,17 @@ dependencies between CLs and is used by the "jiri cl sync" and "jiri cl mail"
 commands.
 
 Usage:
-   jiri cl new <name>
+   jiri cl new [flags] <name>
 
 <name> is the changelist name.
+
+The jiri cl new flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri cl sync - Bring a changelist up to date
 
@@ -155,6 +185,13 @@ The jiri cl sync flags are:
  -remote-branch=master
    Name of the remote branch the CL pertains to.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri contributors - List project contributors
 
 Lists project contributors. Projects to consider can be specified as an
@@ -172,18 +209,31 @@ The jiri contributors flags are:
  -n=false
    Show number of contributions.
 
+ -color=true
+   Use color to format output.
+ -v=false
+   Print verbose output.
+
 Jiri project - Manage the jiri projects
 
 Manage the jiri projects.
 
 Usage:
-   jiri project <command>
+   jiri project [flags] <command>
 
 The jiri project commands are:
    clean        Restore jiri projects to their pristine state
    list         List existing jiri projects and branches
    shell-prompt Print a succinct status of projects suitable for shell prompts
    poll         Poll existing jiri projects
+
+The jiri project flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri project clean - Restore jiri projects to their pristine state
 
@@ -199,6 +249,13 @@ The jiri project clean flags are:
  -branches=false
    Delete all non-master branches.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri project list - List existing jiri projects and branches
 
 Inspect the local filesystem and list the existing projects and branches.
@@ -212,6 +269,13 @@ The jiri project list flags are:
  -nopristine=false
    If true, omit pristine projects, i.e. projects with a clean master branch and
    no other branches.
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri project shell-prompt - Print a succinct status of projects suitable for shell prompts
 
@@ -231,6 +295,13 @@ The jiri project shell-prompt flags are:
  -show-name=false
    Show the name of the current repo.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri project poll - Poll existing jiri projects
 
 Poll jiri projects that can affect the outcome of the given tests and report
@@ -246,6 +317,13 @@ The jiri project poll flags are:
  -manifest=
    Name of the project manifest.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri rebuild - Rebuild all jiri tools
 
 Rebuilds all jiri tools and installs the resulting binaries into
@@ -256,7 +334,15 @@ in the manifest.
 Run "jiri help manifest" for details on manifests.
 
 Usage:
-   jiri rebuild
+   jiri rebuild [flags]
+
+The jiri rebuild flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri snapshot - Manage project snapshots
 
@@ -278,6 +364,13 @@ The jiri snapshot commands are:
 The jiri snapshot flags are:
  -remote=false
    Manage remote snapshots.
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri snapshot create - Create a new project snapshot
 
@@ -317,6 +410,15 @@ The jiri snapshot create flags are:
  -time-format=2006-01-02T15:04:05Z07:00
    Time format for snapshot file name.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -remote=false
+   Manage remote snapshots.
+ -v=false
+   Print verbose output.
+
 Jiri snapshot list - List existing project snapshots
 
 The "snapshot list" command lists existing snapshots of the labels specified as
@@ -324,9 +426,19 @@ command-line arguments. If no arguments are provided, the command lists
 snapshots for all known labels.
 
 Usage:
-   jiri snapshot list <label ...>
+   jiri snapshot list [flags] <label ...>
 
 <label ...> is a list of snapshot labels.
+
+The jiri snapshot list flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -remote=false
+   Manage remote snapshots.
+ -v=false
+   Print verbose output.
 
 Jiri update - Update all jiri tools and projects
 
@@ -349,6 +461,13 @@ The jiri update flags are:
  -manifest=
    Name of the project manifest.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
@@ -365,9 +484,10 @@ Usage:
 The jiri help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.
@@ -418,15 +538,48 @@ The jiri api check flags are:
    If true, shows each API change in an expanded form. Otherwise, only a summary
    is shown.
 
+ -color=true
+   Use color to format output.
+ -gotools-bin=
+   The path to the gotools binary to use. If empty, gotools will be built if
+   necessary.
+ -manifest=
+   Name of the project manifest.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   Print verbose output.
+
 Jiri api fix - Update api files to reflect changes to the public API
 
 Update .api files to reflect changes to the public API.
 
 Usage:
-   jiri api fix <projects>
+   jiri api fix [flags] <projects>
 
 <projects> is a list of vanadium projects to update. If none are specified, all
 project APIs are updated.
+
+The jiri api fix flags are:
+ -color=true
+   Use color to format output.
+ -gotools-bin=
+   The path to the gotools binary to use. If empty, gotools will be built if
+   necessary.
+ -manifest=
+   Name of the project manifest.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   Print verbose output.
 
 Jiri copyright - Manage vanadium copyright
 
@@ -462,18 +615,38 @@ Jiri copyright check - Check copyright headers and licensing files
 Check copyright headers and licensing files.
 
 Usage:
-   jiri copyright check <projects>
+   jiri copyright check [flags] <projects>
 
 <projects> is a list of projects to check.
+
+The jiri copyright check flags are:
+ -color=true
+   Use color to format output.
+ -manifest=
+   Name of the project manifest.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri copyright fix - Fix copyright headers and licensing files
 
 Fix copyright headers and licensing files.
 
 Usage:
-   jiri copyright fix <projects>
+   jiri copyright fix [flags] <projects>
 
 <projects> is a list of projects to fix.
+
+The jiri copyright fix flags are:
+ -color=true
+   Use color to format output.
+ -manifest=
+   Name of the project manifest.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri dockergo - Execute the go command in a docker container
 
@@ -600,7 +773,19 @@ stale object files that correspond to packages that no longer exist in the
 source tree.
 
 Usage:
-   jiri goext distclean
+   jiri goext distclean [flags]
+
+The jiri goext distclean flags are:
+ -color=true
+   Use color to format output.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   Print verbose output.
 
 Jiri oncall - Manage vanadium oncall schedule
 
@@ -627,7 +812,15 @@ Jiri oncall list - List available oncall schedule
 List available oncall schedule.
 
 Usage:
-   jiri oncall list
+   jiri oncall list [flags]
+
+The jiri oncall list flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri run - Run an executable using the specified profile and target's
 environment
@@ -721,6 +914,13 @@ The jiri test generate flags are:
  -progress=false
    Print verbose progress information.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri test project - Run tests for a vanadium project
 
 Runs tests for a vanadium project that is by the remote URL specified as the
@@ -729,9 +929,17 @@ using the basename of the URL (e.g. "vanadium.go.core" implies
 "https://vanadium.googlesource.com/vanadium.go.core").
 
 Usage:
-   jiri test project <project>
+   jiri test project [flags] <project>
 
 <project> identifies the project for which to run tests.
+
+The jiri test project flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri test run - Run vanadium tests
 
@@ -770,12 +978,27 @@ The jiri test run flags are:
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri test list - List vanadium tests
 
 List vanadium tests.
 
 Usage:
-   jiri test list
+   jiri test list [flags]
+
+The jiri test list flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri v23-profile - Manage profiles
 
@@ -890,6 +1113,13 @@ The jiri v23-profile install flags are:
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri v23-profile list - List available or installed profiles
 
 List available or installed profiles.
@@ -927,6 +1157,11 @@ The jiri v23-profile list flags are:
  -v=false
    print more detailed information
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
 Jiri v23-profile env - Display profile environment variables
 
 List profile specific and target specific environment variables. If the
@@ -956,6 +1191,11 @@ The jiri v23-profile env flags are:
  -v=false
    print more detailed information
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
 Jiri v23-profile uninstall - Uninstall the given profiles
 
 Uninstall the given profiles.
@@ -976,6 +1216,13 @@ The jiri v23-profile uninstall flags are:
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri v23-profile update - Install the latest default version of the given
 profiles
 
@@ -991,6 +1238,11 @@ The jiri v23-profile update flags are:
    specify the profiles XML manifest filename.
  -v=false
    print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
 
 Jiri v23-profile cleanup - Cleanup the locally installed profiles
 
@@ -1017,6 +1269,11 @@ The jiri v23-profile cleanup flags are:
    remove profiles manifest and all profile generated output files.
  -v=false
    print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
 
 Jiri manifest - Description of manifest files
 

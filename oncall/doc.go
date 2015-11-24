@@ -48,6 +48,13 @@ The oncall collect flags are:
  -v23.credentials=
    The path to v23 credentials.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Oncall serve - Serve oncall dashboard data from Google Storage
 
 Serve oncall dashboard data from Google Storage.
@@ -62,6 +69,13 @@ The oncall serve flags are:
    Directory to use for caching files.
  -static=
    Directory to use for serving static files.
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Oncall help - Display help for commands or topics
 
@@ -79,9 +93,10 @@ Usage:
 The oncall help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

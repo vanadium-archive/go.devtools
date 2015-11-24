@@ -59,6 +59,13 @@ The vcloud list flags are:
  -noheader=false
    Don't print list table header.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vcloud cp - Copy files to or from GCE nodes
 
 Copy files to GCE node(s).  Runs 'gcloud compute copy-files'.  The default is to
@@ -101,18 +108,33 @@ The vcloud cp flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vcloud node - Manage GCE nodes
 
 Manage GCE nodes.
 
 Usage:
-   vcloud node <command>
+   vcloud node [flags] <command>
 
 The vcloud node commands are:
    authorize   Authorize a user to login to a GCE node
    deauthorize Deauthorize a user to login to a GCE node
    create      Create GCE nodes
    delete      Delete GCE nodes
+
+The vcloud node flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vcloud node authorize - Authorize a user to login to a GCE node
 
@@ -121,10 +143,18 @@ this mechanism is used to give Jenkins slave nodes access to the GCE mirror of
 Vanadium repositories.
 
 Usage:
-   vcloud node authorize <userA>@<hostA> [<userB>@]<hostB>
+   vcloud node authorize [flags] <userA>@<hostA> [<userB>@]<hostB>
 
 <userA>@<hostA> [<userB>@]<hostB> authorizes userA to log into GCE node hostB
 from GCE node hostA as user userB. The default value for userB is userA.
+
+The vcloud node authorize flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vcloud node deauthorize - Deauthorize a user to login to a GCE node
 
@@ -133,10 +163,18 @@ instance, this mechanism is used to revoke access of give Jenkins slave nodes to
 the GCE mirror of Vanadium repositories.
 
 Usage:
-   vcloud node deauthorize <userA>@<hostA> [<userB>@]<hostB>
+   vcloud node deauthorize [flags] <userA>@<hostA> [<userB>@]<hostB>
 
 <userA>@<hostA> [<userB>@]<hostB> deauthorizes userA to log into GCE node hostB
 from GCE node hostA as user userB. The default value for userB is userA.
+
+The vcloud node deauthorize flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vcloud node create - Create GCE nodes
 
@@ -161,6 +199,13 @@ The vcloud node create flags are:
  -zone=us-central1-f
    Zone to create the machine in.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vcloud node delete - Delete GCE nodes
 
 Delete GCE nodes. Runs 'gcloud compute instances delete'.
@@ -173,6 +218,13 @@ Usage:
 The vcloud node delete flags are:
  -zone=us-central1-f
    Zone to delete the machine in.
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vcloud run - Copy files to GCE nodes and run
 
@@ -214,6 +266,13 @@ The vcloud run flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vcloud sh - Start a shell or run a command on GCE nodes
 
 Start a shell or run a command on GCE node(s).  Runs 'gcloud compute ssh'.
@@ -249,6 +308,13 @@ The vcloud sh flags are:
       0,1 means sequentially
       2+  means at most this many nodes in parallel
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vcloud help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
@@ -265,9 +331,10 @@ Usage:
 The vcloud help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

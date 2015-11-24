@@ -45,18 +45,38 @@ Jiri copyright check - Check copyright headers and licensing files
 Check copyright headers and licensing files.
 
 Usage:
-   jiri copyright check <projects>
+   jiri copyright check [flags] <projects>
 
 <projects> is a list of projects to check.
+
+The jiri copyright check flags are:
+ -color=true
+   Use color to format output.
+ -manifest=
+   Name of the project manifest.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri copyright fix - Fix copyright headers and licensing files
 
 Fix copyright headers and licensing files.
 
 Usage:
-   jiri copyright fix <projects>
+   jiri copyright fix [flags] <projects>
 
 <projects> is a list of projects to fix.
+
+The jiri copyright fix flags are:
+ -color=true
+   Use color to format output.
+ -manifest=
+   Name of the project manifest.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri copyright help - Display help for commands or topics
 
@@ -74,9 +94,10 @@ Usage:
 The jiri copyright help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

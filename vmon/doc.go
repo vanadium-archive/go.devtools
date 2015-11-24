@@ -41,7 +41,7 @@ metric's name, description, a set of labels, and its type. Before adding custom
 metric data points to GCM, we need to create its metric descriptor (once).
 
 Usage:
-   vmon md <command>
+   vmon md [flags] <command>
 
 The vmon md commands are:
    create      Create the given metric descriptor in GCM
@@ -49,34 +49,82 @@ The vmon md commands are:
    list        List known custom metric descriptors
    query       Query metric descriptors from GCM using the given filter
 
+The vmon md flags are:
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -v=false
+   Print verbose output.
+
 Vmon md create - Create the given metric descriptor in GCM
 
 Create the given metric descriptor in GCM.
 
 Usage:
-   vmon md create <names>
+   vmon md create [flags] <names>
 
 <names> is a list of metric descriptor names to create. Available: gce-instance,
 nginx, rpc-load-test, service-counters, service-latency, service-metadata,
 service-permethod-latency, service-qps-method, service-qps-total
+
+The vmon md create flags are:
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -v=false
+   Print verbose output.
 
 Vmon md delete - Delete the given metric descriptor from GCM
 
 Delete the given metric descriptor from GCM.
 
 Usage:
-   vmon md delete <names>
+   vmon md delete [flags] <names>
 
 <names> is a list of metric descriptor names to delete. Available: gce-instance,
 nginx, rpc-load-test, service-counters, service-latency, service-metadata,
 service-permethod-latency, service-qps-method, service-qps-total
+
+The vmon md delete flags are:
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -v=false
+   Print verbose output.
 
 Vmon md list - List known custom metric descriptors
 
 List known custom metric descriptors.
 
 Usage:
-   vmon md list
+   vmon md list [flags]
+
+The vmon md list flags are:
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -v=false
+   Print verbose output.
 
 Vmon md query - Query metric descriptors from GCM using the given filter
 
@@ -88,6 +136,17 @@ Usage:
 The vmon md query flags are:
  -filter=custom.cloudmonitoring.googleapis.com
    The filter used for query. Default to only query custom metrics.
+
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -v=false
+   Print verbose output.
 
 Vmon check - Manage checks used for alerting and graphing
 
@@ -110,23 +169,74 @@ The vmon check flags are:
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -v=false
+   Print verbose output.
+
 Vmon check list - List known checks
 
 List known checks.
 
 Usage:
-   vmon check list
+   vmon check list [flags]
+
+The vmon check list flags are:
+ -bin-dir=
+   The path where all binaries are downloaded.
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -root=dev.v.io
+   The blessings root.
+ -v=false
+   Print verbose output.
+ -v23.credentials=
+   The path to v23 credentials.
+ -v23.namespace.root=/ns.dev.v.io:8101
+   The namespace root.
 
 Vmon check run - Run the given checks
 
 Run the given checks.
 
 Usage:
-   vmon check run <names>
+   vmon check run [flags] <names>
 
 <names> is a list of names identifying the checks to run. Available:
 gce-instance, rpc-load-test, service-counters, service-latency,
 service-metadata, service-permethod-latency, service-qps
+
+The vmon check run flags are:
+ -bin-dir=
+   The path where all binaries are downloaded.
+ -color=true
+   Use color to format output.
+ -key=
+   The path to the service account's JSON credentials file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -project=
+   The GCM's corresponding GCE project ID.
+ -root=dev.v.io
+   The blessings root.
+ -v=false
+   Print verbose output.
+ -v23.credentials=
+   The path to v23 credentials.
+ -v23.namespace.root=/ns.dev.v.io:8101
+   The namespace root.
 
 Vmon help - Display help for commands or topics
 
@@ -144,9 +254,10 @@ Usage:
 The vmon help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

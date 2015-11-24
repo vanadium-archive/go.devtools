@@ -44,7 +44,19 @@ stale object files that correspond to packages that no longer exist in the
 source tree.
 
 Usage:
-   jiri goext distclean
+   jiri goext distclean [flags]
+
+The jiri goext distclean flags are:
+ -color=true
+   Use color to format output.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   Print verbose output.
 
 Jiri goext help - Display help for commands or topics
 
@@ -62,9 +74,10 @@ Usage:
 The jiri goext help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

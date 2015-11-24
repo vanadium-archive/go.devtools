@@ -68,6 +68,20 @@ The gologcop check flags are:
  -interface=
    Comma-separated list of interface packages (required).
 
+ -color=true
+   Use color to format output.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -progress=false
+   Print verbose progress information.
+ -use-v23-context=true
+   Pass a context.T argument (which must be of type v.io/v23/context.T), if
+   available, to the injected call as its first parameter.
+ -v=false
+   Print verbose output.
+
 Gologcop inject - Inject log statements in public API implementations
 
 Inject log statements in public API implementations. Note that inject modifies
@@ -92,6 +106,20 @@ The gologcop inject flags are:
  -interface=
    Comma-separated list of interface packages (required).
 
+ -color=true
+   Use color to format output.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -progress=false
+   Print verbose progress information.
+ -use-v23-context=true
+   Pass a context.T argument (which must be of type v.io/v23/context.T), if
+   available, to the injected call as its first parameter.
+ -v=false
+   Print verbose output.
+
 Gologcop remove - Remove log statements
 
 Remove log statements. Note that remove modifies <packages> in-place.  It is a
@@ -113,6 +141,20 @@ The gologcop remove flags are:
  -gofmt=true
    Automatically run gofmt on the modified files.
 
+ -color=true
+   Use color to format output.
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -n=false
+   Show what commands will run but do not execute them.
+ -progress=false
+   Print verbose progress information.
+ -use-v23-context=true
+   Pass a context.T argument (which must be of type v.io/v23/context.T), if
+   available, to the injected call as its first parameter.
+ -v=false
+   Print verbose output.
+
 Gologcop help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
@@ -129,9 +171,10 @@ Usage:
 The gologcop help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

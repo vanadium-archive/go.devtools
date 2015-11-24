@@ -36,7 +36,15 @@ Jiri oncall list - List available oncall schedule
 List available oncall schedule.
 
 Usage:
-   jiri oncall list
+   jiri oncall list [flags]
+
+The jiri oncall list flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri oncall help - Display help for commands or topics
 
@@ -54,9 +62,10 @@ Usage:
 The jiri oncall help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

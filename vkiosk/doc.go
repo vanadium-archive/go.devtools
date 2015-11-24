@@ -61,6 +61,16 @@ The vkiosk collect flags are:
  -url=
    The url to take screenshots for.
 
+ -color=true
+   Use color to format output.
+ -export-dir=gs://vanadium-kiosk
+   Directory for storing/retrieving screenshots. Dirs that start with 'gs://'
+   point to Google Storage buckets.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Vkiosk serve - Serve screenshots from local file system or Google Storage
 
 Serve screenshots from local file system or Google Storage.
@@ -71,6 +81,16 @@ Usage:
 The vkiosk serve flags are:
  -port=8000
    Port for the server.
+
+ -color=true
+   Use color to format output.
+ -export-dir=gs://vanadium-kiosk
+   Directory for storing/retrieving screenshots. Dirs that start with 'gs://'
+   point to Google Storage buckets.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Vkiosk help - Display help for commands or topics
 
@@ -88,9 +108,10 @@ Usage:
 The vkiosk help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

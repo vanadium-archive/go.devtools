@@ -16,7 +16,7 @@ Due to legacy reasons(?), the configuration is via environment variables:
 	NDA_BUCKET:     Google-storage bucket that contains the NDA.
 
 Usage:
-   mailer
+   mailer [flags]
 
 The global flags are:
  -metadata=<just specify -metadata to activate>

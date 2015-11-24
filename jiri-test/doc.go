@@ -73,6 +73,13 @@ The jiri test generate flags are:
  -progress=false
    Print verbose progress information.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri test project - Run tests for a vanadium project
 
 Runs tests for a vanadium project that is by the remote URL specified as the
@@ -81,9 +88,17 @@ using the basename of the URL (e.g. "vanadium.go.core" implies
 "https://vanadium.googlesource.com/vanadium.go.core").
 
 Usage:
-   jiri test project <project>
+   jiri test project [flags] <project>
 
 <project> identifies the project for which to run tests.
+
+The jiri test project flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri test run - Run vanadium tests
 
@@ -122,12 +137,27 @@ The jiri test run flags are:
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
+
 Jiri test list - List vanadium tests
 
 List vanadium tests.
 
 Usage:
-   jiri test list
+   jiri test list [flags]
+
+The jiri test list flags are:
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+ -v=false
+   Print verbose output.
 
 Jiri test help - Display help for commands or topics
 
@@ -145,9 +175,10 @@ Usage:
 The jiri test help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

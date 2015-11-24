@@ -55,6 +55,19 @@ The presubmit query flags are:
  -query=(status:open -project:experimental)
    The string used to query Gerrit for open CLs.
 
+ -color=true
+   Use color to format output.
+ -host=
+   The Jenkins host. Presubmit will not send any CLs to an empty host.
+ -job=vanadium-presubmit-test
+   The name of the Jenkins job to add presubmit-test builds to.
+ -n=false
+   Show what commands will run but do not execute them.
+ -url=https://vanadium-review.googlesource.com
+   The base url of the gerrit instance.
+ -v=false
+   Print verbose output.
+
 Presubmit result - Process and post test results
 
 Result processes all the test statuses and results files collected from all the
@@ -77,6 +90,19 @@ The presubmit result flags are:
  -refs=
    The review references separated by ':'.
 
+ -color=true
+   Use color to format output.
+ -host=
+   The Jenkins host. Presubmit will not send any CLs to an empty host.
+ -job=vanadium-presubmit-test
+   The name of the Jenkins job to add presubmit-test builds to.
+ -n=false
+   Show what commands will run but do not execute them.
+ -url=https://vanadium-review.googlesource.com
+   The base url of the gerrit instance.
+ -v=false
+   Print verbose output.
+
 Presubmit test - Run tests for a CL
 
 This subcommand pulls the open CLs from Gerrit, runs tests specified in a config
@@ -98,6 +124,19 @@ The presubmit test flags are:
  -test=
    The name of a single test to run.
 
+ -color=true
+   Use color to format output.
+ -host=
+   The Jenkins host. Presubmit will not send any CLs to an empty host.
+ -job=vanadium-presubmit-test
+   The name of the Jenkins job to add presubmit-test builds to.
+ -n=false
+   Show what commands will run but do not execute them.
+ -url=https://vanadium-review.googlesource.com
+   The base url of the gerrit instance.
+ -v=false
+   Print verbose output.
+
 Presubmit help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
@@ -114,9 +153,10 @@ Usage:
 The presubmit help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

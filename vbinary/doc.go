@@ -47,7 +47,25 @@ List existing daily builds of Vanadium binaries. The displayed dates can be
 limited with the --date-prefix flag.
 
 Usage:
-   vbinary list
+   vbinary list [flags]
+
+The vbinary list flags are:
+ -arch=<runtime.GOARCH>
+   Target architecture.  The default is the value of runtime.GOARCH.
+ -color=true
+   Use color to format output.
+ -date-prefix=
+   Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.
+ -key-file=
+   Google Developers service account JSON key file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -os=<runtime.GOOS>
+   Target operating system.  The default is the value of runtime.GOOS.
+ -release=false
+   Operate on vanadium-release bucket instead of vanadium-binaries.
+ -v=false
+   Print verbose output.
 
 Vbinary download - Download an existing daily build of Vanadium binaries
 
@@ -63,6 +81,23 @@ The vbinary download flags are:
    Number of attempts before failing.
  -output-dir=
    Directory for storing downloaded binaries.
+
+ -arch=<runtime.GOARCH>
+   Target architecture.  The default is the value of runtime.GOARCH.
+ -color=true
+   Use color to format output.
+ -date-prefix=
+   Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.
+ -key-file=
+   Google Developers service account JSON key file.
+ -n=false
+   Show what commands will run but do not execute them.
+ -os=<runtime.GOOS>
+   Target operating system.  The default is the value of runtime.GOOS.
+ -release=false
+   Operate on vanadium-release bucket instead of vanadium-binaries.
+ -v=false
+   Print verbose output.
 
 Vbinary help - Display help for commands or topics
 
@@ -80,9 +115,10 @@ Usage:
 The vbinary help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.
