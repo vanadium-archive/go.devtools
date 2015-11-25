@@ -15,8 +15,6 @@ import (
 	"testing"
 
 	"v.io/jiri/jiritest"
-	"v.io/jiri/profiles"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -145,17 +143,12 @@ func copyAll(dstdir, srcdir, prefix string) error {
 // under testdata/generate. These are normally skipped since they're
 // under a testdata directory.
 func TestV23TestGenerateTestdata(t *testing.T) {
-	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(jirix.Root, v23_profile.DefaultManifestFilename))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	jirix, cleanup := jiritest.NewX(t)
+	defer cleanup()
 	opts := jirix.Run().Opts()
 	var out bytes.Buffer
 	opts.Stdout = &out
 	opts.Stderr = &out
-	opts.Env = ch.ToMap()
 	// TODO(ashankar): The "-v23.tests" flag was removed from the next line in
 	// https://vanadium-review.googlesource.com/#/c/17148
 	// because some testdata packages no longer imported "v.io/x/ref/test"

@@ -19,42 +19,31 @@ import (
 )
 
 func TestCopyright(t *testing.T) {
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
+
 	var errOut bytes.Buffer
-	jirix := jiritest.NewX_DeprecatedEnv(t, &tool.ContextOpts{
+	fake.X.Context = tool.NewContext(tool.ContextOpts{
 		Stderr: io.MultiWriter(os.Stderr, &errOut),
 	})
 
 	// Load assets.
-	dataDir, err := project.DataDirPath(jirix, "jiri")
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	assets, err := loadAssets(jirix, dataDir)
+	assets, err := loadAssets(fake.X, filepath.Join("..", "data"))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 
-	// Setup a fake JIRI_ROOT.
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
+	if err := fake.CreateRemoteProject("test"); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer func() {
-		if err := root.Cleanup(); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}()
-	if err := root.CreateRemoteProject("test"); err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := root.AddProject(project.Project{
+	if err := fake.AddProject(project.Project{
 		Name:   "test",
 		Path:   "test",
-		Remote: root.Projects["test"],
+		Remote: fake.Projects["test"],
 	}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := root.UpdateUniverse(false); err != nil {
+	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -68,33 +57,33 @@ func TestCopyright(t *testing.T) {
 
 	// Write out test licensing files and sample source code files to a
 	// project and verify that the project checks out.
-	projectPath := filepath.Join(root.Dir, "test")
+	projectPath := filepath.Join(fake.X.Root, "test")
 	project := project.Project{Path: projectPath}
 	for _, lang := range languages {
 		file := "test" + lang.FileExtension
-		if err := jirix.Run().WriteFile(filepath.Join(projectPath, file), nil, os.FileMode(0600)); err != nil {
+		if err := fake.X.Run().WriteFile(filepath.Join(projectPath, file), nil, os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err := checkFile(jirix, filepath.Join(project.Path, file), assets, true)
+		missing, err := checkFile(fake.X, filepath.Join(project.Path, file), assets, true)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
 		if got, want := missing, false; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		if err := jirix.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
+		if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}
 	for file, data := range allFiles {
-		if err := jirix.Run().WriteFile(filepath.Join(projectPath, file), []byte(data), os.FileMode(0600)); err != nil {
+		if err := fake.X.Run().WriteFile(filepath.Join(projectPath, file), []byte(data), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := jirix.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
+		if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}
-	missing, err := checkProject(jirix, project, assets, false)
+	missing, err := checkProject(fake.X, project, assets, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -107,7 +96,7 @@ func TestCopyright(t *testing.T) {
 	// Check that missing licensing files are reported correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		missing, err := checkProject(jirix, project, assets, true)
+		missing, err := checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -115,10 +104,10 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := jirix.Git(tool.RootDirOpt(projectPath)).Remove(file); err != nil {
+		if err := fake.X.Git(tool.RootDirOpt(projectPath)).Remove(file); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err = checkProject(jirix, project, assets, false)
+		missing, err = checkProject(fake.X, project, assets, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -132,7 +121,7 @@ func TestCopyright(t *testing.T) {
 	// Check that out-of-date licensing files are reported correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		missing, err := checkProject(jirix, project, assets, true)
+		missing, err := checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -140,10 +129,10 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := jirix.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err = checkProject(jirix, project, assets, false)
+		missing, err = checkProject(fake.X, project, assets, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -159,7 +148,7 @@ func TestCopyright(t *testing.T) {
 	// reported correctly.
 	for _, lang := range languages {
 		errOut.Reset()
-		missing, err := checkProject(jirix, project, assets, true)
+		missing, err := checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -167,10 +156,10 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, "test"+lang.FileExtension)
-		if err := jirix.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err = checkProject(jirix, project, assets, false)
+		missing, err = checkProject(fake.X, project, assets, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -185,7 +174,7 @@ func TestCopyright(t *testing.T) {
 	// Check that missing licensing files are fixed up correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		missing, err := checkProject(jirix, project, assets, true)
+		missing, err := checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -193,17 +182,17 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := jirix.Run().RemoveAll(path); err != nil {
+		if err := fake.X.Run().RemoveAll(path); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err = checkProject(jirix, project, assets, true)
+		missing, err = checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if got, want := missing, false; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		missing, err = checkProject(jirix, project, assets, false)
+		missing, err = checkProject(fake.X, project, assets, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -218,7 +207,7 @@ func TestCopyright(t *testing.T) {
 	// Check that out-of-date licensing files are fixed up correctly.
 	for file, _ := range allFiles {
 		errOut.Reset()
-		missing, err := checkProject(jirix, project, assets, true)
+		missing, err := checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -226,17 +215,17 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := jirix.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err = checkProject(jirix, project, assets, true)
+		missing, err = checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if got, want := missing, false; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		missing, err = checkProject(jirix, project, assets, false)
+		missing, err = checkProject(fake.X, project, assets, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -252,7 +241,7 @@ func TestCopyright(t *testing.T) {
 	// fixed up correctly.
 	for _, lang := range languages {
 		errOut.Reset()
-		missing, err := checkProject(jirix, project, assets, true)
+		missing, err := checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -260,17 +249,17 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, "test"+lang.FileExtension)
-		if err := jirix.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 			t.Fatalf("%v", err)
 		}
-		missing, err = checkProject(jirix, project, assets, true)
+		missing, err = checkProject(fake.X, project, assets, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if got, want := missing, false; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		missing, err = checkProject(jirix, project, assets, false)
+		missing, err = checkProject(fake.X, project, assets, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -285,7 +274,7 @@ func TestCopyright(t *testing.T) {
 	// Check that third-party files are skipped when checking for copyright
 	// headers.
 	errOut.Reset()
-	missing, err = checkProject(jirix, project, assets, true)
+	missing, err = checkProject(fake.X, project, assets, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -293,19 +282,19 @@ func TestCopyright(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	path := filepath.Join(projectPath, "third_party")
-	if err := jirix.Run().MkdirAll(path, 0700); err != nil {
+	if err := fake.X.Run().MkdirAll(path, 0700); err != nil {
 		t.Fatalf("%v", err)
 	}
 	path = filepath.Join(path, "test.go")
-	if err := jirix.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+	if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
 		t.Fatalf("%v", err)
 	}
 	// Since this file is in a subdir, we must run "git add" to have git track it.
 	// Without this, the test passes regardless of the subdir name.
-	if err := jirix.Git(tool.RootDirOpt(projectPath)).Add(path); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).Add(path); err != nil {
 		t.Fatalf("%v", err)
 	}
-	missing, err = checkProject(jirix, project, assets, false)
+	missing, err = checkProject(fake.X, project, assets, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -320,24 +309,24 @@ func TestCopyright(t *testing.T) {
 	errOut.Reset()
 	// Add .jiriignore file.
 	ignoreFile := filepath.Join(projectPath, jiriIgnore)
-	if err := jirix.Run().WriteFile(ignoreFile, []byte("public/fancy.js"), os.FileMode(0600)); err != nil {
+	if err := fake.X.Run().WriteFile(ignoreFile, []byte("public/fancy.js"), os.FileMode(0600)); err != nil {
 		t.Fatalf("%v", err)
 	}
 	publicDir := filepath.Join(projectPath, "public")
-	if err := jirix.Run().MkdirAll(publicDir, 0700); err != nil {
+	if err := fake.X.Run().MkdirAll(publicDir, 0700); err != nil {
 		t.Fatalf("%v", err)
 	}
 	filename := filepath.Join(publicDir, "fancy.js")
-	if err := jirix.Run().WriteFile(filename, []byte("garbage"), os.FileMode(0600)); err != nil {
+	if err := fake.X.Run().WriteFile(filename, []byte("garbage"), os.FileMode(0600)); err != nil {
 		t.Fatalf("%v", err)
 	}
 	// Since the copyright check only applies to tracked files, we must run "git
 	// add" to have git track it. Without this, the test passes regardless of the
 	// subdir name.
-	if err := jirix.Git(tool.RootDirOpt(projectPath)).Add(filename); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).Add(filename); err != nil {
 		t.Fatalf("%v", err)
 	}
-	missing, err = checkProject(jirix, project, assets, false)
+	missing, err = checkProject(fake.X, project, assets, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

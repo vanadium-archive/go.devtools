@@ -143,8 +143,8 @@ func setBuildInfoFlags(jirix *jiri.X, args []string, env map[string]string, extr
 // Note that the vdl tool takes VDL packages as input, but we're supplying Go
 // packages.  We're assuming the package paths for the VDL packages we want to
 // generate have the same path names as the Go package paths.  Some of the Go
-// package paths may not correspond to a valid VDL package, so we provide the
-// -ignore_unknown flag to silently ignore these paths.
+// package paths may not correspond to a valid VDL package, so we silently
+// ignore these paths.
 //
 // It's fine if the VDL packages have dependencies not reflected in the Go
 // packages; the vdl tool will compute the transitive closure of VDL package
@@ -161,7 +161,13 @@ func generateVDL(jirix *jiri.X, env map[string]string, cmd string, args []string
 	}
 
 	// Regenerate the VDL-based Go packages.
-	vdlArgs := []string{"-ignore_unknown", "generate", "-lang=go"}
+	// -builtin_vdlroot: Tells vdl to use built-in standard packages, rather than
+	//                   looking for source files in the filesystem.  This is more
+	//                   consistent, and better when there may be multiple copies
+	//                   of the source files on the filesystem.
+	//                   TODO(toddw): Remove after it becomes the vdl default.
+	// -ignore_unknown:  Silently ignore unknown package paths.
+	vdlArgs := []string{"-builtin_vdlroot", "-ignore_unknown", "generate", "-lang=go"}
 	vdlArgs = append(vdlArgs, goDeps...)
 	vdlBin, err := exec.LookPath("vdl")
 	if err != nil {

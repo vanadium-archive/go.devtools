@@ -13,15 +13,8 @@ import (
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer func() {
-		if err := root.Cleanup(); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
 
 	// Create a fake configuration file.
 	config := util.NewConfig(
@@ -34,7 +27,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 			"javascript": []string{"vanadium-js-integration", "vanadium-js-unit"},
 		}),
 	)
-	if err := util.SaveConfig(root.X, config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -62,7 +55,7 @@ func TestJenkinsTestsToStart(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		got, err := jenkinsTestsToStart(root.X, test.projects)
+		got, err := jenkinsTestsToStart(fake.X, test.projects)
 		if err != nil {
 			t.Fatalf("want no errors, got: %v", err)
 		}

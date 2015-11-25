@@ -5,7 +5,6 @@
 package golib
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,11 +14,8 @@ import (
 	"time"
 
 	"v.io/jiri/jiritest"
-	"v.io/jiri/profiles"
 	"v.io/x/devtools/internal/buildinfo"
 	_ "v.io/x/devtools/internal/golib/testdata/basedep"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
-	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
 	"v.io/x/lib/set"
 )
@@ -27,50 +23,48 @@ import (
 // TestGoVDLGeneration checks that PrepareGo generates up-to-date VDL files for
 // select go tool commands.
 func TestGoVDLGeneration(t *testing.T) {
-	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
+	reset := unsetJiriEnvVars(t)
+	defer reset()
 	// Create a temporary directory for all our work.
 	const tmpDirPrefix = "test_vgo"
-	tmpDir, err := jirix.Run().TempDir("", tmpDirPrefix)
+	tmpDir, err := fake.X.Run().TempDir("", tmpDirPrefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer jirix.Run().RemoveAll(tmpDir)
+	defer fake.X.Run().RemoveAll(tmpDir)
 
 	// Create test files <tmpDir>/src/testpkg/test.vdl and
 	// <tmpDir>/src/testpkg/doc.go
 	pkgdir := filepath.Join(tmpDir, "src", "testpkg")
 	const perm = os.ModePerm
-	if err := jirix.Run().MkdirAll(pkgdir, perm); err != nil {
+	if err := fake.X.Run().MkdirAll(pkgdir, perm); err != nil {
 		t.Fatalf(`MkdirAll(%q) failed: %v`, pkgdir, err)
 	}
 	goFile := filepath.Join(pkgdir, "doc.go")
-	if err := jirix.Run().WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
+	if err := fake.X.Run().WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
 		t.Fatalf(`WriteFile(%q) failed: %v`, goFile, err)
 	}
 	inFile := filepath.Join(pkgdir, "test.vdl")
 	outFile := inFile + ".go"
-	if err := jirix.Run().WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
+	if err := fake.X.Run().WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
 		t.Fatalf(`WriteFile(%q) failed: %v`, inFile, err)
 	}
 	// Add <tmpDir> as first component of GOPATH and VDLPATH, so
 	// we'll be able to find testpkg.  We need GOPATH for the "go
 	// list" call when computing dependencies, and VDLPATH for the
 	// "vdl generate" call.
-	var stdout, stderr bytes.Buffer
-	cmdlineEnv := &cmdline.Env{
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Vars: map[string]string{
-			"PATH":    os.Getenv("PATH"),
-			"GOPATH":  tmpDir,
-			"VDLPATH": filepath.Join(tmpDir, "src"),
-		},
+	env := map[string]string{
+		"PATH":    os.Getenv("PATH"),
+		"GOPATH":  tmpDir,
+		"VDLPATH": filepath.Join(tmpDir, "src"),
 	}
 	// Check that the 'env' go command does not generate the test VDL file.
-	if _, err := PrepareGo(jirix, cmdlineEnv.Vars, []string{"env", "GOPATH"}, "", ""); err != nil {
-		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
+	if _, err := PrepareGo(fake.X, env, []string{"env", "GOPATH"}, "", ""); err != nil {
+		t.Fatalf("%v", err)
 	}
-	if _, err := jirix.Run().Stat(outFile); err != nil {
+	if _, err := fake.X.Run().Stat(outFile); err != nil {
 		if !os.IsNotExist(err) {
 			t.Fatalf("%v", err)
 		}
@@ -78,10 +72,10 @@ func TestGoVDLGeneration(t *testing.T) {
 		t.Fatalf("file %v exists and it should not.", outFile)
 	}
 	// Check that the 'build' go command generates the test VDL file.
-	if _, err := PrepareGo(jirix, cmdlineEnv.Vars, []string{"build", "testpkg"}, "", ""); err != nil {
-		t.Fatalf("%v\n==STDOUT==\n%s\n==STDERR==\n%s", err, stdout.String(), stderr.String())
+	if _, err := PrepareGo(fake.X, env, []string{"build", "testpkg"}, "", ""); err != nil {
+		t.Fatalf("%v", err)
 	}
-	if _, err := jirix.Run().Stat(outFile); err != nil {
+	if _, err := fake.X.Run().Stat(outFile); err != nil {
 		t.Fatalf("%v", err)
 	}
 }
@@ -266,12 +260,8 @@ func TestProcessGoCmdAndArgs(t *testing.T) {
 // TestComputeGoDeps tests the internal function that calls "go list" to get
 // transitive dependencies.
 func TestComputeGoDeps(t *testing.T) {
-	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, filepath.Join(jirix.Root, v23_profile.DefaultManifestFilename))
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	jirix, cleanup := jiritest.NewX(t)
+	defer cleanup()
 	// The golib package depends on itself and "fmt", but doesn't depend on
 	// basedep.  The test does depend on basedep, which transitively depends on
 	// transdep.
@@ -296,8 +286,12 @@ func TestComputeGoDeps(t *testing.T) {
 		{[]string{"v.io/x/devtools/internal/golib"}, testDeps, true},
 		{[]string{"v.io/x/devtools/internal/golib/..."}, testDeps, true},
 	}
+	// The PATH needs to include the "go" tool somewhere.
+	env := map[string]string{
+		"PATH": os.Getenv("PATH"),
+	}
 	for _, test := range tests {
-		got, err := computeGoDeps(jirix, ch.ToMap(), test.Pkgs, "", test.Test)
+		got, err := computeGoDeps(jirix, env, test.Pkgs, "", test.Test)
 		if err != nil {
 			t.Errorf("%v test=%v failed: %v", test.Pkgs, test.Test, err)
 		}
@@ -331,19 +325,23 @@ func extractFlag(args []string, name string) (string, error) {
 }
 
 func TestSetBuildInfo(t *testing.T) {
-	jirix, start := jiritest.NewX_DeprecatedEnv(t, nil), time.Now().UTC()
+	start := time.Now().UTC()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
+	reset := unsetJiriEnvVars(t)
+	defer reset()
 	// Set up a temp directory.
-	dir, err := jirix.Run().TempDir("", "v23_metadata_test")
+	dir, err := fake.X.Run().TempDir("", "v23_metadata_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
-	defer jirix.Run().RemoveAll(dir)
+	defer fake.X.Run().RemoveAll(dir)
 
 	env := map[string]string{
 		"PATH":   os.Getenv("PATH"),
 		"GOPATH": os.Getenv("GOPATH"),
 	}
-	args, err := PrepareGo(jirix, env, []string{"build"}, "-when=now -why", "mypath")
+	args, err := PrepareGo(fake.X, env, []string{"build"}, "-when=now -why", "mypath")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,5 +384,30 @@ func TestSetBuildInfo(t *testing.T) {
 	const fudge = -5 * time.Second
 	if bi.Time.Before(start.Add(fudge)) {
 		t.Errorf("build time %v < start %v", bi.Time, start)
+	}
+}
+
+// unsetJiriEnvVars unsets the JIRI_ROOT and VDLROOT environment variables, so
+// that running the vdl tool with -builtin_vdlroot takes effect.  Otherwise the
+// vdl tool will look for standard vdl package (e.g. vdltool) under the source
+// directories, and that doesn't exist in these tests.
+//
+// TODO(toddw): This is a temporary hack.  We should clean up the runutil logic
+// so that it doesn't automatically append envvars from the OS.
+func unsetJiriEnvVars(t *testing.T) func() {
+	keys := []string{"JIRI_ROOT", "VDLROOT"}
+	old := make(map[string]string)
+	for _, key := range keys {
+		old[key] = os.Getenv(key)
+		if err := os.Setenv(key, ""); err != nil {
+			t.Fatalf(`os.Setenv(%q, "") failed: %v`, key, err)
+		}
+	}
+	return func() {
+		for key, val := range old {
+			if err := os.Setenv(key, val); err != nil {
+				t.Fatalf(`os.Setenv(%q, %q) failed: %v`, key, val, err)
+			}
+		}
 	}
 }

@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"v.io/jiri/jenkins"
-	"v.io/jiri/jiri"
-	"v.io/jiri/tool"
+	"v.io/jiri/jiritest"
 	"v.io/x/devtools/internal/test"
 )
 
 func TestGenFailedTestCasesGroupsForOneTest(t *testing.T) {
+	jirix, cleanup := jiritest.NewX(t)
+	defer cleanup()
 	reportFileContent := `
 <?xml version="1.0" encoding="utf-8"?>
 <testsuites>
@@ -47,7 +48,6 @@ release/go/src/v.io/x/devtools/v23/main.go:1: you should feel bad
 </testsuites>
 	`
 	jenkinsBuildNumberFlag = 10
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
 	type testSpec struct {
 		testResult                testResultInfo
 		postsubmitFailedTestCases []jenkins.TestCase
