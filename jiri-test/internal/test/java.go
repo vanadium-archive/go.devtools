@@ -38,7 +38,7 @@ func vanadiumJavaTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 	}
 	runOpts := jirix.Run().Opts()
 	runOpts.Env = env.ToMap()
-	if err := jirix.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":lib:test"); err != nil {
+	if err := jirix.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":lib:check"); err != nil {
 		return nil, err
 	}
 	return &test.Result{Status: test.Passed}, nil
