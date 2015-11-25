@@ -72,6 +72,7 @@
       <test>go</test>
       <test>java</test>
       <test>javascript</test>
+      <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
@@ -101,6 +102,7 @@
       <test>go</test>
       <test>java</test>
       <test>javascript</test>
+      <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
@@ -124,7 +126,12 @@
     <project name="release.mojo.discovery">
       <test>vanadium-copyright</test>
     </project>
+    <project name="release.mojo.shared">
+      <test>mojo</test>
+      <test>vanadium-copyright</test>
+    </project>
     <project name="release.mojo.syncbase">
+      <test>mojo</test>
       <test>vanadium-copyright</test>
     </project>
     <project name="release.mojo.v23proxy">
@@ -251,6 +258,9 @@
       <test>vanadium-js-vdl-audit</test>
       <test>vanadium-js-vom</test>
       <test>vanadium-www-tutorials-js-node</test>
+    </group>
+    <group name="mojo">
+      <test>vanadium-mojo-syncbase-test</test>
     </group>
     <group name="projects">
       <test>vanadium-browser-test</test>
