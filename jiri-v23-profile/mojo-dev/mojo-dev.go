@@ -79,7 +79,7 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 		"CGO_LDFLAGS=-L" + filepath.Join(mojoBuildDir, "obj", "mojo") + " -lsystem_thunks",
 		"GOPATH=" + mojoDir + ":" + filepath.Join(mojoBuildDir, "gen", "go"),
 		"MOJO_DEVTOOLS=" + filepath.Join(mojoDir, "src", "mojo", "devtools", "common"),
-		"MOJO_SDK=" + filepath.Join(mojoDir, "mojo", "public"),
+		"MOJO_SDK=" + filepath.Join(mojoDir),
 		"MOJO_SHELL=" + filepath.Join(mojoBuildDir, "mojo_shell"),
 		"MOJO_SERVICES=" + mojoBuildDir,
 		"MOJO_SYSTEM_THUNKS=" + filepath.Join(mojoBuildDir, "obj", "mojo", "libsystem_thunks.a"),

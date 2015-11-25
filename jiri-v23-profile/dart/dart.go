@@ -115,7 +115,7 @@ func (m *Manager) installDartSdk(jirix *jiri.X, target profiles.Target, outDir s
 			return profiles.Fetch(jirix, sdkZipFile, sdkUrl)
 		}, "fetch dart sdk").
 			Call(func() error { return profiles.Unzip(jirix, sdkZipFile, tmpDir) }, "unzip dart sdk").
-			MkdirAll(filepath.Join(outDir), profiles.DefaultDirPerm).
+			MkdirAll(filepath.Dir(outDir), profiles.DefaultDirPerm).
 			Rename(filepath.Join(tmpDir, "dart-sdk"), outDir).
 			Done()
 	}
