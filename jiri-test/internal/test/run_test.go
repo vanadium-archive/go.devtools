@@ -12,8 +12,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/jiri/jiri"
-	"v.io/jiri/tool"
+	"v.io/jiri/jiritest"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -44,7 +43,8 @@ func TestProjectTests(t *testing.T) {
 }
 
 func TestGenXUnitReportForError(t *testing.T) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix, cleanup := jiritest.NewX(t)
+	defer cleanup()
 
 	// Set WORKSPACE to a tmp dir.
 	workspaceDir, err := jirix.Run().TempDir("", "")

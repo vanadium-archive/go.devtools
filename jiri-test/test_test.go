@@ -17,35 +17,27 @@ import (
 )
 
 func TestTestProject(t *testing.T) {
-	// Setup a fake JIRI_ROOT.
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer func() {
-		if err := root.Cleanup(); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
 
 	// Point the WORKSPACE environment variable to the fake.
 	oldWorkspace := os.Getenv("WORKSPACE")
-	if err := os.Setenv("WORKSPACE", root.Dir); err != nil {
+	if err := os.Setenv("WORKSPACE", fake.X.Root); err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer os.Setenv("WORKSPACE", oldWorkspace)
 
 	// Setup a fake config.
 	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{"https://test-project": []string{"ignore-this"}}))
-	if err := util.SaveConfig(root.X, config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Check that running the tests for the test project generates
 	// the expected output.
 	var out bytes.Buffer
-	root.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
-	if err := runTestProject(root.X, []string{"https://test-project"}); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runTestProject(fake.X, []string{"https://test-project"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	got, want := out.String(), `##### Running test "ignore-this" #####
@@ -59,28 +51,20 @@ ignore-this PASSED
 }
 
 func TestTestRun(t *testing.T) {
-	// Setup a fake JIRI_ROOT.
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer func() {
-		if err := root.Cleanup(); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
 
 	// Point the WORKSPACE environment variable to the fake.
 	oldWorkspace := os.Getenv("WORKSPACE")
-	if err := os.Setenv("WORKSPACE", root.Dir); err != nil {
+	if err := os.Setenv("WORKSPACE", fake.X.Root); err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer os.Setenv("WORKSPACE", oldWorkspace)
 
 	// Check that running the test generates the expected output.
 	var out bytes.Buffer
-	root.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
-	if err := runTestRun(root.X, []string{"ignore-this"}); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runTestRun(fake.X, []string{"ignore-this"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	got, want := out.String(), `##### Running test "ignore-this" #####
@@ -94,28 +78,20 @@ ignore-this PASSED
 }
 
 func TestTestList(t *testing.T) {
-	// Setup a fake JIRI_ROOT.
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer func() {
-		if err := root.Cleanup(); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
 
 	// Point the WORKSPACE environment variable to the fake.
 	oldWorkspace := os.Getenv("WORKSPACE")
-	if err := os.Setenv("WORKSPACE", root.Dir); err != nil {
+	if err := os.Setenv("WORKSPACE", fake.X.Root); err != nil {
 		t.Fatalf("%v", err)
 	}
 	defer os.Setenv("WORKSPACE", oldWorkspace)
 
 	// Check that listing existing tests generates the expected output.
 	var out bytes.Buffer
-	root.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
-	if err := runTestList(root.X, []string{}); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runTestList(fake.X, []string{}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	testList, err := test.ListTests()

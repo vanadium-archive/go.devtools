@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,101 +24,78 @@ func writeFileOrDie(t *testing.T, jirix *jiri.X, path, contents string) {
 	}
 }
 
-type testEnv struct {
-	fakeRoot       *jiritest.FakeJiriRoot
-	gotoolsCleanup func() error
-}
-
-func (env testEnv) X() *jiri.X {
-	return env.fakeRoot.X
-}
-
-func (env testEnv) setStdout(w io.Writer) {
-	env.fakeRoot.X.Context = tool.NewContext(tool.ContextOpts{Stdout: w})
-}
-
-func (env testEnv) setStderr(w io.Writer) {
-	env.fakeRoot.X.Context = tool.NewContext(tool.ContextOpts{Stderr: w})
-}
-
-// setupAPITest sets up the test environment and returns a testEnv
-// representing the environment that was created.
-func setupAPITest(t *testing.T) testEnv {
+// setupAPITest sets up the test environment and returns a FakeJiriRoot
+// representing the environment that was created, along with a cleanup closure
+// that should be deferred.
+func setupAPITest(t *testing.T) (*jiritest.FakeJiriRoot, func()) {
 	// Before we replace the vanadium root with our new fake one, we have
 	// to build gotools. This is because the fake environment does not
 	// contain the gotools source.
 	envX := jiritest.NewX_DeprecatedEnv(t, nil)
-	gotoolsPath, cleanup, err := buildGotools(envX)
+	gotoolsPath, cleanupGotools, err := buildGotools(envX)
 	if err != nil {
 		t.Fatalf("buildGotools failed: %v", err)
 	}
 	gotoolsBinPathFlag = gotoolsPath
 	// Set up a fake jiri environment.
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
+	fake, cleanupFake := jiritest.NewFakeJiriRoot(t)
+	if err := fake.CreateRemoteProject("test"); err != nil {
+		t.Fatal(err)
 	}
-	if err := root.CreateRemoteProject("test"); err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := root.AddProject(project.Project{
+	if err := fake.AddProject(project.Project{
 		Name:   "test",
 		Path:   "test",
-		Remote: root.Projects["test"],
+		Remote: fake.Projects["test"],
 	}); err != nil {
-		t.Fatalf("%v", err)
+		t.Fatal(err)
 	}
-	if err := root.UpdateUniverse(false); err != nil {
-		t.Fatalf("%v", err)
+	if err := fake.UpdateUniverse(false); err != nil {
+		t.Fatal(err)
 	}
-	return testEnv{root, cleanup}
-}
-
-func teardownAPITest(t *testing.T, env testEnv) {
-	if err := env.fakeRoot.Cleanup(); err != nil {
-		t.Fatalf("%v", err)
+	return fake, func() {
+		if err := cleanupGotools(); err != nil {
+			t.Fatal(err)
+		}
+		cleanupFake()
+		gotoolsBinPathFlag = ""
 	}
-	if err := env.gotoolsCleanup(); err != nil {
-		t.Fatalf("%v", err)
-	}
-	gotoolsBinPathFlag = ""
 }
 
 // TestPublicAPICheckError checks that the public API check fails for
 // a CL that introduces changes to the public API.
 func TestPublicAPICheckError(t *testing.T) {
-	env := setupAPITest(t)
-	defer teardownAPITest(t, env)
+	fake, cleanup := setupAPITest(t)
+	defer cleanup()
 
 	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(env.X(), config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
-	projectPath := filepath.Join(env.fakeRoot.Dir, "test")
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	projectPath := filepath.Join(fake.X.Root, "test")
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Simulate an API with an existing public function called TestFunction.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, ".api"), `# This is a comment that should be ignored
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, ".api"), `# This is a comment that should be ignored
 pkg main, func TestFunction()
 `)
 
 	// Write a change that un-exports TestFunction.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, "file.go"), `package main
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, "file.go"), `package main
 
 func testFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	var buf bytes.Buffer
-	env.setStdout(&buf)
-	if err := doAPICheck(env.X(), []string{"test"}, true); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &buf})
+	if err := doAPICheck(fake.X, []string{"test"}, true); err != nil {
 		t.Fatalf("doAPICheck failed: %v", err)
 	} else if buf.String() == "" {
 		t.Fatalf("doAPICheck detected no changes, but some were expected")
@@ -129,38 +105,37 @@ func testFunction() {
 // TestPublicAPICheckOk checks that the public API check succeeds for
 // a CL that introduces no changes to the public API.
 func TestPublicAPICheckOk(t *testing.T) {
-	env := setupAPITest(t)
-	defer teardownAPITest(t, env)
-
+	fake, cleanup := setupAPITest(t)
+	defer cleanup()
 	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(env.X(), config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
-	projectPath := filepath.Join(env.fakeRoot.Dir, "test")
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	projectPath := filepath.Join(fake.X.Root, "test")
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Simulate an API with an existing public function called TestFunction.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, ".api"), `# This is a comment that should be ignored
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, ".api"), `# This is a comment that should be ignored
 pkg main, func TestFunction()
 `)
 
 	// Write a change that un-exports TestFunction.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, "file.go"), `package main
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, "file.go"), `package main
 
 func TestFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	var buf bytes.Buffer
-	env.setStdout(&buf)
-	if err := doAPICheck(env.X(), []string{"test"}, true); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &buf})
+	if err := doAPICheck(fake.X, []string{"test"}, true); err != nil {
 		t.Fatalf("doAPICheck failed: %v", err)
 	} else if buf.String() != "" {
 		t.Fatalf("doAPICheck detected changes, but none were expected: %s", buf.String())
@@ -170,33 +145,32 @@ func TestFunction() {
 // TestPublicAPIMissingAPIFile ensures that the check will fail if a 'required
 // check' project has a missing .api file and a non-empty public API.
 func TestPublicAPIMissingAPIFile(t *testing.T) {
-	env := setupAPITest(t)
-	defer teardownAPITest(t, env)
-
+	fake, cleanup := setupAPITest(t)
+	defer cleanup()
 	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(env.X(), config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
-	projectPath := filepath.Join(env.fakeRoot.Dir, "test")
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	projectPath := filepath.Join(fake.X.Root, "test")
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Write a go file with a public API and no corresponding .api file.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, "file.go"), `package main
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, "file.go"), `package main
 
 func TestFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	var buf bytes.Buffer
-	env.setStdout(&buf)
-	if err := doAPICheck(env.X(), []string{"test"}, true); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &buf})
+	if err := doAPICheck(fake.X, []string{"test"}, true); err != nil {
 		t.Fatalf("doAPICheck failed: %v", err)
 	} else if buf.String() == "" {
 		t.Fatalf("doAPICheck should have failed, but did not")
@@ -208,33 +182,32 @@ func TestFunction() {
 // TestPublicAPIMissingAPIFileNoPublicAPI ensures that the check will pass if a
 // 'required check' project has a missing .api but the public API is empty.
 func TestPublicAPIMissingAPIFileNoPublicAPI(t *testing.T) {
-	env := setupAPITest(t)
-	defer teardownAPITest(t, env)
-
+	fake, cleanup := setupAPITest(t)
+	defer cleanup()
 	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(env.X(), config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
-	projectPath := filepath.Join(env.fakeRoot.Dir, "test")
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	projectPath := filepath.Join(fake.X.Root, "test")
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Write a go file with a public API and no corresponding .api file.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, "file.go"), `package main
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, "file.go"), `package main
 
 func testFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	var buf bytes.Buffer
-	env.setStdout(&buf)
-	if err := doAPICheck(env.X(), []string{"test"}, true); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &buf})
+	if err := doAPICheck(fake.X, []string{"test"}, true); err != nil {
 		t.Fatalf("doAPICheck failed: %v", err)
 	} else if output := buf.String(); output != "" {
 		t.Fatalf("doAPICheck should have passed, but did not: %s", output)
@@ -245,16 +218,15 @@ func testFunction() {
 // not fail if a 'required check' project has a missing .api file but
 // that API file is in an 'internal' package.
 func TestPublicAPIMissingAPIFileNotRequired(t *testing.T) {
-	env := setupAPITest(t)
-	defer teardownAPITest(t, env)
-
+	fake, cleanup := setupAPITest(t)
+	defer cleanup()
 	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(env.X(), config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
-	projectPath := filepath.Join(env.fakeRoot.Dir, "test")
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	projectPath := filepath.Join(fake.X.Root, "test")
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -263,19 +235,19 @@ func TestPublicAPIMissingAPIFileNotRequired(t *testing.T) {
 		t.Fatalf("Mkdir failed: %v", err)
 	}
 	testFilePath := filepath.Join(projectPath, "internal", "file.go")
-	writeFileOrDie(t, env.X(), testFilePath, `package main
+	writeFileOrDie(t, fake.X, testFilePath, `package main
 
 func TestFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile(testFilePath, commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(testFilePath, commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	var buf bytes.Buffer
-	env.setStdout(&buf)
-	if err := doAPICheck(env.X(), []string{"test"}, true); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &buf})
+	if err := doAPICheck(fake.X, []string{"test"}, true); err != nil {
 		t.Fatalf("doAPICheck failed: %v", err)
 	} else if buf.String() != "" {
 		t.Fatalf("doAPICheck should have passed, but did not: %s", buf.String())
@@ -285,42 +257,40 @@ func TestFunction() {
 // TestPublicAPIUpdate checks that the api update command correctly
 // updates the API definition.
 func TestPublicAPIUpdate(t *testing.T) {
-	env := setupAPITest(t)
-	defer teardownAPITest(t, env)
-
-	if err := util.SaveConfig(env.X(), util.NewConfig()); err != nil {
+	fake, cleanup := setupAPITest(t)
+	defer cleanup()
+	if err := util.SaveConfig(fake.X, util.NewConfig()); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
-	projectPath := filepath.Join(env.fakeRoot.Dir, "test")
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	projectPath := filepath.Join(fake.X.Root, "test")
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Simulate an API with an existing public function called TestFunction.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, ".api"), `# This is a comment that should be ignored
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, ".api"), `# This is a comment that should be ignored
 pkg main, func TestFunction()
 `)
 
 	// Write a change that changes TestFunction to TestFunction1.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, "file.go"), `package main
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, "file.go"), `package main
 
 func TestFunction1() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	var out bytes.Buffer
-	env.setStdout(&out)
-	env.setStderr(&out)
-	if err := runAPIFix(env.X(), []string{"test"}); err != nil {
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &out, Stderr: &out})
+	if err := runAPIFix(fake.X, []string{"test"}); err != nil {
 		t.Fatalf("should have succeeded but did not: %v\n%v", err, out.String())
 	}
 
-	contents, err := readAPIFileContents(env.X(), filepath.Join(projectPath, ".api"))
+	contents, err := readAPIFileContents(fake.X, filepath.Join(projectPath, ".api"))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -332,19 +302,19 @@ func TestFunction1() {
 	// Now write a change that changes TestFunction1 to testFunction1.
 	// There should be no more public API left and the .api file should be
 	// removed.
-	writeFileOrDie(t, env.X(), filepath.Join(projectPath, "file.go"), `package main
+	writeFileOrDie(t, fake.X, filepath.Join(projectPath, "file.go"), `package main
 
 func testFunction1() {
 }`)
-	if err := env.X().Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	out.Reset()
-	if err := runAPIFix(env.X(), []string{"test"}); err != nil {
+	if err := runAPIFix(fake.X, []string{"test"}); err != nil {
 		t.Fatalf("should have succeeded but did not: %v", err)
 	}
-	if _, err := env.X().Run().Stat(filepath.Join(projectPath, ".api")); err == nil {
+	if _, err := fake.X.Run().Stat(filepath.Join(projectPath, ".api")); err == nil {
 		t.Fatalf(".api file exists when it should have been removed: %v", err)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("%v", err)

@@ -105,7 +105,8 @@ func checkMultiPartCLSet(t *testing.T, expectedTotal int, expectedCLsByPart map[
 }
 
 func TestNewOpenCLs(t *testing.T) {
-	jirix := &jiri.X{Context: tool.NewDefaultContext()}
+	jirix, cleanup := jiritest.NewX(t)
+	defer cleanup()
 	nonMultiPartCLs := clList{
 		genCL(1010, 1, "release.go.core"),
 		genCL(1020, 2, "release.go.tools"),
@@ -222,6 +223,22 @@ func TestNewOpenCLs(t *testing.T) {
 }
 
 func TestSendCLListsToPresubmitTest(t *testing.T) {
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
+
+	// Create a fake configuration file.
+	config := util.NewConfig(
+		util.ProjectTestsOpt(map[string][]string{
+			"release.go.core": []string{"go", "javascript"},
+		}),
+		util.ProjectTestsOpt(map[string][]string{
+			"release.js.core": []string{"javascript"},
+		}),
+	)
+	if err := util.SaveConfig(fake.X, config); err != nil {
+		t.Fatalf("%v", err)
+	}
+
 	clLists := []clList{
 		clList{
 			genCL(1000, 1, "release.js.core"),
@@ -249,13 +266,7 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 			genMultiPartCL(1006, 1, "non-existent-project", "t", 2, 2),
 		},
 	}
-	var buf bytes.Buffer
-	f := false
-	jirix := jiritest.NewX_DeprecatedEnv(t, &tool.ContextOpts{
-		Stdout:  &buf,
-		Stderr:  &buf,
-		Verbose: &f,
-	})
+
 	sender := clsSender{
 		clLists: clLists,
 		projects: map[string]project.Project{
@@ -279,12 +290,20 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 		// Mock out postMessage function.
 		postMessageFn: func(jirix *jiri.X, message string, refs []string, success bool) error { return nil },
 	}
-	if err := sender.sendCLListsToPresubmitTest(jirix); err != nil {
+
+	var buf bytes.Buffer
+	f := false
+	fake.X.Context = tool.NewContext(tool.ContextOpts{
+		Stdout:  &buf,
+		Stderr:  &buf,
+		Verbose: &f,
+	})
+	if err := sender.sendCLListsToPresubmitTest(fake.X); err != nil {
 		t.Fatalf("want no error, got: %v", err)
 	}
 
 	// Check output and return value.
-	expectedOutput := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
+	want := `[VANADIUM PRESUBMIT] FAIL: Add http://go/vcl/1000/1
 [VANADIUM PRESUBMIT] addPresubmitTestBuild failed: err
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2000/1 (presubmit=none)
 [VANADIUM PRESUBMIT] SKIP: Add http://go/vcl/2010/1 (non-google owner)
@@ -295,24 +314,17 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 [VANADIUM PRESUBMIT] project="non-existent-project" (refs/changes/xx/1006/1) not found. Skipped.
 [VANADIUM PRESUBMIT] PASS: Add http://go/vcl/1005/1
 `
-	if got := buf.String(); expectedOutput != got {
-		t.Fatalf("output: want:\n%v\n, got:\n%v", expectedOutput, got)
+	if got := buf.String(); want != got {
+		t.Fatalf("GOT:\n%v\nWANT:\n%v", got, want)
 	}
-	if expected := 3; expected != sender.clsSent {
-		t.Fatalf("numSentCLs: want %d, got %d", expected, sender.clsSent)
+	if got, want := sender.clsSent, 3; got != want {
+		t.Fatalf("numSentCLs: got %d, want %d", got, want)
 	}
 }
 
 func TestGetTestsToRun(t *testing.T) {
-	root, err := jiritest.NewFakeJiriRoot()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer func() {
-		if err := root.Cleanup(); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
 
 	// Create a fake configuration file.
 	config := util.NewConfig(
@@ -326,7 +338,7 @@ func TestGetTestsToRun(t *testing.T) {
 			"vanadium-go-race": []string{"v.io/x/ref/services/device/...", "v.io/x/ref/runtime/..."},
 		}),
 	)
-	if err := util.SaveConfig(root.X, config); err != nil {
+	if err := util.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -339,7 +351,7 @@ func TestGetTestsToRun(t *testing.T) {
 		"vanadium-go-test",
 	}
 	sender := clsSender{}
-	got, err := sender.getTestsToRun(root.X, []string{"release.go.core"})
+	got, err := sender.getTestsToRun(fake.X, []string{"release.go.core"})
 	if err != nil {
 		t.Fatalf("want no errors, got: %v", err)
 	}
