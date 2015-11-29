@@ -171,14 +171,14 @@ func vanadiumGitHubMirror(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Res
 	// Initialize the test/task.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	projects := filepath.Join(jirix.Root, "projects")
 	mode := os.FileMode(0755)
 	if err := jirix.Run().MkdirAll(projects, mode); err != nil {
-		return nil, internalTestError{err, "MkdirAll"}
+		return nil, newInternalError(err, "MkdirAll")
 	}
 
 	allPassed := true
@@ -186,7 +186,7 @@ func vanadiumGitHubMirror(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Res
 	for _, mirror := range mirrors {
 		suite, err := gitHubSync(jirix, mirror, projects)
 		if err != nil {
-			return nil, internalTestError{err, "sync"}
+			return nil, newInternalError(err, "sync")
 		}
 
 		allPassed = allPassed && (suite.Failures == 0)
@@ -211,7 +211,7 @@ func gitHubSync(jirix *jiri.X, mirror Mirror, projects string) (*xunit.TestSuite
 	// If dirname does not exist `git clone` otherwise `git pull`.
 	if _, err := jirix.Run().Stat(dirname); err != nil {
 		if !os.IsNotExist(err) {
-			return nil, internalTestError{err, "stat"}
+			return nil, newInternalError(err, "stat")
 		}
 
 		err := clone(jirix, mirror, projects)

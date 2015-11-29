@@ -25,7 +25,7 @@ func runJSTest(jirix *jiri.X, testName, testDir, target string, cleanFn func() e
 	deps := []string{"base", "nodejs"}
 	cleanup, err := initTest(jirix, testName, deps)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -58,7 +58,7 @@ func runJSTest(jirix *jiri.X, testName, testDir, target string, cleanFn func() e
 				TimeoutValue: defaultJSTestTimeout,
 			}, nil
 		} else {
-			return nil, internalTestError{err, "Make " + target}
+			return nil, newInternalError(err, "Make " + target)
 		}
 	}
 
@@ -75,7 +75,7 @@ func runJSTestWithNacl(jirix *jiri.X, testName, testDir, target string, cleanFn 
 func installExtraDeps(jirix *jiri.X, testName string, deps []string, target string) (e error) {
 	cleanup2, err := initTestForTarget(jirix, testName, deps, target)
 	if err != nil {
-		return internalTestError{err, "Init"}
+		return newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup2() }, &e)
 	return nil
@@ -130,7 +130,7 @@ func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Res
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"nodejs"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -147,7 +147,7 @@ func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Res
 					TimeoutValue: defaultJSTestTimeout,
 				}, nil
 			} else {
-				return nil, internalTestError{err, "Make " + target}
+				return nil, newInternalError(err, "Make " + target)
 			}
 		}
 	}

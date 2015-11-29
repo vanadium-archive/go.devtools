@@ -19,13 +19,13 @@ func vanadiumJavaTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"java"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	target := profiles.NativeTarget()
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), target, "java")

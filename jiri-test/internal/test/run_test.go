@@ -164,7 +164,7 @@ func TestGenXUnitReportForError(t *testing.T) {
 	}
 
 	xUnitFileName := xunit.ReportPath("vanadium-go-test")
-	internalErr := internalTestError{fmt.Errorf("something is wrong"), "Init"}
+	internalErr := newInternalError(fmt.Errorf("something is wrong"), "Init")
 	for _, testCase := range testCases {
 		if err := os.RemoveAll(xUnitFileName); err != nil {
 			t.Fatalf("RemoveAll(%s) failed: %v", xUnitFileName, err)

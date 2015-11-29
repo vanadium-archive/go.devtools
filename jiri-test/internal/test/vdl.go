@@ -24,13 +24,13 @@ func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vdl tool.
 	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
-		return nil, internalTestError{err, "Install VDL"}
+		return nil, newInternalError(err, "Install VDL")
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.

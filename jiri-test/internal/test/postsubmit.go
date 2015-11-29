@@ -16,7 +16,7 @@ func vanadiumPostsubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 	// Initialize the test.
 	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

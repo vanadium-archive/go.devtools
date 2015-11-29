@@ -21,7 +21,7 @@ func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[st
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, profiles)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -49,7 +49,7 @@ func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[st
 				TimeoutValue: timeout,
 			}, nil
 		} else {
-			return nil, internalTestError{err, "Make " + target}
+			return nil, newInternalError(err, "Make " + target)
 		}
 	}
 

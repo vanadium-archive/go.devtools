@@ -246,13 +246,13 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 
 	// Install required tools.
 	if err := jirix.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
-		return nil, internalTestError{err, "install-go-cover"}
+		return nil, newInternalError(err, "install-go-cover")
 	}
 	if err := jirix.Run().Command("jiri", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
-		return nil, internalTestError{err, "install-gocover-cobertura"}
+		return nil, newInternalError(err, "install-gocover-cobertura")
 	}
 	if err := jirix.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
-		return nil, internalTestError{err, "install-go2xunit"}
+		return nil, newInternalError(err, "install-go2xunit")
 	}
 
 	// Build dependencies of test packages.
@@ -609,7 +609,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 	// to be pretty slow. We should refactor so that it only gets run once.
 	// Install required tools.
 	if err := jirix.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
-		return nil, nil, internalTestError{err, "install-go2xunit"}
+		return nil, nil, newInternalError(err, "install-go2xunit")
 	}
 
 	// Build dependencies of test packages.
@@ -1120,7 +1120,7 @@ func thirdPartyGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Res
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1154,7 +1154,7 @@ func thirdPartyGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1176,7 +1176,7 @@ func thirdPartyGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1222,7 +1222,7 @@ func vanadiumCopyright(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "init"}
+		return nil, newInternalError(err, "init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1250,7 +1250,7 @@ func vanadiumGoAPI(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "init"}
+		return nil, newInternalError(err, "init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1287,7 +1287,7 @@ func vanadiumGoBench(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resul
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1307,7 +1307,7 @@ func vanadiumGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resul
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 
 	// Validate packages.
@@ -1336,7 +1336,7 @@ func vanadiumGoCoverage(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1353,19 +1353,19 @@ func vanadiumGoDepcop(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "init"}
+		return nil, newInternalError(err, "init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Build the godepcop tool in a temporary directory.
 	tmpDir, err := jirix.Run().TempDir("", "godepcop-test")
 	if err != nil {
-		return nil, internalTestError{err, "godepcop-build"}
+		return nil, newInternalError(err, "godepcop-build")
 	}
 	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
 	binary := filepath.Join(tmpDir, "godepcop")
 	if err := jirix.Run().Command("jiri", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
-		return nil, internalTestError{err, "godepcop-build"}
+		return nil, newInternalError(err, "godepcop-build")
 	}
 
 	// Run the godepcop tool.
@@ -1388,7 +1388,7 @@ func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "init"}
+		return nil, newInternalError(err, "init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1424,7 +1424,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1471,7 +1471,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 	// Check if 'go generate' creates any changes.
 	args := append([]string{"go", "generate"}, []string(pkgs)...)
 	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return nil, internalTestError{err, "Go Generate"}
+		return nil, newInternalError(err, "Go Generate")
 	}
 	dirtyFiles := []goGenerateDiff{}
 	if currentDir, err := os.Getwd(); err != nil {
@@ -1537,7 +1537,7 @@ func vanadiumGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1642,13 +1642,13 @@ func vanadiumGoVet(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "init"}
+		return nil, newInternalError(err, "init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the go vet tool.
 	if err := jirix.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
-		return nil, internalTestError{err, "install-go-vet"}
+		return nil, newInternalError(err, "install-go-vet")
 	}
 
 	// Run the go vet tool.
@@ -1671,7 +1671,7 @@ func vanadiumGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1694,7 +1694,7 @@ func vanadiumIntegrationTest(jirix *jiri.X, testName string, opts ...Opt) (_ *te
 	shorterRootDir := filepath.Join(os.Getenv("HOME"), "tmp", "vit")
 	cleanup, err := initTest(jirix, testName, []string{"base"}, rootDirOpt(shorterRootDir))
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1821,7 +1821,7 @@ func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *tes
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -1842,7 +1842,7 @@ func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *tes
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
 	if err := jirix.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
-		return nil, internalTestError{err, "Install"}
+		return nil, newInternalError(err, "Install")
 	}
 	newDir := filepath.Join(jirix.Root, "release", "go", "bin")
 	outDir := filepath.Join(regTestBinDirPath(), "bin")

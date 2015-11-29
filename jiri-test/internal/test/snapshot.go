@@ -16,7 +16,7 @@ func vanadiumGoSnapshot(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -25,7 +25,7 @@ func vanadiumGoSnapshot(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 		return jirix.Run().Command("jiri", "snapshot", "-remote", "create", "stable-go")
 	}
 	if err := retry.Function(jirix.Context, fn); err != nil {
-		return nil, internalTestError{err, "Snapshot"}
+		return nil, newInternalError(err, "Snapshot")
 	}
 	return &test.Result{Status: test.Passed}, nil
 }

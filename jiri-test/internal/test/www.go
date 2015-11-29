@@ -24,13 +24,13 @@ func commonVanadiumWWW(jirix *jiri.X, testName, makeTarget string, timeout time.
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, append([]string{"base", "nodejs"}, extraDeps...))
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	cleanup2, err := initTestForTarget(jirix, testName, []string{"nacl"}, "amd64p32-nacl")
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup2() }, &e)
 
@@ -51,7 +51,7 @@ func commonVanadiumWWW(jirix *jiri.X, testName, makeTarget string, timeout time.
 				TimeoutValue: timeout,
 			}, nil
 		} else {
-			return nil, internalTestError{err, "Make " + makeTarget}
+			return nil, newInternalError(err, "Make " + makeTarget)
 		}
 	}
 
@@ -94,14 +94,14 @@ func vanadiumWWWDeployProduction(jirix *jiri.X, testName string, _ ...Opt) (*tes
 func vanadiumWWWConfigDeployHelper(jirix *jiri.X, testName string, env string, _ ...Opt) (_ *test.Result, e error) {
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Change dir to infrastructure/nginx.
 	dir := filepath.Join(jirix.Root, "infrastructure", "nginx")
 	if err := jirix.Run().Chdir(dir); err != nil {
-		return nil, internalTestError{err, "Chdir"}
+		return nil, newInternalError(err, "Chdir")
 	}
 
 	// Update configuration.

@@ -27,7 +27,7 @@ func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 	// go apps that need it.
 	cleanup, err := initTest(jirix, testName, []string{"base", "nodejs"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -69,7 +69,7 @@ func vanadiumPlaygroundSubtest(jirix *jiri.X, testName, caseName, casePath, case
 				TimeoutValue: defaultPlaygroundTestTimeout,
 			}, nil
 		} else {
-			return nil, internalTestError{err, "Make " + caseTarget}
+			return nil, newInternalError(err, "Make " + caseTarget)
 		}
 	}
 	return

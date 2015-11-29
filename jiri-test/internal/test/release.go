@@ -71,7 +71,7 @@ var (
 func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	cleanup, err := initTest(jirix, testName, []string{"base", "java"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -145,7 +145,7 @@ func invoker(jirix *jiri.X, msg string, fn func() error) (*test.Result, error) {
 			}, nil
 		}
 		fmt.Fprintf(jirix.Stderr(), "%s\n", err.Error())
-		return nil, internalTestError{err, msg}
+		return nil, newInternalError(err, msg)
 	}
 	test.Pass(jirix.Context, msg)
 	return nil, nil
@@ -428,7 +428,7 @@ func updateLatestFile(jirix *jiri.X, rcLabel string) error {
 func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -442,7 +442,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 		snapshotName,
 	}
 	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return nil, internalTestError{err, "Snapshot"}
+		return nil, newInternalError(err, "Snapshot")
 	}
 
 	// Get the symlink target of the newly created snapshot manifest.
@@ -450,7 +450,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	symlink := filepath.Join(snapshotDir, snapshotName)
 	target, err := filepath.EvalSymlinks(symlink)
 	if err != nil {
-		return nil, internalTestError{fmt.Errorf("EvalSymlinks(%s) failed: %v", symlink, err), "Resolve Snapshot Symlink"}
+		return nil, newInternalError(fmt.Errorf("EvalSymlinks(%s) failed: %v", symlink, err), "Resolve Snapshot Symlink")
 	}
 
 	// Get manifest file's relative path to the root manifest dir.
@@ -460,7 +460,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	// Get all the tests to run.
 	config, err := util.LoadConfig(jirix)
 	if err != nil {
-		return nil, internalTestError{err, "LoadConfig"}
+		return nil, newInternalError(err, "LoadConfig")
 	}
 	tests := config.GroupTests([]string{"go", "java", "javascript", "projects", "third_party-go"})
 	testsWithParts := []string{}
@@ -479,7 +479,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	// Write to the properties file.
 	content := fmt.Sprintf("%s=%s\n%s=%s", manifestEnvVar, relativePath, testsEnvVar, strings.Join(testsWithParts, " "))
 	if err := jirix.Run().WriteFile(filepath.Join(jirix.Root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
-		return nil, internalTestError{err, "Record Properties"}
+		return nil, newInternalError(err, "Record Properties")
 	}
 
 	return &test.Result{Status: test.Passed}, nil

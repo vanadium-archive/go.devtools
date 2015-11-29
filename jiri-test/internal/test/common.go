@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"v.io/jiri/jiri"
@@ -36,12 +37,19 @@ var (
 
 // internalTestError represents an internal test error.
 type internalTestError struct {
-	err  error
-	name string
+	err    error
+	name   string
+	caller string
 }
 
 func (e internalTestError) Error() string {
-	return fmt.Sprintf("%s:\n%s\n", e.name, e.err.Error())
+	return fmt.Sprintf("%s: %s\n%s\n", e.name, e.caller, e.err.Error())
+}
+
+func newInternalError(err error, name string) internalTestError {
+	_, file, line, _ := runtime.Caller(1)
+	caller := fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	return internalTestError{err: err, name: name, caller: caller}
 }
 
 var testTmpDir = ""
@@ -126,7 +134,7 @@ func initTestImpl(jirix *jiri.X, needCleanup bool, testName string, profileNames
 
 	if needCleanup {
 		if err := cleanupProfiles(jirix); err != nil {
-			return nil, internalTestError{err, "Init"}
+			return nil, newInternalError(err, "Init")
 		}
 	}
 

@@ -47,24 +47,24 @@ type instance struct {
 // environment variable) and run prod service test and load test againest it.
 func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	if testInstanceProject == "" {
-		return nil, internalTestError{fmt.Errorf("project not defined in %s environment variable", projectEnvVar), "Env"}
+		return nil, newInternalError(fmt.Errorf("project not defined in %s environment variable", projectEnvVar), "Env")
 	}
 
 	// Check CREATE_INSTANCE_SCRIPT environment variable.
 	script := os.Getenv(scriptEnvVar)
 	if script == "" {
-		return nil, internalTestError{fmt.Errorf("script not defined in %s environment variable", scriptEnvVar), "Env"}
+		return nil, newInternalError(fmt.Errorf("script not defined in %s environment variable", scriptEnvVar), "Env")
 	}
 
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Clean up test instances possibly left by previous test runs.
 	if err := cleanupTestInstances(jirix); err != nil {
-		return nil, internalTestError{err, "Delete old test instances"}
+		return nil, newInternalError(err, "Delete old test instances")
 	}
 
 	// Run script.
@@ -91,7 +91,7 @@ func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ 
 				TimeoutValue: defaultCreateInstanceTimeout,
 			}, nil
 		}
-		return nil, internalTestError{err, err.Error()}
+		return nil, newInternalError(err, err.Error())
 	}
 
 	// Check the test instance.
@@ -103,7 +103,7 @@ func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ 
 				TimeoutValue: defaultCheckInstanceTimeout,
 			}, nil
 		}
-		return nil, internalTestError{err, err.Error()}
+		return nil, newInternalError(err, err.Error())
 	}
 
 	return &test.Result{Status: test.Passed}, nil

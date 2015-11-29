@@ -84,21 +84,21 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	// go apps that need it.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
 	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
-		return nil, internalTestError{err, "Install VRPC"}
+		return nil, newInternalError(err, "Install VRPC")
 	}
 	// Install the principal tool.
 	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/principal"); err != nil {
-		return nil, internalTestError{err, "Install Principal"}
+		return nil, newInternalError(err, "Install Principal")
 	}
 	tmpdir, err := jirix.Run().TempDir("", "prod-services-test")
 	if err != nil {
-		return nil, internalTestError{err, "Create temporary directory"}
+		return nil, newInternalError(err, "Create temporary directory")
 	}
 	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpdir) }, &e)
 

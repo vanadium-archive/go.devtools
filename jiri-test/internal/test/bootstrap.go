@@ -24,7 +24,7 @@ func vanadiumBootstrap(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -33,13 +33,13 @@ func vanadiumBootstrap(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 	defer collect.Error(func() error { return os.Setenv("JIRI_ROOT", oldRoot) }, &e)
 	tmpDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
-		return nil, internalTestError{err, "TempDir"}
+		return nil, newInternalError(err, "TempDir")
 	}
 	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
 
 	root := filepath.Join(tmpDir, "root")
 	if err := os.Setenv("JIRI_ROOT", root); err != nil {
-		return nil, internalTestError{err, "Setenv"}
+		return nil, newInternalError(err, "Setenv")
 	}
 
 	// Run the setup script.
@@ -50,7 +50,7 @@ func vanadiumBootstrap(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 	// Find the PATH element containing the "jiri" binary and remove it.
 	jiriPath, err := exec.LookPath("jiri")
 	if err != nil {
-		return nil, internalTestError{err, "LookPath"}
+		return nil, newInternalError(err, "LookPath")
 	}
 	opts.Env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Dir(jiriPath), "", -1)
 	opts.Env["JIRI_ROOT"] = root

@@ -74,13 +74,13 @@ func vanadiumGoRPCLoad(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, 
 func runRPCTest(jirix *jiri.X, testName, nodeName string, numServerNodes, numClientNodes int, testFunc func(*jiri.X, string) (*test.Result, error)) (_ *test.Result, e error) {
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install binaries.
 	if err := jirix.Run().Command("jiri", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
-		return nil, internalTestError{err, "Install Binaries"}
+		return nil, newInternalError(err, "Install Binaries")
 	}
 
 	// Cleanup old nodes if any.
@@ -92,36 +92,36 @@ func runRPCTest(jirix *jiri.X, testName, nodeName string, numServerNodes, numCli
 	// Create nodes.
 	fmt.Fprint(jirix.Stdout(), "Creating nodes...\n")
 	if err := createNodes(jirix, nodeName, numServerNodes, numClientNodes); err != nil {
-		return nil, internalTestError{err, "Create Nodes"}
+		return nil, newInternalError(err, "Create Nodes")
 	}
 
 	// Start servers.
 	fmt.Fprint(jirix.Stdout(), "Starting servers...\n")
 	serverDone, err := startServers(jirix, nodeName, numServerNodes)
 	if err != nil {
-		return nil, internalTestError{err, "Start Servers"}
+		return nil, newInternalError(err, "Start Servers")
 	}
 
 	// Run the test.
 	fmt.Fprint(jirix.Stdout(), "Running test...\n")
 	result, err := testFunc(jirix, testName)
 	if err != nil {
-		return nil, internalTestError{err, "Run Test"}
+		return nil, newInternalError(err, "Run Test")
 	}
 
 	// Stop servers.
 	fmt.Fprint(jirix.Stdout(), "Stopping servers...\n")
 	if err := stopServers(jirix, nodeName, numServerNodes); err != nil {
-		return nil, internalTestError{err, "Stop Servers"}
+		return nil, newInternalError(err, "Stop Servers")
 	}
 	if err := <-serverDone; err != nil {
-		return nil, internalTestError{err, "Stop Servers"}
+		return nil, newInternalError(err, "Stop Servers")
 	}
 
 	// Delete nodes.
 	fmt.Fprint(jirix.Stdout(), "Deleting nodes...\n")
 	if err := deleteNodes(jirix, nodeName, numServerNodes, numClientNodes); err != nil {
-		return nil, internalTestError{err, "Delete Nodes"}
+		return nil, newInternalError(err, "Delete Nodes")
 	}
 	return result, nil
 }

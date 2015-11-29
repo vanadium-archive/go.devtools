@@ -34,7 +34,7 @@ func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -68,13 +68,13 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 	}
 
 	if err := cleanupProfiles(jirix); err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 
 	// Initialize the test.
 	cleanup, err := initTestImpl(jirix, false, testName, nil, "")
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
@@ -96,7 +96,7 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		"-test", name,
 	)
 	if err := jirix.Run().Command("presubmit", args...); err != nil {
-		return nil, internalTestError{err, "Presubmit"}
+		return nil, newInternalError(err, "Presubmit")
 	}
 
 	// Remove any test result files that are empty.
@@ -128,7 +128,7 @@ func vanadiumPresubmitResult(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 

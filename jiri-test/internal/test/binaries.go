@@ -20,14 +20,14 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"base"})
 	if err != nil {
-		return nil, internalTestError{err, "Init"}
+		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	args := []string{"update", "-manifest=snapshot/stable-go"}
 	// Fetch the latest stable Go snapshot.
 	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return nil, internalTestError{err, "Update"}
+		return nil, newInternalError(err, "Update")
 	}
 	fmt.Fprintf(jirix.Stdout(), "jiri %s: success\n", args)
 
@@ -37,7 +37,7 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	// engine for the groups service. See v.io/i/632 for more details.
 	args = []string{"go", "install", "-tags=leveldb", "v.io/..."}
 	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return nil, internalTestError{err, "Install"}
+		return nil, newInternalError(err, "Install")
 	}
 
 	fmt.Fprintf(jirix.Stdout(), "jiri %s: success\n", args)
@@ -46,7 +46,7 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	labelFile := jirix.ManifestFile("snapshot/stable-go")
 	snapshotFile, err := filepath.EvalSymlinks(labelFile)
 	if err != nil {
-		return nil, internalTestError{err, "EvalSymlinks"}
+		return nil, newInternalError(err, "EvalSymlinks")
 	}
 	timestamp := filepath.Base(snapshotFile)
 
@@ -59,7 +59,7 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	args = []string{"-m", "-q", "cp", binaries, bucket + timestamp}
 	fmt.Fprintf(jirix.Stdout(), "gsutil %s ......\n", args)
 	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return nil, internalTestError{err, "Upload"}
+		return nil, newInternalError(err, "Upload")
 	}
 	fmt.Fprintf(jirix.Stdout(), "gsutil %s: success\n", args)
 
@@ -68,28 +68,28 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	// indicates that the upload of binaries succeeded.
 	tmpDir, err := jirix.Run().TempDir("", "")
 	if err != nil {
-		return nil, internalTestError{err, "TempDir"}
+		return nil, newInternalError(err, "TempDir")
 	}
 	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
 	doneFile := filepath.Join(tmpDir, ".done")
 	if err := jirix.Run().WriteFile(doneFile, nil, os.FileMode(0600)); err != nil {
-		return nil, internalTestError{err, "WriteFile"}
+		return nil, newInternalError(err, "WriteFile")
 	}
 	fmt.Fprintf(jirix.Stdout(), "Created %s: succcess\n", doneFile)
 	args = []string{"-q", "cp", doneFile, bucket + timestamp}
 	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return nil, internalTestError{err, "Upload"}
+		return nil, newInternalError(err, "Upload")
 	}
 	fmt.Fprintf(jirix.Stdout(), "gsutil %s: success\n", args)
 
 	latestFile := filepath.Join(tmpDir, "latest")
 	if err := jirix.Run().WriteFile(latestFile, []byte(timestamp), os.FileMode(0600)); err != nil {
-		return nil, internalTestError{err, "WriteFile"}
+		return nil, newInternalError(err, "WriteFile")
 	}
 	fmt.Fprintf(jirix.Stdout(), "Created %s: succcess\n", latestFile)
 	args = []string{"-q", "cp", latestFile, bucket}
 	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return nil, internalTestError{err, "Upload"}
+		return nil, newInternalError(err, "Upload")
 	}
 	fmt.Fprintf(jirix.Stdout(), "gsutil %s: success\n", args)
 
