@@ -113,12 +113,8 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	baseProfileEnv := profiles.EnvFromProfile(baseTarget, "base")
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv, javaProfileEnv)
 	target.Env.Vars = env.ToSlice()
-	if profiles.SchemaVersion() >= 4 {
-		profiles.InstallProfile(profileName, m.javaRoot.RelativePath())
-	} else {
-		profiles.InstallProfile(profileName, m.javaRoot.Expand())
-	}
 	target.InstallationDir = javaHome
+	profiles.InstallProfile(profileName, m.javaRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
 

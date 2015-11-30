@@ -78,13 +78,8 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	if err := m.installNode(jirix, target); err != nil {
 		return err
 	}
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.nodeInstDir.RelativePath()
-		profiles.InstallProfile(profileName, m.nodeRoot.RelativePath())
-	} else {
-		target.InstallationDir = m.nodeInstDir.Expand()
-		profiles.InstallProfile(profileName, m.nodeRoot.Expand())
-	}
+	target.InstallationDir = m.nodeInstDir.RelativePath()
+	profiles.InstallProfile(profileName, m.nodeRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
 

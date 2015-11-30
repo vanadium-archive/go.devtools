@@ -85,17 +85,12 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	}
 
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-		"DART_SDK=" + m.dartInstDir.Expand(),
-		"PATH=" + m.dartInstDir.Join("bin").Expand(),
+		"DART_SDK=" + m.dartInstDir.String(),
+		"PATH=" + m.dartInstDir.Join("bin").String(),
 	})
 
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.dartInstDir.String()
-		profiles.InstallProfile(profileName, m.dartRoot.String())
-	} else {
-		target.InstallationDir = m.dartInstDir.Expand()
-		profiles.InstallProfile(profileName, m.dartRoot.Expand())
-	}
+	target.InstallationDir = m.dartInstDir.RelativePath()
+	profiles.InstallProfile(profileName, m.dartRoot.RelativePath())
 
 	return profiles.AddProfileTarget(profileName, target)
 }

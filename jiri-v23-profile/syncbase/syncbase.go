@@ -76,13 +76,6 @@ func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, targe
 	}
 }
 
-func relPath(rp profiles.RelativePath) string {
-	if profiles.SchemaVersion() >= 4 {
-		return rp.String()
-	}
-	return rp.Expand()
-}
-
 // setSyncbaseEnv adds the LevelDB third-party C++ libraries Vanadium
 // Go code depends on to the CGO_CFLAGS and CGO_LDFLAGS variables.
 func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, error) {
@@ -100,11 +93,11 @@ func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, 
 			}
 			continue
 		}
-		cflags = append(cflags, filepath.Join("-I"+relPath(dir), "include"))
-		cxxflags = append(cxxflags, filepath.Join("-I"+relPath(dir), "include"))
-		ldflags = append(ldflags, filepath.Join("-L"+relPath(dir), "lib"))
+		cflags = append(cflags, filepath.Join("-I"+dir.String(), "include"))
+		cxxflags = append(cxxflags, filepath.Join("-I"+dir.String(), "include"))
+		ldflags = append(ldflags, filepath.Join("-L"+dir.String(), "lib"))
 		if target.Arch() == "linux" {
-			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(relPath(dir), "lib"))
+			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir.String(), "lib"))
 		}
 		env.SetTokens("CGO_CFLAGS", cflags, " ")
 		env.SetTokens("CGO_CXXFLAGS", cxxflags, " ")
@@ -128,12 +121,7 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	}
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, syncbaseEnv)
 	target.Env.Vars = env.ToSlice()
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.syncbaseInstRoot.RelativePath()
-	} else {
-		target.InstallationDir = m.syncbaseInstRoot.Expand()
-	}
-
+	target.InstallationDir = m.syncbaseInstRoot.RelativePath()
 	profiles.InstallProfile(profileName, m.syncbaseRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
@@ -264,8 +252,8 @@ func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, targe
 		env := map[string]string{
 			"PREFIX": leveldbLibDir,
 			// NOTE(nlacasse): The -fPIC flag is needed to compile Syncbase Mojo service.
-			"CXXFLAGS": "-I" + filepath.Join(relPath(m.snappyInstDir), "include") + " -fPIC",
-			"LDFLAGS":  "-L" + filepath.Join(relPath(m.snappyInstDir), "lib"),
+			"CXXFLAGS": "-I" + filepath.Join(m.snappyInstDir.String(), "include") + " -fPIC",
+			"LDFLAGS":  "-L" + filepath.Join(m.snappyInstDir.String(), "lib"),
 		}
 		if target.Arch() == "386" {
 			env["CC"] = "gcc -m32"

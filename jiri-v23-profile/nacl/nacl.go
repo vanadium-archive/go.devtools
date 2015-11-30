@@ -83,13 +83,6 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root profiles.Rela
 	return nil
 }
 
-func relPath(rp profiles.RelativePath) string {
-	if profiles.SchemaVersion() >= 4 {
-		return rp.String()
-	}
-	return rp.Expand()
-}
-
 func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
@@ -104,16 +97,10 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
 		"GOARCH=amd64p32",
 		"GOOS=nacl",
-		"GOROOT=" + relPath(m.naclInstDir),
+		"GOROOT=" + m.naclInstDir.String(),
 	})
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.naclInstDir.String()
-		profiles.InstallProfile(profileName, m.naclRoot.String())
-	} else {
-		target.InstallationDir = m.naclInstDir.Expand()
-		profiles.InstallProfile(profileName, m.naclRoot.Expand())
-
-	}
+	target.InstallationDir = m.naclInstDir.RelativePath()
+	profiles.InstallProfile(profileName, m.naclRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
 
