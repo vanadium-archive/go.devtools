@@ -249,7 +249,7 @@ func writeLog(jirix *jiri.X, cls clList) (e error) {
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", results, err)
 	}
-	if err := jirix.Run().WriteFile(path, bytes, os.FileMode(0644)); err != nil {
+	if err := jirix.NewSeq().WriteFile(path, bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%q) failed: %v", path, err)
 	}
 	return nil

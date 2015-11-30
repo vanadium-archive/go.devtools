@@ -207,11 +207,12 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 
 	// Run the tests via "jiri test run" and collect the test results.
 	printf(jirix.Stdout(), "### Running the presubmit test\n")
-	outputDir, err := jirix.Run().TempDir("", "")
+	s := jirix.NewSeq()
+	outputDir, err := s.TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer collect.Error(func() error { return jirix.Run().RemoveAll(outputDir) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(outputDir).Done() }, &e)
 
 	jiriArgs := []string{
 		"run",
@@ -224,11 +225,10 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 
 	var out bytes.Buffer
 	out.Grow(1 << 20)
-	opts := jirix.Run().Opts()
-	opts.Env = env
-	opts.Stdout = io.MultiWriter(&out, opts.Stdout)
-	opts.Stderr = io.MultiWriter(&out, opts.Stderr)
-	if err := jirix.Run().TimedCommandWithOpts(jiriTestTimeout, opts, "jiri-test", jiriArgs...); err != nil {
+	stdout := io.MultiWriter(&out, jirix.Stdout())
+	stderr := io.MultiWriter(&out, jirix.Stderr())
+	if err := s.Env(env).Capture(stdout, stderr).Timeout(jiriTestTimeout).
+		Last("jiri-test", jiriArgs...); err != nil {
 		// jiri-test command times out.
 		if err == runutil.CommandTimedOutErr {
 			result := test.Result{
@@ -255,7 +255,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	}
 	var results map[string]*test.Result
 	resultsFile := filepath.Join(outputDir, "results")
-	bytes, err := jirix.Run().ReadFile(resultsFile)
+	bytes, err := s.ReadFile(resultsFile)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,8 @@ func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex
 		return fmt.Errorf("Marshal(%v) failed: %v", conf, err)
 	}
 	confFile := filepath.Join(outputDir, "conf")
-	if err := jirix.Run().WriteFile(confFile, bytes, os.FileMode(0600)); err != nil {
+	s := jirix.NewSeq()
+	if err := s.WriteFile(confFile, bytes, os.FileMode(0600)).Done(); err != nil {
 		return err
 	}
 	if partIndex == -1 {
@@ -300,13 +301,13 @@ func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex
 	// Upload test data to Google Storage.
 	dstDir := fmt.Sprintf("%s/%s/%d", path, testName, partIndex)
 	args := []string{"-q", "-m", "cp", filepath.Join(outputDir, "*"), dstDir}
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
+	if err := s.Last("gsutil", args...); err != nil {
 		return err
 	}
 	xUnitFile := xunit.ReportPath(testName)
-	if _, err := jirix.Run().Stat(xUnitFile); err == nil {
+	if _, err := s.Stat(xUnitFile); err == nil {
 		args := []string{"-q", "cp", xUnitFile, dstDir + "/" + "xunit.xml"}
-		if err := jirix.Run().Command("gsutil", args...); err != nil {
+		if err := s.Last("gsutil", args...); err != nil {
 			return err
 		}
 	} else {
@@ -320,7 +321,7 @@ func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex
 // sanityChecks performs basic sanity checks for various flags.
 func sanityChecks(jirix *jiri.X) error {
 	manifestFilePath := jirix.ManifestFile(tool.ManifestFlag)
-	if _, err := jirix.Run().Stat(manifestFilePath); err != nil {
+	if _, err := jirix.NewSeq().Stat(manifestFilePath); err != nil {
 		return err
 	}
 	if projectsFlag == "" {
@@ -374,7 +375,7 @@ func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects map[string]pro
 	if err != nil {
 		return nil, fmt.Errorf("Getwd() failed: %v", err)
 	}
-	defer collect.Error(func() error { return jirix.Run().Chdir(wd) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().Chdir(wd).Done() }, &e)
 	if err := cleanupAllPresubmitTestBranches(jirix, projects); err != nil {
 		return nil, fmt.Errorf("%v\n", err)
 	}
@@ -386,7 +387,7 @@ func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects map[string]pro
 			return fmt.Errorf("project %q not found", curCL.project)
 		}
 		localRepoDir := localRepo.Path
-		if err := jirix.Run().Chdir(localRepoDir); err != nil {
+		if err := jirix.NewSeq().Chdir(localRepoDir).Done(); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
 		}
 		branchName := presubmitTestBranchName(curCL.ref)
