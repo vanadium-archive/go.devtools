@@ -82,9 +82,6 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 	debug := filepath.Join(binDirFlag, "debug")
 	var buf bytes.Buffer
 	var stderr bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &buf
-	opts.Stderr = &stderr
 	args := []string{
 		"--v23.credentials",
 		credentialsFlag,
@@ -93,7 +90,8 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 		"-json",
 		info.objectName + statsSuffix,
 	}
-	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, debug, args...); err != nil {
+	if err := ctx.NewSeq().Capture(&buf, &stderr).Timeout(timeout).
+		Last(debug, args...); err != nil {
 		if err != runutil.CommandTimedOutErr {
 			return nil, fmt.Errorf("debug command failed: %v\n%s", err, stderr.String())
 		}

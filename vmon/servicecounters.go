@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
+
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/monitoring"
@@ -61,11 +62,9 @@ func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64,
 	// Run "debug stats read" to get the counter's value.
 	debug := filepath.Join(binDirFlag, "debug")
 	var buf bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &buf
-	opts.Stderr = &buf
 	value := 0.0
-	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, debug, "--v23.credentials", credentialsFlag, "stats", "read", counter.objectName); err != nil {
+	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
+		Last(debug, "--v23.credentials", credentialsFlag, "stats", "read", counter.objectName); err != nil {
 		if err != runutil.CommandTimedOutErr {
 			return 0, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}
