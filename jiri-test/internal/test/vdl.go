@@ -44,6 +44,7 @@ func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	opts.Env["VDLPATH"] = ch.Get("VDLPATH")
+	opts.Env["VDLROOT"] = filepath.Join(ch.Root(), "release", "go", "src", "v.io", "v23", "vdlroot")
 	vdl := filepath.Join(ch.Root(), "release", "go", "bin", "vdl")
 	err = jirix.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
 	output := strings.TrimSpace(out.String())
