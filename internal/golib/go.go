@@ -161,13 +161,8 @@ func generateVDL(jirix *jiri.X, env map[string]string, cmd string, args []string
 	}
 
 	// Regenerate the VDL-based Go packages.
-	// -builtin_vdlroot: Tells vdl to use built-in standard packages, rather than
-	//                   looking for source files in the filesystem.  This is more
-	//                   consistent, and better when there may be multiple copies
-	//                   of the source files on the filesystem.
-	//                   TODO(toddw): Remove after it becomes the vdl default.
 	// -ignore_unknown:  Silently ignore unknown package paths.
-	vdlArgs := []string{"-builtin_vdlroot", "-ignore_unknown", "generate", "-lang=go"}
+	vdlArgs := []string{"-ignore_unknown", "generate", "-lang=go"}
 	vdlArgs = append(vdlArgs, goDeps...)
 	vdlBin, err := exec.LookPath("vdl")
 	if err != nil {
