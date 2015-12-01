@@ -28,6 +28,7 @@
     <project>release.projects.pipe2browser</project>
     <project>release.projects.playground</project>
     <project>release.projects.reader</project>
+    <project>release.projects.sensorlog</project>
     <project>release.projects.syncslides</project>
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
@@ -42,6 +43,7 @@
     <workspace>release/projects/media-sharing/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/pipe2browser/go</workspace>
+    <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
     <workspace>third_party/go</workspace>
   </goWorkspaces>
@@ -164,6 +166,9 @@
     <project name="release.projects.reader">
       <test>vanadium-copyright</test>
       <test>vanadium-reader-test</test>
+    </project>
+    <project name="release.projects.sensorlog">
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.syncslides">
       <test>vanadium-copyright</test>
@@ -298,6 +303,7 @@
     <workspace>release/projects/media-sharing/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/pipe2browser/go</workspace>
+    <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
   </vdlWorkspaces>
 </config>
