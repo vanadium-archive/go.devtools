@@ -109,13 +109,6 @@ func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, targe
 	return nil
 }
 
-func relPath(rp profiles.RelativePath) string {
-	if profiles.SchemaVersion() >= 4 {
-		return rp.String()
-	}
-	return rp.Expand()
-}
-
 func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
@@ -156,16 +149,11 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	}
 
 	// Merge our target environment and GOROOT
-	goEnv := []string{"GOROOT=" + relPath(m.goInstDir)}
+	goEnv := []string{"GOROOT=" + m.goInstDir.String()}
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, goEnv)
 	target.Env.Vars = env.ToSlice()
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.goInstDir.RelativePath()
-		profiles.InstallProfile(profileName, m.goRoot.RelativePath())
-	} else {
-		target.InstallationDir = m.goInstDir.Expand()
-		profiles.InstallProfile(profileName, m.goRoot.Expand())
-	}
+	target.InstallationDir = m.goInstDir.RelativePath()
+	profiles.InstallProfile(profileName, m.goRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
 
@@ -276,7 +264,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 	if err := profiles.AtomicAction(jirix, installGo15Fn, m.goInstDir.Expand(), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
 		return err
 	}
-	env.Set("GOROOT_BOOTSTRAP", relPath(goBootstrapDir))
+	env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.String())
 	return nil
 }
 

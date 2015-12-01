@@ -132,11 +132,7 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	if err := m.installAndroidNDK(jirix); err != nil {
 		return err
 	}
-	if profiles.SchemaVersion() >= 4 {
-		profiles.InstallProfile(profileName, m.androidRoot.RelativePath())
-	} else {
-		profiles.InstallProfile(profileName, m.androidRoot.Expand())
-	}
+	profiles.InstallProfile(profileName, m.androidRoot.RelativePath())
 	if err := profiles.AddProfileTarget(profileName, target); err != nil {
 		return err
 	}
@@ -153,13 +149,8 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	baseProfileEnv := profiles.EnvFromProfile(target, "base")
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv)
 	target.Env.Vars = env.ToSlice()
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.ndkRoot.RelativePath()
-		profiles.InstallProfile(profileName, m.androidRoot.RelativePath())
-	} else {
-		target.InstallationDir = m.ndkRoot.Expand()
-		profiles.InstallProfile(profileName, m.androidRoot.Expand())
-	}
+	target.InstallationDir = m.ndkRoot.RelativePath()
+	profiles.InstallProfile(profileName, m.androidRoot.RelativePath())
 	return profiles.UpdateProfileTarget(profileName, target)
 }
 
@@ -176,13 +167,6 @@ func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target pr
 	}
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
-}
-
-func relPath(rp profiles.RelativePath) string {
-	if profiles.SchemaVersion() >= 4 {
-		return rp.String()
-	}
-	return rp.Expand()
 }
 
 // installAndroidNDK installs the android NDK toolchain.
@@ -232,7 +216,7 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X) (e error) {
 // installAndroidTargets installs android targets for other profiles, currently
 // just the base profile (i.e. go and syncbase.)
 func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, target profiles.Target) (e error) {
-	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", relPath(m.ndkRoot))
+	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", m.ndkRoot.String())
 	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
 	if err != nil {
 		return err

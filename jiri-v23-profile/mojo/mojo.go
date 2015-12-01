@@ -189,22 +189,22 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 		Call(func() error { return m.installMojoSystemThunks(jirix, m.systemThunksDir.Expand()) }, "install mojo system thunks")
 
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-		"CGO_CFLAGS=-I" + m.sdkDir.Join("src").Expand(),
-		"CGO_CXXFLAGS=-I" + m.sdkDir.Join("src").Expand(),
-		"CGO_LDFLAGS=-L" + m.systemThunksDir.Expand() + " -lsystem_thunks",
-		"GOPATH=" + m.sdkDir.Expand() + ":" + m.sdkDir.Join("gen", "go").Expand(),
-		"MOJO_DEVTOOLS=" + m.devtoolsDir.Expand(),
-		"MOJO_SDK=" + m.sdkDir.Expand(),
-		"MOJO_SHELL=" + m.shellDir.Join("mojo_shell").Expand(),
-		"MOJO_SERVICES=" + m.shellDir.Expand(),
-		"MOJO_SYSTEM_THUNKS=" + m.systemThunksDir.Join("libsystem_thunks.a").Expand(),
+		"CGO_CFLAGS=-I" + m.sdkDir.Join("src").String(),
+		"CGO_CXXFLAGS=-I" + m.sdkDir.Join("src").String(),
+		"CGO_LDFLAGS=-L" + m.systemThunksDir.String() + " -lsystem_thunks",
+		"GOPATH=" + m.sdkDir.String() + ":" + m.sdkDir.Join("gen", "go").String(),
+		"MOJO_DEVTOOLS=" + m.devtoolsDir.String(),
+		"MOJO_SDK=" + m.sdkDir.String(),
+		"MOJO_SHELL=" + m.shellDir.Join("mojo_shell").String(),
+		"MOJO_SERVICES=" + m.shellDir.String(),
+		"MOJO_SYSTEM_THUNKS=" + m.systemThunksDir.Join("libsystem_thunks.a").String(),
 	})
 
 	if m.platform == "android-arm" {
 		seq.Call(func() error { return m.installAndroidPlatformTools(jirix, m.androidPlatformToolsDir.Expand()) }, "install android platform tools")
 		target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-			"ANDROID_PLATFORM_TOOLS=" + m.androidPlatformToolsDir.Expand(),
-			"MOJO_SHELL=" + m.shellDir.Join("MojoShell.apk").Expand(),
+			"ANDROID_PLATFORM_TOOLS=" + m.androidPlatformToolsDir.String(),
+			"MOJO_SHELL=" + m.shellDir.Join("MojoShell.apk").String(),
 		})
 	}
 
@@ -212,14 +212,8 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 		return err
 	}
 
-	if profiles.SchemaVersion() >= 4 {
-		target.InstallationDir = m.mojoInstDir.String()
-		profiles.InstallProfile(profileName, m.mojoRoot.String())
-	} else {
-		target.InstallationDir = m.mojoInstDir.Expand()
-		profiles.InstallProfile(profileName, m.mojoRoot.Expand())
-	}
-
+	target.InstallationDir = m.mojoInstDir.RelativePath()
+	profiles.InstallProfile(profileName, m.mojoRoot.RelativePath())
 	return profiles.AddProfileTarget(profileName, target)
 }
 
