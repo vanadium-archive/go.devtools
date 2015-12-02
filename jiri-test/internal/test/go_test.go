@@ -23,14 +23,18 @@ import (
 	"v.io/x/devtools/internal/xunit"
 )
 
-// failuresMatch checks whether the given test failures match modulo their
-// data field.
+// failuresMatch checks whether the given test failures match. The Message
+// field must match exactly, whereas fs1's Data field must contain
+// fs2's; fs1 is the 'got' and fs2 the 'want'.
 func failuresMatch(fs1, fs2 []xunit.Failure) bool {
 	if len(fs1) != len(fs2) {
 		return false
 	}
 	for i := 0; i < len(fs1); i++ {
 		if fs1[i].Message != fs2[i].Message {
+			return false
+		}
+		if !strings.Contains(fs1[i].Data, fs2[i].Data) {
 			return false
 		}
 	}
@@ -147,6 +151,7 @@ var (
 						Failures: []xunit.Failure{
 							xunit.Failure{
 								Message: "build failure",
+								Data:    "missing return at end of function",
 							},
 						},
 					},
@@ -320,10 +325,11 @@ var (
 				Cases: []xunit.TestCase{
 					xunit.TestCase{
 						Classname: "v.io/x/devtools/jiri-test/internal/test/testdata/foo_timeout",
-						Name:      "Test",
+						Name:      "TestWithSleep",
 						Failures: []xunit.Failure{
 							xunit.Failure{
-								Message: "test timed out after 1s",
+								Message: "error",
+								Data:    "test timed out after 1s",
 							},
 						},
 					},
@@ -377,7 +383,7 @@ func TestGoBuild(t *testing.T) {
 	defer cleanupFake()
 
 	testName := "test-go-build"
-	cleanupTest, err := initTestImpl(fake.X, false, testName, nil, "")
+	cleanupTest, err := initTestImpl(fake.X, false, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -433,7 +439,7 @@ func TestGoBuild(t *testing.T) {
 func TestGoCoverage(t *testing.T) {
 	jirix := newJiriXWithRealRoot(t)
 	testName, pkgName := "test-go-coverage", "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
-	cleanupTest, err := initTestImpl(jirix, false, testName, nil, "")
+	cleanupTest, err := initTestImpl(jirix, false, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -537,7 +543,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	jirix := newJiriXWithRealRoot(t)
 	testName, pkgName := "test-go-test", "v.io/x/devtools/jiri-test/internal/test/testdata/"+subPkg
 
-	cleanupTest, err := initTestImpl(jirix, false, testName, nil, "")
+	cleanupTest, err := initTestImpl(jirix, false, false, testName, []string{"base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -547,6 +553,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 		pkgsOpt([]string{pkgName}),
 		suffixOpt(suffix),
 		exclusionsOpt(exclusions),
+		suppressTestOutputOpt(true),
 		skipProfiles,
 	}
 	opts = append(opts, testOpts...)
@@ -567,7 +574,6 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	}
 	defer os.RemoveAll(xUnitFile)
 	var gotTest xunit.TestSuites
-	fmt.Fprintf(os.Stderr, "XML: %s\n", data)
 	if err := xml.Unmarshal(data, &gotTest); err != nil {
 		t.Fatalf("Unmarshal() failed: %v\n%v", err, string(data))
 	}

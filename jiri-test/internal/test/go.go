@@ -85,30 +85,32 @@ type exclusionsOpt []exclusion
 type jiriGoOpt []string
 type nonTestArgsOpt []string
 type numWorkersOpt int
+type suppressTestOutputOpt bool
 type pkgsOpt []string
 type suffixOpt string
 type timeoutOpt string
 
-func (argsOpt) goBuildOpt()             {}
-func (argsOpt) goCoverageOpt()          {}
-func (argsOpt) goTestOpt()              {}
-func (exclusionsOpt) goTestOpt()        {}
-func (funcMatcherOpt) goTestOpt()       {}
-func (jiriGoOpt) Opt()                  {}
-func (jiriGoOpt) goBuildOpt()           {}
-func (jiriGoOpt) goCoverageOpt()        {}
-func (jiriGoOpt) goTestOpt()            {}
-func (nonTestArgsOpt) goTestOpt()       {}
-func (numWorkersOpt) goTestOpt()        {}
-func (pkgsOpt) goBuildOpt()             {}
-func (pkgsOpt) goCoverageOpt()          {}
-func (pkgsOpt) goTestOpt()              {}
-func (suffixOpt) goTestOpt()            {}
-func (timeoutOpt) goCoverageOpt()       {}
-func (timeoutOpt) goTestOpt()           {}
-func (MergePoliciesOpt) goBuildOpt()    {}
-func (MergePoliciesOpt) goCoverageOpt() {}
-func (MergePoliciesOpt) goTestOpt()     {}
+func (argsOpt) goBuildOpt()              {}
+func (argsOpt) goCoverageOpt()           {}
+func (argsOpt) goTestOpt()               {}
+func (exclusionsOpt) goTestOpt()         {}
+func (funcMatcherOpt) goTestOpt()        {}
+func (jiriGoOpt) Opt()                   {}
+func (jiriGoOpt) goBuildOpt()            {}
+func (jiriGoOpt) goCoverageOpt()         {}
+func (jiriGoOpt) goTestOpt()             {}
+func (nonTestArgsOpt) goTestOpt()        {}
+func (numWorkersOpt) goTestOpt()         {}
+func (pkgsOpt) goBuildOpt()              {}
+func (pkgsOpt) goCoverageOpt()           {}
+func (pkgsOpt) goTestOpt()               {}
+func (suffixOpt) goTestOpt()             {}
+func (timeoutOpt) goCoverageOpt()        {}
+func (timeoutOpt) goTestOpt()            {}
+func (MergePoliciesOpt) goBuildOpt()     {}
+func (MergePoliciesOpt) goCoverageOpt()  {}
+func (MergePoliciesOpt) goTestOpt()      {}
+func (suppressTestOutputOpt) goTestOpt() {}
 
 func goListOpts(opts []Opt) []string {
 	var ret []string
@@ -331,15 +333,19 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 			fallthrough
 		case testFailed:
 			if strings.Index(result.output, "no test files") == -1 {
-				ss, err := xunit.TestSuiteFromGoTestOutput(jirix, bytes.NewBufferString(result.output))
+				ss, err := xunit.TestSuitesFromGoTestOutput(jirix, bytes.NewBufferString(result.output))
 				if err != nil {
 					// Token too long error.
 					if !strings.HasSuffix(err.Error(), "token too long") {
 						return nil, err
 					}
-					ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
+					s = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "test output contains lines that are too long to parse", "", result.time)
+				} else {
+					if len(ss) > 1 {
+						return nil, fmt.Errorf("too many testsuites: %d", len(ss))
+					}
+					s = ss[0]
 				}
-				s = ss
 			}
 		}
 		if result.coverage != nil {
@@ -595,8 +601,9 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 	var suffix string
 	var matcher funcMatcher
 	matcher = &matchGoTestFunc{testNameRE: goTestNameRE}
-	numWorkers := runtime.NumCPU()
+	numWorkers := runtime.GOMAXPROCS(0)
 	var nonTestArgs nonTestArgsOpt
+	suppressOutput := false
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case timeoutOpt:
@@ -613,6 +620,8 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 			matcher = typedOpt
 		case pkgsOpt:
 			pkgs = []string(typedOpt)
+		case suppressTestOutputOpt:
+			suppressOutput = bool(typedOpt)
 		case numWorkersOpt:
 			numWorkers = int(typedOpt)
 			if numWorkers < 1 {
@@ -703,12 +712,12 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 	allPassed, suites := true, []xunit.TestSuite{}
 	for i := 0; i < numPkgs; i++ {
 		result := <-taskResults
-		var s *xunit.TestSuite
+		var ss []*xunit.TestSuite
 		switch result.status {
 		case buildFailed:
-			s = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time)
+			ss = append(ss, xunit.CreateTestSuiteWithFailure(result.pkg, "Test", "build failure", result.output, result.time))
 		case testTimedout:
-			s = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", fmt.Sprintf("test timed out after %s", timeout), "", result.time)
+			ss = append(ss, xunit.CreateTestSuiteWithFailure(result.pkg, "Test", fmt.Sprintf("test timed out after %s", timeout), "", result.time))
 		case testFailed, testPassed:
 			if strings.Index(result.output, "no test files") == -1 &&
 				strings.Index(result.output, "package excluded") == -1 {
@@ -722,12 +731,11 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 					// graphing.
 					fmt.Fprintf(jirix.Stdout(), result.output)
 				}
-				var ss *xunit.TestSuite
 				// Escape test output to make sure go2xunit can process it.
 				var escapedOutput bytes.Buffer
 				if err := xml.EscapeText(&escapedOutput, []byte(result.output)); err != nil {
 					msg := fmt.Sprintf("failed to escape test output:\n%s\n", result.output)
-					ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", msg, "", result.time)
+					ss = append(ss, xunit.CreateTestSuiteWithFailure(result.pkg, "Test", msg, "", result.time))
 				} else {
 					// xml.EscapeTest also escapes newlines and tabs.
 					// We want to keep them unescaped so that go2xunit can correctly parse
@@ -735,7 +743,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 					output := strings.Replace(escapedOutput.String(), escNewline, "\n", -1)
 					output = strings.Replace(output, escTab, "\t", -1)
 					var err error
-					if ss, err = xunit.TestSuiteFromGoTestOutput(jirix, bytes.NewBufferString(output)); err != nil {
+					if ss, err = xunit.TestSuitesFromGoTestOutput(jirix, bytes.NewBufferString(output)); err != nil {
 						errMsg := ""
 						if strings.Contains(err.Error(), "package build failed") {
 							// Package build failure.
@@ -745,40 +753,48 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 							errMsg = "test output contains lines that are too long to parse"
 						}
 						if errMsg != "" {
-							ss = xunit.CreateTestSuiteWithFailure(result.pkg, "Test", errMsg, output, result.time)
+							ss = append(ss, xunit.CreateTestSuiteWithFailure(result.pkg, "Test", errMsg, output, result.time))
 						} else {
 							return nil, suites, err
 						}
 					}
 				}
-				if ss.Skip > 0 {
-					for _, c := range ss.Cases {
-						if c.Skipped != nil {
-							skippedTests[result.pkg] = append(skippedTests[result.pkg], c.Name)
+				for _, ts := range ss {
+					if ts.Skip > 0 {
+						for _, c := range ts.Cases {
+							if c.Skipped != nil {
+								skippedTests[result.pkg] = append(skippedTests[result.pkg], c.Name)
+							}
 						}
 					}
 				}
-				s = ss
 			}
 			if len(result.excluded) > 0 {
 				excludedTests[result.pkg] = result.excluded
 			}
 		}
-		if s != nil {
+		for _, s := range ss {
 			if s.Failures > 0 {
 				allPassed = false
-				if result.status == testTimedout {
-					test.Fail(jirix.Context, "[TIMED OUT after %s] %s\n", timeout, result.pkg)
+			}
+			// There are times, generally when running tests that fail from
+			// within tests that expect those failures, that we want to
+			// supress the output from the test to prevent other tools (e.g.
+			// go2xunit from seeing it).
+			if !suppressOutput {
+				if s.Failures > 0 {
+					if result.status == testTimedout {
+						test.Fail(jirix.Context, "[TIMED OUT after %s] %s\n", timeout, result.pkg)
+					} else {
+						test.Fail(jirix.Context, "%s\n%v\n", result.pkg, result.output)
+					}
 				} else {
-					test.Fail(jirix.Context, "%s\n%v\n", result.pkg, result.output)
+					test.Pass(jirix.Context, "%s\n", result.pkg)
 				}
-			} else {
-				test.Pass(jirix.Context, "%s\n", result.pkg)
+				if s.Skip > 0 {
+					test.Pass(jirix.Context, "%s (skipped tests: %v)\n", result.pkg, skippedTests[result.pkg])
+				}
 			}
-			if s.Skip > 0 {
-				test.Pass(jirix.Context, "%s (skipped tests: %v)\n", result.pkg, skippedTests[result.pkg])
-			}
-
 			newCases := []xunit.TestCase{}
 			for _, c := range s.Cases {
 				if len(suffix) != 0 {
@@ -789,7 +805,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 			s.Cases = newCases
 			suites = append(suites, *s)
 		}
-		if excluded := excludedTests[result.pkg]; excluded != nil {
+		if excluded := excludedTests[result.pkg]; excluded != nil && !suppressOutput {
 			test.Pass(jirix.Context, "%s (excluded tests: %v)\n", result.pkg, excluded)
 		}
 	}

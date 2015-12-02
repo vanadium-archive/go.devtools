@@ -259,6 +259,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	if err != nil {
 		return err
 	}
+
 	if err := json.Unmarshal(bytes, &results); err != nil {
 		return fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(bytes))
 	}
