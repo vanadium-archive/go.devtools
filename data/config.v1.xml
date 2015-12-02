@@ -169,6 +169,7 @@
       <test>vanadium-reader-test</test>
     </project>
     <project name="release.projects.sensorlog">
+      <test>go</test>
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.syncslides">
