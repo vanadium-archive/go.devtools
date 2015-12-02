@@ -103,12 +103,14 @@ func init() {
 }
 
 type Manager struct {
-	root, mojoRoot, mojoInstDir, androidPlatformToolsDir profiles.RelativePath
-	devtoolsDir, sdkDir, shellDir, systemThunksDir       profiles.RelativePath
-	versionInfo                                          *profiles.VersionInfo
-	spec                                                 versionSpec
-	buildVersion                                         string
-	platform                                             string
+	root, mojoRoot                       jiri.RelPath
+	mojoInstDir, androidPlatformToolsDir jiri.RelPath
+	devtoolsDir, sdkDir                  jiri.RelPath
+	shellDir, systemThunksDir            jiri.RelPath
+	versionInfo                          *profiles.VersionInfo
+	spec                                 versionSpec
+	buildVersion                         string
+	platform                             string
 }
 
 func (m Manager) Name() string {
@@ -130,7 +132,7 @@ func (m Manager) Info() string {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
@@ -176,35 +178,35 @@ func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, targe
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
 
 	seq := jirix.NewSeq()
-	seq.MkdirAll(m.mojoInstDir.Expand(), profiles.DefaultDirPerm).
-		Call(func() error { return m.installMojoDevtools(jirix, m.devtoolsDir.Expand()) }, "install mojo devtools").
-		Call(func() error { return m.installMojoSdk(jirix, m.sdkDir.Expand()) }, "install mojo SDK").
-		Call(func() error { return m.installMojoShellAndServices(jirix, m.shellDir.Expand()) }, "install mojo shell and services").
-		Call(func() error { return m.installMojoSystemThunks(jirix, m.systemThunksDir.Expand()) }, "install mojo system thunks")
+	seq.MkdirAll(m.mojoInstDir.Abs(jirix), profiles.DefaultDirPerm).
+		Call(func() error { return m.installMojoDevtools(jirix, m.devtoolsDir.Abs(jirix)) }, "install mojo devtools").
+		Call(func() error { return m.installMojoSdk(jirix, m.sdkDir.Abs(jirix)) }, "install mojo SDK").
+		Call(func() error { return m.installMojoShellAndServices(jirix, m.shellDir.Abs(jirix)) }, "install mojo shell and services").
+		Call(func() error { return m.installMojoSystemThunks(jirix, m.systemThunksDir.Abs(jirix)) }, "install mojo system thunks")
 
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-		"CGO_CFLAGS=-I" + m.sdkDir.Join("src").String(),
-		"CGO_CXXFLAGS=-I" + m.sdkDir.Join("src").String(),
-		"CGO_LDFLAGS=-L" + m.systemThunksDir.String() + " -lsystem_thunks",
-		"GOPATH=" + m.sdkDir.String() + ":" + m.sdkDir.Join("gen", "go").String(),
-		"MOJO_DEVTOOLS=" + m.devtoolsDir.String(),
-		"MOJO_SDK=" + m.sdkDir.String(),
-		"MOJO_SHELL=" + m.shellDir.Join("mojo_shell").String(),
-		"MOJO_SERVICES=" + m.shellDir.String(),
-		"MOJO_SYSTEM_THUNKS=" + m.systemThunksDir.Join("libsystem_thunks.a").String(),
+		"CGO_CFLAGS=-I" + m.sdkDir.Join("src").Symbolic(),
+		"CGO_CXXFLAGS=-I" + m.sdkDir.Join("src").Symbolic(),
+		"CGO_LDFLAGS=-L" + m.systemThunksDir.Symbolic() + " -lsystem_thunks",
+		"GOPATH=" + m.sdkDir.Symbolic() + ":" + m.sdkDir.Join("gen", "go").Symbolic(),
+		"MOJO_DEVTOOLS=" + m.devtoolsDir.Symbolic(),
+		"MOJO_SDK=" + m.sdkDir.Symbolic(),
+		"MOJO_SHELL=" + m.shellDir.Join("mojo_shell").Symbolic(),
+		"MOJO_SERVICES=" + m.shellDir.Symbolic(),
+		"MOJO_SYSTEM_THUNKS=" + m.systemThunksDir.Join("libsystem_thunks.a").Symbolic(),
 	})
 
 	if m.platform == "android-arm" {
-		seq.Call(func() error { return m.installAndroidPlatformTools(jirix, m.androidPlatformToolsDir.Expand()) }, "install android platform tools")
+		seq.Call(func() error { return m.installAndroidPlatformTools(jirix, m.androidPlatformToolsDir.Abs(jirix)) }, "install android platform tools")
 		target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-			"ANDROID_PLATFORM_TOOLS=" + m.androidPlatformToolsDir.String(),
-			"MOJO_SHELL=" + m.shellDir.Join("MojoShell.apk").String(),
+			"ANDROID_PLATFORM_TOOLS=" + m.androidPlatformToolsDir.Symbolic(),
+			"MOJO_SHELL=" + m.shellDir.Join("MojoShell.apk").Symbolic(),
 		})
 	}
 
@@ -212,8 +214,8 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 		return err
 	}
 
-	target.InstallationDir = m.mojoInstDir.RelativePath()
-	profiles.InstallProfile(profileName, m.mojoRoot.RelativePath())
+	target.InstallationDir = string(m.mojoInstDir)
+	profiles.InstallProfile(profileName, string(m.mojoRoot))
 	return profiles.AddProfileTarget(profileName, target)
 }
 
@@ -408,7 +410,7 @@ func (m *Manager) installMojoSystemThunks(jirix *jiri.X, outDir string) error {
 	return profiles.AtomicAction(jirix, fn, outDir, "Download Mojo system thunks")
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	// TODO(nlacasse): What should we do with all the installed artifacts?
 	// They could be used by other profile versions, so deleting them does not
 	// make sense.  Should we check that they are only used by this profile

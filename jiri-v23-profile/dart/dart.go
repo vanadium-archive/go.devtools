@@ -42,7 +42,7 @@ func init() {
 }
 
 type Manager struct {
-	root, dartRoot, dartInstDir profiles.RelativePath
+	root, dartRoot, dartInstDir jiri.RelPath
 	versionInfo                 *profiles.VersionInfo
 	spec                        versionSpec
 }
@@ -66,7 +66,7 @@ func (m Manager) Info() string {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
@@ -75,22 +75,22 @@ func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, targe
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
 
-	if err := m.installDartSdk(jirix, target, m.dartInstDir.Expand()); err != nil {
+	if err := m.installDartSdk(jirix, target, m.dartInstDir.Abs(jirix)); err != nil {
 		return err
 	}
 
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
-		"DART_SDK=" + m.dartInstDir.String(),
-		"PATH=" + m.dartInstDir.Join("bin").String(),
+		"DART_SDK=" + m.dartInstDir.Symbolic(),
+		"PATH=" + m.dartInstDir.Join("bin").Symbolic(),
 	})
 
-	target.InstallationDir = m.dartInstDir.RelativePath()
-	profiles.InstallProfile(profileName, m.dartRoot.RelativePath())
+	target.InstallationDir = string(m.dartInstDir)
+	profiles.InstallProfile(profileName, string(m.dartRoot))
 
 	return profiles.AddProfileTarget(profileName, target)
 }
@@ -117,11 +117,11 @@ func (m *Manager) installDartSdk(jirix *jiri.X, target profiles.Target, outDir s
 	return profiles.AtomicAction(jirix, fn, outDir, "Install Dart SDK")
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
-	if err := jirix.NewSeq().RemoveAll(m.dartInstDir.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.dartInstDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)

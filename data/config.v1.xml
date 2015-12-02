@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <config>
   <apiCheckProjects>
+    <project>release.go.jiri</project>
     <project>release.go.v23</project>
     <project>release.go.x.devtools</project>
     <project>release.go.x.lib</project>

@@ -38,7 +38,7 @@ func init() {
 }
 
 type Manager struct {
-	root, javaRoot profiles.RelativePath
+	root, javaRoot jiri.RelPath
 	versionInfo    *profiles.VersionInfo
 	spec           versionSpec
 }
@@ -67,7 +67,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) initForTarget(root jiri.RelPath, target profiles.Target) error {
 	m.root = root
 	m.javaRoot = root.Join("java")
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
@@ -76,7 +76,7 @@ func (m *Manager) initForTarget(root profiles.RelativePath, target profiles.Targ
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
@@ -114,15 +114,15 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv, javaProfileEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = javaHome
-	profiles.InstallProfile(profileName, m.javaRoot.RelativePath())
+	profiles.InstallProfile(profileName, string(m.javaRoot))
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
-	if err := jirix.NewSeq().RemoveAll(m.javaRoot.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.javaRoot.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)

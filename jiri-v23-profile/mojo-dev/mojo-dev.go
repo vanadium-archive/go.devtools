@@ -60,7 +60,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 	}
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if mojoDir == "" {
 		return fmt.Errorf("flag %q must be set", mojoDirFlagName)
 	}
@@ -95,7 +95,7 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	profiles.RemoveProfileTarget(profileName, target)
 	return nil
 }

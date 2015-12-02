@@ -64,7 +64,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	// Install packages
 	if target.OS() == "linux" {
 		if err := profiles.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
@@ -97,7 +97,7 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}

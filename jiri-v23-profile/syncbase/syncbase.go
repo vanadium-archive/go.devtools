@@ -31,9 +31,9 @@ func init() {
 }
 
 type Manager struct {
-	syncbaseRoot, syncbaseInstRoot profiles.RelativePath
-	snappySrcDir, leveldbSrcDir    profiles.RelativePath
-	snappyInstDir, leveldbInstDir  profiles.RelativePath
+	syncbaseRoot, syncbaseInstRoot jiri.RelPath
+	snappySrcDir, leveldbSrcDir    jiri.RelPath
+	snappyInstDir, leveldbInstDir  jiri.RelPath
 	versionInfo                    *profiles.VersionInfo
 }
 
@@ -58,10 +58,10 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) {
+func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target profiles.Target) {
 	m.syncbaseRoot = root.Join("cout")
-	m.snappySrcDir = root.RootJoin("third_party", "csrc", "snappy-1.1.2")
-	m.leveldbSrcDir = root.RootJoin("third_party", "csrc", "leveldb")
+	m.snappySrcDir = jiri.NewRelPath("third_party", "csrc", "snappy-1.1.2")
+	m.leveldbSrcDir = jiri.NewRelPath("third_party", "csrc", "leveldb")
 
 	targetDir := target.TargetSpecificDirname()
 	m.syncbaseInstRoot = m.syncbaseRoot.Join(targetDir)
@@ -80,24 +80,24 @@ func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, targe
 // Go code depends on to the CGO_CFLAGS and CGO_LDFLAGS variables.
 func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, error) {
 	env := envvar.VarsFromSlice([]string{})
-	for _, dir := range []profiles.RelativePath{
+	for _, dir := range []jiri.RelPath{
 		m.leveldbInstDir,
 		m.snappyInstDir,
 	} {
 		cflags := env.GetTokens("CGO_CFLAGS", " ")
 		cxxflags := env.GetTokens("CGO_CXXFLAGS", " ")
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
-		if _, err := jirix.NewSeq().Stat(dir.Expand()); err != nil {
+		if _, err := jirix.NewSeq().Stat(dir.Abs(jirix)); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
 			}
 			continue
 		}
-		cflags = append(cflags, filepath.Join("-I"+dir.String(), "include"))
-		cxxflags = append(cxxflags, filepath.Join("-I"+dir.String(), "include"))
-		ldflags = append(ldflags, filepath.Join("-L"+dir.String(), "lib"))
+		cflags = append(cflags, filepath.Join("-I"+dir.Symbolic(), "include"))
+		cxxflags = append(cxxflags, filepath.Join("-I"+dir.Symbolic(), "include"))
+		ldflags = append(ldflags, filepath.Join("-L"+dir.Symbolic(), "lib"))
 		if target.Arch() == "linux" {
-			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir.String(), "lib"))
+			ldflags = append(ldflags, "-Wl,-rpath", filepath.Join(dir.Symbolic(), "lib"))
 		}
 		env.SetTokens("CGO_CFLAGS", cflags, " ")
 		env.SetTokens("CGO_CXXFLAGS", cxxflags, " ")
@@ -106,7 +106,7 @@ func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, 
 	return env.ToSlice(), nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	m.initForTarget(jirix, root, target)
 	if err := m.installDependencies(jirix, target.Arch(), target.OS()); err != nil {
 		return err
@@ -121,16 +121,16 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	}
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, syncbaseEnv)
 	target.Env.Vars = env.ToSlice()
-	target.InstallationDir = m.syncbaseInstRoot.RelativePath()
-	profiles.InstallProfile(profileName, m.syncbaseRoot.RelativePath())
+	target.InstallationDir = string(m.syncbaseInstRoot)
+	profiles.InstallProfile(profileName, string(m.syncbaseRoot))
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	m.initForTarget(jirix, root, target)
 	if err := jirix.NewSeq().
-		RemoveAll(m.snappyInstDir.Expand()).
-		RemoveAll(m.leveldbInstDir.Expand()).Done(); err != nil {
+		RemoveAll(m.snappyInstDir.Abs(jirix)).
+		RemoveAll(m.leveldbInstDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -154,33 +154,26 @@ func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
 	return profiles.InstallPackages(jirix, pkgs)
 }
 
-func handleRelativePath(root profiles.RelativePath, s string) string {
-	// Handle the transition from absolute to relative paths.
-	if filepath.IsAbs(s) {
-		return s
-	}
-	return root.RootJoin(s).Expand()
-}
-
-func getAndroidRoot(root profiles.RelativePath) (string, error) {
+func getAndroidRoot(root jiri.RelPath) (jiri.RelPath, error) {
+	rp := jiri.NewRelPath()
 	androidProfile := profiles.LookupProfile("android")
 	if androidProfile == nil {
-		return "", fmt.Errorf("android profile is not installed")
+		return rp, fmt.Errorf("android profile is not installed")
 	}
-	return handleRelativePath(root, androidProfile.Root), nil
+	return rp.Join(androidProfile.Root), nil
 }
 
 // installSyncbaseCommon installs the syncbase profile.
-func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) (e error) {
+func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
 		s := jirix.NewSeq()
-		if err := s.Chdir(m.snappySrcDir.Expand()).
+		if err := s.Chdir(m.snappySrcDir.Abs(jirix)).
 			Last("autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
 		}
 		args := []string{
-			fmt.Sprintf("--prefix=%v", m.snappyInstDir.Expand()),
+			fmt.Sprintf("--prefix=%v", m.snappyInstDir.Abs(jirix)),
 			"--enable-shared=false",
 		}
 		env := map[string]string{
@@ -199,17 +192,17 @@ func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, targe
 				"--host=arm-linux-androidabi",
 				"--target=arm-linux-androidabi",
 			)
-			ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
-			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
-			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
-			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
-			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
+			ndkRoot := androidRoot.Join("ndk-toolchain")
+			env["CC"] = ndkRoot.Join("bin", "arm-linux-androideabi-gcc").Abs(jirix)
+			env["CXX"] = ndkRoot.Join("bin", "arm-linux-androideabi-g++").Abs(jirix)
+			env["AR"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ar").Abs(jirix)
+			env["RANLIB"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ranlib").Abs(jirix)
 		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
-			root := os.Getenv("FNL_JIRI_ROOT")
-			if len(root) == 0 {
+			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
+			if len(fnlRoot) == 0 {
 				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
 			}
-			muslBin := filepath.Join(root, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
+			muslBin := filepath.Join(fnlRoot, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
 			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			args = append(args, "--host=amd64-linux")
@@ -231,18 +224,18 @@ func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, targe
 			Run("make", "install").
 			Last("make", "distclean")
 	}
-	if err := profiles.AtomicAction(jirix, installSnappyFn, m.snappyInstDir.Expand(), "Build and install Snappy"); err != nil {
+	if err := profiles.AtomicAction(jirix, installSnappyFn, m.snappyInstDir.Abs(jirix), "Build and install Snappy"); err != nil {
 		return err
 	}
 
 	// Build and install LevelDB.
 	installLeveldbFn := func() error {
-		leveldbIncludeDir := m.leveldbInstDir.Join("include").Expand()
-		leveldbLibDir := m.leveldbInstDir.Join("lib").Expand()
+		leveldbIncludeDir := m.leveldbInstDir.Join("include").Abs(jirix)
+		leveldbLibDir := m.leveldbInstDir.Join("lib").Abs(jirix)
 
 		s := jirix.NewSeq()
-		err := s.Chdir(m.leveldbSrcDir.Expand()).
-			Run("mkdir", "-p", m.leveldbInstDir.Expand()).
+		err := s.Chdir(m.leveldbSrcDir.Abs(jirix)).
+			Run("mkdir", "-p", m.leveldbInstDir.Abs(jirix)).
 			Run("cp", "-R", "include", leveldbIncludeDir).
 			Last("mkdir", leveldbLibDir)
 		if err != nil {
@@ -252,8 +245,8 @@ func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, targe
 		env := map[string]string{
 			"PREFIX": leveldbLibDir,
 			// NOTE(nlacasse): The -fPIC flag is needed to compile Syncbase Mojo service.
-			"CXXFLAGS": "-I" + filepath.Join(m.snappyInstDir.String(), "include") + " -fPIC",
-			"LDFLAGS":  "-L" + filepath.Join(m.snappyInstDir.String(), "lib"),
+			"CXXFLAGS": "-I" + filepath.Join(m.snappyInstDir.Abs(jirix), "include") + " -fPIC",
+			"LDFLAGS":  "-L" + filepath.Join(m.snappyInstDir.Abs(jirix), "lib"),
 		}
 		if target.Arch() == "386" {
 			env["CC"] = "gcc -m32"
@@ -263,18 +256,18 @@ func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, targe
 			if err != nil {
 				return err
 			}
-			ndkRoot := filepath.Join(androidRoot, "ndk-toolchain")
-			env["CC"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-gcc")
-			env["CXX"] = filepath.Join(ndkRoot, "bin", "arm-linux-androideabi-g++")
+			ndkRoot := androidRoot.Join("ndk-toolchain")
+			env["CC"] = ndkRoot.Join("bin", "arm-linux-androideabi-gcc").Abs(jirix)
+			env["CXX"] = ndkRoot.Join("bin", "arm-linux-androideabi-g++").Abs(jirix)
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
-			env["AR"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ar")
-			env["RANLIB"] = filepath.Join(ndkRoot, "arm-linux-androideabi", "bin", "ranlib")
+			env["AR"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ar").Abs(jirix)
+			env["RANLIB"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ranlib").Abs(jirix)
 		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
-			root := os.Getenv("FNL_JIRI_ROOT")
-			if len(root) == 0 {
+			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
+			if len(fnlRoot) == 0 {
 				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
 			}
-			muslBin := filepath.Join(root, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
+			muslBin := filepath.Join(fnlRoot, "out/root/tools/x86_64-fuchsia-linux-musl/bin")
 			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			env["AR"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-ar")
@@ -298,7 +291,7 @@ func (m *Manager) installCommon(jirix *jiri.X, root profiles.RelativePath, targe
 		return s.Env(env).Run("make", "clean").
 			Env(env).Last("make", "static")
 	}
-	if err := profiles.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Expand(), "Build and install LevelDB"); err != nil {
+	if err := profiles.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Abs(jirix), "Build and install LevelDB"); err != nil {
 		return err
 	}
 	return nil

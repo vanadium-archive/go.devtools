@@ -1,6 +1,6 @@
 pkg nacl, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg nacl, method (*Manager) Install(*jiri.X, profiles.RelativePath, profiles.Target) error
-pkg nacl, method (*Manager) Uninstall(*jiri.X, profiles.RelativePath, profiles.Target) error
+pkg nacl, method (*Manager) Install(*jiri.X, jiri.RelPath, profiles.Target) error
+pkg nacl, method (*Manager) Uninstall(*jiri.X, jiri.RelPath, profiles.Target) error
 pkg nacl, method (Manager) Info() string
 pkg nacl, method (Manager) Name() string
 pkg nacl, method (Manager) String() string

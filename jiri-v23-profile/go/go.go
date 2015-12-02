@@ -28,7 +28,7 @@ var (
 
 // Supported cross compilation toolchains.
 type xspec struct{ arch, os string }
-type xbuilder func(*jiri.X, *Manager, profiles.RelativePath, profiles.Target, profiles.Action) (bindir string, env []string, e error)
+type xbuilder func(*jiri.X, *Manager, jiri.RelPath, profiles.Target, profiles.Action) (bindir string, env []string, e error)
 
 var xcompilers = map[xspec]map[xspec]xbuilder{
 	xspec{"amd64", "darwin"}: {
@@ -65,7 +65,7 @@ func init() {
 }
 
 type Manager struct {
-	root, goRoot, targetDir, goInstDir profiles.RelativePath
+	root, goRoot, targetDir, goInstDir jiri.RelPath
 	versionInfo                        *profiles.VersionInfo
 	spec                               versionSpec
 }
@@ -93,7 +93,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 	flags.StringVar(&goSysRootFlag, profileName+".sysroot", "", "sysroot for cross compiling to the currently specified target")
 }
 
-func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profiles.Target) error {
 	m.root = root
 	m.goRoot = root.Join("go")
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
@@ -109,12 +109,12 @@ func (m *Manager) initForTarget(jirix *jiri.X, root profiles.RelativePath, targe
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
 
-	jirix.NewSeq().RemoveAll(m.goRoot.Join("go-bootstrap").Expand())
+	jirix.NewSeq().RemoveAll(m.goRoot.Join("go-bootstrap").Abs(jirix))
 	cgo := true
 	if target.CrossCompiling() {
 		// We may need to install an additional cross compilation toolchain
@@ -149,15 +149,15 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	}
 
 	// Merge our target environment and GOROOT
-	goEnv := []string{"GOROOT=" + m.goInstDir.String()}
+	goEnv := []string{"GOROOT=" + m.goInstDir.Symbolic()}
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, goEnv)
 	target.Env.Vars = env.ToSlice()
-	target.InstallationDir = m.goInstDir.RelativePath()
-	profiles.InstallProfile(profileName, m.goRoot.RelativePath())
+	target.InstallationDir = string(m.goInstDir)
+	profiles.InstallProfile(profileName, string(m.goRoot))
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
@@ -173,13 +173,13 @@ func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target pr
 		}
 	}
 	s := jirix.NewSeq()
-	if err := s.RemoveAll(m.targetDir.Expand()).Done(); err != nil {
+	if err := s.RemoveAll(m.targetDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
 		// If there are no more targets then remove the entire go directory,
 		// including the bootstrap one.
-		return s.RemoveAll(m.goRoot.Expand()).Done()
+		return s.RemoveAll(m.goRoot.Abs(jirix)).Done()
 	}
 	return nil
 }
@@ -220,7 +220,7 @@ func installGo14(jirix *jiri.X, go14Dir string, env *envvar.Vars) error {
 func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Vars) error {
 	// First install bootstrap Go 1.4 for the host.
 	goBootstrapDir := m.targetDir.Join("go-bootstrap")
-	if err := installGo14(jirix, goBootstrapDir.Expand(), envvar.VarsFromOS()); err != nil {
+	if err := installGo14(jirix, goBootstrapDir.Abs(jirix), envvar.VarsFromOS()); err != nil {
 		return err
 	}
 	installGo15Fn := func() error {
@@ -233,7 +233,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 		}
 		defer jirix.NewSeq().RemoveAll(tmpDir)
 
-		goInstDir := m.goInstDir.Expand()
+		goInstDir := m.goInstDir.Abs(jirix)
 		goSrcDir := filepath.Join(goInstDir, "src")
 
 		// Git clone the code and get into the right directory.
@@ -243,7 +243,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 			Popd().
 			RemoveAll(goInstDir).
 			Rename(tmpDir, goInstDir).
-			MkdirAll(m.targetDir.Expand(), profiles.DefaultDirPerm).
+			MkdirAll(m.targetDir.Abs(jirix), profiles.DefaultDirPerm).
 			Done(); err != nil {
 			return err
 		}
@@ -254,21 +254,21 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 			s.Run("git", "apply", patchFile)
 		}
 		makeBin := filepath.Join(goSrcDir, "make.bash")
-		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Expand())
+		env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Abs(jirix))
 		if err := s.Env(env.ToMap()).Last(makeBin); err != nil {
 			s.RemoveAll(filepath.Join(goInstDir, "bin")).Done()
 			return err
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(jirix, installGo15Fn, m.goInstDir.Expand(), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
+	if err := profiles.AtomicAction(jirix, installGo15Fn, m.goInstDir.Abs(jirix), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
 		return err
 	}
-	env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.String())
+	env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Symbolic())
 	return nil
 }
 
-func linux_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	targetABI := ""
 	switch target.Arch() {
 	case "arm":
@@ -276,7 +276,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, targe
 	default:
 		return "", nil, fmt.Errorf("Arch %q is not yet supported for crosstools xgcc", target.Arch())
 	}
-	xgccOutDir := filepath.Join(m.root.Expand(), "profiles", "cout", "xgcc")
+	xgccOutDir := filepath.Join(m.root.Abs(jirix), "profiles", "cout", "xgcc")
 	xtoolInstDir := filepath.Join(xgccOutDir, "crosstools-ng-"+targetABI)
 	xgccInstDir := filepath.Join(xgccOutDir, targetABI)
 	xgccLinkInstDir := filepath.Join(xgccOutDir, "links-"+targetABI)
@@ -301,7 +301,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, targe
 
 	// Build and install crosstool-ng.
 	installNgFn := func() error {
-		xgccSrcDir := filepath.Join(m.root.RootJoin("third_party", "csrc", "crosstool-ng-1.20.0").Expand())
+		xgccSrcDir := jiri.NewRelPath("third_party", "csrc", "crosstool-ng-1.20.0").Abs(jirix)
 		return jirix.NewSeq().
 			Pushd(xgccSrcDir).
 			Run("autoreconf", "--install", "--force", "--verbose").
@@ -336,7 +336,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, targe
 		if err != nil {
 			return fmt.Errorf("ReadFile(%v) failed: %v", configFile, err)
 		}
-		old, new := "/usr/local/vanadium", filepath.Join(m.root.Expand(), "profiles", "cout")
+		old, new := "/usr/local/vanadium", filepath.Join(m.root.Abs(jirix), "profiles", "cout")
 		newConfig := strings.Replace(string(config), old, new, -1)
 		newConfigFile := filepath.Join(tmpDir, ".config")
 		if err := s.WriteFile(newConfigFile, []byte(newConfig), profiles.DefaultFilePerm).Done(); err != nil {
@@ -394,16 +394,16 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, targe
 	return linkBinDir, vars, nil
 }
 
-func darwin_to_linux(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func darwin_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	return "", nil, fmt.Errorf("cross compilation from darwin to linux is not yet supported.")
 }
 
-func to_android(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func to_android(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	if action == profiles.Uninstall {
 		return "", nil, nil
 	}
 	ev := envvar.VarsFromSlice(target.CommandLineEnv().Vars)
-	root.ExpandEnv(ev)
+	jiri.ExpandEnv(jirix, ev)
 	ndk := ev.Get("ANDROID_NDK_DIR")
 	if len(ndk) == 0 {
 		return "", nil, fmt.Errorf("ANDROID_NDK_DIR not specified in the command line environment")
@@ -416,7 +416,7 @@ func to_android(jirix *jiri.X, m *Manager, root profiles.RelativePath, target pr
 	return ndkBin, vars, nil
 }
 
-func to_fnl(jirix *jiri.X, m *Manager, root profiles.RelativePath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+func to_fnl(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
 	if action == profiles.Uninstall {
 		return "", nil, nil
 	}

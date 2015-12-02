@@ -35,8 +35,8 @@ func init() {
 }
 
 type Manager struct {
-	root, naclRoot          profiles.RelativePath
-	naclSrcDir, naclInstDir profiles.RelativePath
+	root, naclRoot          jiri.RelPath
+	naclSrcDir, naclInstDir jiri.RelPath
 	versionInfo             *profiles.VersionInfo
 	spec                    versionSpec
 }
@@ -63,7 +63,7 @@ amd64p32-nacl and assumes it as the default`
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(jirix *jiri.X, action string, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath, target *profiles.Target) error {
 	m.root = root
 	m.naclRoot = root.Join("nacl")
 	if !target.IsSet() {
@@ -83,7 +83,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root profiles.Rela
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
 	}
@@ -97,24 +97,24 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	target.Env.Vars = envvar.MergeSlices(target.Env.Vars, []string{
 		"GOARCH=amd64p32",
 		"GOOS=nacl",
-		"GOROOT=" + m.naclInstDir.String(),
+		"GOROOT=" + m.naclInstDir.Symbolic(),
 	})
-	target.InstallationDir = m.naclInstDir.RelativePath()
-	profiles.InstallProfile(profileName, m.naclRoot.RelativePath())
+	target.InstallationDir = string(m.naclInstDir)
+	profiles.InstallProfile(profileName, string(m.naclRoot))
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	// ignore errors to allow for older installs to be removed.
 	m.initForTarget(jirix, "uninstalled", root, &target)
 
 	s := jirix.NewSeq()
-	if err := s.RemoveAll(m.naclInstDir.Expand()).
-		RemoveAll(m.naclSrcDir.Expand()).Done(); err != nil {
+	if err := s.RemoveAll(m.naclInstDir.Abs(jirix)).
+		RemoveAll(m.naclSrcDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	if profiles.RemoveProfileTarget(profileName, target) {
-		return s.RemoveAll(m.naclRoot.Expand()).Done()
+		return s.RemoveAll(m.naclRoot.Abs(jirix)).Done()
 	}
 	return nil
 }
@@ -128,8 +128,8 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 			return err
 		}
 	}
-	naclSrcDir := m.naclSrcDir.Expand()
-	naclInstDir := m.naclInstDir.Expand()
+	naclSrcDir := m.naclSrcDir.Abs(jirix)
+	naclInstDir := m.naclInstDir.Abs(jirix)
 	cloneGoPpapiFn := func() error {
 		s := jirix.NewSeq()
 		tmpDir, err := s.TempDir("", "")
@@ -141,7 +141,7 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 			Call(func() error { return jirix.Git().Clone(gitRemote, tmpDir) }, "").
 			Call(func() error { return jirix.Git().Reset(m.spec.gitRevision) }, "").
 			Popd().
-			MkdirAll(m.naclRoot.Expand(), profiles.DefaultDirPerm).
+			MkdirAll(m.naclRoot.Abs(jirix), profiles.DefaultDirPerm).
 			RemoveAll(naclSrcDir).
 			Rename(tmpDir, naclSrcDir).Done()
 	}

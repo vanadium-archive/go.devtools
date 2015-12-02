@@ -31,8 +31,8 @@ func init() {
 }
 
 type Manager struct {
-	root, nodeRoot          profiles.RelativePath
-	nodeSrcDir, nodeInstDir profiles.RelativePath
+	root, nodeRoot          jiri.RelPath
+	nodeSrcDir, nodeInstDir jiri.RelPath
 	versionInfo             *profiles.VersionInfo
 	spec                    versionSpec
 }
@@ -57,18 +57,18 @@ tested, versions of node.`
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {}
 
-func (m *Manager) initForTarget(root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) initForTarget(root jiri.RelPath, target profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
 	m.root = root
 	m.nodeRoot = m.root.Join("cout", m.spec.nodeVersion)
 	m.nodeInstDir = m.nodeRoot.Join(target.TargetSpecificDirname())
-	m.nodeSrcDir = m.root.RootJoin("third_party", "csrc", m.spec.nodeVersion)
+	m.nodeSrcDir = jiri.NewRelPath("third_party", "csrc", m.spec.nodeVersion)
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
@@ -78,16 +78,16 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	if err := m.installNode(jirix, target); err != nil {
 		return err
 	}
-	target.InstallationDir = m.nodeInstDir.RelativePath()
-	profiles.InstallProfile(profileName, m.nodeRoot.RelativePath())
+	target.InstallationDir = string(m.nodeInstDir)
+	profiles.InstallProfile(profileName, string(m.nodeRoot))
 	return profiles.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
-	if err := jirix.NewSeq().RemoveAll(m.nodeInstDir.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.nodeInstDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -106,11 +106,11 @@ func (m *Manager) installNode(jirix *jiri.X, target profiles.Target) error {
 	}
 	// Build and install NodeJS.
 	installNodeFn := func() error {
-		return jirix.NewSeq().Pushd(m.nodeSrcDir.Expand()).
-			Run("./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir.Expand())).
+		return jirix.NewSeq().Pushd(m.nodeSrcDir.Abs(jirix)).
+			Run("./configure", fmt.Sprintf("--prefix=%v", m.nodeInstDir.Abs(jirix))).
 			Run("make", "clean").
 			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
 			Last("make", "install")
 	}
-	return profiles.AtomicAction(jirix, installNodeFn, m.nodeInstDir.Expand(), "Build and install node.js")
+	return profiles.AtomicAction(jirix, installNodeFn, m.nodeInstDir.Abs(jirix), "Build and install node.js")
 }

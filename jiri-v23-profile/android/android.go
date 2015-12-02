@@ -74,7 +74,7 @@ func init() {
 }
 
 type Manager struct {
-	root, androidRoot, ndkRoot profiles.RelativePath
+	root, androidRoot, ndkRoot jiri.RelPath
 	versionInfo                *profiles.VersionInfo
 	spec                       versionSpec
 }
@@ -102,7 +102,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) initForTarget(jirix *jiri.X, action string, root profiles.RelativePath, target *profiles.Target) error {
+func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath, target *profiles.Target) error {
 	if !target.IsSet() {
 		def := *target
 		target.Set("arm-android")
@@ -121,7 +121,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root profiles.Rela
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	if err := m.installAndroidNDK(jirix); err != nil {
 		return err
 	}
-	profiles.InstallProfile(profileName, m.androidRoot.RelativePath())
+	profiles.InstallProfile(profileName, string(m.androidRoot))
 	if err := profiles.AddProfileTarget(profileName, target); err != nil {
 		return err
 	}
@@ -149,12 +149,12 @@ func (m *Manager) Install(jirix *jiri.X, root profiles.RelativePath, target prof
 	baseProfileEnv := profiles.EnvFromProfile(target, "base")
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv)
 	target.Env.Vars = env.ToSlice()
-	target.InstallationDir = m.ndkRoot.RelativePath()
-	profiles.InstallProfile(profileName, m.androidRoot.RelativePath())
+	target.InstallationDir = string(m.ndkRoot)
+	profiles.InstallProfile(profileName, string(m.androidRoot))
 	return profiles.UpdateProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "uninstalled", root, &target); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, root profiles.RelativePath, target pr
 	if err := profiles.EnsureProfileTargetIsUninstalled(jirix, "base", root, target); err != nil {
 		return err
 	}
-	if err := jirix.NewSeq().RemoveAll(m.androidRoot.Expand()).Done(); err != nil {
+	if err := jirix.NewSeq().RemoveAll(m.androidRoot.Abs(jirix)).Done(); err != nil {
 		return err
 	}
 	profiles.RemoveProfileTarget(profileName, target)
@@ -207,16 +207,16 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X) (e error) {
 			return fmt.Errorf("expected one directory under %s, got: %v", extractDir, files)
 		}
 		ndkBin := filepath.Join(extractDir, files[0].Name(), "build", "tools", "make-standalone-toolchain.sh")
-		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), "--arch=arm", "--install-dir=" + m.ndkRoot.Expand()}
+		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), "--arch=arm", "--install-dir=" + m.ndkRoot.Abs(jirix)}
 		return s.Last("bash", ndkArgs...)
 	}
-	return profiles.AtomicAction(jirix, installNdkFn, m.ndkRoot.Expand(), "Download Android NDK")
+	return profiles.AtomicAction(jirix, installNdkFn, m.ndkRoot.Abs(jirix), "Download Android NDK")
 }
 
 // installAndroidTargets installs android targets for other profiles, currently
 // just the base profile (i.e. go and syncbase.)
 func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, target profiles.Target) (e error) {
-	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", m.ndkRoot.String())
+	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", m.ndkRoot.Symbolic())
 	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
 	if err != nil {
 		return err
