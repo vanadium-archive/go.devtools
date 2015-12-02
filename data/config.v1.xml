@@ -248,8 +248,10 @@
       <test>vanadium-www-tutorials-core</test>
     </group>
     <group name="java">
-      <test>vanadium-java-test</test>
+      <test>baku-android-build</test>
+      <test>baku-java-test</test>
       <test>vanadium-android-build</test>
+      <test>vanadium-java-test</test>
     </group>
     <group name="javascript">
       <test>vanadium-js-browser-integration</test>
