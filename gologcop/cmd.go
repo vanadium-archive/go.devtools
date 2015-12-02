@@ -122,7 +122,7 @@ func runCheck(jirix *jiri.X, args []string) error {
 	if len(implementationPackageList) == 0 {
 		return jirix.UsageErrorf("no implementation package listed")
 	}
-	return runInjector(jirix, interfacePackageList, implementationPackageList, true)
+	return runInjector(jirix, nil, interfacePackageList, implementationPackageList, true)
 }
 
 // cmdInject represents the 'inject' command of the gologcop tool.
@@ -142,7 +142,7 @@ you can see the diff or revert the changes.
 // runInject handles the "inject" command and executes
 // the log injector in injection mode.
 func runInject(jirix *jiri.X, args []string) error {
-	return runInjector(jirix, splitCommaSeparatedValues(interfacesFlag), args, false)
+	return runInjector(jirix, nil, splitCommaSeparatedValues(interfacesFlag), args, false)
 }
 
 // cmdRemove represents the 'remove' command of the gologcop tool.
@@ -161,5 +161,5 @@ you can see the diff or revert the changes.
 
 // runRemove handles the "remove" command.
 func runRemove(jirix *jiri.X, args []string) error {
-	return runRemover(jirix, args)
+	return runRemover(jirix, nil, args)
 }

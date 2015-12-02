@@ -14,37 +14,63 @@ import (
 
 	"v.io/jiri/jiritest"
 	"v.io/jiri/profiles"
+	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
+	"v.io/jiri/util"
 	"v.io/x/devtools/internal/buildinfo"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/metadata"
 )
 
-// TestGoVanadiumEnvironment checks that the implementation of the
-// "jiri go" command sets up the vanadium environment and then
-// dispatches calls to the go tool.
+// TestGoVanadiumEnvironment checks that the implementation of the "jiri go"
+// command sets up the vanadium environment and then dispatches calls to the go
+// tool.
 func TestGoVanadiumEnvironment(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	jirix := jiritest.NewX_DeprecatedEnv(t, &tool.ContextOpts{
-		Stdout: &stdout,
-		Stderr: &stderr,
-	})
+	// Unset GOPATH to start with a clean environment, and skip profiles to avoid
+	// requiring a real third_party project.
 	oldGoPath := os.Getenv("GOPATH")
 	if err := os.Setenv("GOPATH", ""); err != nil {
-		t.Fatalf("%v", err)
+		t.Fatal(err)
 	}
-	defer os.Setenv("GOPATH", oldGoPath)
-	if err := runGo(jirix, []string{"env", "GOPATH"}); err != nil {
-		t.Fatalf("%v", err)
+	oldProfilesModeFlag := profilesModeFlag
+	profilesModeFlag = profiles.SkipProfiles
+	defer func() {
+		if err := os.Setenv("GOPATH", oldGoPath); err != nil {
+			t.Error(err)
+		}
+		profilesModeFlag = oldProfilesModeFlag
+	}()
+
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
+
+	// Create a test project and identify it as a Go workspace.
+	if err := fake.CreateRemoteProject("test"); err != nil {
+		t.Fatal(err)
 	}
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, v23_profile.DefaultManifestFilename)
-	if err != nil {
-		t.Fatalf("%v", err)
+	if err := fake.AddProject(project.Project{
+		Name:   "test",
+		Path:   "test",
+		Remote: fake.Projects["test"],
+	}); err != nil {
+		t.Fatal(err)
 	}
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
-	if got, want := strings.TrimSpace(stdout.String()), ch.Get("GOPATH"); got != want {
-		t.Fatalf("GOPATH got %v, want %v", got, want)
+	if err := fake.UpdateUniverse(false); err != nil {
+		t.Fatal(err)
+	}
+	config := util.NewConfig(util.GoWorkspacesOpt([]string{"test"}))
+	if err := util.SaveConfig(fake.X, config); err != nil {
+		t.Fatal(err)
+	}
+
+	// The go tool should report the GOPATH contains the test workspace.
+	var stdout bytes.Buffer
+	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &stdout})
+	if err := runGo(fake.X, []string{"env", "GOPATH"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.TrimSpace(stdout.String()), filepath.Join(fake.X.Root, "test"); got != want {
+		t.Errorf("GOPATH got %v, want %v", got, want)
 	}
 }
 
@@ -56,17 +82,17 @@ func TestGoBuildWithMetaData(t *testing.T) {
 		t.Fatalf("TempDir failed: %v", err)
 	}
 	defer ctx.Run().RemoveAll(dir)
-	// Build the jiri binary itself.
+	// Build the jiri-go binary itself.
 	var buf bytes.Buffer
 	opts := runutil.Opts{Stdout: &buf, Stderr: &buf, Verbose: true}
 	testbin := filepath.Join(dir, "testbin")
 	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "build", "-o", testbin); err != nil {
-		t.Fatalf("build of jiri failed: %v\n%s", err, buf.String())
+		t.Fatalf("build of jiri-go failed: %v\n%s", err, buf.String())
 	}
-	// Run the jiri binary.
+	// Run the jiri-go binary.
 	buf.Reset()
 	if err := ctx.Run().CommandWithOpts(opts, testbin, "-metadata"); err != nil {
-		t.Errorf("run of jiri -metadata failed: %v\n%s", err, buf.String())
+		t.Errorf("run of jiri-go -metadata failed: %v\n%s", err, buf.String())
 	}
 	// Decode the output metadata and spot-check some values.
 	outData := buf.Bytes()

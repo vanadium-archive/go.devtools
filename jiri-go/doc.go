@@ -11,11 +11,6 @@ sources. It takes care of vanadium-specific setup, such as setting up the Go
 specific environment variables or making sure that VDL generated files are
 regenerated before compilation.
 
-In particular, the tool invokes the following command before invoking any go
-tool commands that compile vanadium Go code:
-
-vdl generate -lang=go all
-
 Usage:
    jiri go [flags] <arg ...>
 

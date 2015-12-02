@@ -154,8 +154,9 @@ func (ps *parseState) parseAndTypeCheckPackage(bpkg *build.Package) ([]*ast.File
 // importPkgs will expand the supplied list of  packages using go list
 // (so v.io/v23/... can be used as an interface package spec for example) and
 // then import those packages.
-func importPkgs(jirix *jiri.X, packageSpec []string) (ifcs []*build.Package, err error) {
-	pkgs, err := goutil.List(jirix.Context, []string{"--merge-policies=" + mergePoliciesFlag.String()}, packageSpec...)
+func importPkgs(jirix *jiri.X, goFlags, packageSpec []string) (ifcs []*build.Package, err error) {
+	flags := append(goFlags, "-merge-policies="+mergePoliciesFlag.String())
+	pkgs, err := goutil.List(jirix.Context, flags, packageSpec...)
 	if err != nil {
 		return nil, err
 	}
@@ -207,18 +208,18 @@ func initInjectorFlags() error {
 }
 
 // run runs the log injector.
-func runInjector(jirix *jiri.X, interfaceList, implementationList []string, checkOnly bool) error {
+func runInjector(jirix *jiri.X, goFlags, interfaceList, implementationList []string, checkOnly bool) error {
 	if err := initInjectorFlags(); err != nil {
 		return err
 	}
 	// use 'go list' and the builder to import all of the packages
 	// specified as interfaces and implementations.
-	ifcs, err := importPkgs(jirix, interfaceList)
+	ifcs, err := importPkgs(jirix, goFlags, interfaceList)
 	if err != nil {
 		return err
 	}
 
-	impls, err := importPkgs(jirix, implementationList)
+	impls, err := importPkgs(jirix, goFlags, implementationList)
 	if err != nil {
 		return err
 	}
@@ -295,14 +296,14 @@ func initRemoverFlags() error {
 	return nil
 }
 
-func runRemover(jirix *jiri.X, implementationList []string) error {
+func runRemover(jirix *jiri.X, goFlags, implementationList []string) error {
 	if err := initRemoverFlags(); err != nil {
 		return err
 	}
 
 	// use 'go list' and the builder to import all of the packages
 	// specified as implementations.
-	impls, err := importPkgs(jirix, implementationList)
+	impls, err := importPkgs(jirix, goFlags, implementationList)
 	if err != nil {
 		return err
 	}

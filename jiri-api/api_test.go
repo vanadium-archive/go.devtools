@@ -28,16 +28,13 @@ func writeFileOrDie(t *testing.T, jirix *jiri.X, path, contents string) {
 // representing the environment that was created, along with a cleanup closure
 // that should be deferred.
 func setupAPITest(t *testing.T) (*jiritest.FakeJiriRoot, func()) {
-	// Before we replace the vanadium root with our new fake one, we have
-	// to build gotools. This is because the fake environment does not
-	// contain the gotools source.
-	envX := jiritest.NewX_DeprecatedEnv(t, nil)
-	gotoolsPath, cleanupGotools, err := buildGotools(envX)
+	// Capture JIRI_ROOT, using a relative path.  We use this to find the
+	// third_party repository below.
+	realRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "..", ".."))
 	if err != nil {
-		t.Fatalf("buildGotools failed: %v", err)
+		t.Fatal(err)
 	}
-	gotoolsBinPathFlag = gotoolsPath
-	// Set up a fake jiri environment.
+	// Set up a fake jiri environment, with a test project.
 	fake, cleanupFake := jiritest.NewFakeJiriRoot(t)
 	if err := fake.CreateRemoteProject("test"); err != nil {
 		t.Fatal(err)
@@ -49,9 +46,28 @@ func setupAPITest(t *testing.T) (*jiritest.FakeJiriRoot, func()) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// Set up a third_party project, based on the real root.  We need the real
+	// third_party sources in order for buildGotools to work.
+	if err := fake.CreateRemoteProject("third_party"); err != nil {
+		t.Fatal(err)
+	}
+	if err := fake.AddProject(project.Project{
+		Name:   "third_party",
+		Path:   "third_party",
+		Remote: filepath.Join(realRoot, "third_party"),
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
+	// Build gotools for use in the rest of the api tests.
+	gotoolsPath, cleanupGotools, err := buildGotools(fake.X)
+	if err != nil {
+		t.Fatalf("buildGotools failed: %v", err)
+	}
+	gotoolsBinPathFlag = gotoolsPath
+
 	return fake, func() {
 		if err := cleanupGotools(); err != nil {
 			t.Fatal(err)

@@ -80,49 +80,60 @@ type goTestOpt interface {
 
 type funcMatcherOpt struct{ funcMatcher }
 
-type nonTestArgsOpt []string
 type argsOpt []string
-type timeoutOpt string
-type suffixOpt string
 type exclusionsOpt []exclusion
-type pkgsOpt []string
+type jiriGoOpt []string
+type nonTestArgsOpt []string
 type numWorkersOpt int
+type pkgsOpt []string
+type suffixOpt string
+type timeoutOpt string
 
-func (argsOpt) goBuildOpt()    {}
-func (argsOpt) goCoverageOpt() {}
-func (argsOpt) goTestOpt()     {}
-
-func (nonTestArgsOpt) goTestOpt() {}
-
-func (timeoutOpt) goCoverageOpt() {}
-func (timeoutOpt) goTestOpt()     {}
-
-func (suffixOpt) goTestOpt() {}
-
-func (exclusionsOpt) goTestOpt() {}
-
-func (funcMatcherOpt) goTestOpt() {}
-
-func (pkgsOpt) goTestOpt()     {}
-func (pkgsOpt) goBuildOpt()    {}
-func (pkgsOpt) goCoverageOpt() {}
-
-func (numWorkersOpt) goTestOpt() {}
-
+func (argsOpt) goBuildOpt()             {}
+func (argsOpt) goCoverageOpt()          {}
+func (argsOpt) goTestOpt()              {}
+func (exclusionsOpt) goTestOpt()        {}
+func (funcMatcherOpt) goTestOpt()       {}
+func (jiriGoOpt) Opt()                  {}
+func (jiriGoOpt) goBuildOpt()           {}
+func (jiriGoOpt) goCoverageOpt()        {}
+func (jiriGoOpt) goTestOpt()            {}
+func (nonTestArgsOpt) goTestOpt()       {}
+func (numWorkersOpt) goTestOpt()        {}
+func (pkgsOpt) goBuildOpt()             {}
+func (pkgsOpt) goCoverageOpt()          {}
+func (pkgsOpt) goTestOpt()              {}
+func (suffixOpt) goTestOpt()            {}
+func (timeoutOpt) goCoverageOpt()       {}
+func (timeoutOpt) goTestOpt()           {}
 func (MergePoliciesOpt) goBuildOpt()    {}
-func (MergePoliciesOpt) goTestOpt()     {}
 func (MergePoliciesOpt) goCoverageOpt() {}
+func (MergePoliciesOpt) goTestOpt()     {}
 
-func goListOpts(opts ...interface{}) []string {
-	for _, o := range opts {
-		if mp, ok := o.(MergePoliciesOpt); ok {
-			return []string{"--merge-policies=" + profiles.MergePolicies(mp).String()}
+func goListOpts(opts []Opt) []string {
+	var ret []string
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case MergePoliciesOpt:
+			ret = append(ret, "-merge-policies="+profiles.MergePolicies(typedOpt).String())
+		case jiriGoOpt:
+			ret = append(ret, typedOpt...)
 		}
 	}
-	return nil
+	return ret
 }
 
-func getOptsFromTestOpts(opts []goTestOpt) []Opt {
+func optsFromGoCoverage(opts []goCoverageOpt) []Opt {
+	var r []Opt
+	for _, o := range opts {
+		if v, ok := o.(Opt); ok {
+			r = append(r, v)
+		}
+	}
+	return r
+}
+
+func optsFromGoTest(opts []goTestOpt) []Opt {
 	var r []Opt
 	for _, o := range opts {
 		if v, ok := o.(Opt); ok {
@@ -134,13 +145,15 @@ func getOptsFromTestOpts(opts []goTestOpt) []Opt {
 
 // goBuild is a helper function for running Go builds.
 func goBuild(jirix *jiri.X, testName string, opts ...goBuildOpt) (_ *test.Result, e error) {
-	args, pkgs := []string{}, []string{}
+	var buildArgs, pkgs, goFlags []string
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case argsOpt:
-			args = []string(typedOpt)
+			buildArgs = []string(typedOpt)
 		case pkgsOpt:
 			pkgs = []string(typedOpt)
+		case jiriGoOpt:
+			goFlags = []string(typedOpt)
 		}
 	}
 
@@ -154,7 +167,10 @@ func goBuild(jirix *jiri.X, testName string, opts ...goBuildOpt) (_ *test.Result
 		// The "leveldb" tag is needed to compile the levelDB-based
 		// storage engine for the groups service. See v.io/i/632 for more
 		// details.
-		args := append([]string{"go", "build", "-v", "-tags=leveldb"}, args...)
+		args := []string{"go"}
+		args = append(args, goFlags...)
+		args = append(args, "build", "-v", "-tags=leveldb")
+		args = append(args, buildArgs...)
 		args = append(args, pkg)
 		opts := jirix.Run().Opts()
 		opts.Stdout = io.MultiWriter(&out, opts.Stdout)
@@ -232,7 +248,7 @@ const defaultTestCoverageTimeout = "5m"
 // goCoverage is a helper function for running Go coverage tests.
 func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.Result, e error) {
 	timeout := defaultTestCoverageTimeout
-	args, pkgs := []string{}, []string{}
+	var args, pkgs, goFlags []string
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case timeoutOpt:
@@ -241,22 +257,21 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 			args = []string(typedOpt)
 		case pkgsOpt:
 			pkgs = []string(typedOpt)
+		case jiriGoOpt:
+			goFlags = []string(typedOpt)
 		}
 	}
 
 	// Install required tools.
-	if err := jirix.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/cover"); err != nil {
-		return nil, newInternalError(err, "install-go-cover")
-	}
-	if err := jirix.Run().Command("jiri", "go", "install", "github.com/t-yuki/gocover-cobertura"); err != nil {
-		return nil, newInternalError(err, "install-gocover-cobertura")
-	}
-	if err := jirix.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
-		return nil, newInternalError(err, "install-go2xunit")
+	goInstall := []string{"go"}
+	goInstall = append(goInstall, goFlags...)
+	goInstall = append(goInstall, "install", "golang.org/x/tools/cmd/cover", "github.com/t-yuki/gocover-cobertura", "bitbucket.org/tebeka/go2xunit")
+	if err := jirix.Run().Command("jiri", goInstall...); err != nil {
+		return nil, newInternalError(err, "install coverage tools")
 	}
 
 	// Build dependencies of test packages.
-	if err := buildTestDeps(jirix, pkgs); err != nil {
+	if err := buildTestDeps(jirix, pkgs, goFlags); err != nil {
 		if err := xunit.CreateFailureReport(jirix.Context, testName, "BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error()); err != nil {
 			return nil, err
 		}
@@ -265,7 +280,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 
 	// Enumerate the packages for which coverage is to be computed.
 	fmt.Fprintf(jirix.Stdout(), "listing test packages and functions ... ")
-	pkgList, err := goutil.List(jirix.Context, goListOpts(opts), pkgs...)
+	pkgList, err := goutil.List(jirix.Context, goListOpts(optsFromGoCoverage(opts)), pkgs...)
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
 		if err := xunit.CreateFailureReport(jirix.Context, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
@@ -512,7 +527,7 @@ func goListPackagesAndFuncs(jirix *jiri.X, opts []Opt, pkgs []string, matcher fu
 // and a list of the specific tests that should be run (which if nil
 // means running all of the tests), and a list of the skipped tests.
 func filterExcludedTests(pkg string, testNames []string, exclusions []exclusion) (bool, []string, []string) {
-	excluded := []string{}
+	var excluded []string
 	for _, name := range testNames {
 		for _, exclusion := range exclusions {
 			if exclusion.exclude && exclusion.pkgRE.MatchString(pkg) && exclusion.nameRE.MatchString(name) {
@@ -575,7 +590,9 @@ func goTestAndReport(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test
 // goTest is a helper function for running Go tests.
 func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, _ []xunit.TestSuite, e error) {
 	timeout := defaultTestTimeout
-	args, suffix, exclusions, pkgs := []string{}, "", []exclusion{}, []string{}
+	var args, pkgs, goFlags []string
+	var exclusions []exclusion
+	var suffix string
 	var matcher funcMatcher
 	matcher = &matchGoTestFunc{testNameRE: goTestNameRE}
 	numWorkers := runtime.NumCPU()
@@ -601,19 +618,23 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 			if numWorkers < 1 {
 				numWorkers = 1
 			}
-
+		case jiriGoOpt:
+			goFlags = []string(typedOpt)
 		}
 	}
 
 	// TODO(cnicolaou): this gets run for every test case, which is going
 	// to be pretty slow. We should refactor so that it only gets run once.
 	// Install required tools.
-	if err := jirix.Run().Command("jiri", "go", "install", "bitbucket.org/tebeka/go2xunit"); err != nil {
+	goInstall := []string{"go"}
+	goInstall = append(goInstall, goFlags...)
+	goInstall = append(goInstall, "install", "bitbucket.org/tebeka/go2xunit")
+	if err := jirix.Run().Command("jiri", goInstall...); err != nil {
 		return nil, nil, newInternalError(err, "install-go2xunit")
 	}
 
 	// Build dependencies of test packages.
-	if err := buildTestDeps(jirix, pkgs); err != nil {
+	if err := buildTestDeps(jirix, pkgs, goFlags); err != nil {
 		originalTestName := testName
 		if len(suffix) != 0 {
 			testName += " " + suffix
@@ -623,7 +644,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 	}
 
 	// Enumerate the packages to be built and tests to be executed.
-	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(jirix, getOptsFromTestOpts(opts), pkgs, matcher)
+	pkgList, pkgAndFuncList, err := goListPackagesAndFuncs(jirix, optsFromGoTest(opts), pkgs, matcher)
 	if err != nil {
 		originalTestName := testName
 		if len(suffix) != 0 {
@@ -862,11 +883,14 @@ func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks
 }
 
 // buildTestDeps builds dependencies for the given test packages
-func buildTestDeps(jirix *jiri.X, pkgs []string) error {
+func buildTestDeps(jirix *jiri.X, pkgs []string, jiriGoFlags []string) error {
 	fmt.Fprintf(jirix.Stdout(), "building test dependencies ... ")
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	args := append([]string{"go", "test", "-tags=leveldb", "-i"}, pkgs...)
+	args := []string{"go"}
+	args = append(args, jiriGoFlags...)
+	args = append(args, "test", "-tags=leveldb", "-i")
+	args = append(args, pkgs...)
 	var out bytes.Buffer
 	opts := jirix.Run().Opts()
 	opts.Stderr = &out

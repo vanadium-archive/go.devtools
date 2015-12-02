@@ -9,13 +9,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/jiritest"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -144,7 +147,6 @@ var (
 						Failures: []xunit.Failure{
 							xunit.Failure{
 								Message: "build failure",
-								Data:    "...missing return at end of the function",
 							},
 						},
 					},
@@ -367,20 +369,24 @@ var (
 	}
 )
 
+var skipProfiles = jiriGoOpt([]string{"-skip-profiles"})
+
 // TestGoBuild checks the Go build based test logic.
 func TestGoBuild(t *testing.T) {
-	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
+	fake, cleanupFake := jiritest.NewFakeJiriRoot(t)
+	defer cleanupFake()
+
 	testName := "test-go-build"
-	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
+	cleanupTest, err := initTestImpl(fake.X, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer cleanup()
+	defer cleanupTest()
 
 	// This package will pass.
 	{
 		pkgName := "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
-		result, err := goBuild(jirix, testName, pkgsOpt([]string{pkgName}))
+		result, err := goBuild(fake.X, testName, pkgsOpt([]string{pkgName}), skipProfiles)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -398,7 +404,7 @@ func TestGoBuild(t *testing.T) {
 	// This package will fail.
 	{
 		pkgName := "v.io/x/devtools/jiri-test/internal/test/testdata/foo2"
-		result, err := goBuild(jirix, testName, pkgsOpt([]string{pkgName}))
+		result, err := goBuild(fake.X, testName, pkgsOpt([]string{pkgName}), skipProfiles)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -425,16 +431,15 @@ func TestGoBuild(t *testing.T) {
 
 // TestGoCoverage checks the Go test coverage based test logic.
 func TestGoCoverage(t *testing.T) {
-	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
+	jirix := newJiriXWithRealRoot(t)
 	testName, pkgName := "test-go-coverage", "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
-
-	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
+	cleanupTest, err := initTestImpl(jirix, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer cleanup()
+	defer cleanupTest()
 
-	result, err := goCoverage(jirix, testName, pkgsOpt([]string{pkgName}))
+	result, err := goCoverage(jirix, testName, pkgsOpt([]string{pkgName}), skipProfiles)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -529,19 +534,21 @@ func TestRegressionTest(t *testing.T) {
 }
 
 func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTestSuite xunit.TestSuites, expectedStatus test.Status, subPkg string, testOpts ...goTestOpt) {
-	jirix := jiritest.NewX_DeprecatedEnv(t, nil)
-	testName, pkgName := "test-go-test", fmt.Sprintf("v.io/x/devtools/jiri-test/internal/test/testdata/%s", subPkg)
+	jirix := newJiriXWithRealRoot(t)
+	testName, pkgName := "test-go-test", "v.io/x/devtools/jiri-test/internal/test/testdata/"+subPkg
 
-	cleanup, err := initTestImpl(jirix, false, testName, []string{"base"}, "")
+	cleanupTest, err := initTestImpl(jirix, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer cleanup()
+	defer cleanupTest()
 
 	opts := []goTestOpt{
 		pkgsOpt([]string{pkgName}),
 		suffixOpt(suffix),
-		exclusionsOpt(exclusions)}
+		exclusionsOpt(exclusions),
+		skipProfiles,
+	}
 	opts = append(opts, testOpts...)
 
 	result, err := goTestAndReport(jirix, testName, opts...)
@@ -567,4 +574,14 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	if !suitesMatch(gotTest, expectedTestSuite) {
 		t.Fatalf("unexpected result:\ngot\n%v\nwant\n%v", gotTest, expectedTestSuite)
 	}
+}
+
+func newJiriXWithRealRoot(t *testing.T) *jiri.X {
+	// Capture JIRI_ROOT using a relative path.  We need the real JIRI_ROOT for
+	// test that build and use tools from third_party.
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &jiri.X{Context: tool.NewDefaultContext(), Root: root}
 }
