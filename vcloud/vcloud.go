@@ -266,7 +266,7 @@ func newContext(env *cmdline.Env) *tool.Context {
 
 // StartShell starts a shell on node n.
 func (n nodeInfo) StartShell(ctx *tool.Context) error {
-	return ctx.Run().Command("gcloud",
+	return ctx.NewSeq().Last("gcloud",
 		"compute", "ssh",
 		addUser(*flagUser, n.Name),
 		"--project", *flagProject,
@@ -299,23 +299,16 @@ func (n nodeInfo) RunCopy(ctx *tool.Context, srcs []string, dst string, makeSubd
 	args = append(args, dst)
 	args = append(args, "--project", *flagProject, "--zone", n.Zone)
 	var stdouterr bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdin = nil
-	opts.Stdout = &stdouterr
-	opts.Stderr = &stdouterr
-	err := ctx.Run().CommandWithOpts(opts, "gcloud", args...)
+	err := ctx.NewSeq().Read(nil).Capture(&stdouterr, &stdouterr).
+		Last("gcloud", args...)
 	return runResult{node: n, out: stdouterr.String(), err: err}
 }
 
 // RunCommand runs cmdline on node n.
 func (n nodeInfo) RunCommand(ctx *tool.Context, user string, cmdline []string) runResult {
 	var stdouterr bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdin = nil
-	opts.Stdout = &stdouterr
-	opts.Stderr = &stdouterr
-	err := ctx.Run().CommandWithOpts(opts,
-		"gcloud", "compute", "ssh",
+	err := ctx.NewSeq().Read(nil).Capture(&stdouterr, &stdouterr).
+		Last("gcloud", "compute", "ssh",
 		addUser(user, n.Name),
 		"--project", *flagProject,
 		"--zone", n.Zone,
@@ -613,11 +606,8 @@ func (x regexpList) AnyMatch(s string) bool {
 // the results into nodeInfos.  If dryrun is set, only prints the command.
 func listAll(ctx *tool.Context, dryrun bool) (nodeInfos, error) {
 	var stdout bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.DryRun = dryrun
-	opts.Stdin = nil
-	opts.Stdout = &stdout
-	if err := ctx.Run().CommandWithOpts(opts, "gcloud", "-q", "compute", "instances", "list", "--project", *flagProject, "--format=json"); err != nil {
+	if err := ctx.NewSeq().Read(nil).Capture(&stdout, ctx.Stderr()).
+		Last("gcloud", "-q", "compute", "instances", "list", "--project", *flagProject, "--format=json"); err != nil {
 		return nil, err
 	}
 	if ctx.Verbose() {
