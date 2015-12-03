@@ -190,7 +190,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 		break
 	}
 
-	// Rebuild developer tools and override JIRI_ROOT/devtools/bin.
+	// Rebuild developer tools and override PATH to point there.
 	env, err := rebuildDeveloperTools(jirix, tools, tmpBinDir)
 	if err != nil {
 		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, err.Error())
@@ -428,18 +428,21 @@ func recordPresubmitFailure(jirix *jiri.X, testCaseName, failureMessage, failure
 }
 
 // rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in a
-// temporary directory, which is used to replace JIRI_ROOT/devtools/bin in the
-// PATH.
+// temporary directory, and overrides the PATH to use that directory.
 func rebuildDeveloperTools(jirix *jiri.X, tools project.Tools, tmpBinDir string) (map[string]string, error) {
 	if err := project.BuildTools(jirix, tools, tmpBinDir); err != nil {
 		return nil, err
 	}
-	// Create a new PATH that replaces JIRI_ROOT/devtools/bin with the
-	// temporary directory in which the tools were rebuilt.
-	env := map[string]string{
-		"PATH": strings.Replace(os.Getenv("PATH"), filepath.Join(jirix.Root, "devtools", "bin"), tmpBinDir, -1),
-	}
-	return env, nil
+	// Create a new PATH that replaces JIRI_ROOT/devtools/bin and
+	// JIRI_ROOT/.jiri_root/bin with the temporary bin directory.
+	//
+	// TODO(toddw): Remove replacement of devtools/bin when the transition to
+	// .jiri_root is done.
+	oldBinDir := filepath.Join(jirix.Root, "devtools", "bin")
+	path := os.Getenv("PATH")
+	path = strings.Replace(path, oldBinDir, tmpBinDir, -1)
+	path = strings.Replace(path, jirix.BinDir(), tmpBinDir, -1)
+	return map[string]string{"PATH": path}, nil
 }
 
 // processTestPartSuffix extracts the test name without part suffix as well

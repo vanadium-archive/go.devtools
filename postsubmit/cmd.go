@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/project"
@@ -57,19 +58,26 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(jirix *jiri.X, _ []string) error {
-	// Get the latest snapshot file from $JIRI_ROOT/.update_history directory.
-	historyDir := filepath.Join(jirix.Root, ".update_history")
-	var maxTime int64
-	latestSnapshotFile := ""
-	filepath.Walk(historyDir, func(path string, info os.FileInfo, err error) error {
-		if info.ModTime().Unix() > maxTime {
-			latestSnapshotFile = path
+	// Get the latest snapshot file from the update history directory.
+	var maxTime time.Time
+	var latestSnapshot string
+	findLatest := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if t := info.ModTime(); t.After(maxTime) {
+			maxTime = t
+			latestSnapshot = path
 		}
 		return nil
-	})
+	}
+	// TODO(toddw): Stop looking in the .update_history directory when the
+	// transition to the new .jiri_root is complete.
+	filepath.Walk(filepath.Join(jirix.Root, ".update_history"), findLatest)
+	filepath.Walk(jirix.UpdateHistoryDir(), findLatest)
 
 	// Get projects with new changes from the latest snapshots.
-	snapshotFileBytes, err := ioutil.ReadFile(latestSnapshotFile)
+	snapshotFileBytes, err := ioutil.ReadFile(latestSnapshot)
 	if err != nil {
 		return fmt.Errorf("ReadAll() failed: %v", err)
 	}
