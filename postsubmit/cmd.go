@@ -62,7 +62,7 @@ func runPoll(jirix *jiri.X, _ []string) error {
 	var maxTime time.Time
 	var latestSnapshot string
 	findLatest := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+		if err != nil || info.IsDir() {
 			return nil
 		}
 		if t := info.ModTime(); t.After(maxTime) {
@@ -79,7 +79,7 @@ func runPoll(jirix *jiri.X, _ []string) error {
 	// Get projects with new changes from the latest snapshots.
 	snapshotFileBytes, err := ioutil.ReadFile(latestSnapshot)
 	if err != nil {
-		return fmt.Errorf("ReadAll() failed: %v", err)
+		return fmt.Errorf("ReadFile() failed: %v", err)
 	}
 	projects, err := getChangedProjectsFromSnapshot(jirix, snapshotFileBytes)
 	if err != nil {
