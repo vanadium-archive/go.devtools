@@ -158,6 +158,7 @@ downloaded.
 
 func runDownload(env *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(env)
+	s := ctx.NewSeq()
 	client, err := createClient(ctx)
 	if err != nil {
 		return err
@@ -170,7 +171,7 @@ func runDownload(env *cmdline.Env, args []string) error {
 	if len(outputDirFlag) == 0 {
 		outputDirFlag = fmt.Sprintf("./v23_%s_%s_%s", osFlag, archFlag, timestamp)
 	}
-	if err := ctx.Run().MkdirAll(outputDirFlag, 0755); err != nil {
+	if err := s.MkdirAll(outputDirFlag, 0755).Done(); err != nil {
 		return err
 	}
 
@@ -189,7 +190,7 @@ func runDownload(env *cmdline.Env, args []string) error {
 				}
 			}
 			if gotError {
-				if err := ctx.Run().RemoveAll(outputDirFlag); err != nil {
+				if err := ctx.NewSeq().RemoveAll(outputDirFlag).Done(); err != nil {
 					fmt.Fprintf(ctx.Stderr(), "%v", err)
 				}
 				return fmt.Errorf("Failed to download some binaries")
@@ -200,12 +201,12 @@ func runDownload(env *cmdline.Env, args []string) error {
 			return fmt.Errorf("operation failed")
 		}
 		// Remove the .done file from the snapshot.
-		if err := ctx.Run().RemoveAll(path.Join(outputDirFlag, ".done")); err != nil {
+		if err := ctx.NewSeq().RemoveAll(path.Join(outputDirFlag, ".done")).Done(); err != nil {
 			return err
 		}
 		return nil
 	}
-	return ctx.Run().Function(downloadBinaries, fmt.Sprintf("Downloading binaries to %s", outputDirFlag))
+	return s.Call(downloadBinaries, fmt.Sprintf("Downloading binaries to %s", outputDirFlag)).Done()
 }
 
 // latestBinaries returns the binaries of the latest snapshot whose timestamp
@@ -307,7 +308,7 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 
 func createClient(ctx *tool.Context) (*http.Client, error) {
 	if len(keyFileFlag) > 0 {
-		data, err := ctx.Run().ReadFile(keyFileFlag)
+		data, err := ctx.NewSeq().ReadFile(keyFileFlag)
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +329,7 @@ func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, e
 			return fmt.Errorf("failed to download file %v: %v", binaryPath, err)
 		}
 		fileName := filepath.Join(outputDirFlag, path.Base(binaryPath))
-		if err := ctx.Run().WriteFile(fileName, b, 0755); err != nil {
+		if err := ctx.NewSeq().WriteFile(fileName, b, 0755).Done(); err != nil {
 			return err
 		}
 		return nil
