@@ -5,40 +5,11 @@
 package test
 
 import (
-	"path/filepath"
-
-	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
 	"v.io/x/devtools/internal/test"
-	"v.io/x/lib/envvar"
 )
 
 // vanadiumAndroidBuild tests that the android files build.
 func vanadiumAndroidBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"java"})
-	if err != nil {
-		return nil, newInternalError(err, "Init")
-	}
-	defer collect.Error(func() error { return cleanup() }, &e)
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
-	if err != nil {
-		return nil, newInternalError(err, "Init")
-	}
-	target := profiles.NativeTarget()
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), target, "java")
-	env := envvar.VarsFromOS()
-	env.Set("JAVA_HOME", ch.Get("JAVA_HOME"))
-	// Run tests.
-	javaDir := filepath.Join(ch.Root(), "release", "java")
-	if err := jirix.Run().Chdir(javaDir); err != nil {
-		return nil, err
-	}
-	runOpts := jirix.Run().Opts()
-	runOpts.Env = env.ToMap()
-	if err := jirix.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", ":android-lib:assemble"); err != nil {
-		return nil, err
-	}
-	return &test.Result{Status: test.Passed}, nil
+	return runJavaTest(jirix, testName, []string{"release", "java"}, ":android-lib:assemble")
 }

@@ -70,6 +70,8 @@ var testMock = func(*jiri.X, string, ...Opt) (*test.Result, error) {
 var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, error){
 	// TODO(jsimsa,cnicolaou): consider getting rid of the vanadium- prefix.
 	"ignore-this":                         testMock,
+	"baku-android-build":                  bakuAndroidBuild,
+	"baku-java-test":                      bakuJavaTest,
 	"third_party-go-build":                thirdPartyGoBuild,
 	"third_party-go-test":                 thirdPartyGoTest,
 	"third_party-go-race":                 thirdPartyGoRace,
