@@ -77,9 +77,6 @@ func getQPSData(ctx *tool.Context, info qpsInfo) (map[string]float64, float64, e
 	// Run "debug stats read" for the corresponding object.
 	debug := filepath.Join(binDirFlag, "debug")
 	var buf bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &buf
-	opts.Stderr = &buf
 	args := []string{
 		"--v23.credentials",
 		credentialsFlag,
@@ -87,7 +84,8 @@ func getQPSData(ctx *tool.Context, info qpsInfo) (map[string]float64, float64, e
 		"read",
 		info.objectName,
 	}
-	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, debug, args...); err != nil {
+	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
+		Last(debug, args...); err != nil {
 		if err != runutil.CommandTimedOutErr {
 			return nil, -1, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}

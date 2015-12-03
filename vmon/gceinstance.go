@@ -152,11 +152,8 @@ func invoker(ctx *tool.Context, msg string, instances []*gceInstanceData, fn fun
 // we care about.
 func getInstances(ctx *tool.Context) ([]*gceInstanceData, error) {
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts,
-		"gcloud", "-q", "--project="+projectFlag, "compute", "instances", "list", "--format=json"); err != nil {
+	if err := ctx.NewSeq().Capture(&out, &out).
+		Last("gcloud", "-q", "--project="+projectFlag, "compute", "instances", "list", "--format=json"); err != nil {
 		return nil, err
 	}
 	var instances []struct {
@@ -218,10 +215,6 @@ func checkPing(ctx *tool.Context, instances []*gceInstanceData) error {
 	}
 
 	// Run fping.
-	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
 	args := []string{
 		"-q",
 		"-c3", // ping 3 times for each host.
@@ -231,7 +224,8 @@ func checkPing(ctx *tool.Context, instances []*gceInstanceData) error {
 		args = append(args, instance.ip)
 		ipToInstance[instance.ip] = instance
 	}
-	if err := ctx.Run().CommandWithOpts(opts, "fping", args...); err != nil {
+	var out bytes.Buffer
+	if err := ctx.NewSeq().Capture(&out, &out).Last("fping", args...); err != nil {
 		// When some hosts are not reachable, the command's exit code will be non-zero.
 		fmt.Fprintf(ctx.Stdout(), "Output:\n%s\n", out.String())
 	}
@@ -256,13 +250,14 @@ func checkPing(ctx *tool.Context, instances []*gceInstanceData) error {
 // instances and collects and processes results.
 func checkInstanceStats(ctx *tool.Context, instances []*gceInstanceData) (e error) {
 	// Create the check script in a tmp dir.
-	tmpdir, err := ctx.Run().TempDir("", "")
+	s := ctx.NewSeq()
+	tmpdir, err := s.TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpdir) }, &e)
+	defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpdir).Done() }, &e)
 	scriptPath := filepath.Join(tmpdir, "localtest.sh")
-	if err := ctx.Run().WriteFile(scriptPath, []byte(localCheckScript), os.FileMode(0755)); err != nil {
+	if err := s.WriteFile(scriptPath, []byte(localCheckScript), os.FileMode(0755)).Done(); err != nil {
 		return err
 	}
 
@@ -276,8 +271,6 @@ func checkInstanceStats(ctx *tool.Context, instances []*gceInstanceData) (e erro
 		instanceByNode[instance.name] = instance
 	}
 	vcloud := filepath.Join(binDirFlag, "vcloud")
-	opts := ctx.Run().Opts()
-	opts.Stdout = ioutil.Discard
 	args := []string{
 		"--project=" + projectFlag,
 		"run",
@@ -285,7 +278,8 @@ func checkInstanceStats(ctx *tool.Context, instances []*gceInstanceData) (e erro
 		strings.Join(nodes, "|"),
 		scriptPath,
 	}
-	if err := ctx.Run().CommandWithOpts(opts, vcloud, args...); err != nil {
+	if err := s.Capture(ioutil.Discard, ctx.Stderr()).
+		Last(vcloud, args...); err != nil {
 		return err
 	}
 
@@ -332,7 +326,7 @@ func checkInstanceStats(ctx *tool.Context, instances []*gceInstanceData) (e erro
 // readFloatFromFile reads the given file's content as a number and converts it
 // to float64.
 func readFloatFromFile(ctx *tool.Context, path string) (float64, error) {
-	bytes, err := ctx.Run().ReadFile(path)
+	bytes, err := ctx.NewSeq().ReadFile(path)
 	if err != nil {
 		return -1, err
 	}

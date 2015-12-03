@@ -37,9 +37,6 @@ func checkServiceMetadata(ctx *tool.Context) error {
 	// Run "debug stats read" to get metadata from device manager.
 	debug := filepath.Join(binDirFlag, "debug")
 	var buf bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &buf
-	opts.Stderr = &buf
 	args := []string{
 		"--v23.namespace.root",
 		namespaceRootFlag,
@@ -49,7 +46,8 @@ func checkServiceMetadata(ctx *tool.Context) error {
 		"read",
 		metadataQueryString,
 	}
-	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, debug, args...); err != nil {
+	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
+		Last(debug, args...); err != nil {
 		if err != runutil.CommandTimedOutErr {
 			return fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}

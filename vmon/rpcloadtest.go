@@ -21,8 +21,9 @@ import (
 // checkRPCLoadTest checks the result of RPC load test and sends the result to GCM.
 func checkRPCLoadTest(ctx *tool.Context) error {
 	// Parse result file.
+	s := ctx.NewSeq()
 	resultFile := filepath.Join(os.Getenv("WORKSPACE"), "load_stats.json")
-	bytes, err := ctx.Run().ReadFile(resultFile)
+	bytes, err := s.ReadFile(resultFile)
 	if err != nil {
 		return err
 	}
@@ -40,17 +41,17 @@ func checkRPCLoadTest(ctx *tool.Context) error {
 		"qps":     results.Qps,
 	}
 	mdRpcLoadTest := monitoring.CustomMetricDescriptors["rpc-load-test"]
-	s, err := monitoring.Authenticate(keyFileFlag)
+	sa, err := monitoring.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
-	fi, err := ctx.Run().Stat(resultFile)
+	fi, err := s.Stat(resultFile)
 	if err != nil {
 		return err
 	}
 	timeStr := fi.ModTime().Format(time.RFC3339)
 	for label, value := range items {
-		_, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
+		_, err = sa.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
 			Timeseries: []*cloudmonitoring.TimeseriesPoint{
 				&cloudmonitoring.TimeseriesPoint{
 					Point: &cloudmonitoring.Point{

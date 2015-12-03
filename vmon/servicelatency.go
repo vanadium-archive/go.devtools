@@ -93,12 +93,10 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 	// Check the given service and calculate the latency.
 	vrpc := filepath.Join(binDirFlag, "vrpc")
 	var bufErr bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = ioutil.Discard
-	opts.Stderr = &bufErr
 	latency := time.Duration(0)
 	start := time.Now()
-	if err := ctx.Run().TimedCommandWithOpts(timeout, opts, vrpc, "signature", "--insecure", service.objectName); err != nil {
+	if err := ctx.NewSeq().Capture(ioutil.Discard, &bufErr).Timeout(timeout).
+		Last(vrpc, "signature", "--insecure", service.objectName); err != nil {
 		// When the command times out, use the "timeout" value as the check latency
 		// without failing the check.
 		// The GCM will have its own alert policy to handle abnormal check laency.
