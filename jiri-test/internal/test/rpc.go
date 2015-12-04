@@ -276,7 +276,7 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	// Read the stats.
 	cStats, sStats, err := readStressStats(out.String())
 	if err != nil {
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "StressTest", "ReadStats", "Failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "StressTest", "ReadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -290,7 +290,7 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	sStats.BytesRecv, sStats.BytesSent = sStats.BytesSent, sStats.BytesRecv
 	if !reflect.DeepEqual(cStats, sStats) {
 		output := fmt.Sprintf("%+v != %+v", cStats, sStats)
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "StressTest", "VerifyStats", "Mismatched", output); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "StressTest", "VerifyStats", "Mismatched", output); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -389,7 +389,7 @@ func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	// Read the stats.
 	stats, err := readLoadStats(out.String(), testLoadNumClientNodes)
 	if err != nil {
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "LoadTest", "ReadStats", "Failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "LoadTest", "ReadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -406,7 +406,7 @@ func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 	// Write the test stats in json format for vmon.
 	filename := filepath.Join(os.Getenv("WORKSPACE"), loadStatsOutputFile)
 	if err := writeLoadStatsJSON(filename, stats); err != nil {
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "LoadTest", "WriteLoadStats", "Failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "LoadTest", "WriteLoadStats", "Failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil

@@ -59,7 +59,7 @@ func vanadiumBootstrap(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 	}
 	if err := retry.Function(jirix.Context, fn); err != nil {
 		// Create xUnit report.
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "VanadiumGo", "bootstrap", "Vanadium bootstrapping failed", out.String()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil

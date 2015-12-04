@@ -123,7 +123,7 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	}
 
 	// Create the xUnit report.
-	if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
+	if err := xunit.CreateReport(jirix, testName, suites); err != nil {
 		return nil, err
 	}
 	for _, suite := range suites {

@@ -163,9 +163,9 @@ func goBuild(jirix *jiri.X, testName string, opts ...goBuildOpt) (_ *test.Result
 	// distribute those packages to build workers. Instead, we use "go build"
 	// to build "top level" packages stored in "pkgs" which is much faster.
 	allPassed, suites := true, []xunit.TestSuite{}
+	s := jirix.NewSeq()
 	for _, pkg := range pkgs {
 		// Build package.
-		var out bytes.Buffer
 		// The "leveldb" tag is needed to compile the levelDB-based
 		// storage engine for the groups service. See v.io/i/632 for more
 		// details.
@@ -174,11 +174,10 @@ func goBuild(jirix *jiri.X, testName string, opts ...goBuildOpt) (_ *test.Result
 		args = append(args, "build", "-v", "-tags=leveldb")
 		args = append(args, buildArgs...)
 		args = append(args, pkg)
-		opts := jirix.Run().Opts()
-		opts.Stdout = io.MultiWriter(&out, opts.Stdout)
-		opts.Stderr = io.MultiWriter(&out, opts.Stdout)
-		err := jirix.Run().CommandWithOpts(opts, "jiri", args...)
-		if err == nil {
+		var out bytes.Buffer
+		stdout := io.MultiWriter(&out, jirix.Stdout())
+		stderr := io.MultiWriter(&out, jirix.Stdout())
+		if err := s.Capture(stdout, stderr).Last("jiri", args...); err == nil {
 			continue
 		}
 
@@ -208,7 +207,7 @@ func goBuild(jirix *jiri.X, testName string, opts ...goBuildOpt) (_ *test.Result
 
 	// Create the xUnit report when some builds failed.
 	if !allPassed {
-		if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
+		if err := xunit.CreateReport(jirix, testName, suites); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -264,17 +263,19 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 		}
 	}
 
+	s := jirix.NewSeq()
+
 	// Install required tools.
 	goInstall := []string{"go"}
 	goInstall = append(goInstall, goFlags...)
 	goInstall = append(goInstall, "install", "golang.org/x/tools/cmd/cover", "github.com/t-yuki/gocover-cobertura", "bitbucket.org/tebeka/go2xunit")
-	if err := jirix.Run().Command("jiri", goInstall...); err != nil {
+	if err := s.Last("jiri", goInstall...); err != nil {
 		return nil, newInternalError(err, "install coverage tools")
 	}
 
 	// Build dependencies of test packages.
 	if err := buildTestDeps(jirix, pkgs, goFlags); err != nil {
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "BuildTestDependencies", "TestCoverage", "dependencies build failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -285,7 +286,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 	pkgList, err := goutil.List(jirix.Context, goListOpts(optsFromGoCoverage(opts)), pkgs...)
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -350,7 +351,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 		}
 		if result.coverage != nil {
 			result.coverage.Close()
-			if err := jirix.Run().RemoveAll(result.coverage.Name()); err != nil {
+			if err := jirix.NewSeq().RemoveAll(result.coverage.Name()).Done(); err != nil {
 				return nil, err
 			}
 		}
@@ -367,7 +368,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 	close(taskResults)
 
 	// Create the xUnit and cobertura reports.
-	if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
+	if err := xunit.CreateReport(jirix, testName, suites); err != nil {
 		return nil, err
 	}
 	coverage, err := coverageFromGoTestOutput(jirix, &coverageData)
@@ -385,8 +386,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 
 // coverageWorker generates test coverage.
 func coverageWorker(jirix *jiri.X, timeout string, args []string, pkgs <-chan string, results chan<- coverageResult) {
-	opts := jirix.Run().Opts()
-	opts.Verbose = false
+	s := jirix.NewSeq()
 	for pkg := range pkgs {
 		// Compute the test coverage.
 		var out bytes.Buffer
@@ -398,10 +398,8 @@ func coverageWorker(jirix *jiri.X, timeout string, args []string, pkgs <-chan st
 			coverageFile.Name(), "-timeout", timeout, "-v",
 		}, args...)
 		args = append(args, pkg)
-		opts.Stdout = &out
-		opts.Stderr = &out
 		start := time.Now()
-		err = jirix.Run().CommandWithOpts(opts, "jiri", args...)
+		err = s.Capture(&out, &out).Verbose(false).Last("jiri", args...)
 		result := coverageResult{
 			pkg:      pkg,
 			coverage: coverageFile,
@@ -590,7 +588,7 @@ func goTestAndReport(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test
 		return nil, err
 	}
 	// Create the xUnit report.
-	return res, xunit.CreateReport(jirix.Context, testName, suites)
+	return res, xunit.CreateReport(jirix, testName, suites)
 }
 
 // goTest is a helper function for running Go tests.
@@ -638,7 +636,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 	goInstall := []string{"go"}
 	goInstall = append(goInstall, goFlags...)
 	goInstall = append(goInstall, "install", "bitbucket.org/tebeka/go2xunit")
-	if err := jirix.Run().Command("jiri", goInstall...); err != nil {
+	if err := jirix.NewSeq().Last("jiri", goInstall...); err != nil {
 		return nil, nil, newInternalError(err, "install-go2xunit")
 	}
 
@@ -830,8 +828,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 
 // testWorker tests packages.
 func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks <-chan goTestTask, results chan<- testResult) {
-	opts := jirix.Run().Opts()
-	opts.Verbose = false
+	s := jirix.NewSeq()
 	for task := range tasks {
 		// Run the test.
 		//
@@ -863,8 +860,6 @@ func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks
 		taskArgs = append(taskArgs, task.pkg)
 		taskArgs = append(taskArgs, nonTestArgs...)
 		var out bytes.Buffer
-		opts.Stdout = &out
-		opts.Stderr = &out
 		start := time.Now()
 		timeoutDuration, err := time.ParseDuration(timeout)
 		if err != nil {
@@ -876,7 +871,7 @@ func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks
 			}
 			continue
 		}
-		err = jirix.Run().TimedCommandWithOpts(timeoutDuration+timeoutDelay, opts, "jiri", taskArgs...)
+		err = s.Capture(&out, &out).Timeout(timeoutDuration+time.Minute).Verbose(false).Last("jiri", taskArgs...)
 		result := testResult{
 			pkg:      task.pkg,
 			time:     time.Now().Sub(start),
@@ -908,9 +903,7 @@ func buildTestDeps(jirix *jiri.X, pkgs []string, jiriGoFlags []string) error {
 	args = append(args, "test", "-tags=leveldb", "-i")
 	args = append(args, pkgs...)
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", args...); err != nil {
+	if err := jirix.NewSeq().Capture(nil, &out).Last("jiri", args...); err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", out.String())
 		return fmt.Errorf("%v\n%s", err, out.String())
 	}
@@ -958,10 +951,8 @@ func getListenerPID(jirix *jiri.X, port string) (int, error) {
 
 	// Use "lsof" to find the process ID of the listener.
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "lsof", "-i", ":"+port, "-sTCP:LISTEN", "-F", "p"); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).
+		Last("lsof", "-i", ":"+port, "-sTCP:LISTEN", "-F", "p"); err != nil {
 		// When no listener exists, "lsof" exits with non-zero
 		// status.
 		return -1, nil
@@ -1268,15 +1259,13 @@ func vanadiumCopyright(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 
 	// Run the jiri copyright check.
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", "copyright", "check"); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).
+		Last("jiri", "copyright", "check"); err != nil {
 		report := fmt.Sprintf(`%v
 
 To fix the above copyright violations run "jiri copyright fix" and commit the changes.
 `, out.String())
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunCopyright", "CheckCopyright", "copyright check failure", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "RunCopyright", "CheckCopyright", "copyright check failure", report); err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(jirix.Stderr(), "%v", report)
@@ -1296,12 +1285,10 @@ func vanadiumGoAPI(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 
 	// Run the jiri api check.
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", "api", "check"); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).
+		Last("jiri", "api", "check"); err != nil {
 		report := fmt.Sprintf("error running 'jiri api check': %v", err)
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunV23API", "CheckGoAPI", "failed to run the api check tool", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "RunV23API", "CheckGoAPI", "failed to run the api check tool", report); err != nil {
 			return &test.Result{Status: test.Failed}, nil
 		}
 	}
@@ -1313,7 +1300,7 @@ func vanadiumGoAPI(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 If the above changes to public Go API are intentional, run "jiri api fix",
 to update the corresponding .api files and commit the changes.
 `, out.String())
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunV23API", "CheckGoAPI", "public api check failure", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "RunV23API", "CheckGoAPI", "public api check failure", report); err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(jirix.Stderr(), "%v", report)
@@ -1397,24 +1384,23 @@ func vanadiumGoDepcop(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	// Build the godepcop tool in a temporary directory.
-	tmpDir, err := jirix.Run().TempDir("", "godepcop-test")
+	tmpDir, err := s.TempDir("", "godepcop-test")
 	if err != nil {
 		return nil, newInternalError(err, "godepcop-build")
 	}
-	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 	binary := filepath.Join(tmpDir, "godepcop")
-	if err := jirix.Run().Command("jiri", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
+	if err := s.Last("jiri", "go", "build", "-o", binary, "v.io/x/devtools/godepcop"); err != nil {
 		return nil, newInternalError(err, "godepcop-build")
 	}
 
 	// Run the godepcop tool.
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", "run", binary, "check", "v.io/..."); err != nil {
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunGoDepcop", "CheckDependencies", "dependencies check failure", out.String()); err != nil {
+	if err := s.Capture(&out, &out).Last("jiri", "run", binary, "check", "v.io/..."); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "RunGoDepcop", "CheckDependencies", "dependencies check failure", out.String()); err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(jirix.Stderr(), "%v", out.String())
@@ -1434,15 +1420,13 @@ func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 
 	// Run the gofmt tool.
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "fmt", "v.io/..."); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).
+		Last("jiri", "go", "fmt", "v.io/..."); err != nil {
 		report := fmt.Sprintf(`The following files do not adhere to the Go formatting conventions:
 %v
 To resolve this problem, run "gofmt -w <file>" for each of them and commit the changes.
 `, out.String())
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunGoFmt", "CheckFormat", "format check failure", report); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "RunGoFmt", "CheckFormat", "format check failure", report); err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(jirix.Stderr(), "%v", report)
@@ -1468,6 +1452,8 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
 	if err != nil {
 		return nil, err
@@ -1483,7 +1469,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 		return nil, err
 	}
 	for _, project := range projects {
-		if err := jirix.Run().Chdir(project.Path); err != nil {
+		if err := s.Pushd(project.Path).Error(); err != nil {
 			return nil, err
 		}
 		stashed, err := jirix.Git().Stash()
@@ -1495,7 +1481,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 		// project.
 		localProject := project
 		defer collect.Error(func() error {
-			if err := jirix.Run().Chdir(localProject.Path); err != nil {
+			if err := jirix.NewSeq().Chdir(localProject.Path).Done(); err != nil {
 				return err
 			}
 			if err := jirix.Git().Reset("HEAD"); err != nil {
@@ -1507,10 +1493,11 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 			return nil
 		}, &e)
 	}
+	s.Done() // undo the pushd's
 
 	// Check if 'go generate' creates any changes.
 	args := append([]string{"go", "generate"}, []string(pkgs)...)
-	if err := jirix.Run().Command("jiri", args...); err != nil {
+	if err := s.Last("jiri", args...); err != nil {
 		return nil, newInternalError(err, "Go Generate")
 	}
 	dirtyFiles := []goGenerateDiff{}
@@ -1518,7 +1505,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 		return nil, err
 	} else {
 		defer collect.Error(func() error {
-			return jirix.Run().Chdir(currentDir)
+			return jirix.NewSeq().Chdir(currentDir).Done()
 		}, &e)
 	}
 	for _, project := range projects {
@@ -1527,15 +1514,13 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 			return nil, err
 		}
 		if len(files) > 0 {
-			if err := jirix.Run().Chdir(project.Path); err != nil {
+			if err := s.Pushd(project.Path).Error(); err != nil {
 				return nil, err
 			}
 			for _, file := range files {
 				var diff string
 				var out bytes.Buffer
-				opts := jirix.Run().Opts()
-				opts.Stdout = &out
-				if err := jirix.Run().CommandWithOpts(opts, "git", "diff", file); err != nil {
+				if err := s.Capture(&out, nil).Last("git", "diff", file); err != nil {
 					fmt.Fprintf(jirix.Stderr(), "git diff failed, no diff will be available for %s: %v\n", file, err)
 					diff = fmt.Sprintf("<not available: %v>", err)
 				} else {
@@ -1551,6 +1536,8 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 			}
 		}
 	}
+	s.Done() // undo the pushd's
+
 	if len(dirtyFiles) != 0 {
 		fmt.Fprintf(jirix.Stdout(), "\nThe following go generated files are not up-to-date:\n")
 		for _, dirtyFile := range dirtyFiles {
@@ -1564,7 +1551,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 			s := xunit.CreateTestSuiteWithFailure("GoGenerate", dirtyFile.path, "go generate failure", fmt.Sprintf("Outdated file: %s\nDiff: %s\n", dirtyFile.path, dirtyFile.diff), 0)
 			suites = append(suites, *s)
 		}
-		if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
+		if err := xunit.CreateReport(jirix, testName, suites); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
@@ -1686,18 +1673,17 @@ func vanadiumGoVet(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	// Install the go vet tool.
-	if err := jirix.Run().Command("jiri", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
+	if err := s.Last("jiri", "go", "install", "golang.org/x/tools/cmd/vet"); err != nil {
 		return nil, newInternalError(err, "install-go-vet")
 	}
 
 	// Run the go vet tool.
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "vet", "v.io/..."); err != nil {
-		if err := xunit.CreateFailureReport(jirix.Context, testName, "RunGoVet", "GoVetChecks", "go vet check failure", out.String()); err != nil {
+	if err := s.Capture(&out, &out).Last("jiri", "go", "vet", "v.io/..."); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, "RunGoVet", "GoVetChecks", "go vet check failure", out.String()); err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(jirix.Stderr(), "%v", out.String())
@@ -1876,24 +1862,26 @@ func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *tes
 		pkgs,
 	}
 
+	s := jirix.NewSeq()
+
 	// Build all v.io binaries.  We are going to check the binaries at head
 	// against those from a previous date.
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	if err := jirix.Run().Command("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
+	if err := s.Last("jiri", "go", "install", "-tags=leveldb", "v.io/..."); err != nil {
 		return nil, newInternalError(err, "Install")
 	}
 	newDir := filepath.Join(jirix.Root, "release", "go", "bin")
 	outDir := filepath.Join(regTestBinDirPath(), "bin")
 
-	tmpDir, err := jirix.Run().TempDir("", "")
+	tmpDir, err := s.TempDir("", "")
 	if err != nil {
 		return nil, err
 	}
-	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 	vbinaryBin := filepath.Join(tmpDir, "vbinary")
-	if err := jirix.Run().Command("jiri", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
+	if err := s.Last("jiri", "go", "build", "-o", vbinaryBin, "v.io/x/devtools/vbinary"); err != nil {
 		return nil, err
 	}
 	available, err := listAvailableVanadiumBinaries(jirix, vbinaryBin)
@@ -1957,7 +1945,7 @@ func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *tes
 			}
 		}
 	}
-	return out, xunit.CreateReport(jirix.Context, testName, suites)
+	return out, xunit.CreateReport(jirix, testName, suites)
 }
 
 func mergeTestSet(into map[string][]string, from map[string][]string) {
@@ -1975,10 +1963,8 @@ func listAvailableVanadiumBinaries(jirix *jiri.X, bin string) ([]byte, error) {
 		"-key-file", os.Getenv("V23_KEY_FILE"),
 		"list",
 	}
-	opts := jirix.Run().Opts()
 	var out bytes.Buffer
-	opts.Stdout = &out
-	if err := jirix.Run().CommandWithOpts(opts, bin, args...); err != nil {
+	if err := jirix.NewSeq().Capture(&out, nil).Last(bin, args...); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -1987,7 +1973,8 @@ func listAvailableVanadiumBinaries(jirix *jiri.X, bin string) ([]byte, error) {
 func downloadVanadiumBinaries(jirix *jiri.X, bin string, date time.Time) (binDir string, e error) {
 	dateStr := date.Format("2006-01-02")
 	binDir = filepath.Join(regTestBinDirPath(), dateStr)
-	if _, err := jirix.Run().Stat(binDir); err == nil {
+	s := jirix.NewSeq()
+	if _, err := s.Stat(binDir); err == nil {
 		return binDir, nil
 	} else if !os.IsNotExist(err) {
 		return "", err
@@ -1999,7 +1986,7 @@ func downloadVanadiumBinaries(jirix *jiri.X, bin string, date time.Time) (binDir
 		"-attempts=3",
 		"-output-dir", binDir,
 	}
-	if err := jirix.Run().Command(bin, args...); err != nil {
+	if err := s.Last(bin, args...); err != nil {
 		exiterr, ok := err.(*exec.ExitError)
 		if !ok {
 			return "", err
@@ -2020,10 +2007,10 @@ func downloadVanadiumBinaries(jirix *jiri.X, bin string, date time.Time) (binDir
 // binaries from in1 and in2.  Binaries in the list take1 will be taken
 // from 1, other will be taken from 2.
 func prepareRegressionBinaries(jirix *jiri.X, in1, in2, out string, targetBinaries []string, order binOrder) error {
-	if err := jirix.Run().RemoveAll(out); err != nil {
-		return err
-	}
-	if err := jirix.Run().MkdirAll(out, os.FileMode(0755)); err != nil {
+	s := jirix.NewSeq()
+	if err := s.
+		RemoveAll(out).
+		MkdirAll(out, os.FileMode(0755)).Done(); err != nil {
 		return err
 	}
 	if order != binSetNew {
@@ -2066,7 +2053,7 @@ func prepareRegressionBinaries(jirix *jiri.X, in1, in2, out string, targetBinari
 	for _, name := range sortedBinaries {
 		src := binaries[name]
 		dst := filepath.Join(out, name)
-		if err := jirix.Run().Symlink(src, dst); err != nil {
+		if err := s.Symlink(src, dst).Done(); err != nil {
 			return err
 		}
 	}

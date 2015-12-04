@@ -406,7 +406,7 @@ func writeTimedOutTestReport(jirix *jiri.X, testName string, result test.Result)
 		timeoutValue = result.TimeoutValue
 	}
 	errorMessage := fmt.Sprintf("The test timed out after %s.", timeoutValue)
-	if err := xunit.CreateFailureReport(jirix.Context, testName, testName, "Timeout", errorMessage, errorMessage); err != nil {
+	if err := xunit.CreateFailureReport(jirix, testName, testName, "Timeout", errorMessage, errorMessage); err != nil {
 		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	}
 }
@@ -442,7 +442,7 @@ func checkTestReportFile(jirix *jiri.X, testName string) error {
 	var suites xunit.TestSuites
 	if err := xml.Unmarshal(bytes, &suites); err != nil {
 		jirix.Run().RemoveAll(xUnitReportFile)
-		if err := xunit.CreateFailureReport(jirix.Context, testName, testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error()); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error()); err != nil {
 			return err
 		}
 		return nil
@@ -455,7 +455,7 @@ func checkTestReportFile(jirix *jiri.X, testName string) error {
 	}
 	if numTestCases == 0 {
 		jirix.Run().RemoveAll(xUnitReportFile)
-		if err := xunit.CreateFailureReport(jirix.Context, testName, testName, "No Test Cases", "No Test Cases", ""); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, testName, "No Test Cases", "No Test Cases", ""); err != nil {
 			return err
 		}
 		return nil
@@ -514,7 +514,7 @@ func generateXUnitReportForError(jirix *jiri.X, testName string, err error, outp
 		startLine := int(math.Max(0, float64(len(lines)-numLinesToOutput)))
 		consoleOutput := "......\n" + strings.Join(lines[startLine:], "\n")
 		errMsg := fmt.Sprintf("Error message:\n%s:\n%s\n\n\nConsole output:\n%s\n", errType, err.Error(), consoleOutput)
-		if err := xunit.CreateFailureReport(jirix.Context, testName, testName, errType, errType, errMsg); err != nil {
+		if err := xunit.CreateFailureReport(jirix, testName, testName, errType, errType, errMsg); err != nil {
 			return nil, err
 		}
 

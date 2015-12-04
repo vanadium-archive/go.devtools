@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/tool"
 	"v.io/jiri/util"
 )
 
@@ -55,13 +54,13 @@ type Failure struct {
 }
 
 // CreateReport generates an xUnit report using the given test suites.
-func CreateReport(ctx *tool.Context, testName string, suites []TestSuite) error {
+func CreateReport(jirix *jiri.X, testName string, suites []TestSuite) error {
 	result := TestSuites{Suites: suites}
 	bytes, err := xml.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", result, err)
 	}
-	if err := ctx.Run().WriteFile(ReportPath(testName), bytes, os.FileMode(0644)); err != nil {
+	if err := jirix.NewSeq().WriteFile(ReportPath(testName), bytes, os.FileMode(0644)).Done(); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", ReportPath(testName), err)
 	}
 	return nil
@@ -88,9 +87,9 @@ func CreateTestSuiteWithFailure(pkgName, testName, failureMessage, failureOutput
 }
 
 // CreateFailureReport creates an xUnit report for the given failure.
-func CreateFailureReport(ctx *tool.Context, testName, pkgName, testCaseName, failureMessage, failureOutput string) error {
+func CreateFailureReport(jirix *jiri.X, testName, pkgName, testCaseName, failureMessage, failureOutput string) error {
 	s := CreateTestSuiteWithFailure(pkgName, testCaseName, failureMessage, failureOutput, 0)
-	if err := CreateReport(ctx, testName, []TestSuite{*s}); err != nil {
+	if err := CreateReport(jirix, testName, []TestSuite{*s}); err != nil {
 		return err
 	}
 	return nil
@@ -118,10 +117,7 @@ func TestSuitesFromGoTestOutput(jirix *jiri.X, testOutput io.Reader) ([]*TestSui
 		return nil, err
 	}
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdin = testOutput
-	opts.Stdout = &out
-	if err := jirix.Run().CommandWithOpts(opts, bin); err != nil {
+	if err := jirix.NewSeq().Read(testOutput).Capture(&out, nil).Last(bin); err != nil {
 		return nil, err
 	}
 	var suite TestSuite

@@ -33,12 +33,10 @@ func runJavaTest(jirix *jiri.X, testName string, cwd []string, task string) (_ *
 	env.Set("JAVA_HOME", ch.Get("JAVA_HOME"))
 	// Run tests.
 	javaDir := filepath.Join(append([]string{ch.Root()}, cwd...)...)
-	if err := jirix.Run().Chdir(javaDir); err != nil {
-		return nil, err
-	}
-	runOpts := jirix.Run().Opts()
-	runOpts.Env = env.ToMap()
-	if err := jirix.Run().CommandWithOpts(runOpts, filepath.Join(javaDir, "gradlew"), "--info", task); err != nil {
+	if err := jirix.NewSeq().
+		Pushd(javaDir).
+		Env(env.ToMap()).
+		Last(filepath.Join(javaDir, "gradlew"), "--info", task); err != nil {
 		return nil, err
 	}
 	return &test.Result{Status: test.Passed}, nil

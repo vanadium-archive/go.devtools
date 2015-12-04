@@ -57,7 +57,7 @@ func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 			s := xunit.CreateTestSuiteWithFailure("VDLAudit", file, "VDL audit failure", "Outdated file:\n"+file, 0)
 			suites = append(suites, *s)
 		}
-		if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
+		if err := xunit.CreateReport(jirix, testName, suites); err != nil {
 			return nil, err
 		}
 		return &test.Result{Status: test.Failed}, nil
