@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	gomail "gopkg.in/gomail.v1"
@@ -80,6 +81,8 @@ func runMailer(jirix *jiri.X, args []string) error {
 	emails := strings.Split(jirix.Env()["EMAILS"], " ")
 	bucket := jirix.Env()["NDA_BUCKET"]
 
+	fmt.Fprintf(os.Stderr, "ENV: %v\n", jirix.Env())
+
 	// Download the NDA attachement from Google Cloud Storage
 	attachment, err := cache.StoreGoogleStorageFile(jirix.Context, jirix.Root, bucket, "google-agreement.pdf")
 	if err != nil {
@@ -111,9 +114,7 @@ func sendWelcomeEmail(ctx *tool.Context, mailer *gomail.Mailer, email string, at
 	// Read message data from Google Storage bucket and parse it.
 	var m message
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	if err := ctx.Run().CommandWithOpts(opts, "gsutil", "-q", "cat", mailerTemplateFile); err != nil {
+	if err := ctx.NewSeq().Capture(&out, nil).Last("gsutil", "-q", "cat", mailerTemplateFile); err != nil {
 		return err
 	}
 	if err := json.Unmarshal(out.Bytes(), &m); err != nil {
