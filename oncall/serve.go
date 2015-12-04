@@ -41,11 +41,11 @@ func runServe(env *cmdline.Env, _ []string) (e error) {
 	// Set up the root/cache directory.
 	root := cacheFlag
 	if root == "" {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		tmpDir, err := ctx.NewSeq().TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
+		defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 		root = tmpDir
 	}
 
@@ -83,7 +83,7 @@ func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.
 		respondWithError(ctx, err, w)
 		return
 	}
-	bytes, err := ctx.Run().ReadFile(cachedFile)
+	bytes, err := ctx.NewSeq().ReadFile(cachedFile)
 	if err != nil {
 		respondWithError(ctx, err, w)
 		return
@@ -110,7 +110,7 @@ func picHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.R
 			return
 		}
 	}
-	bytes, err := ctx.Run().ReadFile(cachedFile)
+	bytes, err := ctx.NewSeq().ReadFile(cachedFile)
 	if err != nil {
 		respondWithError(ctx, err, w)
 		return
@@ -127,10 +127,7 @@ func respondWithError(ctx *tool.Context, err error, w http.ResponseWriter) {
 
 func readGoogleStorageFile(ctx *tool.Context, filename string) (string, error) {
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "gsutil", "-q", "cat", bucketData+"/"+filename); err != nil {
+	if err := ctx.NewSeq().Capture(&out, &out).Last("gsutil", "-q", "cat", bucketData+"/"+filename); err != nil {
 		return "", err
 	}
 	return out.String(), nil

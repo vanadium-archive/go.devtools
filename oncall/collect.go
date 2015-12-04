@@ -449,11 +449,10 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 	// Run "debug stats read" command to query build info data.
 	debug := filepath.Join(binDirFlag, "debug")
 	var stdoutBuf, stderrBuf bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &stdoutBuf
-	opts.Stderr = &stderrBuf
-	if err := ctx.Run().TimedCommandWithOpts(
-		debugCommandTimeout, opts, debug,
+	if err := ctx.NewSeq().
+		Capture(&stdoutBuf, &stderrBuf).
+		Timeout(debugCommandTimeout).
+		Last(debug,
 		"--timeout", debugRPCTimeout.String(),
 		"--v23.namespace.root", namespaceRoot,
 		"--v23.credentials", credentialsFlag, "stats", "read", fmt.Sprintf("%s/build.[TPUM]*", buildInfoEndpointPrefix)); err != nil {
@@ -592,11 +591,7 @@ func collectGCEInstancesData(ctx *tool.Context, s *cloudmonitoring.Service, now 
 
 	// Use "gcloud compute instances list" to get instances status.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts,
-		"gcloud", "-q", "--project="+projectFlag, "compute", "instances", "list", "--format=json"); err != nil {
+	if err := ctx.NewSeq().Capture(&out, &out).Last("gcloud", "-q", "--project="+projectFlag, "compute", "instances", "list", "--format=json"); err != nil {
 		return err
 	}
 	type instanceData struct {
@@ -635,10 +630,7 @@ func collectGCEInstancesData(ctx *tool.Context, s *cloudmonitoring.Service, now 
 
 func collectOncallIDsData(ctx *tool.Context, oncall *oncallData) error {
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "oncall"); err != nil {
+	if err := ctx.NewSeq().Capture(&out, &out).Last("jiri", "oncall"); err != nil {
 		return err
 	}
 	oncall.OncallIDs = strings.TrimSpace(out.String())
@@ -901,31 +893,22 @@ func persistOncallData(ctx *tool.Context, statusData *serviceStatusData, oncall 
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
 	}
 
+	s := ctx.NewSeq()
 	// Write data to a temporary directory.
 	curTime := now.Format("200601021504")
-	tmpDir, err := ctx.Run().TempDir("", "")
+	tmpDir, err := s.TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer ctx.Run().RemoveAll(tmpDir)
+	defer ctx.NewSeq().RemoveAll(tmpDir)
 	statusDataFile := filepath.Join(tmpDir, fmt.Sprintf("%s.status", curTime))
-	if err := ctx.Run().WriteFile(statusDataFile, bytesStatus, os.FileMode(0600)); err != nil {
-		return err
-	}
 	oncallDataFile := filepath.Join(tmpDir, fmt.Sprintf("%s.oncall", curTime))
-	if err := ctx.Run().WriteFile(oncallDataFile, bytesOncall, os.FileMode(0600)); err != nil {
-		return err
-	}
 	latestFile := filepath.Join(tmpDir, "latest")
-	if err := ctx.Run().WriteFile(latestFile, []byte(curTime), os.FileMode(0600)); err != nil {
-		return err
-	}
+	args := []string{"-q", "cp", filepath.Join(tmpDir, "*"), bucketData + "/"}
 
 	// Upload data to Google Storage.
-	args := []string{"-q", "cp", filepath.Join(tmpDir, "*"), bucketData + "/"}
-	if err := ctx.Run().Command("gsutil", args...); err != nil {
-		return err
-	}
-
-	return nil
+	return s.WriteFile(statusDataFile, bytesStatus, os.FileMode(0600)).
+		WriteFile(oncallDataFile, bytesOncall, os.FileMode(0600)).
+		WriteFile(latestFile, []byte(curTime), os.FileMode(0600)).
+		Last("gsutil", args...)
 }
