@@ -368,7 +368,7 @@ func presubmitTestBranchName(ref string) string {
 
 // preparePresubmitTestBranch creates and checks out the presubmit
 // test branch and pulls the CL there.
-func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects map[string]project.Project) (_ *cl, e error) {
+func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects project.Projects) (_ *cl, e error) {
 	strCLs := []string{}
 	for _, cl := range cls {
 		strCLs = append(strCLs, cl.String())
@@ -384,9 +384,9 @@ func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects map[string]pro
 	// Pull changes for each cl.
 	printf(jirix.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
 	prepareFn := func(curCL cl) error {
-		localRepo, ok := projects[curCL.project]
-		if !ok {
-			return fmt.Errorf("project %q not found", curCL.project)
+		localRepo, err := projects.FindUnique(curCL.project)
+		if err != nil {
+			return fmt.Errorf("error finding project %q: %v", curCL.project, err)
 		}
 		localRepoDir := localRepo.Path
 		if err := jirix.NewSeq().Chdir(localRepoDir).Done(); err != nil {

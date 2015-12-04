@@ -269,9 +269,13 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 
 	sender := clsSender{
 		clLists: clLists,
-		projects: map[string]project.Project{
-			"release.go.core": project.Project{},
-			"release.js.core": project.Project{},
+		projects: project.Projects{
+			project.ProjectKey("release.go.core"): project.Project{
+				Name: "release.go.core",
+			},
+			project.ProjectKey("release.js.core"): project.Project{
+				Name: "release.js.core",
+			},
 		},
 
 		// Mock out the removeOutdatedBuilds function.
