@@ -124,7 +124,7 @@ func runNodeAuthorize(env *cmdline.Env, args []string) error {
 	// Append the key to the set of authorized keys of <userB> on
 	// <hostB>.
 	sshKeyFile := filepath.Join(tmpDir, "id_rsa.pub")
-	bytes, err := ctx.Run().ReadFile(sshKeyFile)
+	bytes, err := s.ReadFile(sshKeyFile)
 	if err != nil {
 		return fmt.Errorf("ReadFile(%v) failed: %v", sshKeyFile, err)
 	}
@@ -136,7 +136,6 @@ func runNodeAuthorize(env *cmdline.Env, args []string) error {
 	if err := nodeB.RunCommand(ctx, userB, echoCmd); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -211,7 +210,7 @@ func runNodeCreate(env *cmdline.Env, args []string) error {
 		"--zone", flagZone,
 		"--scopes", flagScopes,
 	)
-	if err := ctx.Run().Command("gcloud", createArgs...); err != nil {
+	if err := ctx.NewSeq().Last("gcloud", createArgs...); err != nil {
 		return err
 	}
 

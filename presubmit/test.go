@@ -504,7 +504,7 @@ func writeTestStatusFile(jirix *jiri.X, result test.Result, curTimestamp int64, 
 	if err != nil {
 		return fmt.Errorf("Marshal(%v) failed: %v", r, err)
 	}
-	if err := jirix.Run().WriteFile(statusFilePath, bytes, os.FileMode(0644)); err != nil {
+	if err := jirix.NewSeq().WriteFile(statusFilePath, bytes, os.FileMode(0644)).Done(); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", statusFilePath, err)
 	}
 	return nil
