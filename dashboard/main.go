@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"v.io/jiri/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 )
@@ -33,42 +34,42 @@ func init() {
 	tool.InitializeRunFlags(&cmdDashboard.Flags)
 }
 
-func helper(ctx *tool.Context, w http.ResponseWriter, r *http.Request) {
+func helper(jirix *jiri.X, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if err := validateValues(r.Form); err != nil {
-		respondWithError(ctx, err, w)
+		respondWithError(jirix, err, w)
 		return
 	}
 
 	switch r.Form.Get("type") {
 	case "presubmit":
-		if err := displayPresubmitPage(ctx, w, r); err != nil {
-			respondWithError(ctx, err, w)
+		if err := displayPresubmitPage(jirix, w, r); err != nil {
+			respondWithError(jirix, err, w)
 			return
 		}
 		// The presubmit test results data never changes, cache it in
 		// the clients for up to 30 days.
 		w.Header().Set("Cache-control", "public, max-age=2592000")
 	case "":
-		if err := displayServiceStatusPage(ctx, w, r); err != nil {
-			respondWithError(ctx, err, w)
+		if err := displayServiceStatusPage(jirix, w, r); err != nil {
+			respondWithError(jirix, err, w)
 			return
 		}
 	default:
-		fmt.Fprintf(ctx.Stderr(), "unknown type: %v", r.Form.Get("type"))
+		fmt.Fprintf(jirix.Stderr(), "unknown type: %v", r.Form.Get("type"))
 		http.NotFound(w, r)
 	}
 }
 
-func loggingHandler(ctx *tool.Context, handler http.Handler) http.Handler {
+func loggingHandler(jirix *jiri.X, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(ctx.Stdout(), "%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+		fmt.Fprintf(jirix.Stdout(), "%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
 		handler.ServeHTTP(w, r)
 	})
 }
 
-func respondWithError(ctx *tool.Context, err error, w http.ResponseWriter) {
-	fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+func respondWithError(jirix *jiri.X, err error, w http.ResponseWriter) {
+	fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	http.Error(w, "500 internal server error", http.StatusInternalServerError)
 }
 
@@ -84,9 +85,12 @@ var cmdDashboard = &cmdline.Command{
 }
 
 func runDashboard(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
+	jirix, err := jiri.NewX(env)
+	if err != nil {
+		return err
+	}
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		helper(ctx, w, r)
+		helper(jirix, w, r)
 	}
 	health := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
@@ -96,7 +100,7 @@ func runDashboard(env *cmdline.Env, args []string) error {
 	http.Handle("/favicon.ico", staticHandler)
 	http.HandleFunc("/health", health)
 	http.HandleFunc("/", handler)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), loggingHandler(ctx, http.DefaultServeMux)); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", portFlag), loggingHandler(jirix, http.DefaultServeMux)); err != nil {
 		return fmt.Errorf("ListenAndServer() failed: %v", err)
 	}
 	return nil

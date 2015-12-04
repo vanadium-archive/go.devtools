@@ -20,7 +20,7 @@ import (
 	"text/template"
 
 	"v.io/jiri/collect"
-	"v.io/jiri/tool"
+	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -269,26 +269,27 @@ func ansiColorsToHTML(text string) (string, error) {
 	return escapedText, nil
 }
 
-func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Request) (e error) {
+func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request) (e error) {
 	// Set up the root directory.
 	root := cacheFlag
+	s := jirix.NewSeq()
 	if root == "" {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
+		defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 		root = tmpDir
 	}
 
 	// Fetch the presubmit test results.
 	// The dir structure is:
 	// <root>/presubmit/<n>/<os>/<arch>/<job>/<part>/...
-	if err := ctx.Run().MkdirAll(filepath.Join(root, "presubmit"), os.FileMode(0700)); err != nil {
+	if err := s.MkdirAll(filepath.Join(root, "presubmit"), os.FileMode(0700)).Done(); err != nil {
 		return err
 	}
 	n := r.Form.Get("n")
-	_, err := cache.StoreGoogleStorageFile(ctx, filepath.Join(root, "presubmit"), resultsBucketFlag+"/v0/presubmit", n)
+	_, err := cache.StoreGoogleStorageFile(jirix.Context, filepath.Join(root, "presubmit"), resultsBucketFlag+"/v0/presubmit", n)
 	if err != nil {
 		return err
 	}
@@ -298,7 +299,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	case params.arch == "" || params.osName == "" || params.job == "":
 		// Generate the summary page.
 		path := filepath.Join(root, "presubmit", n)
-		data, err := params.generateSummaryData(ctx, n, path)
+		data, err := params.generateSummaryData(jirix, n, path)
 		if err != nil {
 			return err
 		}
@@ -309,7 +310,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	case params.testSuite == "":
 		// Generate the job detail page.
 		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job)
-		data, err := params.generateJobData(ctx, n, path)
+		data, err := params.generateJobData(jirix, n, path)
 		if err != nil {
 			return err
 		}
@@ -319,7 +320,7 @@ func displayPresubmitPage(ctx *tool.Context, w http.ResponseWriter, r *http.Requ
 	case (params.testClass != "" || params.testSuite != "") && params.testCase != "":
 		// Generate the test detail page.
 		path := filepath.Join(root, "presubmit", n, params.osName, params.arch, params.job, params.partIndex)
-		data, err := params.generateTestData(ctx, n, path)
+		data, err := params.generateTestData(jirix, n, path)
 		if err != nil {
 			return err
 		}
@@ -344,7 +345,7 @@ func extractParams(r *http.Request) params {
 	}
 }
 
-func (p params) generateSummaryData(ctx *tool.Context, n, path string) (*summaryData, error) {
+func (p params) generateSummaryData(jirix *jiri.X, n, path string) (*summaryData, error) {
 	data := summaryData{n, []osJobs{}}
 	osFileInfos, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -375,7 +376,7 @@ func (p params) generateSummaryData(ctx *tool.Context, n, path string) (*summary
 				jobDir := filepath.Join(archDir, jobName)
 
 				// Aggregate job data for all its parts.
-				data, err := aggregateTestParts(ctx, jobDir, false)
+				data, err := aggregateTestParts(jirix, jobDir, false)
 				if err != nil {
 					return nil, err
 				}
@@ -403,8 +404,8 @@ func (p params) generateSummaryData(ctx *tool.Context, n, path string) (*summary
 	return &data, nil
 }
 
-func (p params) generateJobData(ctx *tool.Context, n, path string) (*jobData, error) {
-	data, err := aggregateTestParts(ctx, path, true)
+func (p params) generateJobData(jirix *jiri.X, n, path string) (*jobData, error) {
+	data, err := aggregateTestParts(jirix, path, true)
 	if err != nil {
 		return nil, err
 	}
@@ -419,8 +420,8 @@ func (p params) generateJobData(ctx *tool.Context, n, path string) (*jobData, er
 	}, nil
 }
 
-func (p params) generateTestData(ctx *tool.Context, n, path string) (*testData, error) {
-	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(path, "xunit.xml"))
+func (p params) generateTestData(jirix *jiri.X, n, path string) (*testData, error) {
+	suitesBytes, err := jirix.NewSeq().ReadFile(filepath.Join(path, "xunit.xml"))
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +459,7 @@ outer:
 	return &data, nil
 }
 
-func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) (*aggregatedPartsData, error) {
+func aggregateTestParts(jirix *jiri.X, jobDir string, aggregateOutput bool) (*aggregatedPartsData, error) {
 	// Read dirs for parts under the given job dir.
 	partFileInfos, err := ioutil.ReadDir(jobDir)
 	if err != nil {
@@ -470,12 +471,13 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 		result: true,
 	}
 	outputs := []string{}
+	s := jirix.NewSeq()
 	for index, partFileInfo := range partFileInfos {
 		part := partFileInfo.Name()
 		partDir := filepath.Join(jobDir, part)
 
 		// Test result.
-		bytes, err := ctx.Run().ReadFile(filepath.Join(partDir, "results"))
+		bytes, err := s.ReadFile(filepath.Join(partDir, "results"))
 		if err != nil {
 			return nil, err
 		}
@@ -494,7 +496,7 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 		}
 
 		// Failed tests.
-		failedTests, err := parseFailedTests(ctx, partDir, index)
+		failedTests, err := parseFailedTests(jirix, partDir, index)
 		if err != nil {
 			return nil, err
 		}
@@ -502,7 +504,7 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 
 		// Console output.
 		if aggregateOutput {
-			outputBytes, err := ctx.Run().ReadFile(filepath.Join(partDir, "output"))
+			outputBytes, err := s.ReadFile(filepath.Join(partDir, "output"))
 			if err != nil {
 				return nil, err
 			}
@@ -520,9 +522,9 @@ func aggregateTestParts(ctx *tool.Context, jobDir string, aggregateOutput bool) 
 	return data, nil
 }
 
-func parseFailedTests(ctx *tool.Context, jobDir string, partIndex int) ([]failedTest, error) {
+func parseFailedTests(jirix *jiri.X, jobDir string, partIndex int) ([]failedTest, error) {
 	failedTests := []failedTest{}
-	suitesBytes, err := ctx.Run().ReadFile(filepath.Join(jobDir, "xunit.xml"))
+	suitesBytes, err := jirix.NewSeq().ReadFile(filepath.Join(jobDir, "xunit.xml"))
 	if os.IsNotExist(err) {
 		return failedTests, nil
 	}
