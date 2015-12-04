@@ -36,7 +36,7 @@ type serviceMetadata struct {
 func checkServiceMetadata(ctx *tool.Context) error {
 	// Run "debug stats read" to get metadata from device manager.
 	debug := filepath.Join(binDirFlag, "debug")
-	var buf bytes.Buffer
+	var stdoutBuf, stderrBuf bytes.Buffer
 	args := []string{
 		"--v23.namespace.root",
 		namespaceRootFlag,
@@ -46,12 +46,15 @@ func checkServiceMetadata(ctx *tool.Context) error {
 		"read",
 		metadataQueryString,
 	}
-	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
+	if err := ctx.NewSeq().Capture(&stdoutBuf, &stderrBuf).Timeout(timeout).
 		Last(debug, args...); err != nil {
 		if err != runutil.CommandTimedOutErr {
-			return fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
+			return fmt.Errorf("debug command failed: %v\nSTDOUT:\n%s\nSTDERR:\n:%s", err, stdoutBuf.String(), stderrBuf.String())
 		}
 		return err
+	}
+	if stdoutBuf.Len() == 0 {
+		return fmt.Errorf("debug command returned no output. STDERR:\n%s", stderrBuf.String())
 	}
 
 	// Parse output and add metadata to GCM.
@@ -66,7 +69,7 @@ func checkServiceMetadata(ctx *tool.Context) error {
 	mdMetadata := monitoring.CustomMetricDescriptors["service-metadata"]
 	now := time.Now()
 	nowStr := now.Format(time.RFC3339)
-	lines := strings.Split(buf.String(), "\n")
+	lines := strings.Split(stdoutBuf.String(), "\n")
 	sendTimeseriesFn := func(value float64, serviceName, metadataName string) error {
 		if _, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
 			Timeseries: []*cloudmonitoring.TimeseriesPoint{
