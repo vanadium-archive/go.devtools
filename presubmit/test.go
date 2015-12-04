@@ -417,7 +417,7 @@ func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects map[string]pro
 // recordPresubmitFailure records failure from presubmit binary itself
 // (not from the test it runs) in the test status file and xUnit report.
 func recordPresubmitFailure(jirix *jiri.X, testCaseName, failureMessage, failureOutput, testName string, partIndex int, result test.Result) error {
-	if err := xunit.CreateFailureReport(jirix.Context, testName, testName, testCaseName, failureMessage, failureOutput); err != nil {
+	if err := xunit.CreateFailureReport(jirix, testName, testName, testCaseName, failureMessage, failureOutput); err != nil {
 		return nil
 	}
 	// We use math.MaxInt64 here so that the logic that tries to find the newest

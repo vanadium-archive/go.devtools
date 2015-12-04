@@ -14,6 +14,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/runutil"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
@@ -108,12 +109,11 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 			rootDir = string(typedOpt)
 		}
 	}
-	if err := jirix.Run().MkdirAll(rootDir, os.FileMode(0755)); err != nil {
-		return nil, err
-	}
-	workDir, err := jirix.Run().TempDir(rootDir, "")
+	s := jirix.NewSeq()
+	workDir, err := s.MkdirAll(rootDir, os.FileMode(0755)).
+		TempDir(rootDir, "")
 	if err != nil {
-		return nil, fmt.Errorf("TempDir() failed: %v", err)
+		return nil, err
 	}
 	if err := os.Setenv("TMPDIR", workDir); err != nil {
 		return nil, err
@@ -123,12 +123,8 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 	fmt.Fprintf(jirix.Stdout(), "bin dir = %q\n", binDirPath())
 
 	// Create a directory for storing built binaries.
-	if err := jirix.Run().MkdirAll(binDirPath(), os.FileMode(0755)); err != nil {
-		return nil, fmt.Errorf("MkdirAll(%s): %v", binDirPath(), err)
-	}
-
-	// Create a directory for storing regression test binaries.
-	if err := jirix.Run().MkdirAll(regTestBinDirPath(), os.FileMode(0755)); err != nil {
+	if err := s.MkdirAll(binDirPath(), os.FileMode(0755)).
+		MkdirAll(regTestBinDirPath(), os.FileMode(0755)).Done(); err != nil {
 		return nil, err
 	}
 
@@ -161,7 +157,7 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 		}
 		clargs := append(args, insertTarget(profile)...)
 		fmt.Fprintf(jirix.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
-		if err := jirix.Run().Command("jiri", clargs...); err != nil {
+		if err := s.Last("jiri", clargs...); err != nil {
 			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
 		}
 		fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(clargs, " "))
@@ -170,7 +166,7 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 	// Update profiles.
 	args = []string{"v23-profile", "update"}
 
-	if err := jirix.Run().Command("jiri", args...); err != nil {
+	if err := s.Last("jiri", args...); err != nil {
 		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
 	}
 	fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
@@ -185,20 +181,14 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 		return nil, err
 	}
 	if !jirix.DryRun() {
-		if err := jirix.Run().Chdir(workDir); err != nil {
+		if err := s.Chdir(workDir).Done(); err != nil {
 			return nil, fmt.Errorf("Chdir(%s): %v", workDir, err)
 		}
 	}
 
 	// Remove all stale Go object files and binaries.
 	if cleanGo {
-		// TODO(nlacasse, cnicolaou): Remove this once goext distclean is fixed
-		// on jenkins.
-		if err := jirix.Run().RemoveAll(filepath.Join(jirix.Root, "release", "go", "pkg")); err != nil {
-			return nil, err
-		}
-
-		if err := jirix.Run().Command("jiri", "goext", "distclean"); err != nil {
+		if err := s.Last("jiri", "goext", "distclean"); err != nil {
 			return nil, fmt.Errorf("jiri goext distclean: %v", err)
 		}
 	}
@@ -210,13 +200,13 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 		return nil, err
 	}
 	for _, file := range testResultFiles {
-		if err := jirix.Run().RemoveAll(file); err != nil {
+		if err := s.RemoveAll(file).Done(); err != nil {
 			return nil, fmt.Errorf("RemoveAll(%s): %v", file, err)
 		}
 	}
 
 	return func() error {
-		if err := jirix.Run().Chdir(cwd); err != nil {
+		if err := jirix.NewSeq().Chdir(cwd).Done(); err != nil {
 			return fmt.Errorf("Chdir(%s): %v", cwd, err)
 		}
 		return nil
@@ -228,8 +218,9 @@ func findTestResultFiles(jirix *jiri.X, testName string) ([]string, error) {
 	result := []string{}
 	// Collect javascript test results.
 	jsDir := filepath.Join(jirix.Root, "release", "javascript", "core", "test_out")
-	if _, err := jirix.Run().Stat(jsDir); err == nil {
-		fileInfoList, err := jirix.Run().ReadDir(jsDir)
+	s := jirix.NewSeq()
+	if _, err := s.Stat(jsDir); err == nil {
+		fileInfoList, err := s.ReadDir(jsDir)
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +231,7 @@ func findTestResultFiles(jirix *jiri.X, testName string) ([]string, error) {
 			}
 		}
 	} else {
-		if !os.IsNotExist(err) {
+		if !runutil.IsNotExist(err) {
 			return nil, err
 		}
 	}
@@ -250,7 +241,7 @@ func findTestResultFiles(jirix *jiri.X, testName string) ([]string, error) {
 	if workspaceDir == "" {
 		workspaceDir = filepath.Join(os.Getenv("HOME"), "tmp", testName)
 	}
-	fileInfoList, err := jirix.Run().ReadDir(workspaceDir)
+	fileInfoList, err := s.ReadDir(workspaceDir)
 	if err != nil {
 		return nil, err
 	}

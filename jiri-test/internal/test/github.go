@@ -193,7 +193,7 @@ func vanadiumGitHubMirror(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Res
 		suites = append(suites, *suite)
 	}
 
-	if err := xunit.CreateReport(jirix.Context, testName, suites); err != nil {
+	if err := xunit.CreateReport(jirix, testName, suites); err != nil {
 		return nil, err
 	}
 

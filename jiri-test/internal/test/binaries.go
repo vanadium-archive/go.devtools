@@ -24,23 +24,21 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	args := []string{"update", "-manifest=snapshot/stable-go"}
-	// Fetch the latest stable Go snapshot.
-	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return nil, newInternalError(err, "Update")
-	}
-	fmt.Fprintf(jirix.Stdout(), "jiri %s: success\n", args)
+	s := jirix.NewSeq()
 
-	// Build all v.io binaries.
-	//
+	// Fetch the latest stable Go snapshot.
+	snapshotArgs := []string{"update", "-manifest=snapshot/stable-go"}
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	args = []string{"go", "install", "-tags=leveldb", "v.io/..."}
-	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return nil, newInternalError(err, "Install")
+	installArgs := []string{"go", "install", "-tags=leveldb", "v.io/..."}
+	err = s.Run("jiri", snapshotArgs...).
+		Fprintf(jirix.Stdout(), "jiri %s: success\n", snapshotArgs).
+		Run("jiri", installArgs...).
+		Fprintf(jirix.Stdout(), "jiri %s: success\n", installArgs).
+		Done()
+	if err != nil {
+		return nil, newInternalError(err, "Update & Install")
 	}
-
-	fmt.Fprintf(jirix.Stdout(), "jiri %s: success\n", args)
 
 	// Compute the timestamp for the build snapshot.
 	labelFile := jirix.ManifestFile("snapshot/stable-go")
@@ -54,44 +52,34 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	bucket := fmt.Sprintf("gs://vanadium-binaries/%s_%s/", runtime.GOOS, runtime.GOARCH)
 	binaries := filepath.Join(jirix.Root, "release", "go", "bin", "*")
 
-	jirix.Run().Command("ls", filepath.Dir(binaries))
-
-	args = []string{"-m", "-q", "cp", binaries, bucket + timestamp}
-	fmt.Fprintf(jirix.Stdout(), "gsutil %s ......\n", args)
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return nil, newInternalError(err, "Upload")
-	}
-	fmt.Fprintf(jirix.Stdout(), "gsutil %s: success\n", args)
-
-	// Upload two files: 1) a file that identifies the directory
+	// Upload binaries and two files: 1) a file that identifies the directory
 	// containing the latest set of binaries and 2) a file that
 	// indicates that the upload of binaries succeeded.
-	tmpDir, err := jirix.Run().TempDir("", "")
+	tmpDir, err := s.TempDir("", "")
 	if err != nil {
 		return nil, newInternalError(err, "TempDir")
 	}
-	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+	uploadArgs := []string{"-m", "-q", "cp", binaries, bucket + timestamp}
 	doneFile := filepath.Join(tmpDir, ".done")
-	if err := jirix.Run().WriteFile(doneFile, nil, os.FileMode(0600)); err != nil {
-		return nil, newInternalError(err, "WriteFile")
-	}
-	fmt.Fprintf(jirix.Stdout(), "Created %s: succcess\n", doneFile)
-	args = []string{"-q", "cp", doneFile, bucket + timestamp}
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return nil, newInternalError(err, "Upload")
-	}
-	fmt.Fprintf(jirix.Stdout(), "gsutil %s: success\n", args)
-
 	latestFile := filepath.Join(tmpDir, "latest")
-	if err := jirix.Run().WriteFile(latestFile, []byte(timestamp), os.FileMode(0600)); err != nil {
-		return nil, newInternalError(err, "WriteFile")
+	doneArgs := []string{"-q", "cp", doneFile, bucket + timestamp}
+	latestArgs := []string{"-q", "cp", latestFile, bucket}
+	err = s.Run("ls", filepath.Dir(binaries)).
+		Fprintf(jirix.Stdout(), "gsutil %s ......\n", uploadArgs).
+		Run("gsutil", uploadArgs...).
+		Fprintf(jirix.Stdout(), "gsutil %s: success\n", uploadArgs).
+		WriteFile(doneFile, nil, os.FileMode(0600)).
+		Fprintf(jirix.Stdout(), "Created %s: succcess\n", doneFile).
+		Run("gsutil", doneArgs...).
+		Fprintf(jirix.Stdout(), "gsutil %s: success\n", doneArgs).
+		WriteFile(latestFile, []byte(timestamp), os.FileMode(0600)).
+		Fprintf(jirix.Stdout(), "Created %s: succcess\n", latestFile).
+		Run("gsutil", latestArgs...).
+		Fprintf(jirix.Stdout(), "gsutil %s: success\n", latestArgs).
+		Done()
+	if err != nil {
+		return nil, newInternalError(err, "Upload Binaries, Done & Latest Files")
 	}
-	fmt.Fprintf(jirix.Stdout(), "Created %s: succcess\n", latestFile)
-	args = []string{"-q", "cp", latestFile, bucket}
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return nil, newInternalError(err, "Upload")
-	}
-	fmt.Fprintf(jirix.Stdout(), "gsutil %s: success\n", args)
-
 	return &test.Result{Status: test.Passed}, nil
 }
