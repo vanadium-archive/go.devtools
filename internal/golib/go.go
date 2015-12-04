@@ -73,16 +73,14 @@ func getPlatform(jirix *jiri.X, env map[string]string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	s := jirix.NewSeq()
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Env = env
-	if err = jirix.Run().CommandWithOpts(opts, goBin, "env", "GOARCH"); err != nil {
+	if err = s.Env(env).Capture(&out, nil).Last(goBin, "env", "GOARCH"); err != nil {
 		return "", err
 	}
 	arch := strings.TrimSpace(out.String())
 	out.Reset()
-	if err = jirix.Run().CommandWithOpts(opts, goBin, "env", "GOOS"); err != nil {
+	if err = s.Env(env).Capture(&out, nil).Last(goBin, "env", "GOOS"); err != nil {
 		return "", err
 	}
 	os := strings.TrimSpace(out.String())
@@ -169,11 +167,7 @@ func generateVDL(jirix *jiri.X, env map[string]string, cmd string, args []string
 		return err
 	}
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	opts.Env = env
-	if err := jirix.Run().CommandWithOpts(opts, vdlBin, vdlArgs...); err != nil {
+	if err := jirix.NewSeq().Env(env).Capture(&out, &out).Last(vdlBin, vdlArgs...); err != nil {
 		return fmt.Errorf("failed to generate vdl: %v\n%s", err, out.String())
 	}
 	return nil
@@ -187,13 +181,14 @@ func reportOutdatedBranches(jirix *jiri.X) (e error) {
 	if err != nil {
 		return err
 	}
-	defer collect.Error(func() error { return jirix.Run().Chdir(cwd) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().Chdir(cwd).Done() }, &e)
 	projects, err := project.LocalProjects(jirix, false)
 	if err != nil {
 		return err
 	}
+	s := jirix.NewSeq()
 	for _, project := range projects {
-		if err := jirix.Run().Chdir(project.Path); err != nil {
+		if err := s.Chdir(project.Path).Done(); err != nil {
 			return err
 		}
 		switch project.Protocol {
@@ -375,11 +370,10 @@ func runGoList(jirix *jiri.X, goBin string, env map[string]string, pkgs []string
 	// either by extending the runutil API to support piping of
 	// output, or by writing the output to a temporary file
 	// instead of an in-memory buffer.
-	opts := jirix.Run().Opts()
-	opts.Stdout = &stdout
-	opts.Stderr = &stderr
-	opts.Env = env
-	if err := jirix.Run().CommandWithOpts(opts, goBin, goListArgs...); err != nil {
+	// TODO(cnicolaou): the sequence code in runutil streams using a pipe
+	// internally so that could probably be taken advantage of here by having stdout
+	// be a pipe that the scanner reads below.
+	if err := jirix.NewSeq().Env(env).Capture(&stdout, &stderr).Last(goBin, goListArgs...); err != nil {
 		return nil, fmt.Errorf("failed to compute go deps: %v\n%s\n%v", err, stderr.String(), pkgs)
 	}
 	scanner := bufio.NewScanner(&stdout)

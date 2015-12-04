@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"v.io/jiri/jiritest"
+	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/buildinfo"
 	_ "v.io/x/devtools/internal/golib/testdata/basedep"
 	"v.io/x/lib/metadata"
@@ -27,30 +28,28 @@ func TestGoVDLGeneration(t *testing.T) {
 	defer cleanup()
 	reset := unsetJiriEnvVars(t)
 	defer reset()
+	s := fake.X.NewSeq()
 	// Create a temporary directory for all our work.
 	const tmpDirPrefix = "test_vgo"
-	tmpDir, err := fake.X.Run().TempDir("", tmpDirPrefix)
+	tmpDir, err := s.TempDir("", tmpDirPrefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	defer fake.X.Run().RemoveAll(tmpDir)
+	defer fake.X.NewSeq().RemoveAll(tmpDir)
 
 	// Create test files <tmpDir>/src/testpkg/test.vdl and
 	// <tmpDir>/src/testpkg/doc.go
 	pkgdir := filepath.Join(tmpDir, "src", "testpkg")
 	const perm = os.ModePerm
-	if err := fake.X.Run().MkdirAll(pkgdir, perm); err != nil {
-		t.Fatalf(`MkdirAll(%q) failed: %v`, pkgdir, err)
-	}
 	goFile := filepath.Join(pkgdir, "doc.go")
-	if err := fake.X.Run().WriteFile(goFile, []byte("package testpkg\n"), perm); err != nil {
-		t.Fatalf(`WriteFile(%q) failed: %v`, goFile, err)
-	}
 	inFile := filepath.Join(pkgdir, "test.vdl")
 	outFile := inFile + ".go"
-	if err := fake.X.Run().WriteFile(inFile, []byte("package testpkg\n"), perm); err != nil {
-		t.Fatalf(`WriteFile(%q) failed: %v`, inFile, err)
+	if err := s.MkdirAll(pkgdir, perm).
+		WriteFile(goFile, []byte("package testpkg\n"), perm).
+		WriteFile(inFile, []byte("package testpkg\n"), perm).Done(); err != nil {
+		t.Fatalf(`WriteFiles failed: %v`, err)
 	}
+
 	// Add <tmpDir> as first component of GOPATH and VDLPATH, so
 	// we'll be able to find testpkg.  We need GOPATH for the "go
 	// list" call when computing dependencies, and VDLPATH for the
@@ -64,8 +63,8 @@ func TestGoVDLGeneration(t *testing.T) {
 	if _, err := PrepareGo(fake.X, env, []string{"env", "GOPATH"}, "", ""); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if _, err := fake.X.Run().Stat(outFile); err != nil {
-		if !os.IsNotExist(err) {
+	if _, err := s.Stat(outFile); err != nil {
+		if !runutil.IsNotExist(err) {
 			t.Fatalf("%v", err)
 		}
 	} else {
@@ -75,7 +74,7 @@ func TestGoVDLGeneration(t *testing.T) {
 	if _, err := PrepareGo(fake.X, env, []string{"build", "testpkg"}, "", ""); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if _, err := fake.X.Run().Stat(outFile); err != nil {
+	if _, err := s.Stat(outFile); err != nil {
 		t.Fatalf("%v", err)
 	}
 }
@@ -330,12 +329,13 @@ func TestSetBuildInfo(t *testing.T) {
 	defer cleanup()
 	reset := unsetJiriEnvVars(t)
 	defer reset()
+	s := fake.X.NewSeq()
 	// Set up a temp directory.
-	dir, err := fake.X.Run().TempDir("", "v23_metadata_test")
+	dir, err := s.TempDir("", "v23_metadata_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
-	defer fake.X.Run().RemoveAll(dir)
+	defer fake.X.NewSeq().RemoveAll(dir)
 
 	env := map[string]string{
 		"PATH":   os.Getenv("PATH"),
