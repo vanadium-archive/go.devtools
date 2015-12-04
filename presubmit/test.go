@@ -229,8 +229,9 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	stderr := io.MultiWriter(&out, jirix.Stderr())
 	if err := s.Env(env).Capture(stdout, stderr).Timeout(jiriTestTimeout).
 		Last("jiri-test", jiriArgs...); err != nil {
+		oe := runutil.GetOriginalError(err)
 		// jiri-test command times out.
-		if err == runutil.CommandTimedOutErr {
+		if oe == runutil.CommandTimedOutErr {
 			result := test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: jiriTestTimeout,
@@ -241,7 +242,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 			}
 		}
 		// Check the error status to differentiate failed test errors.
-		exiterr, ok := err.(*exec.ExitError)
+		exiterr, ok := oe.(*exec.ExitError)
 		if !ok {
 			return err
 		}
