@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"v.io/jiri/tool"
+	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/cache"
 )
 
@@ -127,37 +127,33 @@ func widthPxForDuration(duration int64) string {
 	return fmt.Sprintf("%fpx", width)
 }
 
-func displayServiceStatusPage(ctx *tool.Context, w http.ResponseWriter, r *http.Request) (e error) {
+func displayServiceStatusPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request) (e error) {
+	s := jirix.NewSeq()
 	// Set up the root directory.
 	root := cacheFlag
 	if root == "" {
-		tmpDir, err := ctx.Run().TempDir("", "")
+		tmpDir, err := s.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer ctx.Run().RemoveAll(tmpDir)
+		defer jirix.NewSeq().RemoveAll(tmpDir)
 		root = tmpDir
 	}
 	root = filepath.Join(root, "status")
-	if err := ctx.Run().MkdirAll(root, 0700); err != nil {
-		return err
-	}
-
-	// Read timestamp from the "latest" file.
 	var out bytes.Buffer
-	opts := ctx.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-	if err := ctx.Run().CommandWithOpts(opts, "gsutil", "-q", "cat", statusBucketFlag+"/latest"); err != nil {
+	// Read timestamp from the "latest" file.
+	if err := s.MkdirAll(root, 0700).
+		Capture(&out, &out).
+		Last("gsutil", "-q", "cat", statusBucketFlag+"/latest"); err != nil {
 		return err
 	}
 
 	// Read status file.
-	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, statusBucketFlag, out.String()+".status")
+	cachedFile, err := cache.StoreGoogleStorageFile(jirix.Context, root, statusBucketFlag, out.String()+".status")
 	if err != nil {
 		return err
 	}
-	fileBytes, err := ctx.Run().ReadFile(cachedFile)
+	fileBytes, err := s.ReadFile(cachedFile)
 	if err != nil {
 		return err
 	}
