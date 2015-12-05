@@ -407,7 +407,8 @@ func coverageWorker(jirix *jiri.X, timeout string, args []string, pkgs <-chan st
 			output:   out.String(),
 		}
 		if err != nil {
-			if isBuildFailure(err, out.String(), pkg) {
+			oe := runutil.GetOriginalError(err)
+			if isBuildFailure(oe, out.String(), pkg) {
 				result.status = buildFailed
 			} else {
 				result.status = testFailed
@@ -879,9 +880,10 @@ func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks
 			excluded: task.excludedTests,
 		}
 		if err != nil {
-			if isBuildFailure(err, out.String(), task.pkg) {
+			oe := runutil.GetOriginalError(err)
+			if isBuildFailure(oe, out.String(), task.pkg) {
 				result.status = buildFailed
-			} else if err == runutil.CommandTimedOutErr {
+			} else if oe == runutil.CommandTimedOutErr {
 				result.status = testTimedout
 			} else {
 				result.status = testFailed
