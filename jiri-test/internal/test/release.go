@@ -47,8 +47,6 @@ var (
 		"groupsd",
 		"identityd",
 		"mounttabled",
-		"proxyd",
-		"proxyd:vlab-proxyd",
 		"xproxyd",
 		"xproxyd:vlab-xproxyd",
 		"roled",
@@ -59,9 +57,7 @@ var (
 		"devmgr/apps/binaryd",
 		"devmgr/apps/groupsd",
 		"devmgr/apps/identityd",
-		"devmgr/apps/proxyd",
 		"devmgr/apps/roled",
-		"devmgr/apps/VLabProxy",
 		"devmgr/apps/xproxyd",
 		"devmgr/apps/VLabXProxy",
 	}
