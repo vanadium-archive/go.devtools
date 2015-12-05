@@ -337,7 +337,7 @@ func newOpenCLs(jirix *jiri.X, prevCLsMap clRefMap, curCLs clList) []clList {
 
 type clsSender struct {
 	clLists          []clList
-	projects         project.Projects
+	projects         map[string]project.Project
 	clsSent          int
 	removeOutdatedFn func(*jiri.X, clNumberToPatchsetMap) []error
 	addPresubmitFn   func(*jiri.X, clList, []string) error
@@ -434,7 +434,7 @@ func (s *clsSender) processCLList(jirix *jiri.X, curCLList clList) *clListInfo {
 	for _, curCL := range curCLList {
 		// Ignore all CLs that are not in projects identified by the manifestFlag.
 		// TODO(jingjin): find a better way so we can remove this check.
-		if s.projects != nil && !isKnownProject(jirix, curCL, s.projects) {
+		if s.projects != nil && !isKnowProject(jirix, curCL, s.projects) {
 			continue
 		}
 		filteredCLList = append(filteredCLList, curCL)
@@ -501,9 +501,8 @@ func (s *clsSender) handleNonGoogleOwner(jirix *jiri.X, refs, projects, tests []
 
 // isKnownProject checks whether the given cl's project is in the
 // given set of projects.
-func isKnownProject(jirix *jiri.X, cl gerrit.Change, projects project.Projects) bool {
-	foundProjects := projects.Find(cl.Project)
-	if len(foundProjects) == 0 {
+func isKnowProject(jirix *jiri.X, cl gerrit.Change, projects map[string]project.Project) bool {
+	if _, ok := projects[cl.Project]; !ok {
 		printf(jirix.Stdout(), "project=%q (%s) not found. Skipped.\n", cl.Project, cl.Reference())
 		return false
 	}
