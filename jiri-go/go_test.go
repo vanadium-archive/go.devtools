@@ -15,7 +15,6 @@ import (
 	"v.io/jiri/jiritest"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/buildinfo"
@@ -75,23 +74,26 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 }
 
 func TestGoBuildWithMetaData(t *testing.T) {
-	ctx, start := tool.NewDefaultContext(), time.Now().UTC()
+	fake, cleanup := jiritest.NewFakeJiriRoot(t)
+	defer cleanup()
+	jirix := fake.X
+	start := time.Now().UTC()
+	s := jirix.NewSeq()
 	// Set up a temp directory.
-	dir, err := ctx.Run().TempDir("", "v23_metadata_test")
+	dir, err := s.TempDir("", "v23_metadata_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
-	defer ctx.Run().RemoveAll(dir)
+	defer jirix.NewSeq().RemoveAll(dir)
 	// Build the jiri-go binary itself.
 	var buf bytes.Buffer
-	opts := runutil.Opts{Stdout: &buf, Stderr: &buf, Verbose: true}
 	testbin := filepath.Join(dir, "testbin")
-	if err := ctx.Run().CommandWithOpts(opts, "jiri", "go", "build", "-o", testbin); err != nil {
+	if err := s.Verbose(true).Capture(&buf, &buf).Last("jiri", "go", "--skip-profiles", "build", "-o", testbin); err != nil {
 		t.Fatalf("build of jiri-go failed: %v\n%s", err, buf.String())
 	}
 	// Run the jiri-go binary.
 	buf.Reset()
-	if err := ctx.Run().CommandWithOpts(opts, testbin, "-metadata"); err != nil {
+	if err := s.Verbose(true).Capture(&buf, &buf).Last(testbin, "-metadata"); err != nil {
 		t.Errorf("run of jiri-go -metadata failed: %v\n%s", err, buf.String())
 	}
 	// Decode the output metadata and spot-check some values.
