@@ -95,9 +95,8 @@ func runGo(jirix *jiri.X, args []string) error {
 	if verboseFlag {
 		fmt.Fprintf(jirix.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
 	}
-	opts := jirix.Run().Opts()
-	opts.Env = envMap
-	return util.TranslateExitCode(jirix.Run().CommandWithOpts(opts, goBin, args...))
+	err = jirix.NewSeq().Env(envMap).Capture(jirix.Stdout(), jirix.Stderr()).Last(goBin, args...)
+	return util.TranslateExitCode(runutil.GetOriginalError(err))
 }
 
 func main() {
