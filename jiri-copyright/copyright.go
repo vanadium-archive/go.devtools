@@ -25,6 +25,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/project"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/lib/cmdline"
@@ -212,9 +213,10 @@ func checkFile(jirix *jiri.X, path string, assets *copyrightAssets, fix bool) (b
 		return false, err
 	}
 	missingCopyright := false
+	s := jirix.NewSeq()
 	for _, lang := range languages {
 		if _, ok := lang.Interpreters[filepath.Base(interpreter)]; ok || strings.HasSuffix(path, lang.FileExtension) {
-			data, err := jirix.Run().ReadFile(path)
+			data, err := s.ReadFile(path)
 			if err != nil {
 				return false, err
 			}
@@ -229,11 +231,11 @@ func checkFile(jirix *jiri.X, path string, assets *copyrightAssets, fix bool) (b
 						copyright = directiveLine + copyright
 					}
 					data := append([]byte(copyright), data...)
-					info, err := jirix.Run().Stat(path)
+					info, err := s.Stat(path)
 					if err != nil {
 						return false, err
 					}
-					if err := jirix.Run().WriteFile(path, data, info.Mode()); err != nil {
+					if err := s.WriteFile(path, data, info.Mode()).Done(); err != nil {
 						return false, err
 					}
 				} else {
@@ -253,14 +255,15 @@ func checkFile(jirix *jiri.X, path string, assets *copyrightAssets, fix bool) (b
 // violations to standard error output.
 func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAssets, fix bool) (m bool, e error) {
 	check := func(fileMap map[string]string, isValid func([]byte, []byte) bool) (bool, error) {
+		s := jirix.NewSeq()
 		missing := false
 		for file, want := range fileMap {
 			path := filepath.Join(project.Path, file)
-			got, err := jirix.Run().ReadFile(path)
+			got, err := s.ReadFile(path)
 			if err != nil {
-				if os.IsNotExist(err) {
+				if runutil.IsNotExist(err) {
 					if fix {
-						if err := jirix.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
+						if err := s.WriteFile(path, []byte(want), defaultFileMode).Done(); err != nil {
 							return false, err
 						}
 					} else {
@@ -274,7 +277,7 @@ func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAsset
 			}
 			if !isValid(got, []byte(want)) {
 				if fix {
-					if err := jirix.Run().WriteFile(path, []byte(want), defaultFileMode); err != nil {
+					if err := s.WriteFile(path, []byte(want), defaultFileMode).Done(); err != nil {
 						return false, err
 					}
 				} else {
@@ -310,10 +313,10 @@ func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAsset
 	if err != nil {
 		return false, fmt.Errorf("Getwd() failed: %v", err)
 	}
-	if err := jirix.Run().Chdir(project.Path); err != nil {
+	if err := jirix.NewSeq().Chdir(project.Path).Done(); err != nil {
 		return false, err
 	}
-	defer collect.Error(func() error { return jirix.Run().Chdir(cwd) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().Chdir(cwd).Done() }, &e)
 	files, err := jirix.Git().TrackedFiles()
 	if err != nil {
 		return false, err
@@ -341,7 +344,7 @@ func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAsset
 // detectInterpret returns the interpreter directive of the given
 // file, if it contains one.
 func detectInterpreter(jirix *jiri.X, path string) (_ string, e error) {
-	file, err := jirix.Run().Open(path)
+	file, err := jirix.NewSeq().Open(path)
 	if err != nil {
 		return "", err
 	}
@@ -392,10 +395,11 @@ func loadAssets(jirix *jiri.X, dir string) (*copyrightAssets, error) {
 		MatchFiles:       map[string]string{},
 		MatchPrefixFiles: map[string]string{},
 	}
+	s := jirix.NewSeq()
 	load := func(files []string, fileMap map[string]string) error {
 		for _, file := range files {
 			path := filepath.Join(dir, file)
-			bytes, err := jirix.Run().ReadFile(path)
+			bytes, err := s.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -410,7 +414,7 @@ func loadAssets(jirix *jiri.X, dir string) (*copyrightAssets, error) {
 		return nil, err
 	}
 	path := filepath.Join(dir, "COPYRIGHT")
-	bytes, err := jirix.Run().ReadFile(path)
+	bytes, err := s.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -433,9 +437,9 @@ func readV23Ignore(jirix *jiri.X, project project.Project) ([]*regexp.Regexp, er
 	// Grab the .jiriignore in from project.Path. Ignore file not found errors, not
 	// all projects will have one of these ignore files.
 	path := filepath.Join(project.Path, jiriIgnore)
-	file, err := jirix.Run().Open(path)
+	file, err := jirix.NewSeq().Open(path)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		if !runutil.IsNotExist(err) {
 			return nil, err
 		}
 		return nil, nil

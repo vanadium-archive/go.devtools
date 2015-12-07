@@ -59,9 +59,10 @@ func TestCopyright(t *testing.T) {
 	// project and verify that the project checks out.
 	projectPath := filepath.Join(fake.X.Root, "test")
 	project := project.Project{Path: projectPath}
+	s := fake.X.NewSeq()
 	for _, lang := range languages {
 		file := "test" + lang.FileExtension
-		if err := fake.X.Run().WriteFile(filepath.Join(projectPath, file), nil, os.FileMode(0600)); err != nil {
+		if err := s.WriteFile(filepath.Join(projectPath, file), nil, os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err := checkFile(fake.X, filepath.Join(project.Path, file), assets, true)
@@ -76,7 +77,7 @@ func TestCopyright(t *testing.T) {
 		}
 	}
 	for file, data := range allFiles {
-		if err := fake.X.Run().WriteFile(filepath.Join(projectPath, file), []byte(data), os.FileMode(0600)); err != nil {
+		if err := s.WriteFile(filepath.Join(projectPath, file), []byte(data), os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
@@ -129,7 +130,7 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := s.WriteFile(path, []byte("garbage"), os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err = checkProject(fake.X, project, assets, false)
@@ -156,7 +157,7 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, "test"+lang.FileExtension)
-		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := s.WriteFile(path, []byte("garbage"), os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err = checkProject(fake.X, project, assets, false)
@@ -182,7 +183,7 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := fake.X.Run().RemoveAll(path); err != nil {
+		if err := s.RemoveAll(path).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err = checkProject(fake.X, project, assets, true)
@@ -215,7 +216,7 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := s.WriteFile(path, []byte("garbage"), os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err = checkProject(fake.X, project, assets, true)
@@ -249,7 +250,7 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, "test"+lang.FileExtension)
-		if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+		if err := s.WriteFile(path, []byte("garbage"), os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err = checkProject(fake.X, project, assets, true)
@@ -282,11 +283,9 @@ func TestCopyright(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	path := filepath.Join(projectPath, "third_party")
-	if err := fake.X.Run().MkdirAll(path, 0700); err != nil {
-		t.Fatalf("%v", err)
-	}
-	path = filepath.Join(path, "test.go")
-	if err := fake.X.Run().WriteFile(path, []byte("garbage"), os.FileMode(0600)); err != nil {
+	gpath := filepath.Join(path, "test.go")
+	if err := s.MkdirAll(path, 0700).
+		WriteFile(gpath, []byte("garbage"), os.FileMode(0600)).Done(); err != nil {
 		t.Fatalf("%v", err)
 	}
 	// Since this file is in a subdir, we must run "git add" to have git track it.
@@ -309,17 +308,16 @@ func TestCopyright(t *testing.T) {
 	errOut.Reset()
 	// Add .jiriignore file.
 	ignoreFile := filepath.Join(projectPath, jiriIgnore)
-	if err := fake.X.Run().WriteFile(ignoreFile, []byte("public/fancy.js"), os.FileMode(0600)); err != nil {
-		t.Fatalf("%v", err)
-	}
 	publicDir := filepath.Join(projectPath, "public")
-	if err := fake.X.Run().MkdirAll(publicDir, 0700); err != nil {
-		t.Fatalf("%v", err)
-	}
 	filename := filepath.Join(publicDir, "fancy.js")
-	if err := fake.X.Run().WriteFile(filename, []byte("garbage"), os.FileMode(0600)); err != nil {
+
+	if err := s.
+		WriteFile(ignoreFile, []byte("public/fancy.js"), os.FileMode(0600)).
+		MkdirAll(publicDir, 0700).
+		WriteFile(filename, []byte("garbage"), os.FileMode(0600)).Done(); err != nil {
 		t.Fatalf("%v", err)
 	}
+
 	// Since the copyright check only applies to tracked files, we must run "git
 	// add" to have git track it. Without this, the test passes regardless of the
 	// subdir name.
