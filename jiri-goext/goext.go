@@ -76,7 +76,7 @@ func runGoExtDistClean(jirix *jiri.X, _ []string) error {
 			if verboseFlag {
 				fmt.Fprintf(jirix.Stdout(), "removing: %s\n", dir)
 			}
-			if err := jirix.Run().RemoveAll(dir); err != nil {
+			if err := jirix.NewSeq().RemoveAll(dir).Done(); err != nil {
 				failed = true
 			}
 		}
