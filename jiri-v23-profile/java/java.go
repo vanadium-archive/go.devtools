@@ -193,6 +193,7 @@ func getJDKLinux(jirix *jiri.X, spec versionSpec) (string, error) {
 			return javaHome, nil
 		}
 		fmt.Fprintf(os.Stderr, "JAVA_HOME (%s) is incompatible with required profile version: %v; trying to find a compatible system installation.", javaHome, err)
+		defer fmt.Fprint(os.Stderr, "Done looking for system installation.")
 	}
 	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javacBin := "/usr/bin/javac"
@@ -218,6 +219,7 @@ func getJDKDarwin(jirix *jiri.X, spec versionSpec) (string, error) {
 			return javaHome, nil
 		}
 		fmt.Fprintf(os.Stderr, "JAVA_HOME (%s) is incompatible with required profile version %v; trying to find a compatible system installation", javaHome, err)
+		defer fmt.Fprint(os.Stderr, "Done looking for system installation.")
 	}
 	// JAVA_HOME doesn't point to the right version: check the system installation.
 	javaHomeBin := "/usr/libexec/java_home"
