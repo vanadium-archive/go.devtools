@@ -1818,9 +1818,7 @@ func defaultRegressionConfig() *regressionTestConfig {
 		Tests: "^TestV23Hello.*",
 	}
 	now := time.Now()
-	// TODO(caprita,mattr): Change the second value below back to 5 once
-	// we're past 11/15/2015.
-	for _, days := range []int{1, 3} {
+	for _, days := range []int{1, 5} {
 		config.AgainstDates = append(config.AgainstDates,
 			regressionDate(now.AddDate(0, 0, -days)))
 	}
