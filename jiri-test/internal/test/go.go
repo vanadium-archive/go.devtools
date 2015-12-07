@@ -1978,7 +1978,7 @@ func downloadVanadiumBinaries(jirix *jiri.X, bin string, date time.Time) (binDir
 	s := jirix.NewSeq()
 	if _, err := s.Stat(binDir); err == nil {
 		return binDir, nil
-	} else if !os.IsNotExist(err) {
+	} else if !runutil.IsNotExist(err) {
 		return "", err
 	}
 	args := []string{
