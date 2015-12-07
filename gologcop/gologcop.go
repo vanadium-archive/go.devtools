@@ -23,7 +23,6 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/goutil"
 )
 
@@ -771,11 +770,11 @@ func checkMethod(method funcDeclRef) error {
 }
 
 // gofmt runs "gofmt -w files...".
-func gofmt(jirix *jiri.X, files []string) error {
+func gofmt(jirix *jiri.X, verbose bool, files []string) error {
 	if len(files) == 0 || !gofmtFlag {
 		return nil
 	}
-	return jirix.Run().Command("gofmt", append([]string{"-w"}, files...)...)
+	return jirix.NewSeq().Verbose(verbose).Last("gofmt", append([]string{"-w"}, files...)...)
 }
 
 // writeFiles writes out files modified by the patch sets supplied to it.
@@ -793,6 +792,7 @@ func writeFiles(jirix *jiri.X, fset *token.FileSet, files map[*ast.File][]patch)
 	}
 	sort.Strings(filenames)
 
+	s := jirix.NewSeq()
 	for _, filename := range filenames {
 		file := asts[filename]
 		patches := files[file]
@@ -811,28 +811,26 @@ func writeFiles(jirix *jiri.X, fset *token.FileSet, files map[*ast.File][]patch)
 		}
 		patchedSrc = append(patchedSrc, src[beginOffset:]...)
 		if diffOnlyFlag {
-			tmpDir, err := jirix.Run().TempDir("", "")
+			tmpDir, err := s.TempDir("", "")
 			if err != nil {
 				return err
 			}
 			tmpFilename := filepath.Join(tmpDir, "gologcop-"+filepath.Base(filename))
-			defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpDir) }, &e)
-			if err := jirix.Run().WriteFile(tmpFilename, patchedSrc, os.FileMode(0644)); err != nil {
+			defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+			if err := s.WriteFile(tmpFilename, patchedSrc, os.FileMode(0644)).Done(); err != nil {
 				return err
 			}
 			progressMsg(jirix.Stdout(), "Diffing %s with %s\n", filename, tmpFilename)
-			verbose := false
-			njirix := jirix.Clone(tool.ContextOpts{Verbose: &verbose})
-			gofmt(njirix, []string{tmpFilename})
-			njirix.Run().Command("diff", filename, tmpFilename)
+			gofmt(jirix, false, []string{tmpFilename})
+			s.Verbose(false).Capture(jirix.Stdout(), jirix.Stderr()).Last("diff", filename, tmpFilename)
 		} else {
-			jirix.Run().WriteFile(filename, patchedSrc, 644)
+			s.WriteFile(filename, patchedSrc, 644).Done()
 		}
 	}
 	if diffOnlyFlag {
 		return nil
 	}
-	return gofmt(jirix, filesToFormat)
+	return gofmt(jirix, jirix.Verbose(), filesToFormat)
 }
 
 // remove removes a log call at the beginning of each method in methods.
