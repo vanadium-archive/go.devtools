@@ -10,11 +10,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -70,11 +70,8 @@ func runRun(jirix *jiri.X, args []string) error {
 		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
 		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
 	}
-	execCmd := exec.Command(args[0], args[1:]...)
-	execCmd.Stdout = jirix.Stdout()
-	execCmd.Stderr = jirix.Stderr()
-	execCmd.Env = ch.ToSlice()
-	return util.TranslateExitCode(execCmd.Run())
+	err = jirix.NewSeq().Env(ch.ToMap()).Capture(jirix.Stdout(), jirix.Stderr()).Last(args[0], args[1:]...)
+	return util.TranslateExitCode(runutil.GetOriginalError(err))
 }
 
 func main() {
