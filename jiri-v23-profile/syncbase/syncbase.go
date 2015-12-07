@@ -13,6 +13,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -88,7 +89,7 @@ func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, 
 		cxxflags := env.GetTokens("CGO_CXXFLAGS", " ")
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
 		if _, err := jirix.NewSeq().Stat(dir.Abs(jirix)); err != nil {
-			if !os.IsNotExist(err) {
+			if !runutil.IsNotExist(err) {
 				return nil, err
 			}
 			continue

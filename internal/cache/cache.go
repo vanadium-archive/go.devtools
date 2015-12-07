@@ -5,11 +5,11 @@
 package cache
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 )
 
@@ -19,7 +19,7 @@ import (
 func StoreGoogleStorageFile(ctx *tool.Context, cacheRoot, bucketRoot, filename string) (_ string, e error) {
 	cachedFile := filepath.Join(cacheRoot, filename)
 	if _, err := ctx.Run().Stat(cachedFile); err != nil {
-		if !os.IsNotExist(err) {
+		if !runutil.IsNotExist(err) {
 			return "", err
 		}
 		// To avoid interference between concurrent requests, download data to a

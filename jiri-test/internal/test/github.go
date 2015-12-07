@@ -11,6 +11,7 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -210,7 +211,7 @@ func gitHubSync(jirix *jiri.X, mirror Mirror, projects string) (*xunit.TestSuite
 
 	// If dirname does not exist `git clone` otherwise `git pull`.
 	if _, err := jirix.Run().Stat(dirname); err != nil {
-		if !os.IsNotExist(err) {
+		if !runutil.IsNotExist(err) {
 			return nil, newInternalError(err, "stat")
 		}
 

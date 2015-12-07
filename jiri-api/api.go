@@ -21,6 +21,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/project"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -160,7 +161,7 @@ func getCurrentAPI(jirix *jiri.X, gotoolsBin, dir string) ([]byte, error) {
 }
 
 func isFailedAPICheckFatal(projectName string, apiCheckProjects map[string]struct{}, apiFileError error) bool {
-	if os.IsNotExist(apiFileError) {
+	if runutil.IsNotExist(apiFileError) {
 		if _, ok := apiCheckProjects[projectName]; !ok {
 			return false
 		}
@@ -240,7 +241,7 @@ func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args
 			apiFilePath := filepath.Join(dir, ".api")
 			apiFileContents, apiFileError := readAPIFileContents(jirix, apiFilePath)
 			if apiFileError != nil {
-				if os.IsNotExist(apiFileError) && len(currentAPI) == 0 {
+				if runutil.IsNotExist(apiFileError) && len(currentAPI) == 0 {
 					// The API file doesn't exist but the
 					// public API in the working directory
 					// is empty anyway.
@@ -355,7 +356,7 @@ func runAPIFix(jirix *jiri.X, args []string) error {
 	}
 	for _, change := range changes {
 		if len(change.newAPIContent) == 0 {
-			if _, err := jirix.Run().Stat(change.apiFilePath); !os.IsNotExist(err) {
+			if _, err := jirix.Run().Stat(change.apiFilePath); !runutil.IsNotExist(err) {
 				if err != nil {
 					return err
 				}

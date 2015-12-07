@@ -312,10 +312,8 @@ func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex
 		if err := s.Last("gsutil", args...); err != nil {
 			return err
 		}
-	} else {
-		if !os.IsNotExist(err) {
-			return err
-		}
+	} else if !runutil.IsNotExist(err) {
+		return err
 	}
 	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"v.io/jiri/runutil"
 )
 
 var (
@@ -55,7 +57,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 	// Make sure non-existent files return an error.
 	cfg, err = loadConfig(path + ".XYZ")
-	if cfg != nil || err == nil || !os.IsNotExist(err) {
+	if cfg != nil || err == nil || !runutil.IsNotExist(err) {
 		t.Errorf("got (%v, %v), want (nil, NoExist)", cfg, err)
 	}
 }

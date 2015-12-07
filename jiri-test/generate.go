@@ -19,6 +19,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/goutil"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
 	"v.io/x/lib/cmdline"
@@ -100,7 +101,7 @@ func runTestGenerate(jirix *jiri.X, args []string) error {
 		extFile := filepath.Join(dir, prefixFlag+externalSuffix)
 		intFile := filepath.Join(dir, prefixFlag+internalSuffix)
 		for _, f := range []string{extFile, intFile} {
-			if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
+			if err := os.Remove(f); err != nil && !runutil.IsNotExist(err) {
 				return err
 			}
 		}

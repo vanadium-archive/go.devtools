@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"v.io/jiri/jiritest"
+	"v.io/jiri/runutil"
 	"v.io/x/lib/cmdline"
 )
 
@@ -86,11 +87,11 @@ func testGenerate(t *testing.T, gendir, srcdir, name string) {
 	intFile := filepath.Join(name, prefix+internalSuffix)
 	for _, f := range []string{extFile, intFile} {
 		srcData, srcErr := ioutil.ReadFile(filepath.Join(srcdir, f))
-		if srcErr != nil && !os.IsNotExist(srcErr) {
+		if srcErr != nil && !runutil.IsNotExist(srcErr) {
 			t.Errorf("%s: Read src file failed: %v", f, srcErr)
 		}
 		genData, genErr := ioutil.ReadFile(filepath.Join(gendir, f))
-		if genErr != nil && !os.IsNotExist(genErr) {
+		if genErr != nil && !runutil.IsNotExist(genErr) {
 			t.Errorf("%s: Read gen file failed: %v", f, genErr)
 		}
 		if got, want := srcErr == nil, genErr == nil; got != want {

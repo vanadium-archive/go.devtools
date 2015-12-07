@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"go/build"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"v.io/jiri/runutil"
 )
 
 type config struct {
@@ -128,7 +129,7 @@ func (c *configIter) Advance() bool {
 	path := filepath.Join(c.dir, configFileName)
 	cfg, err := loadConfig(path)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		if !runutil.IsNotExist(err) {
 			c.depth = -1
 			c.err = err
 			return false

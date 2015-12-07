@@ -423,7 +423,7 @@ func checkTestReportFile(jirix *jiri.X, testName string) error {
 
 	xUnitReportFile := xunit.ReportPath(testName)
 	if _, err := jirix.Run().Stat(xUnitReportFile); err != nil {
-		if !os.IsNotExist(err) {
+		if !runutil.IsNotExist(err) {
 			return err
 		}
 		// No test report.
@@ -478,7 +478,7 @@ func generateXUnitReportForError(jirix *jiri.X, testName string, err error, outp
 	// invalid, or exist but doesn't have failed test cases.
 	createXUnitFile := false
 	if _, err := jirix.Run().Stat(xUnitFilePath); err != nil {
-		if os.IsNotExist(err) {
+		if runutil.IsNotExist(err) {
 			createXUnitFile = true
 		} else {
 			return nil, err

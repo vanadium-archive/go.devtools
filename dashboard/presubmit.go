@@ -21,6 +21,7 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
+	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
@@ -525,7 +526,7 @@ func aggregateTestParts(jirix *jiri.X, jobDir string, aggregateOutput bool) (*ag
 func parseFailedTests(jirix *jiri.X, jobDir string, partIndex int) ([]failedTest, error) {
 	failedTests := []failedTest{}
 	suitesBytes, err := jirix.NewSeq().ReadFile(filepath.Join(jobDir, "xunit.xml"))
-	if os.IsNotExist(err) {
+	if runutil.IsNotExist(err) {
 		return failedTests, nil
 	}
 	if err != nil {

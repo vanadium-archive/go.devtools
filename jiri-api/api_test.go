@@ -14,6 +14,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
+	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
 )
@@ -332,7 +333,7 @@ func testFunction1() {
 	}
 	if _, err := fake.X.Run().Stat(filepath.Join(projectPath, ".api")); err == nil {
 		t.Fatalf(".api file exists when it should have been removed: %v", err)
-	} else if !os.IsNotExist(err) {
+	} else if !runutil.IsNotExist(err) {
 		t.Fatalf("%v", err)
 	}
 }
