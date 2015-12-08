@@ -28,25 +28,23 @@ func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
 	// Install the vdl tool.
-	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
+	if err := s.Last("jiri", "go", "install", "v.io/x/ref/cmd/vdl"); err != nil {
 		return nil, newInternalError(err, "Install VDL")
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.
-	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
 	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
 	if err != nil {
 		return nil, err
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
-	opts.Env["VDLPATH"] = ch.Get("VDLPATH")
-	opts.Env["VDLROOT"] = filepath.Join(ch.Root(), "release", "go", "src", "v.io", "v23", "vdlroot")
+	env := ch.ToMap()
+	env["VDLROOT"] = filepath.Join(ch.Root(), "release", "go", "src", "v.io", "v23", "vdlroot")
 	vdl := filepath.Join(ch.Root(), "release", "go", "bin", "vdl")
-	err = jirix.Run().CommandWithOpts(opts, vdl, "audit", "--lang=go", "all")
+	var out bytes.Buffer
+	err = s.Env(env).Capture(&out, &out).Last(vdl, "audit", "--lang=go", "all")
 	output := strings.TrimSpace(out.String())
 	if err != nil || len(output) != 0 {
 		fmt.Fprintf(jirix.Stdout(), "%v\n", output)

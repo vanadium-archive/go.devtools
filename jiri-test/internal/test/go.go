@@ -883,7 +883,7 @@ func testWorker(jirix *jiri.X, timeout string, args, nonTestArgs []string, tasks
 			oe := runutil.GetOriginalError(err)
 			if isBuildFailure(oe, out.String(), task.pkg) {
 				result.status = buildFailed
-			} else if oe == runutil.CommandTimedOutErr {
+			} else if runutil.IsTimeout(err) {
 				result.status = testTimedout
 			} else {
 				result.status = testFailed

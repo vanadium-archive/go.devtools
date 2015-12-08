@@ -34,24 +34,18 @@ func commonVanadiumWWW(jirix *jiri.X, testName, makeTarget string, timeout time.
 	}
 	defer collect.Error(func() error { return cleanup2() }, &e)
 
+	s := jirix.NewSeq()
 	wwwDir := filepath.Join(jirix.Root, "www")
-	if err := jirix.Run().Chdir(wwwDir); err != nil {
-		return nil, err
-	}
-
-	if err := jirix.Run().Command("make", "clean"); err != nil {
-		return nil, err
-	}
-
-	// Invoke the make target.
-	if err := jirix.Run().TimedCommand(timeout, "make", makeTarget); err != nil {
-		if err == runutil.CommandTimedOutErr {
+	if err := s.Chdir(wwwDir).
+		Run("make", "clean").
+		Timeout(timeout).Last("make", makeTarget); err != nil {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: timeout,
 			}, nil
 		} else {
-			return nil, newInternalError(err, "Make " + makeTarget)
+			return nil, newInternalError(err, "Make "+makeTarget)
 		}
 	}
 
@@ -98,24 +92,14 @@ func vanadiumWWWConfigDeployHelper(jirix *jiri.X, testName string, env string, _
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	// Change dir to infrastructure/nginx.
 	dir := filepath.Join(jirix.Root, "infrastructure", "nginx")
-	if err := jirix.Run().Chdir(dir); err != nil {
-		return nil, newInternalError(err, "Chdir")
-	}
-
-	// Update configuration.
 	target := strings.Join([]string{"deploy", env}, "-")
-	if err := jirix.Run().Command("make", target); err != nil {
-		return &test.Result{Status: test.Failed}, nil
-	}
-
-	// Restart remote services.
 	project := strings.Join([]string{"vanadium", env}, "-")
-	if err := jirix.Run().Command("./restart.sh", project); err != nil {
-		return &test.Result{Status: test.Failed}, nil
+	if err := jirix.NewSeq().Chdir(dir).
+		Run("make", target).
+		Last("./restart.sh", project); err != nil {
+		return &test.Result{Status: test.Failed}, err
 	}
-
 	return &test.Result{Status: test.Passed}, nil
 }
 

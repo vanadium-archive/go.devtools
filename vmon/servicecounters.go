@@ -41,7 +41,7 @@ func checkServiceCounters(ctx *tool.Context) error {
 	hasError := false
 	for _, counter := range counters {
 		if v, err := checkSingleCounter(ctx, counter); err != nil {
-			if err == runutil.CommandTimedOutErr {
+			if runutil.IsTimeout(err) {
 				test.Warn(ctx, "%s: %d [TIMEOUT]\n", counter.name, int(v))
 			} else {
 				test.Fail(ctx, "%s\n", counter.name)
@@ -65,7 +65,7 @@ func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64,
 	value := 0.0
 	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
 		Last(debug, "--v23.credentials", credentialsFlag, "stats", "read", counter.objectName); err != nil {
-		if err != runutil.CommandTimedOutErr {
+		if !runutil.IsTimeout(err) {
 			return 0, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}
 		return 0, err

@@ -60,7 +60,7 @@ func checkAllServicePerMethodLatency(ctx *tool.Context) error {
 	hasError := false
 	for _, info := range infos {
 		if latPerMethod, err := checkOneServicePerMethodLatency(ctx, info); err != nil {
-			if err == runutil.CommandTimedOutErr {
+			if runutil.IsTimeout(err) {
 				test.Warn(ctx, "%s: [TIMEOUT]\n", info.name)
 			} else {
 				test.Fail(ctx, "%s\n", info.name)
@@ -92,7 +92,7 @@ func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInf
 	}
 	if err := ctx.NewSeq().Capture(&buf, &stderr).Timeout(timeout).
 		Last(debug, args...); err != nil {
-		if err != runutil.CommandTimedOutErr {
+		if !runutil.IsTimeout(err) {
 			return nil, fmt.Errorf("debug command failed: %v\n%s", err, stderr.String())
 		}
 		fmt.Fprintf(ctx.Stdout(), "%s %s TIMED OUT: %s\n", debug, args, stderr.String())

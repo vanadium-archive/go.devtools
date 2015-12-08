@@ -63,13 +63,13 @@ func vanadiumPlaygroundSubtest(jirix *jiri.X, testName, caseName, casePath, case
 		return
 	}
 	if err := jirix.Run().TimedCommand(defaultPlaygroundTestTimeout, "make", caseTarget); err != nil {
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: defaultPlaygroundTestTimeout,
 			}, nil
 		} else {
-			return nil, newInternalError(err, "Make " + caseTarget)
+			return nil, newInternalError(err, "Make "+caseTarget)
 		}
 	}
 	return

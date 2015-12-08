@@ -43,13 +43,13 @@ func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[st
 
 	// Run the tests.
 	if err := jirix.Run().TimedCommandWithOpts(timeout, opts, "make", target); err != nil {
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: timeout,
 			}, nil
 		} else {
-			return nil, newInternalError(err, "Make " + target)
+			return nil, newInternalError(err, "Make "+target)
 		}
 	}
 
