@@ -66,8 +66,9 @@ var cmdAPICheck = &cmdline.Command{
 }
 
 func readAPIFileContents(jirix *jiri.X, path string) (_ []byte, e error) {
+	s := jirix.NewSeq()
 	var buf bytes.Buffer
-	file, err := jirix.Run().Open(path)
+	file, err := s.Open(path)
 	defer collect.Error(file.Close, &e)
 	if err != nil {
 		return nil, err
@@ -124,17 +125,19 @@ func buildGotools(jirix *jiri.X) (string, func() error, error) {
 	}
 	newGoPath := filepath.Join(project.Path, "go")
 
+	s := jirix.NewSeq()
+
 	// Build the gotools binary.
-	tempDir, err := jirix.Run().TempDir("", "")
+	tempDir, err := s.TempDir("", "")
 	if err != nil {
 		return "", nopCleanup, err
 	}
-	cleanup := func() error { return jirix.Run().RemoveAll(tempDir) }
+	cleanup := func() error { return jirix.NewSeq().RemoveAll(tempDir).Done() }
 
 	gotoolsBin := filepath.Join(tempDir, "gotools")
-	opts := jirix.Run().Opts()
-	opts.Env["GOPATH"] = newGoPath
-	if err := jirix.Run().CommandWithOpts(opts, "go", "build", "-o", gotoolsBin, "github.com/visualfc/gotools"); err != nil {
+	env := jirix.Env()
+	env["GOPATH"] = newGoPath
+	if err := s.Env(env).Last("go", "build", "-o", gotoolsBin, "github.com/visualfc/gotools"); err != nil {
 		return "", cleanup, err
 	}
 
@@ -149,12 +152,9 @@ func getCurrentAPI(jirix *jiri.X, gotoolsBin, dir string) ([]byte, error) {
 		return nil, err
 	}
 	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
-	env := ch.Vars
+	s := jirix.NewSeq()
 	var output bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &output
-	opts.Env = env.ToMap()
-	if err := jirix.Run().CommandWithOpts(opts, gotoolsBin, "goapi", dir); err != nil {
+	if err := s.Capture(&output, nil).Env(ch.ToMap()).Last(gotoolsBin, "goapi", dir); err != nil {
 		return nil, err
 	}
 	return output.Bytes(), nil
@@ -354,18 +354,19 @@ func runAPIFix(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
+	s := jirix.NewSeq()
 	for _, change := range changes {
 		if len(change.newAPIContent) == 0 {
-			if _, err := jirix.Run().Stat(change.apiFilePath); !runutil.IsNotExist(err) {
+			if _, err := s.Stat(change.apiFilePath); !runutil.IsNotExist(err) {
 				if err != nil {
 					return err
 				}
 				// No API contents? Remove the file.
-				if err := jirix.Run().RemoveAll(change.apiFilePath); err != nil {
+				if err := s.RemoveAll(change.apiFilePath).Done(); err != nil {
 					return err
 				}
 			}
-		} else if err := jirix.Run().WriteFile(change.apiFilePath, []byte(change.newAPIContent), 0644); err != nil {
+		} else if err := s.WriteFile(change.apiFilePath, []byte(change.newAPIContent), 0644).Done(); err != nil {
 			return fmt.Errorf("WriteFile(%s) failed: %v", change.apiFilePath, err)
 		}
 		fmt.Fprintf(jirix.Stdout(), "Updated %s.\n", change.apiFilePath)

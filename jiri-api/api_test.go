@@ -20,7 +20,7 @@ import (
 )
 
 func writeFileOrDie(t *testing.T, jirix *jiri.X, path, contents string) {
-	if err := jirix.Run().WriteFile(path, []byte(contents), 0644); err != nil {
+	if err := jirix.NewSeq().WriteFile(path, []byte(contents), 0644).Done(); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", path, contents, err)
 	}
 }
@@ -331,7 +331,7 @@ func testFunction1() {
 	if err := runAPIFix(fake.X, []string{"test"}); err != nil {
 		t.Fatalf("should have succeeded but did not: %v", err)
 	}
-	if _, err := fake.X.Run().Stat(filepath.Join(projectPath, ".api")); err == nil {
+	if _, err := fake.X.NewSeq().Stat(filepath.Join(projectPath, ".api")); err == nil {
 		t.Fatalf(".api file exists when it should have been removed: %v", err)
 	} else if !runutil.IsNotExist(err) {
 		t.Fatalf("%v", err)
