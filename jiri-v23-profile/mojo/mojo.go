@@ -135,7 +135,7 @@ func init() {
 				sdkVersion:                  "8e3eb6e43c82af5b9c57870003138ea165209d81",
 				androidPlatformToolsVersion: "2219198",
 			},
-		}, "3"),
+		}, "2"),
 	}
 	profiles.Register(profileName, m)
 }
