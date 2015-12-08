@@ -225,7 +225,8 @@ func runDockerGo(jirix *jiri.X, image string, env map[string]string, args []stri
 		image,
 		"go")
 	dockerargs = append(dockerargs, args...)
-	return util.TranslateExitCode(jirix.Run().Command(dockerBin, dockerargs...))
+	err := jirix.NewSeq().Last(dockerBin, dockerargs...)
+	return util.TranslateExitCode(runutil.GetOriginalError(err))
 }
 
 func main() {
