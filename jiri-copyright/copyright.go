@@ -328,7 +328,9 @@ func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAsset
 	}
 
 	for _, file := range files {
-		if ignore := isIgnored(file, expressions); !ignore {
+		if ignore, err := isIgnored(file, expressions); err != nil {
+			return false, err
+		} else if !ignore {
 			if missingCopyright, err := checkFile(jirix, filepath.Join(project.Path, file), assets, fix); err != nil {
 				return missing, err
 			} else {
@@ -423,14 +425,17 @@ func loadAssets(jirix *jiri.X, dir string) (*copyrightAssets, error) {
 }
 
 // isIgnored checks a path against patterns extracted from the .jiriignore file.
-func isIgnored(path string, expressions []*regexp.Regexp) bool {
+func isIgnored(path string, expressions []*regexp.Regexp) (bool, error) {
 	for _, expression := range expressions {
 		if ok := expression.MatchString(path); ok {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	// Skip copyright check for symlinks because the symlink target will 
+	// already be checked if it is in the repo.
+	fi, err := os.Lstat(path)
+	return fi != nil && fi.Mode()&os.ModeSymlink != 0, err
 }
 
 func readV23Ignore(jirix *jiri.X, project project.Project) ([]*regexp.Regexp, error) {

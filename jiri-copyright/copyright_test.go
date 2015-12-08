@@ -360,14 +360,14 @@ func TestCopyrightIsIgnored(t *testing.T) {
 	}
 
 	for _, path := range shouldIgnore {
-		if ignore := isIgnored(path, expressions); !ignore {
+		if ignore, _ := isIgnored(path, expressions); !ignore {
 			t.Errorf("isIgnored(%s, expressions) == %v, should be %v", path, ignore, true)
 		}
 	}
 
 	shouldNotIgnore := []string{"foo", "bar"}
 	for _, path := range shouldNotIgnore {
-		if ignore := isIgnored(path, expressions); ignore {
+		if ignore, _ := isIgnored(path, expressions); ignore {
 			t.Errorf("isIgnored(%s, expressions) == %v, should be %v", path, ignore, false)
 		}
 	}
