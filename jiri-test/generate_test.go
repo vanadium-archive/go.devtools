@@ -146,10 +146,7 @@ func copyAll(dstdir, srcdir, prefix string) error {
 func TestV23TestGenerateTestdata(t *testing.T) {
 	jirix, cleanup := jiritest.NewX(t)
 	defer cleanup()
-	opts := jirix.Run().Opts()
 	var out bytes.Buffer
-	opts.Stdout = &out
-	opts.Stderr = &out
 	// TODO(ashankar): The "-v23.tests" flag was removed from the next line in
 	// https://vanadium-review.googlesource.com/#/c/17148
 	// because some testdata packages no longer imported "v.io/x/ref/test"
@@ -159,7 +156,7 @@ func TestV23TestGenerateTestdata(t *testing.T) {
 	// be modified to not generate practically empty TestMain files?
 	// Or should this test be made more sophisticated and add that
 	// flag where appropriate, or just live without re-adding that flag?
-	if err := jirix.Run().CommandWithOpts(opts, "go", "test", "./testdata/generate/...", "-v"); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).Last("go", "test", "./testdata/generate/...", "-v"); err != nil {
 		t.Log(out.String())
 		t.Errorf("tests under testdata/generate failed: %v", err)
 	}

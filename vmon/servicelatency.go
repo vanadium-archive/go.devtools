@@ -102,7 +102,7 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 		// The GCM will have its own alert policy to handle abnormal check laency.
 		// For example, GCM might decide to only send out alerts when latency is
 		// over 1200 ms for 5 minutes.
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			latency = timeout
 		} else {
 			// Fail immediately on other errors (e.g. vrpc command errors).

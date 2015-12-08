@@ -43,7 +43,7 @@ func checkAllServiceQPS(ctx *tool.Context) error {
 	hasError := false
 	for _, info := range infos {
 		if qpsPerMethod, total, err := checkOneServiceQPS(ctx, info); err != nil {
-			if err == runutil.CommandTimedOutErr {
+			if runutil.IsTimeout(err) {
 				test.Warn(ctx, "%s: [TIMEOUT]\n", info.name)
 			} else {
 				test.Fail(ctx, "%s\n", info.name)
@@ -86,7 +86,7 @@ func getQPSData(ctx *tool.Context, info qpsInfo) (map[string]float64, float64, e
 	}
 	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
 		Last(debug, args...); err != nil {
-		if err != runutil.CommandTimedOutErr {
+		if !runutil.IsTimeout(err) {
 			return nil, -1, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
 		}
 		return nil, -1, err

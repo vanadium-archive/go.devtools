@@ -85,7 +85,7 @@ func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ 
 		os.Exit(0)
 	}()
 	if err := runScript(jirix, script, instanceName); err != nil {
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: defaultCreateInstanceTimeout,
@@ -97,7 +97,7 @@ func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ 
 	// Check the test instance.
 	printBanner(jirix, "Checking test instance")
 	if err := checkTestInstance(jirix, instanceName); err != nil {
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: defaultCheckInstanceTimeout,

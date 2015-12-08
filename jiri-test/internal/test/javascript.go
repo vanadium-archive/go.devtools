@@ -52,13 +52,13 @@ func runJSTest(jirix *jiri.X, testName, testDir, target string, cleanFn func() e
 
 	// Run the test target.
 	if err := jirix.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: defaultJSTestTimeout,
 			}, nil
 		} else {
-			return nil, newInternalError(err, "Make " + target)
+			return nil, newInternalError(err, "Make "+target)
 		}
 	}
 
@@ -141,13 +141,13 @@ func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Res
 
 	for _, target := range []string{"deploy-docs-staging", "deploy-docs-production"} {
 		if err := jirix.Run().TimedCommand(defaultJSTestTimeout, "make", target); err != nil {
-			if err == runutil.CommandTimedOutErr {
+			if runutil.IsTimeout(err) {
 				return &test.Result{
 					Status:       test.TimedOut,
 					TimeoutValue: defaultJSTestTimeout,
 				}, nil
 			} else {
-				return nil, newInternalError(err, "Make " + target)
+				return nil, newInternalError(err, "Make "+target)
 			}
 		}
 	}

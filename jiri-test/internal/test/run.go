@@ -518,7 +518,7 @@ func generateXUnitReportForError(jirix *jiri.X, testName string, err error, outp
 			return nil, err
 		}
 
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{Status: test.TimedOut}, nil
 		}
 	}

@@ -134,7 +134,7 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 func invoker(jirix *jiri.X, msg string, fn func() error) (*test.Result, error) {
 	if err := fn(); err != nil {
 		test.Fail(jirix.Context, msg)
-		if err == runutil.CommandTimedOutErr {
+		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
 				TimeoutValue: defaultReleaseTestTimeout,

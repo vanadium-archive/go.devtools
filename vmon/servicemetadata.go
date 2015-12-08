@@ -48,7 +48,7 @@ func checkServiceMetadata(ctx *tool.Context) error {
 	}
 	if err := ctx.NewSeq().Capture(&stdoutBuf, &stderrBuf).Timeout(timeout).
 		Last(debug, args...); err != nil {
-		if err != runutil.CommandTimedOutErr {
+		if !runutil.IsTimeout(err) {
 			return fmt.Errorf("debug command failed: %v\nSTDOUT:\n%s\nSTDERR:\n:%s", err, stdoutBuf.String(), stderrBuf.String())
 		}
 		return err
