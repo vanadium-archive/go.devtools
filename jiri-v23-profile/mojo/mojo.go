@@ -116,7 +116,26 @@ func init() {
 				sdkVersion:                  "8e3eb6e43c82af5b9c57870003138ea165209d81",
 				androidPlatformToolsVersion: "2219198",
 			},
-		}, "2"),
+			"3": &versionSpec{
+				serviceNames: []string{
+					"authenticating_url_loader_interceptor.mojo",
+					"dart_content_handler.mojo",
+					"debugger.mojo",
+					"kiosk_wm.mojo",
+					"tracing.mojo",
+				},
+				serviceNamesAndroid: []string{},
+				serviceNamesLinux: []string{
+					"authentication.mojo",
+				},
+				buildVersionAndroid:         "1608780b78ac467dcbf1761ebc0359739c3c6bbd",
+				buildVersionLinux:           "1608780b78ac467dcbf1761ebc0359739c3c6bbd",
+				devtoolsVersion:             "a264dd5ebdb5508d4e7e432b0ee3dcf6b1fb7160",
+				networkServiceVersion:       "0a814ed5512598e595c0ae7975a09d90a7a54e90",
+				sdkVersion:                  "8e3eb6e43c82af5b9c57870003138ea165209d81",
+				androidPlatformToolsVersion: "2219198",
+			},
+		}, "3"),
 	}
 	profiles.Register(profileName, m)
 }
