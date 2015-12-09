@@ -53,7 +53,7 @@ func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		"-log-file", logfile,
 		"-manifest", "tools",
 	)
-	if err := jirix.Run().Command("presubmit", args...); err != nil {
+	if err := jirix.NewSeq().Last("presubmit", args...); err != nil {
 		return nil, err
 	}
 
@@ -80,6 +80,8 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 
 	displayProfiles(jirix, "presubmit")
 
+	s := jirix.NewSeq()
+
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{}
 	if jirix.Verbose() {
@@ -95,7 +97,7 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		"-refs", os.Getenv("REFS"),
 		"-test", name,
 	)
-	if err := jirix.Run().Command("presubmit", args...); err != nil {
+	if err := s.Last("presubmit", args...); err != nil {
 		return nil, newInternalError(err, "Presubmit")
 	}
 
@@ -105,12 +107,12 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		return nil, err
 	}
 	for _, file := range testResultFiles {
-		fileInfo, err := jirix.Run().Stat(file)
+		fileInfo, err := s.Stat(file)
 		if err != nil {
 			return nil, err
 		}
 		if fileInfo.Size() == 0 {
-			if err := jirix.Run().RemoveAll(file); err != nil {
+			if err := s.RemoveAll(file).Done(); err != nil {
 				return nil, err
 			}
 		}
@@ -145,7 +147,7 @@ func vanadiumPresubmitResult(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 		"-refs", os.Getenv("REFS"),
 		"-projects", os.Getenv("PROJECTS"),
 	)
-	if err := jirix.Run().Command("presubmit", args...); err != nil {
+	if err := jirix.NewSeq().Last("presubmit", args...); err != nil {
 		return nil, err
 	}
 

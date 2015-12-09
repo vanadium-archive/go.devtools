@@ -47,11 +47,11 @@ func TestGenXUnitReportForError(t *testing.T) {
 	defer cleanup()
 
 	// Set WORKSPACE to a tmp dir.
-	workspaceDir, err := jirix.Run().TempDir("", "")
+	workspaceDir, err := jirix.NewSeq().TempDir("", "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer jirix.Run().RemoveAll(workspaceDir)
+	defer jirix.NewSeq().RemoveAll(workspaceDir)
 	oldWorkspaceDir := os.Getenv("WORKSPACE")
 	if err := os.Setenv("WORKSPACE", workspaceDir); err != nil {
 		t.Fatalf("%v", err)

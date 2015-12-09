@@ -62,10 +62,9 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 	{
 		whitelists := strings.Split(os.Getenv("WHITELISTS"), string(filepath.ListSeparator))
 		mergeSrc := filepath.Join(jirix.Root, "infrastructure", "signup", "merge.go")
+		s := jirix.NewSeq()
 		for _, whitelist := range whitelists {
-			opts := jirix.Run().Opts()
-			opts.Stdin = bytes.NewReader(data)
-			if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "run", mergeSrc, "-whitelist="+whitelist); err != nil {
+			if err := s.Read(bytes.NewReader(data)).Last("jiri", "go", "run", mergeSrc, "-whitelist="+whitelist); err != nil {
 				return nil, newInternalError(err, "merge")
 			}
 			if err := jirix.Git(infraDir).Add(whitelist); err != nil {
@@ -107,13 +106,11 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 	}
 
 	var emails bytes.Buffer
+	s := jirix.NewSeq()
 
 	welcome := filepath.Join(jirix.Root, "infrastructure", "signup", "welcome.go")
-	welcomeOpts := jirix.Run().Opts()
-	welcomeOpts.Stdin = bytes.NewReader(data)
-	welcomeOpts.Stdout = &emails
 	sentlist := filepath.Join(jirix.Root, "infrastructure", "signup", "sentlist.json")
-	if err := jirix.Run().CommandWithOpts(welcomeOpts, "jiri", "go", "run", welcome, "-sentlist="+sentlist); err != nil {
+	if err := s.Read(bytes.NewReader(data)).Capture(&emails, nil).Last("jiri", "go", "run", welcome, "-sentlist="+sentlist); err != nil {
 		return nil, newInternalError(err, "welcome")
 	}
 
@@ -138,7 +135,7 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 	contents := strings.Join(output, " ")
 	filename := filepath.Join(jirix.Root, ".vanadium_signup_weclome_properties")
 
-	if err := jirix.Run().WriteFile(filename, []byte(contents), 0644); err != nil {
+	if err := s.WriteFile(filename, []byte(contents), 0644).Done(); err != nil {
 		return nil, newInternalError(err, "WriteFile")
 	}
 
@@ -187,7 +184,7 @@ func vanadiumSignupWelcomeStepTwoNew(jirix *jiri.X, testName string, _ ...Opt) (
 
 	mailer := filepath.Join(jirix.Root, "release", "go", "src", "v.io", "x", "devtools", "mailer", "mailer.go")
 	mailerFunc := func() error {
-		return jirix.Run().Command("jiri", "go", "run", mailer)
+		return jirix.NewSeq().Last("jiri", "go", "run", mailer)
 	}
 	if err := retry.Function(jirix.Context, mailerFunc); err != nil {
 		return nil, newInternalError(err, "mailer")
@@ -222,9 +219,7 @@ func vanadiumSignupGithubHelper(jirix *jiri.X, schema, testName string) (_ *test
 	// Add them to @vanadium/developers
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	github := filepath.Join(jirix.Root, "infrastructure", "signup", "github.go")
-	githubOpts := jirix.Run().Opts()
-	githubOpts.Stdin = bytes.NewReader(data)
-	if err := jirix.Run().CommandWithOpts(githubOpts, "jiri", "go", "run", github, "-token="+githubToken); err != nil {
+	if err := jirix.NewSeq().Read(bytes.NewReader(data)).Last("jiri", "go", "run", github, "-token="+githubToken); err != nil {
 		return nil, newInternalError(err, "github")
 	}
 
@@ -261,10 +256,8 @@ func vanadiumSignupGroupHelper(jirix *jiri.X, schema, testName string, discussOn
 
 	// Add them to Google Group.
 	groupEmail := os.Getenv("GROUP_EMAIL")
-	opts := jirix.Run().Opts()
-	opts.Stdin = bytes.NewReader(data)
 	groupSrc := filepath.Join(jirix.Root, "infrastructure", "signup", "group.go")
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", "go", "run", groupSrc, "-credentials="+credentials, "-group-email="+groupEmail); err != nil {
+	if err := jirix.NewSeq().Read(bytes.NewReader(data)).Last("jiri", "go", "run", groupSrc, "-credentials="+credentials, "-group-email="+groupEmail); err != nil {
 		return nil, newInternalError(err, "group")
 	}
 
@@ -276,13 +269,11 @@ func fetchFieldValues(jirix *jiri.X, credentials, field, schema, sheetID string,
 
 	fetchSrc := filepath.Join(jirix.Root, "infrastructure", "signup", "fetch.go")
 	schemaSrc := filepath.Join(jirix.Root, "infrastructure", "signup", schema)
-	opts := jirix.Run().Opts()
-	opts.Stdout = &buffer
 	args := []string{"go", "run", fetchSrc, schemaSrc, "-credentials=" + credentials, "-field=" + field, "-sheet-id=" + sheetID}
 	if discussOnly {
 		args = append(args, "-discuss-only")
 	}
-	if err := jirix.Run().CommandWithOpts(opts, "jiri", args...); err != nil {
+	if err := jirix.NewSeq().Capture(&buffer, nil).Last("jiri", args...); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil

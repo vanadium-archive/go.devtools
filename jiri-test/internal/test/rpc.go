@@ -78,8 +78,10 @@ func runRPCTest(jirix *jiri.X, testName, nodeName string, numServerNodes, numCli
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	// Install binaries.
-	if err := jirix.Run().Command("jiri", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
+	if err := s.Last("jiri", "go", "install", vcloudPkg, serverPkg, clientPkg); err != nil {
 		return nil, newInternalError(err, "Install Binaries")
 	}
 
@@ -135,6 +137,7 @@ func clientNodeName(nodeName string, n int) string {
 }
 
 func createNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes int) error {
+	s := jirix.NewSeq()
 	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"node", "create",
@@ -145,17 +148,18 @@ func createNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes 
 	for n := 0; n < numServerNodes; n++ {
 		serverArgs = append(serverArgs, serverNodeName(nodeName, n))
 	}
-	if err := jirix.Run().Command(cmd, serverArgs...); err != nil {
+	if err := s.Last(cmd, serverArgs...); err != nil {
 		return err
 	}
 	clientArgs := append(args, "-machine-type", gceClientMachineType)
 	for n := 0; n < numClientNodes; n++ {
 		clientArgs = append(clientArgs, clientNodeName(nodeName, n))
 	}
-	return jirix.Run().Command(cmd, clientArgs...)
+	return s.Last(cmd, clientArgs...)
 }
 
 func deleteNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes int) error {
+	s := jirix.NewSeq()
 	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"node", "delete",
@@ -168,7 +172,7 @@ func deleteNodes(jirix *jiri.X, nodeName string, numServerNodes, numClientNodes 
 	for n := 0; n < numClientNodes; n++ {
 		args = append(args, clientNodeName(nodeName, n))
 	}
-	return jirix.Run().Command(cmd, args...)
+	return s.Last(cmd, args...)
 }
 
 func startServers(jirix *jiri.X, nodeName string, numServerNodes int) (<-chan error, error) {
@@ -191,7 +195,7 @@ func startServers(jirix *jiri.X, nodeName string, numServerNodes int) (<-chan er
 
 	done := make(chan error)
 	go func() {
-		done <- jirix.Run().Command(cmd, args...)
+		done <- jirix.NewSeq().Last(cmd, args...)
 	}()
 
 	// Wait until for a few minute while servers are brought up.
@@ -208,6 +212,7 @@ func startServers(jirix *jiri.X, nodeName string, numServerNodes int) (<-chan er
 }
 
 func stopServers(jirix *jiri.X, nodeName string, numServerNodes int) error {
+	s := jirix.NewSeq()
 	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
@@ -221,7 +226,7 @@ func stopServers(jirix *jiri.X, nodeName string, numServerNodes int) error {
 	for n := 0; n < numServerNodes; n++ {
 		args = append(args, fmt.Sprintf("/%s:%d", serverNodeName(nodeName, n), serverPort))
 	}
-	return jirix.Run().Command(cmd, args...)
+	return s.Last(cmd, args...)
 }
 
 func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
@@ -233,10 +238,10 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		clients = append(clients, clientNodeName(testStressNodeName, n))
 	}
 
+	s := jirix.NewSeq()
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
+	stdout := io.MultiWriter(jirix.Stdout(), &out)
+	stderr := io.MultiWriter(jirix.Stderr(), &out)
 	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
@@ -253,7 +258,7 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err := jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err := s.Capture(stdout, stderr).Last(cmd, args...); err != nil {
 		return nil, err
 	}
 
@@ -269,7 +274,7 @@ func runStressTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err := jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err := s.Capture(stdout, stderr).Last(cmd, args...); err != nil {
 		return nil, err
 	}
 
@@ -363,10 +368,11 @@ func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		clients = append(clients, clientNodeName(testLoadNodeName, n))
 	}
 
+	s := jirix.NewSeq()
+
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-	opts.Stderr = io.MultiWriter(opts.Stderr, &out)
+	stdout := io.MultiWriter(jirix.Stdout(), &out)
+	stderr := io.MultiWriter(jirix.Stderr(), &out)
 	cmd := filepath.Join(jirix.Root, binPath, "vcloud")
 	args := []string{
 		"run",
@@ -382,7 +388,7 @@ func runLoadTest(jirix *jiri.X, testName string) (*test.Result, error) {
 		"-format", "json",
 	}
 	args = append(args, servers...)
-	if err := jirix.Run().CommandWithOpts(opts, cmd, args...); err != nil {
+	if err := s.Capture(stdout, stderr).Last(cmd, args...); err != nil {
 		return nil, err
 	}
 

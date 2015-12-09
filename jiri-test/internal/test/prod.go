@@ -46,10 +46,6 @@ func generateXUnitTestSuite(jirix *jiri.X, failure *xunit.Failure, pkg string, d
 func testSingleProdService(jirix *jiri.X, principalDir string, service prodService) *xunit.TestSuite {
 	bin := filepath.Join(jirix.Root, "release", "go", "bin", "vrpc")
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Verbose = true
-	opts.Stdout = &out
-	opts.Stderr = &out
 	start := time.Now()
 	args := []string{}
 	if principalDir != "" {
@@ -60,7 +56,8 @@ func testSingleProdService(jirix *jiri.X, principalDir string, service prodServi
 		args = append(args, "--insecure")
 	}
 	args = append(args, service.objectName)
-	if err := jirix.Run().TimedCommandWithOpts(test.DefaultTimeout, opts, bin, args...); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).Verbose(true).Timeout(test.DefaultTimeout).
+		Last(bin, args...); err != nil {
 		fmt.Fprintf(jirix.Stderr(), "Failed running %q: %v. Output:\n%v\n", append([]string{bin}, args...), err, out.String())
 		return generateXUnitTestSuite(jirix, &xunit.Failure{Message: "vrpc", Data: out.String()}, service.name, time.Now().Sub(start))
 	}
@@ -89,18 +86,13 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Install the vrpc tool.
-	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/vrpc"); err != nil {
-		return nil, newInternalError(err, "Install VRPC")
-	}
-	// Install the principal tool.
-	if err := jirix.Run().Command("jiri", "go", "install", "v.io/x/ref/cmd/principal"); err != nil {
-		return nil, newInternalError(err, "Install Principal")
-	}
-	tmpdir, err := jirix.Run().TempDir("", "prod-services-test")
+	tmpdir, err := jirix.NewSeq().Run("jiri", "go", "install", "v.io/x/ref/cmd/vrpc").
+		Run("jiri", "go", "install", "v.io/x/ref/cmd/principal").
+		TempDir("", "prod-services-test")
 	if err != nil {
-		return nil, newInternalError(err, "Create temporary directory")
+		return nil, newInternalError(err, "Installing vrpc and creating testdir")
 	}
-	defer collect.Error(func() error { return jirix.Run().RemoveAll(tmpdir) }, &e)
+	defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpdir).Done() }, &e)
 
 	blessingRoot, namespaceRoot := getServiceOpts(opts)
 	allPassed, suites := true, []xunit.TestSuite{}
@@ -224,14 +216,15 @@ func testIdentityProviderHTTP(jirix *jiri.X, blessingRoot string) (suite *xunit.
 }
 
 func setupPrincipal(jirix *jiri.X, tmpdir, pubkey string, blessingNames []string) (string, error) {
+	s := jirix.NewSeq()
 	dir := filepath.Join(tmpdir, "credentials")
 	bin := filepath.Join(jirix.Root, "release", "go", "bin", "principal")
-	if err := jirix.Run().TimedCommand(test.DefaultTimeout, bin, "create", dir, "prod-services-tester"); err != nil {
+	if err := s.Timeout(test.DefaultTimeout).Last(bin, "create", dir, "prod-services-tester"); err != nil {
 		fmt.Fprintf(jirix.Stderr(), "principal create failed: %v\n", err)
 		return "", err
 	}
 	for _, name := range blessingNames {
-		if err := jirix.Run().TimedCommand(test.DefaultTimeout, bin, "--v23.credentials", dir, "recognize", name, pubkey); err != nil {
+		if err := s.Timeout(test.DefaultTimeout).Last(bin, "--v23.credentials", dir, "recognize", name, pubkey); err != nil {
 			fmt.Fprintf(jirix.Stderr(), "principal recognize %v %v failed: %v\n", name, pubkey, err)
 			return "", err
 		}

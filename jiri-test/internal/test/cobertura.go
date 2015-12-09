@@ -81,11 +81,7 @@ func coverageFromGoTestOutput(jirix *jiri.X, testOutput io.Reader) (*testCoverag
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdin = testOutput
-	opts.Stdout = &out
-	opts.Env = ch.ToMap()
-	if err := jirix.Run().CommandWithOpts(opts, bin); err != nil {
+	if err := jirix.NewSeq().Read(testOutput).Capture(&out, nil).Env(ch.ToMap()).Last(bin); err != nil {
 		return nil, err
 	}
 	var coverage testCoverage
@@ -102,7 +98,7 @@ func createCoberturaReport(jirix *jiri.X, testName string, data *testCoverage) e
 	if err != nil {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", *data, err)
 	}
-	if err := jirix.Run().WriteFile(coberturaReportPath(testName), bytes, os.FileMode(0644)); err != nil {
+	if err := jirix.NewSeq().WriteFile(coberturaReportPath(testName), bytes, os.FileMode(0644)).Done(); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", coberturaReportPath(testName), err)
 	}
 	return nil

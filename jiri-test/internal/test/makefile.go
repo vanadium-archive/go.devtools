@@ -11,6 +11,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/envvar"
 )
 
 // runMakefileTest is a helper for running tests through make commands.
@@ -25,24 +26,16 @@ func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[st
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	// Navigate to project directory.
-	if err := jirix.Run().Chdir(testDir); err != nil {
-		return nil, err
-	}
+	s := jirix.NewSeq()
 
-	// Clean.
-	if err := jirix.Run().Command("make", "clean"); err != nil {
-		return nil, err
-	}
+	// Set up the environment
+	merged := envvar.MergeMaps(jirix.Env(), env)
 
-	// Set environment from the env argument map.
-	opts := jirix.Run().Opts()
-	for k, v := range env {
-		opts.Env[k] = v
-	}
-
-	// Run the tests.
-	if err := jirix.Run().TimedCommandWithOpts(timeout, opts, "make", target); err != nil {
+	// Navigate to project directory, run make clean and make target.
+	err = s.Pushd(testDir).
+		Run("make", "clean").
+		Timeout(timeout).Env(merged).Last("make", target)
+	if err != nil {
 		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,

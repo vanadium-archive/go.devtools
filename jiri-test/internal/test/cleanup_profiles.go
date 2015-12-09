@@ -26,11 +26,6 @@ func cleanupProfiles(jirix *jiri.X) error {
 }
 
 func cleanupProfilesImpl(jirix *jiri.X) error {
-	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
-
 	cmds := []string{"list"}
 	cleanup := []string{"cleanup --ensure-specific-versions-are-set --gc"}
 	fmt.Fprintf(jirix.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
@@ -46,23 +41,22 @@ func cleanupProfilesImpl(jirix *jiri.X) error {
 	} else {
 		fmt.Fprintf(jirix.Stdout(), "cleanupProfiles: skipping removals when not on CI\n")
 	}
+	s := jirix.NewSeq()
 	for _, args := range cmds {
+		var out bytes.Buffer
 		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
-		err := jirix.Run().CommandWithOpts(opts, "jiri", clargs...)
+		err := s.Capture(&out, &out).Last("jiri", clargs...)
 		fmt.Fprintf(jirix.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
 		fmt.Fprintf(jirix.Stdout(), "%s]]\n", out.String())
-		out.Reset()
 	}
 	return nil
 }
 
 func displayProfiles(jirix *jiri.X, msg string) {
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
-	opts.Stderr = &out
+	s := jirix.NewSeq()
 	fmt.Fprintf(jirix.Stdout(), "%s: installed profiles:\n", msg)
-	err := jirix.Run().CommandWithOpts(opts, "jiri", "v23-profile", "list", "--v")
+	err := s.Capture(&out, &out).Last("jiri", "v23-profile", "list", "--v")
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), " %v\n", err)
 		return
@@ -70,7 +64,7 @@ func displayProfiles(jirix *jiri.X, msg string) {
 	fmt.Fprintf(jirix.Stdout(), "\n%s\n", out.String())
 	out.Reset()
 	fmt.Fprintf(jirix.Stdout(), "recreate profiles with:\n")
-	err = jirix.Run().CommandWithOpts(opts, "jiri", "v23-profile", "list", "--info", "Target.Command")
+	err = s.Capture(&out, &out).Last("jiri", "v23-profile", "list", "--info", "Target.Command")
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), " %v\n", err)
 		return

@@ -89,10 +89,11 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 		step{
 			msg: fmt.Sprintf("Checking existence of credentials in %v (admin) and %v (publisher)\n", adminCredDir, publisherCredDir),
 			fn: func() error {
-				if _, err := jirix.Run().Stat(adminCredDir); err != nil {
+				s := jirix.NewSeq()
+				if _, err := s.Stat(adminCredDir); err != nil {
 					return err
 				}
-				if _, err := jirix.Run().Stat(publisherCredDir); err != nil {
+				if _, err := s.Stat(publisherCredDir); err != nil {
 					return err
 				}
 				return nil
@@ -174,42 +175,34 @@ func getCredDirOptValues(opts []Opt) (string, string) {
 
 // prepareBinaries builds all vanadium binaries and uploads them to Google Storage bucket.
 func prepareBinaries(jirix *jiri.X, rcLabel string) error {
-	// Build binaries.
+	s := jirix.NewSeq()
+
+	// Build and upload binaries.
 	//
 	// The "leveldb" tag is needed to compile the levelDB-based storage
 	// engine for the groups service. See v.io/i/632 for more details.
-	args := []string{"go", "install", "-tags=leveldb", "v.io/..."}
-	if err := jirix.Run().Command("jiri", args...); err != nil {
+
+	// Upload the .done file to signal that all binaries have been
+	// successfully uploaded.
+	tmpDir, err := s.TempDir("", "")
+	if err != nil {
 		return err
 	}
+	defer jirix.NewSeq().RemoveAll(tmpDir)
+	doneFile := filepath.Join(tmpDir, ".done")
 
-	// Upload binaries.
-	args = []string{
+	jiriArgs := []string{"go", "install", "-tags=leveldb", "v.io/..."}
+	gsutilUploadArgs := []string{
 		"-q", "-m", "cp", "-r",
 		filepath.Join(jirix.Root, "release", "go", "bin"),
 		fmt.Sprintf("%s/%s", bucket, rcLabel),
 	}
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return err
-	}
+	gsutilDoneArgs := []string{"-q", "cp", doneFile, fmt.Sprintf("%s/%s", bucket, rcLabel)}
 
-	// Upload the .done file to signal that all binaries have been
-	// successfully uploaded.
-	tmpDir, err := jirix.Run().TempDir("", "")
-	if err != nil {
-		return err
-	}
-	defer jirix.Run().RemoveAll(tmpDir)
-	doneFile := filepath.Join(tmpDir, ".done")
-	if err := jirix.Run().WriteFile(doneFile, nil, os.FileMode(0600)); err != nil {
-		return err
-	}
-	args = []string{"-q", "cp", doneFile, fmt.Sprintf("%s/%s", bucket, rcLabel)}
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return err
-	}
-
-	return nil
+	return s.Run("jiri", jiriArgs...).
+		Run("gsutil", gsutilUploadArgs...).
+		WriteFile(doneFile, nil, os.FileMode(0600)).
+		Last("gsutil", gsutilDoneArgs...)
 }
 
 // updateServices pushes services' binaries to the applications and binaries
@@ -220,6 +213,8 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 	adminCredentialsArg := fmt.Sprintf("--v23.credentials=%s", adminCredDir)
 	publisherCredentialsArg := fmt.Sprintf("--v23.credentials=%s", publisherCredDir)
 	nsArg := fmt.Sprintf("--v23.namespace.root=%s", globalMountTable)
+
+	s := jirix.NewSeq()
 
 	// Push all binaries.
 	{
@@ -233,7 +228,7 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 		}
 		msg := "Push binaries\n"
 		args = append(args, serviceBinaries...)
-		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
+		if err := s.Timeout(defaultReleaseTestTimeout).Last(deviceBin, args...); err != nil {
 			test.Fail(jirix.Context, msg)
 			return err
 		}
@@ -250,7 +245,7 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 			appName + "/...",
 		}
 		msg := fmt.Sprintf("Update %q\n", appName)
-		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
+		if err := s.Timeout(defaultReleaseTestTimeout).Last(deviceBin, args...); err != nil {
 			test.Fail(jirix.Context, msg)
 			return err
 		}
@@ -271,9 +266,8 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 			fmt.Sprintf("%s/*/*/stats/system/metadata/build.Manifest", appName),
 		}
 		var out bytes.Buffer
-		opts := jirix.Run().Opts()
-		opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-		if err := jirix.Run().TimedCommandWithOpts(defaultReleaseTestTimeout, opts, debugBin, args...); err != nil {
+		stdout := io.MultiWriter(jirix.Stdout(), &out)
+		if err := s.Capture(stdout, nil).Timeout(defaultReleaseTestTimeout).Last(debugBin, args...); err != nil {
 			test.Fail(jirix.Context, msg)
 			return err
 		}
@@ -310,7 +304,7 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 			"update",
 			objNameForDeviceManager,
 		}
-		if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, deviceBin, args...); err != nil {
+		if err := s.Timeout(defaultReleaseTestTimeout).Last(deviceBin, args...); err != nil {
 			return err
 		}
 		if err := waitForMounttable(jirix, adminCredentialsArg, localMountTable, `.*8151/devmgr.*`); err != nil {
@@ -340,6 +334,7 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 // checks output against outputRegexp if it is not empty.
 // (timeout: 5 minutes)
 func waitForMounttable(jirix *jiri.X, credentialsArg, mounttableRoot, outputRegexp string) error {
+	s := jirix.NewSeq()
 	debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
 	args := []string{
 		credentialsArg,
@@ -350,9 +345,8 @@ func waitForMounttable(jirix *jiri.X, credentialsArg, mounttableRoot, outputRege
 	outputRE := regexp.MustCompile(outputRegexp)
 	for i := 0; i < numRetries; i++ {
 		var out bytes.Buffer
-		opts := jirix.Run().Opts()
-		opts.Stdout = io.MultiWriter(opts.Stdout, &out)
-		err := jirix.Run().CommandWithOpts(opts, debugBin, args...)
+		stdout := io.MultiWriter(jirix.Stdout(), &out)
+		err := s.Capture(stdout, nil).Last(debugBin, args...)
 		if err != nil || !outputRE.MatchString(out.String()) {
 			time.Sleep(retryPeriod)
 			continue
@@ -370,6 +364,7 @@ func waitForMounttable(jirix *jiri.X, credentialsArg, mounttableRoot, outputRege
 // checkServices runs "jiri test run vanadium-prod-services-test" against
 // staging.
 func checkServices(jirix *jiri.X) error {
+	s := jirix.NewSeq()
 	args := []string{
 		"test",
 		"run",
@@ -377,7 +372,7 @@ func checkServices(jirix *jiri.X) error {
 		fmt.Sprintf("--blessings-root=%s", stagingBlessingsRoot),
 		"vanadium-prod-services-test",
 	}
-	if err := jirix.Run().TimedCommand(defaultReleaseTestTimeout, "jiri", args...); err != nil {
+	if err := s.Timeout(defaultReleaseTestTimeout).Last("jiri", args...); err != nil {
 		return err
 	}
 	return nil
@@ -385,6 +380,7 @@ func checkServices(jirix *jiri.X) error {
 
 // createSnapshot creates a snapshot with "release" label.
 func createSnapshot(jirix *jiri.X) (e error) {
+	s := jirix.NewSeq()
 	args := []string{
 		"snapshot",
 		"--remote",
@@ -392,7 +388,7 @@ func createSnapshot(jirix *jiri.X) (e error) {
 		"--time-format=2006-01-02", // Only include date in label names
 		"release",
 	}
-	if err := jirix.Run().Command("jiri", args...); err != nil {
+	if err := s.Last("jiri", args...); err != nil {
 		return err
 	}
 	return nil
@@ -401,20 +397,16 @@ func createSnapshot(jirix *jiri.X) (e error) {
 // updateLatestFile updates the "latest" file in Google Storage bucket to the
 // given release candidate label.
 func updateLatestFile(jirix *jiri.X, rcLabel string) error {
-	tmpDir, err := jirix.Run().TempDir("", "")
+	s := jirix.NewSeq()
+	tmpDir, err := s.TempDir("", "")
 	if err != nil {
 		return err
 	}
-	defer jirix.Run().RemoveAll(tmpDir)
+	defer jirix.NewSeq().RemoveAll(tmpDir)
 	latestFile := filepath.Join(tmpDir, "latest")
-	if err := jirix.Run().WriteFile(latestFile, []byte(rcLabel), os.FileMode(0600)); err != nil {
-		return err
-	}
 	args := []string{"-q", "cp", latestFile, fmt.Sprintf("%s/latest", bucket)}
-	if err := jirix.Run().Command("gsutil", args...); err != nil {
-		return err
-	}
-	return nil
+	return s.WriteFile(latestFile, []byte(rcLabel), os.FileMode(0600)).
+		Last("gsutil", args...)
 }
 
 // vanadiumReleaseCandidateSnapshot takes a snapshot of the current JIRI_ROOT and
@@ -428,6 +420,8 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	// Take snapshot.
 	args := []string{
 		"snapshot",
@@ -437,7 +431,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 		"--time-format=2006-01-02.15:04",
 		snapshotName,
 	}
-	if err := jirix.Run().Command("jiri", args...); err != nil {
+	if err := s.Last("jiri", args...); err != nil {
 		return nil, newInternalError(err, "Snapshot")
 	}
 
@@ -474,7 +468,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 
 	// Write to the properties file.
 	content := fmt.Sprintf("%s=%s\n%s=%s", manifestEnvVar, relativePath, testsEnvVar, strings.Join(testsWithParts, " "))
-	if err := jirix.Run().WriteFile(filepath.Join(jirix.Root, propertiesFile), []byte(content), os.FileMode(0644)); err != nil {
+	if err := s.WriteFile(filepath.Join(jirix.Root, propertiesFile), []byte(content), os.FileMode(0644)).Done(); err != nil {
 		return nil, newInternalError(err, "Record Properties")
 	}
 

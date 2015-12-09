@@ -13,6 +13,7 @@ import (
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/lib/envvar"
 )
 
 const (
@@ -29,29 +30,24 @@ func runJSTest(jirix *jiri.X, testName, testDir, target string, cleanFn func() e
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	// Navigate to the target directory.
-	if err := jirix.Run().Chdir(testDir); err != nil {
-		return nil, err
-	}
+	s := jirix.NewSeq()
 
 	// Set up the environment
-	opts := jirix.Run().Opts()
-	for key, value := range env {
-		opts.Env[key] = value
-	}
+	merged := envvar.MergeMaps(jirix.Env(), env)
 
-	// Clean up after previous instances of the test.
-	if err := jirix.Run().CommandWithOpts(opts, "make", "clean"); err != nil {
-		return nil, err
-	}
-	if cleanFn != nil {
-		if err := cleanFn(); err != nil {
-			return nil, err
+	cleanCallFunc := func() error {
+		if cleanFn != nil {
+			return cleanFn()
 		}
+		return nil
 	}
 
-	// Run the test target.
-	if err := jirix.Run().TimedCommandWithOpts(defaultJSTestTimeout, opts, "make", target); err != nil {
+	// Navigate to the target directory and run make clean.
+	err = s.Pushd(testDir).
+		Env(merged).Run("make", "clean").
+		Call(cleanCallFunc, "cleanFn: %p", cleanFn).
+		Timeout(defaultJSTestTimeout).Env(merged).Last("make", target)
+	if err != nil {
 		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,
@@ -134,13 +130,15 @@ func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Res
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	testDir := filepath.Join(jirix.Root, "release", "javascript", projectName)
-	if err := jirix.Run().Chdir(testDir); err != nil {
+	if err := s.Chdir(testDir).Done(); err != nil {
 		return nil, err
 	}
 
 	for _, target := range []string{"deploy-docs-staging", "deploy-docs-production"} {
-		if err := jirix.Run().TimedCommand(defaultJSTestTimeout, "make", target); err != nil {
+		if err := s.Timeout(defaultJSTestTimeout).Last("make", target); err != nil {
 			if runutil.IsTimeout(err) {
 				return &test.Result{
 					Status:       test.TimedOut,
