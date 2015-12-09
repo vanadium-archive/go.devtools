@@ -1034,6 +1034,11 @@ func init() {
 		newExclusion("golang.org/x/tools/go/types", "TestCheck", true),
 		newExclusion("golang.org/x/tools/refactor/lexical", "TestStdlib", true),
 		newExclusion("golang.org/x/tools/refactor/importgraph", "TestBuild", true),
+
+		// Starting an sshd server is flaky on jenkins nodes, we don't
+		// need this code, so it's fine to exclude this test. cnicolaou 12/8/15.
+		newExclusion("golang.org/x/crypto/ssh/test", "TestCertLogin", isDarwin()),
+
 		// The godoc test does some really stupid string matching where it doesn't want
 		// cmd/gc to appear, but we have v.io/x/ref/cmd/gclogs.
 		newExclusion("golang.org/x/tools/cmd/godoc", "TestWeb", true),
