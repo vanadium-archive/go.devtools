@@ -119,9 +119,9 @@ func buildGotools(jirix *jiri.X) (string, func() error, error) {
 		return "", nopCleanup, err
 	}
 
-	project, ok := projects["third_party"]
-	if !ok {
-		return "", nopCleanup, fmt.Errorf(`project "third_party" not found`)
+	project, err := projects.FindUnique("third_party")
+	if err != nil {
+		return "", nopCleanup, fmt.Errorf("error finding project %q: %v", "third_party", err)
 	}
 	newGoPath := filepath.Join(project.Path, "go")
 
@@ -211,7 +211,7 @@ func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args
 	if err != nil {
 		return nil, err
 	}
-	for name, project := range projects {
+	for _, project := range projects {
 		path := project.Path
 		branch, err := jirix.Git(tool.RootDirOpt(path)).CurrentBranchName()
 		if err != nil {
@@ -247,7 +247,7 @@ func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args
 					// is empty anyway.
 					continue
 				}
-				if !isFailedAPICheckFatal(name, apiCheckProjects, apiFileError) {
+				if !isFailedAPICheckFatal(project.Name, apiCheckProjects, apiFileError) {
 					// We couldn't read the API file, but this project doesn't
 					// require one.  Just warn the user.
 					fmt.Fprintf(jirix.Stderr(), "WARNING: could not read public API from %s: %v\n", apiFilePath, err)
@@ -265,7 +265,7 @@ func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args
 				// place.
 				changes = append(changes, packageChange{
 					name:          pkgName,
-					projectName:   name,
+					projectName:   project.Name,
 					apiFilePath:   apiFilePath,
 					oldAPI:        splitLinesToSet(apiFileContents),
 					newAPI:        splitLinesToSet(currentAPI),
