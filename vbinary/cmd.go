@@ -26,7 +26,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/retry"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/vbinary/exitcode"
 	"v.io/x/lib/cmdline"
 )
 
@@ -119,7 +119,8 @@ var cmdList = &cmdline.Command{
 	Short:  "List existing daily builds of Vanadium binaries",
 	Long: `
 List existing daily builds of Vanadium binaries. The displayed dates
-can be limited with the --date-prefix flag.
+can be limited with the --date-prefix flag. An exit code of 3 indicates
+that no snapshot was found.
 `,
 }
 
@@ -152,7 +153,7 @@ var cmdDownload = &cmdline.Command{
 Download an existing daily build of Vanadium binaries. The latest
 snapshot within the --date-prefix range will be downloaded. If no
 --date-prefix flag is provided, the overall latest snapshot will be
-downloaded.
+downloaded. An exit code of 3 indicates that no snapshot was found.
 `,
 }
 
@@ -297,7 +298,7 @@ func binarySnapshots(ctx *tool.Context, service *storage.Service) ([]string, err
 	}
 	if len(snapshots) == 0 {
 		fmt.Fprintf(ctx.Stderr(), "no snapshots found (OS: %s, Arch: %s, Date: %s)\n", osFlag, archFlag, datePrefixFlag)
-		return nil, cmdline.ErrExitCode(util.NoSnapshotExitCode)
+		return nil, cmdline.ErrExitCode(exitcode.NoSnapshotExitCode)
 	}
 	ret := make([]string, len(snapshots))
 	for i, snapshot := range snapshots {

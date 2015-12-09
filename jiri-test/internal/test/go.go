@@ -38,6 +38,7 @@ import (
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/vbinary/exitcode"
 	"v.io/x/lib/host"
 	"v.io/x/lib/set"
 )
@@ -2000,7 +2001,7 @@ func downloadVanadiumBinaries(jirix *jiri.X, bin string, date time.Time) (binDir
 		if !ok {
 			return "", err
 		}
-		if status.ExitStatus() == util.NoSnapshotExitCode {
+		if status.ExitStatus() == exitcode.NoSnapshotExitCode {
 			return "", noSnapshotErr
 		}
 		return "", err

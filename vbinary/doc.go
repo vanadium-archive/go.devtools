@@ -44,7 +44,8 @@ The global flags are:
 Vbinary list - List existing daily builds of Vanadium binaries
 
 List existing daily builds of Vanadium binaries. The displayed dates can be
-limited with the --date-prefix flag.
+limited with the --date-prefix flag. An exit code of 3 indicates that no
+snapshot was found.
 
 Usage:
    vbinary list [flags]
@@ -71,7 +72,8 @@ Vbinary download - Download an existing daily build of Vanadium binaries
 
 Download an existing daily build of Vanadium binaries. The latest snapshot
 within the --date-prefix range will be downloaded. If no --date-prefix flag is
-provided, the overall latest snapshot will be downloaded.
+provided, the overall latest snapshot will be downloaded. An exit code of 3
+indicates that no snapshot was found.
 
 Usage:
    vbinary download [flags]

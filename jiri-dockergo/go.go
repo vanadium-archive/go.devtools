@@ -18,7 +18,6 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/golib"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
@@ -226,7 +225,7 @@ func runDockerGo(jirix *jiri.X, image string, env map[string]string, args []stri
 		"go")
 	dockerargs = append(dockerargs, args...)
 	err := jirix.NewSeq().Last(dockerBin, dockerargs...)
-	return util.TranslateExitCode(runutil.GetOriginalError(err))
+	return runutil.TranslateExitCode(err)
 }
 
 func main() {

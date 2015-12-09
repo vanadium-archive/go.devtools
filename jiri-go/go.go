@@ -17,7 +17,6 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/golib"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
@@ -96,7 +95,7 @@ func runGo(jirix *jiri.X, args []string) error {
 		fmt.Fprintf(jirix.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
 	}
 	err = jirix.NewSeq().Env(envMap).Capture(jirix.Stdout(), jirix.Stderr()).Last(goBin, args...)
-	return util.TranslateExitCode(runutil.GetOriginalError(err))
+	return runutil.TranslateExitCode(err)
 }
 
 func main() {
