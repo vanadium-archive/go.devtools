@@ -34,52 +34,29 @@ type prodService struct {
 
 // checkServiceLatency checks all services and adds their check latency to GCM.
 func checkServiceLatency(ctx *tool.Context) error {
-	services := []prodService{
-		prodService{
-			name:       "mounttable",
-			objectName: namespaceRootFlag,
-		},
-		prodService{
-			name:       "application repository",
-			objectName: namespaceRootFlag + "/applications",
-		},
-		prodService{
-			name:       "binary repository",
-			objectName: namespaceRootFlag + "/binaries",
-		},
-		prodService{
-			name:       "macaroon service",
-			objectName: namespaceRootFlag + "/identity/dev.v.io:u/macaroon",
-		},
-		prodService{
-			name:       "google identity service",
-			objectName: namespaceRootFlag + "/identity/dev.v.io:u/google",
-		},
-		prodService{
-			name:       "binary discharger",
-			objectName: namespaceRootFlag + "/identity/dev.v.io:u/discharger",
-		},
-		prodService{
-			name:       "proxy service",
-			objectName: namespaceRootFlag + "/proxy-mon/__debug",
-		},
-		prodService{
-			name:       "groups service",
-			objectName: namespaceRootFlag + "/groups",
-		},
+	serviceNames := []string{
+		snMounttable,
+		snApplications,
+		snBinaries,
+		snMacaroon,
+		snGoogleIdentity,
+		snBinaryDischarger,
+		snRole,
+		snProxy,
+		snGroups,
 	}
 
 	hasError := false
-	for _, service := range services {
-		if lat, err := checkSingleService(ctx, service); err != nil {
-			test.Fail(ctx, "%s\n", service.name)
+	for _, serviceName := range serviceNames {
+		if lat, err := checkSingleService(ctx, serviceName); err != nil {
+			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
 		} else {
 			if lat == timeout {
-				test.Warn(ctx, "%s: %s [TIMEOUT]\n", service.name, lat)
+				test.Warn(ctx, "%s: %s [TIMEOUT]\n", serviceName, lat)
 			} else {
-				test.Pass(ctx, "%s: %s\n", service.name, lat)
+				test.Pass(ctx, "%s: %s\n", serviceName, lat)
 			}
 		}
 	}
@@ -89,14 +66,22 @@ func checkServiceLatency(ctx *tool.Context) error {
 	return nil
 }
 
-func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, error) {
+func checkSingleService(ctx *tool.Context, serviceName string) (time.Duration, error) {
 	// Check the given service and calculate the latency.
+	serviceMountedName, err := getMountedName(serviceName)
+	if err != nil {
+		return 0, err
+	}
+	// For proxy, we send "signature" RPC to "proxy-mon/__debug" endpoint.
+	if serviceName == snProxy {
+		serviceMountedName = fmt.Sprintf("%s/__debug", serviceMountedName)
+	}
 	vrpc := filepath.Join(binDirFlag, "vrpc")
 	var bufErr bytes.Buffer
 	latency := time.Duration(0)
 	start := time.Now()
 	if err := ctx.NewSeq().Capture(ioutil.Discard, &bufErr).Timeout(timeout).
-		Last(vrpc, "signature", "--insecure", service.objectName); err != nil {
+		Last(vrpc, "signature", "--insecure", serviceMountedName); err != nil {
 		// When the command times out, use the "timeout" value as the check latency
 		// without failing the check.
 		// The GCM will have its own alert policy to handle abnormal check laency.
@@ -113,6 +98,7 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 	}
 
 	// Add the latency as a custom metric to GCM.
+	// TODO(jingjin): get location by reading stats/system/hostname.
 	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
 	if serviceLocation == nil {
 		return 0, fmt.Errorf("service location not found for %q", namespaceRootFlag)
@@ -136,7 +122,7 @@ func checkSingleService(ctx *tool.Context, service prodService) (time.Duration, 
 					Labels: map[string]string{
 						mdLat.Labels[0].Key: serviceLocation.Instance,
 						mdLat.Labels[1].Key: serviceLocation.Zone,
-						mdLat.Labels[2].Key: service.name,
+						mdLat.Labels[2].Key: serviceName,
 					},
 				},
 			},

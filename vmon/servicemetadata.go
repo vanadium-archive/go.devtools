@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
@@ -20,44 +19,28 @@ import (
 )
 
 const (
-	metadataQueryString = "devmgr/apps/*/*/*/stats/system/metadata/build.Time"
+	buildTimeStatSuffix = "__debug/stats/system/metadata/build.Time"
 )
 
 var (
-	buildTimeRE = regexp.MustCompile(`^devmgr/apps/([^/]*)/.*metadata/build\.Time: (.*)`)
+	buildTimeRE = regexp.MustCompile(`^.*/build\.Time: (.*)`)
 )
-
-type serviceMetadata struct {
-	serviceName string
-	buildTime   int64
-}
 
 // checkServiceMetadata checks all service metadata and adds the results to GCM.
 func checkServiceMetadata(ctx *tool.Context) error {
-	// Run "debug stats read" to get metadata from device manager.
-	debug := filepath.Join(binDirFlag, "debug")
-	var stdoutBuf, stderrBuf bytes.Buffer
-	args := []string{
-		"--v23.namespace.root",
-		namespaceRootFlag,
-		"--v23.credentials",
-		credentialsFlag,
-		"stats",
-		"read",
-		metadataQueryString,
-	}
-	if err := ctx.NewSeq().Capture(&stdoutBuf, &stderrBuf).Timeout(timeout).
-		Last(debug, args...); err != nil {
-		if !runutil.IsTimeout(err) {
-			return fmt.Errorf("debug command failed: %v\nSTDOUT:\n%s\nSTDERR:\n:%s", err, stdoutBuf.String(), stderrBuf.String())
-		}
-		return err
-	}
-	if stdoutBuf.Len() == 0 {
-		return fmt.Errorf("debug command returned no output. STDERR:\n%s", stderrBuf.String())
+	serviceNames := []string{
+		snMounttable,
+		snApplications,
+		snBinaries,
+		snIdentity,
+		snGroups,
+		snProxy,
 	}
 
-	// Parse output and add metadata to GCM.
+	// Run "debug stats read" to get metadata from each service.
+	now := time.Now()
+	strNow := now.Format(time.RFC3339)
+	// TODO(jingjin): get location by reading stats/system/hostname.
 	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
 	if serviceLocation == nil {
 		return fmt.Errorf("service location not found for %q", namespaceRootFlag)
@@ -67,53 +50,79 @@ func checkServiceMetadata(ctx *tool.Context) error {
 		return err
 	}
 	mdMetadata := monitoring.CustomMetricDescriptors["service-metadata"]
-	now := time.Now()
-	nowStr := now.Format(time.RFC3339)
-	lines := strings.Split(stdoutBuf.String(), "\n")
-	sendTimeseriesFn := func(value float64, serviceName, metadataName string) error {
-		if _, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-			Timeseries: []*cloudmonitoring.TimeseriesPoint{
-				&cloudmonitoring.TimeseriesPoint{
-					Point: &cloudmonitoring.Point{
-						DoubleValue: value,
-						Start:       nowStr,
-						End:         nowStr,
-					},
-					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-						Metric: mdMetadata.Name,
-						Labels: map[string]string{
-							mdMetadata.Labels[0].Key: serviceLocation.Instance,
-							mdMetadata.Labels[1].Key: serviceLocation.Zone,
-							mdMetadata.Labels[2].Key: serviceName,
-							mdMetadata.Labels[3].Key: metadataName,
-						},
+	debug := filepath.Join(binDirFlag, "debug")
+	for _, serviceName := range serviceNames {
+		serviceMountedName, err := getMountedName(serviceName)
+		if err != nil {
+			return err
+		}
+
+		// Query build time.
+		buildTimeStat := fmt.Sprintf("%s/%s", serviceMountedName, buildTimeStatSuffix)
+		var stdoutBuf, stderrBuf bytes.Buffer
+		args := []string{
+			"--v23.credentials",
+			credentialsFlag,
+			"stats",
+			"read",
+			buildTimeStat,
+		}
+		if err := ctx.NewSeq().Capture(&stdoutBuf, &stderrBuf).Timeout(timeout).
+			Last(debug, args...); err != nil {
+			if !runutil.IsTimeout(err) {
+				return fmt.Errorf("debug command failed: %v\nSTDOUT:\n%s\nSTDERR:\n:%s", err, stdoutBuf.String(), stderrBuf.String())
+			}
+			return err
+		}
+		if stdoutBuf.Len() == 0 {
+			return fmt.Errorf("debug command returned no output. STDERR:\n%s", stderrBuf.String())
+		}
+
+		// Parse build time.
+		output := stdoutBuf.String()
+		matches := buildTimeRE.FindStringSubmatch(output)
+		if matches == nil {
+			return fmt.Errorf("invalid stat: %s", output)
+		}
+		strTime := matches[1]
+		buildTime, err := time.Parse("2006-01-02T15:04:05Z", strTime)
+		if err != nil {
+			return fmt.Errorf("Parse(%v) failed: %v", strTime, err)
+		}
+
+		// Send to GCM.
+		if err := sendMetadataToGCM(mdMetadata, float64(buildTime.Unix()), strNow, serviceLocation.Instance, serviceLocation.Zone, serviceName, "build time", s); err != nil {
+			return err
+		}
+		if err := sendMetadataToGCM(mdMetadata, now.Sub(buildTime).Hours(), strNow, serviceLocation.Instance, serviceLocation.Zone, serviceName, "build age", s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sendMetadataToGCM(md *cloudmonitoring.MetricDescriptor, value float64, now, instance, zone, serviceName, metadataName string, s *cloudmonitoring.Service) error {
+	if _, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
+		Timeseries: []*cloudmonitoring.TimeseriesPoint{
+			&cloudmonitoring.TimeseriesPoint{
+				Point: &cloudmonitoring.Point{
+					DoubleValue: value,
+					Start:       now,
+					End:         now,
+				},
+				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
+					Metric: md.Name,
+					Labels: map[string]string{
+						md.Labels[0].Key: instance,
+						md.Labels[1].Key: zone,
+						md.Labels[2].Key: serviceName,
+						md.Labels[3].Key: metadataName,
 					},
 				},
 			},
-		}).Do(); err != nil {
-			return fmt.Errorf("Timeseries Write failed for service %q, metadata %q: %v", serviceName, metadataName, err)
-		}
-		return nil
-	}
-	for _, line := range lines {
-		// Build time and build age (in hours).
-		matches := buildTimeRE.FindStringSubmatch(line)
-		if matches == nil {
-			continue
-		}
-		serviceName := matches[1]
-		strTime := matches[2]
-		buildTime, err := time.Parse("2006-01-02T15:04:05Z", strTime)
-		if err != nil {
-			fmt.Fprintf(ctx.Stderr(), "Parse(%v) failed: %v\n", strTime, err)
-			continue
-		}
-		if err := sendTimeseriesFn(float64(buildTime.Unix()), serviceName, "build time"); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-		}
-		if err := sendTimeseriesFn(now.Sub(buildTime).Hours(), serviceName, "build age"); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-		}
+		},
+	}).Do(); err != nil {
+		return fmt.Errorf("Timeseries Write failed for service %q, metadata %q: %v", serviceName, metadataName, err)
 	}
 	return nil
 }
