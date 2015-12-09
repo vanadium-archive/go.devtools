@@ -967,10 +967,6 @@ The jiri test run flags are:
    tests to run; only relevant for Go-based tests
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
- -v23.credentials.admin=
-   Directory for vanadium credentials.
- -v23.credentials.publisher=
-   Directory for vanadium credentials for publishing new binaries.
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 

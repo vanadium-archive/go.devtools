@@ -26,6 +26,9 @@ const (
 	bucket                  = "gs://vanadium-release"
 	localMountTable         = "/ns.dev.staging.v.io:8151"
 	globalMountTable        = "/ns.dev.staging.v.io:8101"
+	oauthBlesserService     = "https://dev.staging.v.io/auth/google/bless"
+	adminRole               = "identity/role/vprod/admin"
+	publisherRole           = "identity/role/vprod/publisher"
 	manifestEnvVar          = "SNAPSHOT_MANIFEST"
 	numRetries              = 30
 	objNameForDeviceManager = "devices/vanadium-cell-master/devmgr/device"
@@ -76,7 +79,6 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 		fn  func() error
 	}
 	rcLabel := ""
-	adminCredDir, publisherCredDir := getCredDirOptValues(opts)
 	steps := []step{
 		step{
 			msg: "Extract release candidate label\n",
@@ -87,25 +89,12 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 			},
 		},
 		step{
-			msg: fmt.Sprintf("Checking existence of credentials in %v (admin) and %v (publisher)\n", adminCredDir, publisherCredDir),
-			fn: func() error {
-				s := jirix.NewSeq()
-				if _, err := s.Stat(adminCredDir); err != nil {
-					return err
-				}
-				if _, err := s.Stat(publisherCredDir); err != nil {
-					return err
-				}
-				return nil
-			},
-		},
-		step{
 			msg: "Prepare binaries\n",
 			fn:  func() error { return prepareBinaries(jirix, rcLabel) },
 		},
 		step{
 			msg: "Update services\n",
-			fn:  func() error { return updateServices(jirix, adminCredDir, publisherCredDir) },
+			fn:  func() error { return updateServices(jirix) },
 		},
 		step{
 			msg: "Check services\n",
@@ -158,21 +147,6 @@ func extractRCLabel() (string, error) {
 	return filepath.Base(manifestPath), nil
 }
 
-// getCredDirOptValues returns the values of credentials dirs (admin, publisher)
-// from the given Opt slice.
-func getCredDirOptValues(opts []Opt) (string, string) {
-	adminCredDir, publisherCredDir := "", ""
-	for _, opt := range opts {
-		switch v := opt.(type) {
-		case AdminCredDirOpt:
-			adminCredDir = string(v)
-		case PublisherCredDirOpt:
-			publisherCredDir = string(v)
-		}
-	}
-	return adminCredDir, publisherCredDir
-}
-
 // prepareBinaries builds all vanadium binaries and uploads them to Google Storage bucket.
 func prepareBinaries(jirix *jiri.X, rcLabel string) error {
 	s := jirix.NewSeq()
@@ -205,13 +179,28 @@ func prepareBinaries(jirix *jiri.X, rcLabel string) error {
 		Last("gsutil", gsutilDoneArgs...)
 }
 
+func roleCmd(jirix *jiri.X, role string, cmd []string) []string {
+	return append([]string{
+		filepath.Join(jirix.Root, "release", "go", "bin", "gcreds"),
+		"--oauth-blesser=" + oauthBlesserService,
+		filepath.Join(jirix.Root, "release", "go", "bin", "vrun"),
+		"--role=" + globalMountTable + "/" + role,
+	}, cmd...)
+}
+
+func adminCmd(jirix *jiri.X, cmd []string) []string {
+	return roleCmd(jirix, adminRole, cmd)
+}
+
+func publisherCmd(jirix *jiri.X, cmd []string) []string {
+	return roleCmd(jirix, publisherRole, cmd)
+}
+
 // updateServices pushes services' binaries to the applications and binaries
 // services and tells the device manager to update all its app.
-func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e error) {
+func updateServices(jirix *jiri.X) (e error) {
 	debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
 	deviceBin := filepath.Join(jirix.Root, "release", "go", "bin", "device")
-	adminCredentialsArg := fmt.Sprintf("--v23.credentials=%s", adminCredDir)
-	publisherCredentialsArg := fmt.Sprintf("--v23.credentials=%s", publisherCredDir)
 	nsArg := fmt.Sprintf("--v23.namespace.root=%s", globalMountTable)
 
 	s := jirix.NewSeq()
@@ -219,16 +208,16 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 	// Push all binaries.
 	{
 		fmt.Fprintln(jirix.Stdout(), "\n\n### Pushing binaries ###")
-		args := []string{
-			publisherCredentialsArg,
+		args := publisherCmd(jirix, []string{
+			deviceBin,
 			nsArg,
 			"publish",
 			"--goos=linux",
 			"--goarch=amd64",
-		}
-		msg := "Push binaries\n"
+		})
 		args = append(args, serviceBinaries...)
-		if err := s.Timeout(defaultReleaseTestTimeout).Last(deviceBin, args...); err != nil {
+		msg := "Push binaries\n"
+		if err := s.Timeout(defaultReleaseTestTimeout).Last(args[0], args[1:]...); err != nil {
 			test.Fail(jirix.Context, msg)
 			return err
 		}
@@ -237,15 +226,15 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 
 	// A helper function to update a single app.
 	updateAppFn := func(appName string) error {
-		args := []string{
-			adminCredentialsArg,
+		args := adminCmd(jirix, []string{
+			deviceBin,
 			fmt.Sprintf("--v23.namespace.root=%s", localMountTable),
 			"update",
 			"-parallelism=BYKIND",
 			appName + "/...",
-		}
+		})
 		msg := fmt.Sprintf("Update %q\n", appName)
-		if err := s.Timeout(defaultReleaseTestTimeout).Last(deviceBin, args...); err != nil {
+		if err := s.Timeout(defaultReleaseTestTimeout).Last(args[0], args[1:]...); err != nil {
 			test.Fail(jirix.Context, msg)
 			return err
 		}
@@ -257,17 +246,16 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 	expectedManifestLabel := os.Getenv(manifestEnvVar)
 	checkManifestLabelFn := func(appName string) error {
 		msg := fmt.Sprintf("Verify manifest label for %q\n", appName)
-		adminCredentialsArg := fmt.Sprintf("--v23.credentials=%s", adminCredDir)
-		args := []string{
-			adminCredentialsArg,
+		args := adminCmd(jirix, []string{
+			debugBin,
 			fmt.Sprintf("--v23.namespace.root=%s", localMountTable),
 			"stats",
 			"read",
 			fmt.Sprintf("%s/*/*/stats/system/metadata/build.Manifest", appName),
-		}
+		})
 		var out bytes.Buffer
 		stdout := io.MultiWriter(jirix.Stdout(), &out)
-		if err := s.Capture(stdout, nil).Timeout(defaultReleaseTestTimeout).Last(debugBin, args...); err != nil {
+		if err := s.Capture(stdout, nil).Timeout(defaultReleaseTestTimeout).Last(args[0], args[1:]...); err != nil {
 			test.Fail(jirix.Context, msg)
 			return err
 		}
@@ -298,16 +286,16 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 	// Update Device Manager.
 	{
 		fmt.Fprintln(jirix.Stdout(), "\n\n### Updating device manager ###")
-		args := []string{
-			adminCredentialsArg,
+		args := adminCmd(jirix, []string{
+			deviceBin,
 			fmt.Sprintf("--v23.namespace.root=%s", globalMountTable),
 			"update",
 			objNameForDeviceManager,
-		}
-		if err := s.Timeout(defaultReleaseTestTimeout).Last(deviceBin, args...); err != nil {
+		})
+		if err := s.Timeout(defaultReleaseTestTimeout).Last(args[0], args[1:]...); err != nil {
 			return err
 		}
-		if err := waitForMounttable(jirix, adminCredentialsArg, localMountTable, `.*8151/devmgr.*`); err != nil {
+		if err := waitForMounttable(jirix, localMountTable, `.*8151/devmgr.*`); err != nil {
 			return err
 		}
 		// TODO(jingjin): check build time for device manager.
@@ -320,7 +308,7 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 		if err := updateAppFn(mounttableName); err != nil {
 			return err
 		}
-		if err := waitForMounttable(jirix, adminCredentialsArg, globalMountTable, `.+`); err != nil {
+		if err := waitForMounttable(jirix, globalMountTable, `.+`); err != nil {
 			return err
 		}
 		if err := checkManifestLabelFn(mounttableName); err != nil {
@@ -333,20 +321,20 @@ func updateServices(jirix *jiri.X, adminCredDir, publisherCredDir string) (e err
 // waitForMounttable waits for the given mounttable to be up and optionally
 // checks output against outputRegexp if it is not empty.
 // (timeout: 5 minutes)
-func waitForMounttable(jirix *jiri.X, credentialsArg, mounttableRoot, outputRegexp string) error {
+func waitForMounttable(jirix *jiri.X, mounttableRoot, outputRegexp string) error {
 	s := jirix.NewSeq()
 	debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
-	args := []string{
-		credentialsArg,
+	args := adminCmd(jirix, []string{
+		debugBin,
 		"glob",
 		mounttableRoot + "/*",
-	}
+	})
 	up := false
 	outputRE := regexp.MustCompile(outputRegexp)
 	for i := 0; i < numRetries; i++ {
 		var out bytes.Buffer
 		stdout := io.MultiWriter(jirix.Stdout(), &out)
-		err := s.Capture(stdout, nil).Last(debugBin, args...)
+		err := s.Capture(stdout, nil).Last(args[0], args[1:]...)
 		if err != nil || !outputRE.MatchString(out.String()) {
 			time.Sleep(retryPeriod)
 			continue

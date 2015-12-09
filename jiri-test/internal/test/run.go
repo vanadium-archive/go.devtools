@@ -166,12 +166,6 @@ type Opt interface {
 	Opt()
 }
 
-// AdminCredDirOpt is an option that specifies the security credentials
-// directory for admin tasks used in VanadiumReleaseTest.
-type AdminCredDirOpt string
-
-func (AdminCredDirOpt) Opt() {}
-
 // BlessingsRootOpt is an option that specifies the blessings root of the
 // services to check in VanadiumProdServicesTest.
 type BlessingsRootOpt string
@@ -211,12 +205,6 @@ func (PartOpt) Opt() {}
 type PkgsOpt []string
 
 func (PkgsOpt) Opt() {}
-
-// PublisherCredDirOpt is an option that specifies the security credentials
-// directory for publishing binaries used in VanadiumReleaseTest.
-type PublisherCredDirOpt string
-
-func (PublisherCredDirOpt) Opt() {}
 
 // MergePoliciesOpt is an option that specifies merge policies for use
 // when merging environment variables from the environment and from profiles.

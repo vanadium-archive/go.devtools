@@ -22,23 +22,22 @@ import (
 )
 
 var (
-	adminCredDirFlag     string
-	blessingsRootFlag    string
-	cleanGoFlag          bool
-	namespaceRootFlag    string
-	numWorkersFlag       int
-	outputDirFlag        string
-	partFlag             int
-	pkgsFlag             string
-	publisherCredDirFlag string
-	mergePoliciesFlag    profiles.MergePolicies
+	blessingsRootFlag string
+	cleanGoFlag       bool
+	namespaceRootFlag string
+	numWorkersFlag    int
+	outputDirFlag     string
+	partFlag          int
+	pkgsFlag          string
+	oauthBlesserFlag  string
+	adminRoleFlag     string
+	publisherRoleFlag string
+	mergePoliciesFlag profiles.MergePolicies
 )
 
 func init() {
 	cmdTestRun.Flags.StringVar(&blessingsRootFlag, "blessings-root", "dev.v.io", "The blessings root.")
-	cmdTestRun.Flags.StringVar(&adminCredDirFlag, "v23.credentials.admin", "", "Directory for vanadium credentials.")
 	cmdTestRun.Flags.StringVar(&namespaceRootFlag, "v23.namespace.root", "/ns.dev.v.io:8101", "The namespace root.")
-	cmdTestRun.Flags.StringVar(&publisherCredDirFlag, "v23.credentials.publisher", "", "Directory for vanadium credentials for publishing new binaries.")
 	cmdTestRun.Flags.IntVar(&numWorkersFlag, "num-test-workers", runtime.NumCPU(), "Set the number of test workers to use; use 1 to serialize all tests.")
 	cmdTestRun.Flags.Lookup("num-test-workers").DefValue = "<runtime.NumCPU()>"
 	cmdTestRun.Flags.StringVar(&outputDirFlag, "output-dir", "", "Directory to output test results into.")
@@ -51,7 +50,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdTest.Flags)
 }
 
-// cmdTest represents the "jiri test" command.
+//cmdTest represents the "jiri test" command.
 var cmdTest = &cmdline.Command{
 	Name:     "test",
 	Short:    "Manage vanadium tests",
@@ -133,11 +132,9 @@ func optsFromFlags() (opts []jiriTest.Opt) {
 	opts = append(opts, jiriTest.PkgsOpt(pkgs))
 	opts = append(opts,
 		jiriTest.BlessingsRootOpt(blessingsRootFlag),
-		jiriTest.AdminCredDirOpt(adminCredDirFlag),
 		jiriTest.NamespaceRootOpt(namespaceRootFlag),
 		jiriTest.NumWorkersOpt(numWorkersFlag),
 		jiriTest.OutputDirOpt(outputDirFlag),
-		jiriTest.PublisherCredDirOpt(publisherCredDirFlag),
 		jiriTest.CleanGoOpt(cleanGoFlag),
 		jiriTest.MergePoliciesOpt(mergePoliciesFlag),
 	)
