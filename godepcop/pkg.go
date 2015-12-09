@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/jiri/tool"
+	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/set"
@@ -28,7 +28,11 @@ func isPseudoPackage(p *build.Package) bool {
 }
 
 func listPackagePaths(env *cmdline.Env, args ...string) ([]string, error) {
-	return goutil.List(tool.NewContextFromEnv(env), []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	jirix, err := jiri.NewX(env)
+	if err != nil {
+		return nil, err
+	}
+	return goutil.List(jirix, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 }
 
 // importPackage loads and returns the package with the given package path.

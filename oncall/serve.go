@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	"v.io/jiri/collect"
-	"v.io/jiri/tool"
+	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/lib/cmdline"
 )
@@ -36,25 +36,28 @@ var cmdServe = &cmdline.Command{
 }
 
 func runServe(env *cmdline.Env, _ []string) (e error) {
-	ctx := tool.NewContextFromEnv(env)
+	jirix, err := jiri.NewX(env)
+	if err != nil {
+		return err
+	}
 
 	// Set up the root/cache directory.
 	root := cacheFlag
 	if root == "" {
-		tmpDir, err := ctx.NewSeq().TempDir("", "")
+		tmpDir, err := jirix.NewSeq().TempDir("", "")
 		if err != nil {
 			return err
 		}
-		defer collect.Error(func() error { return ctx.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+		defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
 		root = tmpDir
 	}
 
 	// Start server.
 	http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
-		dataHandler(ctx, root, w, r)
+		dataHandler(jirix, root, w, r)
 	})
 	http.HandleFunc("/pic", func(w http.ResponseWriter, r *http.Request) {
-		picHandler(ctx, root, w, r)
+		picHandler(jirix, root, w, r)
 	})
 	staticHandler := http.FileServer(http.Dir(staticDirFlag))
 	http.Handle("/", staticHandler)
@@ -65,54 +68,54 @@ func runServe(env *cmdline.Env, _ []string) (e error) {
 	return nil
 }
 
-func dataHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.Request) {
+func dataHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Request) {
 	// Get timestamp from either the "latest" file or "ts" parameter.
 	r.ParseForm()
 	ts := r.Form.Get("ts")
 	if ts == "" {
 		var err error
-		ts, err = readGoogleStorageFile(ctx, "latest")
+		ts, err = readGoogleStorageFile(jirix, "latest")
 		if err != nil {
-			respondWithError(ctx, err, w)
+			respondWithError(jirix, err, w)
 			return
 		}
 	}
 
-	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucketData, ts+".oncall")
+	cachedFile, err := cache.StoreGoogleStorageFile(jirix, root, bucketData, ts+".oncall")
 	if err != nil {
-		respondWithError(ctx, err, w)
+		respondWithError(jirix, err, w)
 		return
 	}
-	bytes, err := ctx.NewSeq().ReadFile(cachedFile)
+	bytes, err := jirix.NewSeq().ReadFile(cachedFile)
 	if err != nil {
-		respondWithError(ctx, err, w)
+		respondWithError(jirix, err, w)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(bytes)
 }
 
-func picHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.Request) {
+func picHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	// Parameter "id" specifies the id of the pic.
 	id := r.Form.Get("id")
 	if id == "" {
-		respondWithError(ctx, fmt.Errorf("parameter 'id' not found"), w)
+		respondWithError(jirix, fmt.Errorf("parameter 'id' not found"), w)
 		return
 	}
 	// Read picture file from Google Storage.
-	cachedFile, err := cache.StoreGoogleStorageFile(ctx, root, bucketPics, id+".jpg")
+	cachedFile, err := cache.StoreGoogleStorageFile(jirix, root, bucketPics, id+".jpg")
 	if err != nil {
 		// Read "_unknown.jpg" as fallback.
-		cachedFile, err = cache.StoreGoogleStorageFile(ctx, root, bucketPics, "_unknown.jpg")
+		cachedFile, err = cache.StoreGoogleStorageFile(jirix, root, bucketPics, "_unknown.jpg")
 		if err != nil {
-			respondWithError(ctx, err, w)
+			respondWithError(jirix, err, w)
 			return
 		}
 	}
-	bytes, err := ctx.NewSeq().ReadFile(cachedFile)
+	bytes, err := jirix.NewSeq().ReadFile(cachedFile)
 	if err != nil {
-		respondWithError(ctx, err, w)
+		respondWithError(jirix, err, w)
 		return
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
@@ -120,14 +123,14 @@ func picHandler(ctx *tool.Context, root string, w http.ResponseWriter, r *http.R
 	w.Write(bytes)
 }
 
-func respondWithError(ctx *tool.Context, err error, w http.ResponseWriter) {
-	fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+func respondWithError(jirix *jiri.X, err error, w http.ResponseWriter) {
+	fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	http.Error(w, "500 internal server error", http.StatusInternalServerError)
 }
 
-func readGoogleStorageFile(ctx *tool.Context, filename string) (string, error) {
+func readGoogleStorageFile(jirix *jiri.X, filename string) (string, error) {
 	var out bytes.Buffer
-	if err := ctx.NewSeq().Capture(&out, &out).Last("gsutil", "-q", "cat", bucketData+"/"+filename); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).Last("gsutil", "-q", "cat", bucketData+"/"+filename); err != nil {
 		return "", err
 	}
 	return out.String(), nil

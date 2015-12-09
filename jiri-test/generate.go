@@ -93,7 +93,7 @@ func runTestGenerate(jirix *jiri.X, args []string) error {
 	// Delete all files we're going to generate, to start with a clean slate.  We
 	// do this first to avoid any issues where packages in the cache might include
 	// the generated files.
-	dirs, err := goutil.ListDirs(jirix.Context, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	dirs, err := goutil.ListDirs(jirix, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 	if err != nil {
 		return jirix.UsageErrorf("failed to list %v: %v", args, err)
 	}
@@ -108,7 +108,7 @@ func runTestGenerate(jirix *jiri.X, args []string) error {
 	}
 
 	// Now list the package paths and generate each one.
-	paths, err := goutil.List(jirix.Context, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	paths, err := goutil.List(jirix, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
 	if err != nil {
 		return jirix.UsageErrorf("failed to list %v: %v", args, err)
 	}
