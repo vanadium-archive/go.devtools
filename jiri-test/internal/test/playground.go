@@ -31,15 +31,14 @@ func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	s := jirix.NewSeq()
+
 	playgroundDir := filepath.Join(jirix.Root, "release", "projects", "playground")
 	backendDir := filepath.Join(playgroundDir, "go", "src", "v.io", "x", "playground")
 	clientDir := filepath.Join(playgroundDir, "client")
 
 	// Clean the playground client build.
-	if err := jirix.Run().Chdir(clientDir); err != nil {
-		return nil, err
-	}
-	if err := jirix.Run().Command("make", "clean"); err != nil {
+	if err := s.Chdir(clientDir).Last("make", "clean"); err != nil {
 		return nil, err
 	}
 
@@ -59,10 +58,8 @@ func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 // Runs specified make target in the specified directory as a test case.
 // On success, both return values are nil.
 func vanadiumPlaygroundSubtest(jirix *jiri.X, testName, caseName, casePath, caseTarget string) (tr *test.Result, err error) {
-	if err = jirix.Run().Chdir(casePath); err != nil {
-		return
-	}
-	if err := jirix.Run().TimedCommand(defaultPlaygroundTestTimeout, "make", caseTarget); err != nil {
+	if err = jirix.NewSeq().Chdir(casePath).
+		Timeout(defaultPlaygroundTestTimeout).Last("make", caseTarget); err != nil {
 		if runutil.IsTimeout(err) {
 			return &test.Result{
 				Status:       test.TimedOut,

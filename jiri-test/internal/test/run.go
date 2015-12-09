@@ -355,10 +355,9 @@ func runTests(jirix *jiri.X, tests []string, results map[string]*test.Result, op
 		var out bytes.Buffer
 		const largeBufferSize = 1 << 20
 		out.Grow(largeBufferSize)
-		runOpts := jirix.Run().Opts()
 		newX := jirix.Clone(tool.ContextOpts{
-			Stdout: io.MultiWriter(&out, runOpts.Stdout),
-			Stderr: io.MultiWriter(&out, runOpts.Stderr),
+			Stdout: io.MultiWriter(&out, jirix.Stdout()),
+			Stderr: io.MultiWriter(&out, jirix.Stderr()),
 		})
 
 		// Run the test and collect the test results.
@@ -391,7 +390,7 @@ func runTests(jirix *jiri.X, tests []string, results map[string]*test.Result, op
 			return fmt.Errorf("Marshal(%v) failed: %v", results, err)
 		}
 		resultsFile := filepath.Join(outputDir, "results")
-		if err := jirix.Run().WriteFile(resultsFile, bytes, os.FileMode(0644)); err != nil {
+		if err := jirix.NewSeq().WriteFile(resultsFile, bytes, os.FileMode(0644)).Done(); err != nil {
 			return err
 		}
 	}

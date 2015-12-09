@@ -129,8 +129,6 @@ func cleanupTestInstances(jirix *jiri.X) error {
 
 func listInstances(jirix *jiri.X, instanceRegEx string) ([]instance, error) {
 	var out bytes.Buffer
-	opts := jirix.Run().Opts()
-	opts.Stdout = &out
 	args := []string{
 		"-q",
 		"compute",
@@ -141,7 +139,7 @@ func listInstances(jirix *jiri.X, instanceRegEx string) ([]instance, error) {
 		fmt.Sprintf("--regexp=%s", instanceRegEx),
 		"--format=json",
 	}
-	if err := jirix.Run().CommandWithOpts(opts, "gcloud", args...); err != nil {
+	if err := jirix.NewSeq().Capture(&out, nil).Last("gcloud", args...); err != nil {
 		return nil, err
 	}
 	instances := []instance{}
@@ -163,26 +161,18 @@ func deleteInstance(jirix *jiri.X, instanceName, instanceZone string) error {
 		instanceZone,
 		instanceName,
 	}
-	if err := jirix.Run().Command("gcloud", args...); err != nil {
+	if err := jirix.NewSeq().Last("gcloud", args...); err != nil {
 		return err
 	}
 	return nil
 }
 
 func runScript(jirix *jiri.X, script, instanceName string) error {
+	s := jirix.NewSeq()
 	// Build all binaries.
 	args := []string{"go", "install", "v.io/..."}
-	if err := jirix.Run().Command("jiri", args...); err != nil {
-		return err
-	}
-
-	// Run script.
-	args = []string{instanceName}
-	if err := jirix.Run().TimedCommand(defaultCreateInstanceTimeout, script, args...); err != nil {
-		return err
-	}
-
-	return nil
+	return s.Run("jiri", args...).
+		Timeout(defaultCreateInstanceTimeout).Last(script, instanceName)
 }
 
 func checkTestInstance(jirix *jiri.X, instanceName string) error {

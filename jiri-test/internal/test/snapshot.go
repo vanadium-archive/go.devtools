@@ -22,7 +22,7 @@ func vanadiumGoSnapshot(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 
 	// Create a new snapshot.
 	fn := func() error {
-		return jirix.Run().Command("jiri", "snapshot", "-remote", "create", "stable-go")
+		return jirix.NewSeq().Last("jiri", "snapshot", "-remote", "create", "stable-go")
 	}
 	if err := retry.Function(jirix.Context, fn); err != nil {
 		return nil, newInternalError(err, "Snapshot")

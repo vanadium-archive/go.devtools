@@ -178,7 +178,7 @@ func vanadiumGitHubMirror(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Res
 
 	projects := filepath.Join(jirix.Root, "projects")
 	mode := os.FileMode(0755)
-	if err := jirix.Run().MkdirAll(projects, mode); err != nil {
+	if err := jirix.NewSeq().MkdirAll(projects, mode).Done(); err != nil {
 		return nil, newInternalError(err, "MkdirAll")
 	}
 
@@ -210,7 +210,7 @@ func gitHubSync(jirix *jiri.X, mirror Mirror, projects string) (*xunit.TestSuite
 	dirname := filepath.Join(projects, mirror.name)
 
 	// If dirname does not exist `git clone` otherwise `git pull`.
-	if _, err := jirix.Run().Stat(dirname); err != nil {
+	if _, err := jirix.NewSeq().Stat(dirname); err != nil {
 		if !runutil.IsNotExist(err) {
 			return nil, newInternalError(err, "stat")
 		}
