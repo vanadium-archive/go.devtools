@@ -84,7 +84,7 @@ func runMailer(jirix *jiri.X, args []string) error {
 	fmt.Fprintf(os.Stderr, "ENV: %v\n", jirix.Env())
 
 	// Download the NDA attachement from Google Cloud Storage
-	attachment, err := cache.StoreGoogleStorageFile(jirix.Context, jirix.Root, bucket, "google-agreement.pdf")
+	attachment, err := cache.StoreGoogleStorageFile(jirix, jirix.Root, bucket, "google-agreement.pdf")
 	if err != nil {
 		return err
 	}

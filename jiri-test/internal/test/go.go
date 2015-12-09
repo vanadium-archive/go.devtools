@@ -284,7 +284,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 
 	// Enumerate the packages for which coverage is to be computed.
 	fmt.Fprintf(jirix.Stdout(), "listing test packages and functions ... ")
-	pkgList, err := goutil.List(jirix.Context, goListOpts(optsFromGoCoverage(opts)), pkgs...)
+	pkgList, err := goutil.List(jirix, goListOpts(optsFromGoCoverage(opts)), pkgs...)
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
 		if err := xunit.CreateFailureReport(jirix, testName, "ListPackages", "TestCoverage", "listing package failure", err.Error()); err != nil {
@@ -483,7 +483,7 @@ func goListPackagesAndFuncs(jirix *jiri.X, opts []Opt, pkgs []string, matcher fu
 		return nil, nil, err
 	}
 	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
-	pkgList, err := goutil.List(jirix.Context, goListOpts(opts), pkgs...)
+	pkgList, err := goutil.List(jirix, goListOpts(opts), pkgs...)
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
 		return nil, nil, err
@@ -1118,12 +1118,12 @@ func validateAgainstDefaultPackages(jirix *jiri.X, opts []Opt, defaults []string
 		return defsOpt, nil
 	}
 
-	defPkgs, err := goutil.List(jirix.Context, goListOpts(opts), defaults...)
+	defPkgs, err := goutil.List(jirix, goListOpts(opts), defaults...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := goutil.List(jirix.Context, goListOpts(opts), optPkgs...)
+	pkgs, err := goutil.List(jirix, goListOpts(opts), optPkgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1634,7 +1634,7 @@ func identifyPackagesToTest(jirix *jiri.X, testName string, opts []Opt, allPkgs 
 	}
 
 	// Get packages for the current index.
-	pkgs, err := goutil.List(jirix.Context, goListOpts(opts), allPkgs...)
+	pkgs, err := goutil.List(jirix, goListOpts(opts), allPkgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1663,7 +1663,7 @@ func getPkgsFromSpec(jirix *jiri.X, opts []Opt, pkgSpec string) ([]string, error
 	expandedPkgs := map[string]struct{}{}
 	pkgs := strings.Split(pkgSpec, ",")
 	for _, pkg := range pkgs {
-		curPkgs, err := goutil.List(jirix.Context, goListOpts(opts), pkg)
+		curPkgs, err := goutil.List(jirix, goListOpts(opts), pkg)
 		if err != nil {
 			return nil, err
 		}

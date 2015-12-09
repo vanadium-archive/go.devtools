@@ -9,30 +9,31 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/jiri"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 )
 
 // StoreGoogleStorageFile reads the given file from the given Google Storage
 // location and stores it in the given cache location. It returns the cached
 // file path.
-func StoreGoogleStorageFile(ctx *tool.Context, cacheRoot, bucketRoot, filename string) (_ string, e error) {
+func StoreGoogleStorageFile(jirix *jiri.X, cacheRoot, bucketRoot, filename string) (_ string, e error) {
+	s := jirix.NewSeq()
 	cachedFile := filepath.Join(cacheRoot, filename)
-	if _, err := ctx.Run().Stat(cachedFile); err != nil {
+	if _, err := s.Stat(cachedFile); err != nil {
 		if !runutil.IsNotExist(err) {
 			return "", err
 		}
 		// To avoid interference between concurrent requests, download data to a
 		// tmp dir, and move it to the final location.
-		tmpDir, err := ctx.Run().TempDir(cacheRoot, "")
+		tmpDir, err := s.TempDir(cacheRoot, "")
 		if err != nil {
 			return "", err
 		}
-		defer collect.Error(func() error { return ctx.Run().RemoveAll(tmpDir) }, &e)
-		if err := ctx.Run().Command("gsutil", "-m", "-q", "cp", "-r", bucketRoot+"/"+filename, tmpDir); err != nil {
+		defer collect.Error(func() error { return jirix.NewSeq().RemoveAll(tmpDir).Done() }, &e)
+		if err := s.Last("gsutil", "-m", "-q", "cp", "-r", bucketRoot+"/"+filename, tmpDir); err != nil {
 			return "", err
 		}
-		if err := ctx.Run().Rename(filepath.Join(tmpDir, filename), cachedFile); err != nil {
+		if err := s.Rename(filepath.Join(tmpDir, filename), cachedFile).Done(); err != nil {
 			// If the target directory already exists, it must have been created by
 			// a concurrent request.
 			if !strings.Contains(err.Error(), "directory not empty") {

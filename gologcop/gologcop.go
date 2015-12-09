@@ -155,7 +155,7 @@ func (ps *parseState) parseAndTypeCheckPackage(bpkg *build.Package) ([]*ast.File
 // then import those packages.
 func importPkgs(jirix *jiri.X, goFlags, packageSpec []string) (ifcs []*build.Package, err error) {
 	flags := append(goFlags, "-merge-policies="+mergePoliciesFlag.String())
-	pkgs, err := goutil.List(jirix.Context, flags, packageSpec...)
+	pkgs, err := goutil.List(jirix, flags, packageSpec...)
 	if err != nil {
 		return nil, err
 	}

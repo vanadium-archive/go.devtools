@@ -290,7 +290,7 @@ func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request)
 		return err
 	}
 	n := r.Form.Get("n")
-	_, err := cache.StoreGoogleStorageFile(jirix.Context, filepath.Join(root, "presubmit"), resultsBucketFlag+"/v0/presubmit", n)
+	_, err := cache.StoreGoogleStorageFile(jirix, filepath.Join(root, "presubmit"), resultsBucketFlag+"/v0/presubmit", n)
 	if err != nil {
 		return err
 	}

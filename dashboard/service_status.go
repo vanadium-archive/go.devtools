@@ -149,7 +149,7 @@ func displayServiceStatusPage(jirix *jiri.X, w http.ResponseWriter, r *http.Requ
 	}
 
 	// Read status file.
-	cachedFile, err := cache.StoreGoogleStorageFile(jirix.Context, root, statusBucketFlag, out.String()+".status")
+	cachedFile, err := cache.StoreGoogleStorageFile(jirix, root, statusBucketFlag, out.String()+".status")
 	if err != nil {
 		return err
 	}
