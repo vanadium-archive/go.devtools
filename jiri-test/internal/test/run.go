@@ -410,14 +410,15 @@ func checkTestReportFile(jirix *jiri.X, testName string) error {
 		return nil
 	}
 
+	s := jirix.NewSeq()
 	xUnitReportFile := xunit.ReportPath(testName)
-	if _, err := jirix.Run().Stat(xUnitReportFile); err != nil {
+	if _, err := s.Stat(xUnitReportFile); err != nil {
 		if !runutil.IsNotExist(err) {
 			return err
 		}
 		// No test report.
 		dummyFile, perm := filepath.Join(filepath.Dir(xUnitReportFile), "tests_dummy.xml"), os.FileMode(0644)
-		if err := jirix.Run().WriteFile(dummyFile, []byte(dummyTestResult), perm); err != nil {
+		if err := s.WriteFile(dummyFile, []byte(dummyTestResult), perm).Done(); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", dummyFile, err)
 		}
 		return nil
@@ -443,7 +444,7 @@ func checkTestReportFile(jirix *jiri.X, testName string) error {
 		numTestCases += len(suite.Cases)
 	}
 	if numTestCases == 0 {
-		jirix.Run().RemoveAll(xUnitReportFile)
+		s.RemoveAll(xUnitReportFile)
 		if err := xunit.CreateFailureReport(jirix, testName, testName, "No Test Cases", "No Test Cases", ""); err != nil {
 			return err
 		}
