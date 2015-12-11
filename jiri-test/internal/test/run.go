@@ -431,7 +431,7 @@ func checkTestReportFile(jirix *jiri.X, testName string) error {
 	}
 	var suites xunit.TestSuites
 	if err := xml.Unmarshal(bytes, &suites); err != nil {
-		jirix.Run().RemoveAll(xUnitReportFile)
+		jirix.NewSeq().RemoveAll(xUnitReportFile)
 		if err := xunit.CreateFailureReport(jirix, testName, testName, "Invalid xUnit Report", "Invalid xUnit Report", err.Error()); err != nil {
 			return err
 		}
@@ -461,20 +461,21 @@ func generateXUnitReportForError(jirix *jiri.X, testName string, err error, outp
 	if testName == "vanadium-presubmit-test" {
 		return &test.Result{Status: test.Passed}, nil
 	}
+	s := jirix.NewSeq()
 
 	xUnitFilePath := xunit.ReportPath(testName)
 
 	// Only create the report when the xUnit file doesn't exist, is
 	// invalid, or exist but doesn't have failed test cases.
 	createXUnitFile := false
-	if _, err := jirix.Run().Stat(xUnitFilePath); err != nil {
+	if _, err := s.Stat(xUnitFilePath); err != nil {
 		if runutil.IsNotExist(err) {
 			createXUnitFile = true
 		} else {
 			return nil, err
 		}
 	} else {
-		bytes, err := jirix.Run().ReadFile(xUnitFilePath)
+		bytes, err := s.ReadFile(xUnitFilePath)
 		if err != nil {
 			return nil, err
 		}
