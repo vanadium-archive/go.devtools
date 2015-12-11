@@ -18,6 +18,7 @@ var h = require('mercury').h;
 var dateformat = require('dateformat');
 
 var AppStateMgr = require('../../appstate-manager');
+var staleDataThresholdInSec = 900;
 
 module.exports = create;
 module.exports.render = render;
@@ -79,9 +80,18 @@ function render(state) {
   // Timestamp for current data.
   var strTime = '';
   var timeClass = '.time';
+  var infoClass = '.info';
+  var staleData = false;
   if (state.collectionTimestamp >= 0) {
     var date = new Date(state.collectionTimestamp * 1000);
     strTime = dateformat(date);
+
+    // Check stale data.
+    var curTs = Math.round(new Date().getTime() / 1000.0);
+    if (curTs - state.collectionTimestamp > staleDataThresholdInSec) {
+      infoClass += '.stale-data';
+      staleData = true;
+    }
   }
   // It also shows whether the data is being loaded or errors.
   if (state.loadingData) {
@@ -90,6 +100,10 @@ function render(state) {
   }
   if (state.hasLoadingFailure) {
     strTime = 'FAILED TO LOAD DATA';
+    timeClass += '.failure';
+  }
+  if (staleData) {
+    strTime = 'STALE DATA [' + strTime + ']';
     timeClass += '.failure';
   }
 
@@ -127,7 +141,7 @@ function render(state) {
 
   navItems.push(h('div.navtitle', h('span', navTitle.toUpperCase())));
   return h('div.header', [
-      h('div.info', [
+      h('div' + infoClass, [
         h('div.dashboard-title', [
           h('div#logo', ''),
           h('div.title-and-time', [

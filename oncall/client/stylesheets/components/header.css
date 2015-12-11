@@ -18,6 +18,11 @@ div.header div.info {
   background-color: #EAEBEB;
 }
 
+div.header div.info.stale-data {
+  background-color: #ffbb55 !important;
+  color: red !important;
+}
+
 .darkTheme div.header div.info {
   background-color: black;
   color: var(--light-green-grey);
@@ -36,6 +41,10 @@ div.header div.info div#logo {
   background-repeat: no-repeat;
   background-position: 0px 4px;
   transition: opacity 1s ease;
+}
+
+div.header div.info.stale-data div#logo {
+  background-image: url('red-logo.svg') !important;
 }
 
 .darkTheme div.header div.info div#logo {
@@ -106,6 +115,10 @@ div.header div.navtitle {
   text-align: center;
 }
 
+div.header div.info.stale-data div.navtitle {
+  color: red;
+}
+
 .darkTheme div.header div.navtitle {
   color: var(--light-green-grey);
 }
@@ -120,6 +133,10 @@ div.header div.navitem {
   opacity: 0.8;
   font-size: 12px;
   color: var(--dark-green-grey);
+}
+
+div.header div.info.stale-data div.navitem {
+  color: red;
 }
 
 .darkTheme div.header div.navitem {

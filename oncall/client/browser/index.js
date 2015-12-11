@@ -119,6 +119,7 @@ function loadData() {
   request
       .get(dataEndpoint)
       .accept('json')
+      .timeout(30000)
       .end(function(err, res) {
     if (!res.ok || err) {
       state.pageHeader.hasLoadingFailure.set(true);

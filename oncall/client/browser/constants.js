@@ -31,6 +31,9 @@ var displayNames = Object.freeze({
   'disk-usage': 'DISK%',
   'google identity service': 'IDEN',
   'google identity service latency': 'IDEN',
+  'groups service': 'GROUPS',
+  'groups service latency': 'GROUPS',
+  'healthCheckLatency': 'HEALTH LAT',
   'identityd': 'IDEN',
   'macaroon service': 'MACAROON',
   'macaroon service latency': 'MACAROON',
@@ -47,6 +50,8 @@ var displayNames = Object.freeze({
   'proxyd': 'PROXY',
   'qps': 'QPS',
   'reading-connections': 'READING CONN',
+  'role service': 'ROLES',
+  'role service latency': 'ROLES',
   'roled': 'ROLED',
   'tcpconn': 'TCP CONN',
   'waiting-connections': 'WAITING CONN',
@@ -74,6 +79,8 @@ var metricKeys = {
     'binary discharger latency',
     'google identity service latency',
     'macaroon service latency',
+    'groups service latency',
+    'role service latency',
     'proxy service latency'
   ],
   stats: [
@@ -89,6 +96,7 @@ var metricKeys = {
     'tcpconn'
   ],
   nginxLoad: [
+    'healthCheckLatency',
     'qps',
     'active-connections',
     'reading-connections',
@@ -106,7 +114,9 @@ var cloudServiceMetrics = [
   createMetric('DISCHARGER', 'CloudServiceLatency', metricKeys.latency[3]),
   createMetric('IDENTITY', 'CloudServiceLatency', metricKeys.latency[4]),
   createMetric('MACAROON', 'CloudServiceLatency', metricKeys.latency[5]),
-  createMetric('PROXY', 'CloudServiceLatency', metricKeys.latency[6], true),
+  createMetric('GROUPS', 'CloudServiceLatency', metricKeys.latency[6]),
+  createMetric('ROLES', 'CloudServiceLatency', metricKeys.latency[7]),
+  createMetric('PROXY', 'CloudServiceLatency', metricKeys.latency[8], true),
   createMetric('MOUNTED SERVERS', 'CloudServiceStats', metricKeys.stats[0],
       false, false, 'V STATS'),
   createMetric('MOUNTED NODES', 'CloudServiceStats', metricKeys.stats[1]),
@@ -125,8 +135,9 @@ var cloudServiceGCEMetrics = [
 
 /** Metric objects for Nginx. */
 var nginxMetrics = [
-  createMetric('QPS', 'NginxLoad', metricKeys.nginxLoad[0],
+  createMetric('HEALTH LAT', 'NginxLoad', metricKeys.nginxLoad[0],
       false, false, 'NGINX SERVER LOAD'),
+  createMetric('QPS', 'NginxLoad', metricKeys.nginxLoad[1]),
   createMetric('ACTIVE CONN', 'NginxLoad', metricKeys.nginxLoad[1]),
   createMetric('READING CONN', 'NginxLoad', metricKeys.nginxLoad[2]),
   createMetric('WRITING CONN', 'NginxLoad', metricKeys.nginxLoad[3]),
