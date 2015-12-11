@@ -84,6 +84,7 @@
       <test>go</test>
       <test>java</test>
       <test>javascript</test>
+      <test>mojo</test>
       <test>projects</test>
       <test>third_party-go</test>
       <test>vanadium-bootstrap</test>
@@ -97,6 +98,7 @@
       <test>go</test>
       <test>java</test>
       <test>javascript</test>
+      <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
@@ -138,6 +140,7 @@
       <test>vanadium-copyright</test>
     </project>
     <project name="release.mojo.v23proxy">
+      <test>mojo</test>
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.browser">
@@ -270,6 +273,8 @@
     </group>
     <group name="mojo">
       <test>vanadium-mojo-syncbase-test</test>
+      <test>vanadium-mojo-v23proxy-unit-test</test>
+      <test>vanadium-mojo-v23proxy-integration-test</test>
     </group>
     <group name="projects">
       <test>vanadium-browser-test</test>
