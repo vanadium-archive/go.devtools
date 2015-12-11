@@ -82,7 +82,7 @@ fi
 var (
 	pingResultRE     = regexp.MustCompile(`(\S*)\s*:.*min/avg/max = [^/]*/([^/]*)/[^/]*`)
 	gceMetricNames   = []string{"cpu-usage", "memory-usage", "disk-usage", "ping", "tcpconn"}
-	nginxMetricNames = []string{"qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
+	nginxMetricNames = []string{"healthCheckLatency", "qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
 )
 
 type gceInstanceData struct {
@@ -417,7 +417,6 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 
 		msg = fmt.Sprintf("Send nginx data for %s (%s)\n", instance.name, instance.zone)
 		for _, metricName := range nginxMetricNames {
-			nginxMetricNames = []string{"healthCheckLatency", "qps", "active-connections", "reading-connections", "writing-connections", "waiting-connections"}
 			value := -1.0
 			switch metricName {
 			case "healthCheckLatency":
