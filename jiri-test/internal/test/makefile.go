@@ -33,7 +33,9 @@ func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[st
 
 	// Navigate to project directory, run make clean and make target.
 	err = s.Pushd(testDir).
+		Verbose(true).
 		Run("make", "clean").
+		Verbose(true).
 		Timeout(timeout).Env(merged).Last("make", target)
 	if err != nil {
 		if runutil.IsTimeout(err) {
