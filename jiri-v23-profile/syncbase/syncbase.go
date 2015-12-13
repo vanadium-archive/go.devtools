@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
@@ -164,12 +165,42 @@ func getAndroidRoot(root jiri.RelPath) (jiri.RelPath, error) {
 	return rp.Join(androidProfile.Root), nil
 }
 
+func initClangEnv(jirix *jiri.X, target profiles.Target) (map[string]string, error) {
+	target.SetVersion("")
+	goProfile := profiles.LookupProfileTarget("go", target)
+	if goProfile == nil {
+		return nil, fmt.Errorf("go profile is not installed for %s", target)
+	}
+	goEnv := envvar.VarsFromSlice(goProfile.Env.Vars)
+	jiri.ExpandEnv(jirix, goEnv)
+	path := envvar.SplitTokens(jirix.Env()["PATH"], ":")
+	path = append([]string{goEnv.Get("BINUTILS_BIN")}, path...)
+	env := map[string]string{
+		"CC":      goEnv.Get("CLANG"),
+		"CXX":     goEnv.Get("CLANG++"),
+		"LDFLAGS": goEnv.Get("LDFLAGS"),
+		"AR":      goEnv.Get("AR"),
+		"RANLIB":  goEnv.Get("RANLIB"),
+		"PATH":    envvar.JoinTokens(path, ":"),
+		"TARGET":  goEnv.Get("TARGET"),
+	}
+	for k, v := range env {
+		if len(v) == 0 {
+			return nil, fmt.Errorf("variable %q is not set", k)
+		}
+	}
+	return env, nil
+}
+
 // installSyncbaseCommon installs the syncbase profile.
 func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
 		s := jirix.NewSeq()
-		if err := s.Chdir(m.snappySrcDir.Abs(jirix)).
+		snappySrcDir := m.snappySrcDir.Abs(jirix)
+		// ignore errors from make distclean.
+		s.Pushd(snappySrcDir).Last("make", "distclean")
+		if err := s.Pushd(snappySrcDir).
 			Last("autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
 		}
@@ -178,13 +209,17 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			"--enable-shared=false",
 		}
 		env := map[string]string{
-			// NOTE(nlacasse): The -fPIC flag is needed to compile Syncbase Mojo service.
+			// NOTE(nlacasse): The -fPIC flag is needed to compile
+			// Syncbase Mojo service. This is set here since we don't
+			// currently have a specific target. Targets that don't
+			// require it should override it.
 			"CXXFLAGS": " -fPIC",
 		}
-		if target.Arch() == "386" {
+		switch {
+		case target.Arch() == "386":
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
-		} else if target.Arch() == "arm" && target.OS() == "android" {
+		case target.Arch() == "arm" && target.OS() == "android":
 			androidRoot, err := getAndroidRoot(root)
 			if err != nil {
 				return err
@@ -198,7 +233,7 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CXX"] = ndkRoot.Join("bin", "arm-linux-androideabi-g++").Abs(jirix)
 			env["AR"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ar").Abs(jirix)
 			env["RANLIB"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ranlib").Abs(jirix)
-		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
+		case target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl":
 			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
 			if len(fnlRoot) == 0 {
 				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
@@ -207,22 +242,25 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			args = append(args, "--host=amd64-linux")
-		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
-			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
-			/*
-			   export CC=/Volumes/code2/llvm/bin/cc-arm-raspian
-			   export CXX=/Volumes/code2/llvm/bin/cxx-arm-raspian
-			   export LDFLAGS=-lm
-			   export AR=/Volumes/code2/llvm/install/binutils/bin/ar
-			   export RANLIB=/Volumes/code2/llvm/install/binutils/bin/ranlib
-			   ./configure --prefix=$(pwd)/../../cout/linux_arm/snappy --enable-shared=false \
-			           --host=arm-linux-gnueabi
-			*/
+		case target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux":
+			clangEnv, err := initClangEnv(jirix, target)
+			if err != nil {
+				return err
+			}
+			env = clangEnv
+			args = append(args,
+				"--host="+clangEnv["TARGET"],
+				"--target="+clangEnv["TARGET"],
+			)
 		}
-		return s.Env(env).Run("./configure", args...).
+		if jirix.Verbose() {
+			fmt.Fprintf(jirix.Stdout(), "Environment: %s\n", strings.Join(envvar.MapToSlice(env), " "))
+		}
+		return s.Pushd(snappySrcDir).
+			Env(env).Run("./configure", args...).
 			Run("make", "clean").
-			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
-			Run("make", "install").
+			Env(env).Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
+			Env(env).Run("make", "install").
 			Last("make", "distclean")
 	}
 	if err := profiles.AtomicAction(jirix, installSnappyFn, m.snappyInstDir.Abs(jirix), "Build and install Snappy"); err != nil {
@@ -273,23 +311,18 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			env["AR"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-ar")
 		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
-			return fmt.Errorf("darwin -> arm-linux cross compilation not yet supported.")
-			/*
-				export CC=/Volumes/code2/llvm/bin/cc-arm-raspian
-				export CXX=/Volumes/code2/llvm/bin/cxx-arm-raspian
-				export TARGET_OS=Linux
-				export AR=/Volumes/code2/llvm/install/binutils/bin/ar
-				export RANLIB=/Volumes/code2/llvm/install/binutils/bin/ranlib
-				INST_DIR=../../cout/linux_arm/leveldb
-				mkdir -p $INST_DIR
-				mkdir -p $INST_DIR/lib
-				mkdir -p $INST_DIR/include
-				export PREFIX=../../cout/linux_arm/leveldb/lib
-				make static
-				cp -r ./include/leveldb ../../cout/linux_arm/leveldb/include
-			*/
+			clangEnv, err := initClangEnv(jirix, target)
+			if err != nil {
+				return err
+			}
+			env["CXXFLAGS"] = "-I" + filepath.Join(m.snappyInstDir.Abs(jirix), "include")
+			env["TARGET_OS"] = "Linux"
+			env = envvar.MergeMaps(env, clangEnv)
 		}
-		return s.Env(env).Run("make", "clean").
+		if jirix.Verbose() {
+			fmt.Fprintf(jirix.Stdout(), "Environment: %s\n", strings.Join(envvar.MapToSlice(env), " "))
+		}
+		return s.Run("make", "clean").
 			Env(env).Last("make", "static")
 	}
 	if err := profiles.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Abs(jirix), "Build and install LevelDB"); err != nil {

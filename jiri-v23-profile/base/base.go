@@ -66,7 +66,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 
 func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
 	// Install packages
-	if target.OS() == "linux" {
+	if !target.CrossCompiling() && target.OS() == "linux" {
 		if err := profiles.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
 			return err
 		}

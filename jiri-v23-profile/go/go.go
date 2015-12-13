@@ -20,10 +20,15 @@ import (
 	"v.io/x/lib/envvar"
 )
 
-var (
+const (
 	profileName   = "go"
 	go15GitRemote = "https://github.com/golang/go.git"
-	goSysRootFlag = ""
+)
+
+var (
+	goSysrootFlag        = ""
+	goSysrootDirs        = ""
+	defaultGoSysrootDirs = "/lib:/usr/lib:/usr/include"
 )
 
 // Supported cross compilation toolchains.
@@ -90,7 +95,8 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 }
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
-	flags.StringVar(&goSysRootFlag, profileName+".sysroot", "", "sysroot for cross compiling to the currently specified target")
+	flags.StringVar(&goSysrootFlag, profileName+".sysroot-image", "", "sysroot image for cross compiling to the currently specified target")
+	flags.StringVar(&goSysrootDirs, profileName+".sysroot-image-dirs-to-use", defaultGoSysrootDirs, "a colon separated list of directories to use from the sysroot image")
 }
 
 func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profiles.Target) error {
@@ -395,7 +401,10 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 }
 
 func darwin_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
-	return "", nil, fmt.Errorf("cross compilation from darwin to linux is not yet supported.")
+	if target.Arch() == "arm" {
+		return useLLVM(jirix, m, root, target, action)
+	}
+	return "", nil, fmt.Errorf("cross compilation from darwin to %s linux is not yet supported.", target.Arch())
 }
 
 func to_android(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
@@ -412,6 +421,8 @@ func to_android(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Ta
 	vars := []string{
 		"CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
 		"CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
+		"CLANG=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
+		"CLANG++=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
 	}
 	return ndkBin, vars, nil
 }
