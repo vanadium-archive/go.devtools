@@ -171,7 +171,7 @@ func runScript(jirix *jiri.X, script, instanceName string) error {
 	s := jirix.NewSeq()
 	// Build all binaries.
 	args := []string{"go", "install", "v.io/..."}
-	return s.Run("jiri", args...).
+	return s.Capture(jirix.Stdout(), jirix.Stderr()).Run("jiri", args...).
 		Timeout(defaultCreateInstanceTimeout).Last(script, instanceName)
 }
 

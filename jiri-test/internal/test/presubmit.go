@@ -53,7 +53,7 @@ func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		"-log-file", logfile,
 		"-manifest", "tools",
 	)
-	if err := jirix.NewSeq().Last("presubmit", args...); err != nil {
+	if err := jirix.NewSeq().Capture(jirix.Stdout(), jirix.Stderr()).Last("presubmit", args...); err != nil {
 		return nil, err
 	}
 
@@ -97,7 +97,7 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		"-refs", os.Getenv("REFS"),
 		"-test", name,
 	)
-	if err := s.Last("presubmit", args...); err != nil {
+	if err := s.Capture(jirix.Stdout(), jirix.Stderr()).Last("presubmit", args...); err != nil {
 		return nil, newInternalError(err, "Presubmit")
 	}
 
@@ -147,7 +147,7 @@ func vanadiumPresubmitResult(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 		"-refs", os.Getenv("REFS"),
 		"-projects", os.Getenv("PROJECTS"),
 	)
-	if err := jirix.NewSeq().Last("presubmit", args...); err != nil {
+	if err := jirix.NewSeq().Capture(jirix.Stdout(), jirix.Stderr()).Last("presubmit", args...); err != nil {
 		return nil, err
 	}
 

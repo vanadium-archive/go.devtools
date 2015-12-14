@@ -30,7 +30,7 @@ func vanadiumPostsubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 		"poll",
 		"-manifest", "mirror/tools",
 	)
-	if err := jirix.NewSeq().Last("postsubmit", args...); err != nil {
+	if err := jirix.NewSeq().Capture(jirix.Stdout(), jirix.Stderr()).Last("postsubmit", args...); err != nil {
 		return nil, err
 	}
 
