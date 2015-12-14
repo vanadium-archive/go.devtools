@@ -1095,8 +1095,10 @@ Usage:
 The jiri v23-profile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
- -go.sysroot=
-   sysroot for cross compiling to the currently specified target
+ -go.sysroot-image=
+   sysroot image for cross compiling to the currently specified target
+ -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
+   a colon separated list of directories to use from the sysroot image
  -mojo-dev.dir=
    Path of mojo repo checkout.
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
@@ -1200,8 +1202,10 @@ Usage:
 The jiri v23-profile uninstall flags are:
  -all-targets=false
    apply to all targets for the specified profile(s)
- -go.sysroot=
-   sysroot for cross compiling to the currently specified target
+ -go.sysroot-image=
+   sysroot image for cross compiling to the currently specified target
+ -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
+   a colon separated list of directories to use from the sysroot image
  -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
