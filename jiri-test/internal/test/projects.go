@@ -63,12 +63,20 @@ func vanadiumPipe2BrowserTest(jirix *jiri.X, testName string, _ ...Opt) (*test.R
 	return runMakefileTestWithNacl(jirix, testName, testDir, "test", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
+// vanadiumCroupierTestUnit runs the unit tests for the croupier example application.
+// Note: This test requires the "with_flutter" manifest, or a Flutter checkout in ${JIRI_ROOT}.
+func vanadiumCroupierTestUnit(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	testDir := filepath.Join(jirix.Root, "release", "projects", "croupier")
+	return runMakefileTest(jirix, testName, testDir, "test-unit", nil, []string{"dart"}, defaultProjectTestTimeout)
+}
+
 // vanadiumReaderTest runs the tests for the reader example application.
 func vanadiumReaderTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	testDir := filepath.Join(jirix.Root, "release", "projects", "reader")
 	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"nodejs"}, defaultProjectTestTimeout)
 }
 
+// vanadiumTravelTest runs the tests for the travel example application.
 func vanadiumTravelTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	testDir := filepath.Join(jirix.Root, "release", "projects", "travel")
 	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"nodejs"}, defaultProjectTestTimeout)

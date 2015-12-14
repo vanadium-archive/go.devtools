@@ -84,6 +84,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"vanadium-chat-web-ui-test":               vanadiumChatWebUITest,
 	"vanadium-copyright":                      vanadiumCopyright,
 	"vanadium-create-instance-test":           vanadiumCreateInstanceTest,
+	"vanadium-croupier-unit":                  vanadiumCroupierTestUnit,
 	"vanadium-github-mirror":                  vanadiumGitHubMirror,
 	"vanadium-go-api":                         vanadiumGoAPI,
 	"vanadium-go-bench":                       vanadiumGoBench,
