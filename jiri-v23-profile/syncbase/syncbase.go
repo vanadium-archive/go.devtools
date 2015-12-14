@@ -219,20 +219,24 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 		case target.Arch() == "386":
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
-		case target.Arch() == "arm" && target.OS() == "android":
+		case target.OS() == "android":
 			androidRoot, err := getAndroidRoot(root)
 			if err != nil {
 				return err
 			}
+			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", runtime.GOARCH))
+			abi, err := androidABI(target.Arch())
+			if err != nil {
+				return err
+			}
 			args = append(args,
-				"--host=arm-linux-androidabi",
-				"--target=arm-linux-androidabi",
+				fmt.Sprintf("--host=%s", abi),
+				fmt.Sprintf("--target=%s", abi),
 			)
-			ndkRoot := androidRoot.Join("ndk-toolchain")
-			env["CC"] = ndkRoot.Join("bin", "arm-linux-androideabi-gcc").Abs(jirix)
-			env["CXX"] = ndkRoot.Join("bin", "arm-linux-androideabi-g++").Abs(jirix)
-			env["AR"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ar").Abs(jirix)
-			env["RANLIB"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ranlib").Abs(jirix)
+			env["CC"] = ndkRoot.Join("bin", fmt.Sprintf("%s-gcc", abi)).Abs(jirix)
+			env["CXX"] = ndkRoot.Join("bin", fmt.Sprintf("%s-g++", abi)).Abs(jirix)
+			env["AR"] = ndkRoot.Join(abi, "bin", "ar").Abs(jirix)
+			env["RANLIB"] = ndkRoot.Join(abi, "bin", "ranlib").Abs(jirix)
 		case target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl":
 			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
 			if len(fnlRoot) == 0 {
@@ -290,17 +294,21 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 		if target.Arch() == "386" {
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
-		} else if target.Arch() == "arm" && target.OS() == "android" {
+		} else if target.OS() == "android" {
 			androidRoot, err := getAndroidRoot(root)
 			if err != nil {
 				return err
 			}
-			ndkRoot := androidRoot.Join("ndk-toolchain")
-			env["CC"] = ndkRoot.Join("bin", "arm-linux-androideabi-gcc").Abs(jirix)
-			env["CXX"] = ndkRoot.Join("bin", "arm-linux-androideabi-g++").Abs(jirix)
+			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", runtime.GOARCH))
+			abi, err := androidABI(target.Arch())
+			if err != nil {
+				return err
+			}
+			env["CC"] = ndkRoot.Join("bin", fmt.Sprintf("%s-gcc", abi)).Abs(jirix)
+			env["CXX"] = ndkRoot.Join("bin", fmt.Sprintf("%s-g++", abi)).Abs(jirix)
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
-			env["AR"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ar").Abs(jirix)
-			env["RANLIB"] = ndkRoot.Join("arm-linux-androideabi", "bin", "ranlib").Abs(jirix)
+			env["AR"] = ndkRoot.Join(abi, "bin", "ar").Abs(jirix)
+			env["RANLIB"] = ndkRoot.Join(abi, "bin", "ranlib").Abs(jirix)
 		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
 			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
 			if len(fnlRoot) == 0 {
@@ -329,4 +337,15 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 		return err
 	}
 	return nil
+}
+
+func androidABI(targetArch string) (string, error) {
+	switch targetArch {
+	case "amd64":
+		return "x86_64-linux-android", nil
+	case "arm":
+		return "arm-linux-androideabi", nil
+	default:
+		return "", fmt.Errorf("could not locate android abi for target arch %s", targetArch)
+	}
 }

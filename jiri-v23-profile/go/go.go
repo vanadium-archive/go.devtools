@@ -40,11 +40,13 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 		xspec{"amd64", "linux"}: darwin_to_linux,
 		xspec{"arm", "linux"}:   darwin_to_linux,
 		xspec{"arm", "android"}: to_android,
+		xspec{"amd64", "android"}:   to_android,
 	},
 	xspec{"amd64", "linux"}: {
 		xspec{"amd64", "fnl"}:   to_fnl,
 		xspec{"arm", "linux"}:   linux_to_linux,
 		xspec{"arm", "android"}: to_android,
+		xspec{"amd64", "android"}:   to_android,
 	},
 }
 
@@ -64,6 +66,9 @@ func init() {
 			// a new profile is checked in.
 			"1.5.1.1:2738c5e0": &versionSpec{
 				"492a62e945555bbf94a6f9dd6d430f712738c5e0", nil},
+			// 1.5.2 with x86_64 android support
+			"1.5.2.1:56093743": &versionSpec{
+				"560937434d5f2857bb69e0a6881a38201a197a8d", nil},
 		}, "1.5.1"),
 	}
 	profiles.Register(profileName, m)
@@ -418,11 +423,20 @@ func to_android(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Ta
 		return "", nil, fmt.Errorf("ANDROID_NDK_DIR not specified in the command line environment")
 	}
 	ndkBin := filepath.Join(ndk, "bin")
+	var abi string
+	switch target.Arch() {
+	case "amd64":
+		abi = "x86_64-linux-android"
+	case "arm":
+		abi = "arm-linux-androideabi"
+	default:
+		return "", nil, fmt.Errorf("could not locate android abi for target arch %s", target.Arch())
+	}
 	vars := []string{
-		"CC_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
-		"CXX_FOR_TARGET=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
-		"CLANG=" + filepath.Join(ndkBin, "arm-linux-androideabi-gcc"),
-		"CLANG++=" + filepath.Join(ndkBin, "arm-linux-androideabi-g++"),
+		"CC_FOR_TARGET=" + filepath.Join(ndkBin, fmt.Sprintf("%s-gcc", abi)),
+		"CXX_FOR_TARGET=" + filepath.Join(ndkBin, fmt.Sprintf("%s-g++", abi)),
+		"CLANG=" + filepath.Join(ndkBin, fmt.Sprintf("%s-gcc", abi)),
+		"CLANG++=" + filepath.Join(ndkBin, fmt.Sprintf("%s-g++", abi)),
 	}
 	return ndkBin, vars, nil
 }
