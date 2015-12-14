@@ -183,7 +183,7 @@ func roleCmd(jirix *jiri.X, role string, cmd []string) []string {
 	return append([]string{
 		filepath.Join(jirix.Root, "release", "go", "bin", "gcreds"),
 		"--oauth-blesser=" + oauthBlesserService,
-		filepath.Join(jirix.Root, "release", "go", "bin", "vrun"),
+		filepath.Join(jirix.Root, "release", "go", "bin", "vbecome"),
 		"--role=" + globalMountTable + "/" + role,
 	}, cmd...)
 }
