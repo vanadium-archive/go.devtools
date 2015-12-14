@@ -27,7 +27,7 @@ const (
 type versionSpec struct {
 	ndkDownloadURL string
 	// seq's chain may be already in progress.
-	ndkExtract  func(seq *runutil.Sequence, src, dst string) *runutil.Sequence
+	ndkExtract  func(seq runutil.Sequence, src, dst string) runutil.Sequence
 	ndkAPILevel int
 }
 
@@ -42,11 +42,11 @@ func ndkArch() (string, error) {
 	}
 }
 
-func tarExtract(seq *runutil.Sequence, src, dst string) *runutil.Sequence {
+func tarExtract(seq runutil.Sequence, src, dst string) runutil.Sequence {
 	return seq.Run("tar", "-C", dst, "-xjf", src)
 }
 
-func selfExtract(seq *runutil.Sequence, src, dst string) *runutil.Sequence {
+func selfExtract(seq runutil.Sequence, src, dst string) runutil.Sequence {
 	return seq.Chmod(src, profiles.DefaultDirPerm).Run(src, "-y", "-o"+dst)
 }
 
