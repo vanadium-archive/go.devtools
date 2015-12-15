@@ -36,7 +36,7 @@ func runJavaTest(jirix *jiri.X, testName string, cwd []string, task string) (_ *
 	if err := jirix.NewSeq().
 		Pushd(javaDir).
 		Env(env.ToMap()).
-		Last(filepath.Join(javaDir, "gradlew"), "--debug", task); err != nil {
+		Last(filepath.Join(javaDir, "gradlew"), "--info", task); err != nil {
 		return nil, err
 	}
 	return &test.Result{Status: test.Passed}, nil

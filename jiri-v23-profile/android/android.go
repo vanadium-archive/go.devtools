@@ -31,14 +31,14 @@ type versionSpec struct {
 	ndkAPILevel int
 }
 
-func ndkArch() (string, error) {
-	switch runtime.GOARCH {
+func ndkArch(goArch string) (string, error) {
+	switch goArch {
 	case "386":
 		return "x86", nil
 	case "amd64":
 		return "x86_64", nil
 	default:
-		return "", fmt.Errorf("NDK unsupported for GOARCH %s", runtime.GOARCH)
+		return "", fmt.Errorf("NDK unsupported for GOARCH %s", goArch)
 	}
 }
 
@@ -51,7 +51,7 @@ func selfExtract(seq runutil.Sequence, src, dst string) runutil.Sequence {
 }
 
 func init() {
-	arch, err := ndkArch()
+	arch, err := ndkArch(runtime.GOARCH)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: android profile not supported: %v\n", err)
 		return
@@ -67,6 +67,11 @@ func init() {
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    16,
+			},
+			"5": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     selfExtract,
+				ndkAPILevel:    21,
 			},
 		}, "3"),
 	}
@@ -108,8 +113,8 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 		target.Set("arm-android")
 		fmt.Fprintf(jirix.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
-		if target.Arch() != "arm" && target.OS() != "android" {
-			return fmt.Errorf("this profile can only be %v as arm-android and not as %v", action, target)
+		if target.Arch() != "amd64" && target.Arch() != "arm" && target.OS() != "android" {
+			return fmt.Errorf("this profile can only be %v as arm-android or amd64-android and not as %v", action, target)
 		}
 	}
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
@@ -117,7 +122,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	}
 	m.root = root
 	m.androidRoot = root.Join("android")
-	m.ndkRoot = m.androidRoot.Join("ndk-toolchain")
+	m.ndkRoot = m.androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", target.Arch()))
 	return nil
 }
 
@@ -129,7 +134,7 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 		fmt.Fprintf(jirix.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
 		return nil
 	}
-	if err := m.installAndroidNDK(jirix); err != nil {
+	if err := m.installAndroidNDK(jirix, target); err != nil {
 		return err
 	}
 	profiles.InstallProfile(profileName, string(m.androidRoot))
@@ -139,14 +144,21 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 
 	// Install android targets for other profiles.
 	dependency := target
-	dependency.SetVersion("2")
+	dependency.SetVersion("4")
 	if err := m.installAndroidBaseTargets(jirix, dependency); err != nil {
 		return err
 	}
 
 	// Merge the target and baseProfile environments.
 	env := envvar.VarsFromSlice(target.Env.Vars)
-	baseProfileEnv := profiles.EnvFromProfile(target, "base")
+
+	if target.Arch() == "amd64" {
+		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
+		ldflags = append(ldflags, m.ndkRoot.Join("x86_64-linux-android", "lib64", "libstdc++.a").Symbolic())
+		env.SetTokens("CGO_LDFLAGS", ldflags, " ")
+	}
+
+	baseProfileEnv := profiles.EnvFromProfile(dependency, "base")
 	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.ndkRoot)
@@ -170,7 +182,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Ta
 }
 
 // installAndroidNDK installs the android NDK toolchain.
-func (m *Manager) installAndroidNDK(jirix *jiri.X) (e error) {
+func (m *Manager) installAndroidNDK(jirix *jiri.X, target profiles.Target) (e error) {
 	// Install dependencies.
 	var pkgs []string
 	switch runtime.GOOS {
@@ -198,8 +210,7 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X) (e error) {
 		}
 		local := filepath.Join(tmpDir, path.Base(m.spec.ndkDownloadURL))
 		s.Run("curl", "-Lo", local, m.spec.ndkDownloadURL)
-		files, err := m.spec.ndkExtract(s, local, extractDir).
-			ReadDir(extractDir)
+		files, err := m.spec.ndkExtract(s, local, extractDir).ReadDir(extractDir)
 		if err != nil {
 			return err
 		}
@@ -207,7 +218,11 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X) (e error) {
 			return fmt.Errorf("expected one directory under %s, got: %v", extractDir, files)
 		}
 		ndkBin := filepath.Join(extractDir, files[0].Name(), "build", "tools", "make-standalone-toolchain.sh")
-		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), "--arch=arm", "--install-dir=" + m.ndkRoot.Abs(jirix)}
+		archOption, err := ndkArch(target.Arch())
+		if err != nil {
+			return err
+		}
+		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), fmt.Sprintf("--arch=%s", archOption), "--install-dir=" + m.ndkRoot.Abs(jirix)}
 		return s.Last("bash", ndkArgs...)
 	}
 	return profiles.AtomicAction(jirix, installNdkFn, m.ndkRoot.Abs(jirix), "Download Android NDK")
