@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -251,9 +252,9 @@ func downloadCmd(uri string) (string, []string, error) {
 	}
 	switch u.Scheme {
 	case "gs":
-		return u.Path, []string{"gsutil", "cp", uri}, nil
+		return path.Base(u.Path), []string{"gsutil", "cp", uri}, nil
 	case "http", "https":
-		return u.Path, []string{"curl", "-LO", uri}, nil
+		return path.Base(u.Path), []string{"curl", "-LO", uri}, nil
 	}
 	return "", nil, fmt.Errorf("%v is an unsupported uri:", uri)
 }
