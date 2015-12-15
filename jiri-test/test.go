@@ -50,7 +50,7 @@ func init() {
 	tool.InitializeRunFlags(&cmdTest.Flags)
 }
 
-//cmdTest represents the "jiri test" command.
+// cmdTest represents the "jiri test" command.
 var cmdTest = &cmdline.Command{
 	Name:     "test",
 	Short:    "Manage vanadium tests",
@@ -147,12 +147,12 @@ func printSummary(jirix *jiri.X, results map[string]*test.Result) {
 		fmt.Fprintf(jirix.Stdout(), "%v %s\n", name, result.Status)
 		if len(result.ExcludedTests) > 0 {
 			for pkg, tests := range result.ExcludedTests {
-				fmt.Fprintf(jirix.Stdout(), "  excluded %d tests from packge %v: %v\n", len(tests), pkg, tests)
+				fmt.Fprintf(jirix.Stdout(), "  excluded %d tests from package %v: %v\n", len(tests), pkg, tests)
 			}
 		}
 		if len(result.SkippedTests) > 0 {
 			for pkg, tests := range result.SkippedTests {
-				fmt.Fprintf(jirix.Stdout(), "  skipped %d tests from pacakge %v: %v\n", len(tests), pkg, tests)
+				fmt.Fprintf(jirix.Stdout(), "  skipped %d tests from package %v: %v\n", len(tests), pkg, tests)
 			}
 		}
 	}
