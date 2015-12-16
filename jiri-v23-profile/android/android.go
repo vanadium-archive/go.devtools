@@ -37,6 +37,8 @@ func ndkArch(goArch string) (string, error) {
 		return "x86", nil
 	case "amd64":
 		return "x86_64", nil
+	case "arm":
+		return "arm", nil
 	default:
 		return "", fmt.Errorf("NDK unsupported for GOARCH %s", goArch)
 	}
@@ -122,7 +124,11 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	}
 	m.root = root
 	m.androidRoot = root.Join("android")
-	m.ndkRoot = m.androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", target.Arch()))
+	archName, err := ndkArch(target.Arch())
+	if err != nil {
+		return err
+	}
+	m.ndkRoot = m.androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", archName))
 	return nil
 }
 
