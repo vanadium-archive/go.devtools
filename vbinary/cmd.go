@@ -207,7 +207,7 @@ func runDownload(env *cmdline.Env, args []string) error {
 		}
 		return nil
 	}
-	return s.Call(downloadBinaries, fmt.Sprintf("Downloading binaries to %s", outputDirFlag)).Done()
+	return s.Call(downloadBinaries, "Downloading binaries to %s", outputDirFlag).Done()
 }
 
 // latestBinaries returns the binaries of the latest snapshot whose timestamp
