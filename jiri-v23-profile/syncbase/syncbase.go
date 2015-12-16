@@ -192,6 +192,19 @@ func initClangEnv(jirix *jiri.X, target profiles.Target) (map[string]string, err
 	return env, nil
 }
 
+func ndkArch(goArch string) (string, error) {
+	switch goArch {
+	case "386":
+		return "x86", nil
+	case "amd64":
+		return "x86_64", nil
+	case "arm":
+		return "arm", nil
+	default:
+		return "", fmt.Errorf("NDK unsupported for GOARCH %s", goArch)
+	}
+}
+
 // installSyncbaseCommon installs the syncbase profile.
 func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profiles.Target) (e error) {
 	// Build and install Snappy.
@@ -224,7 +237,11 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			if err != nil {
 				return err
 			}
-			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", runtime.GOARCH))
+			archName, err := ndkArch(target.Arch())
+			if err != nil {
+				return err
+			}
+			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", archName))
 			abi, err := androidABI(target.Arch())
 			if err != nil {
 				return err
@@ -299,7 +316,11 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			if err != nil {
 				return err
 			}
-			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", runtime.GOARCH))
+			archName, err := ndkArch(target.Arch())
+			if err != nil {
+				return err
+			}
+			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", archName))
 			abi, err := androidABI(target.Arch())
 			if err != nil {
 				return err
