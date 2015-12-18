@@ -7,7 +7,6 @@
 package buildinfo
 
 import (
-	"encoding/xml"
 	"fmt"
 	"strconv"
 	"time"
@@ -35,9 +34,9 @@ type T struct {
 // ToMetaData encodes build info t into metadata md.
 func (t T) ToMetaData() (*metadata.T, error) {
 	md := new(metadata.T)
-	manifest, err := xml.MarshalIndent(t.Manifest, "", "  ")
+	manifest, err := t.Manifest.ToBytes()
 	if err != nil {
-		return nil, fmt.Errorf("MarshalIndent(%v) failed: %v", t.Manifest, err)
+		return nil, fmt.Errorf("manifest.ToBytes failed: %v", err)
 	}
 	md.Insert("build.Manifest", string(manifest))
 	md.Insert("build.Platform", t.Platform)
@@ -52,9 +51,11 @@ func FromMetaData(md *metadata.T) (T, error) {
 	var t T
 	var err error
 	if manifest := md.Lookup("build.Manifest"); manifest != "" {
-		if err := xml.Unmarshal([]byte(manifest), &t.Manifest); err != nil {
-			return T{}, fmt.Errorf("Unmarshal(%v) failed: %v", manifest, err)
+		m, err := project.ManifestFromBytes([]byte(manifest))
+		if err != nil {
+			return T{}, fmt.Errorf("ManifestFromBytes failed: %v\n%s", err, manifest)
 		}
+		t.Manifest = *m
 	}
 	t.Platform = md.Lookup("build.Platform")
 	if pristine := md.Lookup("build.Pristine"); pristine != "" {

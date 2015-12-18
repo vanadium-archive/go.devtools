@@ -8,7 +8,6 @@
 package main
 
 import (
-	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -112,9 +111,9 @@ func runPoll(jirix *jiri.X, _ []string) error {
 // master branches.
 func getChangedProjectsFromSnapshot(jirix *jiri.X, snapshotContent []byte) ([]string, error) {
 	// Parse snapshot.
-	snapshot := project.Manifest{}
-	if err := xml.Unmarshal(snapshotContent, &snapshot); err != nil {
-		return nil, fmt.Errorf("Unmarshal() failed: %v\n%v", err, string(snapshotContent))
+	snapshot, err := project.ManifestFromBytes(snapshotContent)
+	if err != nil {
+		return nil, fmt.Errorf("ManifestFromBytes failed: %v\n%s", err, snapshotContent)
 	}
 
 	// Use "git log" to detect changes for each project.
