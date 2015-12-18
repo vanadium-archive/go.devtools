@@ -9,6 +9,7 @@
   <pkg allow="golang.org/x/oauth2/..."/>
   <pkg allow="google.golang.org/cloud/..."/>
   <pkg allow="v.io/jiri/..."/>
+  <pkg allow="v.io/v23/..."/>
   <pkg allow="v.io/x/devtools/..."/>
   <pkg allow="v.io/x/lib/..."/>
   <pkg deny="..."/>

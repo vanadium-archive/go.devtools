@@ -9,17 +9,20 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/api/cloudmonitoring/v2beta2"
+
 	"v.io/jiri/tool"
+	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/lib/cmdline"
 )
 
 // checkFunctions is a map from check names to the corresponding check functions.
-var checkFunctions = map[string]func(*tool.Context) error{
+var checkFunctions = map[string]func(*tool.Context, *cloudmonitoring.Service) error{
 	"service-latency":           checkServiceLatency,
-	"service-permethod-latency": checkAllServicePerMethodLatency,
+	"service-permethod-latency": checkServicePerMethodLatency,
 	"service-counters":          checkServiceCounters,
 	"service-metadata":          checkServiceMetadata,
-	"service-qps":               checkAllServiceQPS,
+	"service-qps":               checkServiceQPS,
 	"gce-instance":              checkGCEInstances,
 	"rpc-load-test":             checkRPCLoadTest,
 }
@@ -77,13 +80,19 @@ func runCheckRun(env *cmdline.Env, args []string) error {
 	}
 	ctx := tool.NewContextFromEnv(env)
 
+	// Authenticate monitoring APIs.
+	s, err := monitoring.Authenticate(keyFileFlag)
+	if err != nil {
+		return err
+	}
+
 	// Run checks.
 	hasError := false
 	for _, check := range args {
 		// We already checked the given checks all exist.
 		checkFn, _ := checkFunctions[check]
 		fmt.Fprintf(ctx.Stdout(), "##### Running check %q #####\n", check)
-		err := checkFn(ctx)
+		err := checkFn(ctx, s)
 		if err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			fmt.Fprintf(ctx.Stdout(), "##### FAIL #####\n")

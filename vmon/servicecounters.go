@@ -5,16 +5,13 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
@@ -22,34 +19,49 @@ import (
 
 type prodServiceCounter struct {
 	name       string
-	objectName string
+	statSuffix string
+}
+
+type counterData struct {
+	location *monitoring.ServiceLocation
+	value    float64
 }
 
 // checkServiceCounters checks all service counters and adds the results to GCM.
-func checkServiceCounters(ctx *tool.Context) error {
-	counters := []prodServiceCounter{
-		prodServiceCounter{
-			name:       "mounttable nodes",
-			objectName: namespaceRootFlag + "/__debug/stats/mounttable/num-nodes",
-		},
-		prodServiceCounter{
-			name:       "mounttable mounted servers",
-			objectName: namespaceRootFlag + "/__debug/stats/mounttable/num-mounted-servers",
+func checkServiceCounters(ctx *tool.Context, s *cloudmonitoring.Service) error {
+	counters := map[string][]prodServiceCounter{
+		snMounttable: []prodServiceCounter{
+			prodServiceCounter{
+				name:       "mounttable nodes",
+				statSuffix: "__debug/stats/mounttable/num-nodes",
+			},
+			prodServiceCounter{
+				name:       "mounttable mounted servers",
+				statSuffix: "__debug/stats/mounttable/num-mounted-servers",
+			},
 		},
 	}
 
 	hasError := false
-	for _, counter := range counters {
-		if v, err := checkSingleCounter(ctx, counter); err != nil {
-			if runutil.IsTimeout(err) {
-				test.Warn(ctx, "%s: %d [TIMEOUT]\n", counter.name, int(v))
-			} else {
+	mdLat := monitoring.CustomMetricDescriptors["service-counters"]
+	now := time.Now().Format(time.RFC3339)
+	for serviceName, serviceCounters := range counters {
+		for _, counter := range serviceCounters {
+			if vs, err := checkSingleCounter(ctx, serviceName, counter); err != nil {
 				test.Fail(ctx, "%s\n", counter.name)
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+				hasError = true
+			} else {
+				for _, v := range vs {
+					label := fmt.Sprintf("%s (%s, %s)", counter.name, v.location.Instance, v.location.Zone)
+					test.Pass(ctx, "%s: %f\n", label, v.value)
+
+					// Send data to GCM.
+					if err := sendDataToGCM(s, mdLat, v.value, now, v.location.Instance, v.location.Zone, counter.name); err != nil {
+						return err
+					}
+				}
 			}
-			hasError = true
-		} else {
-			test.Pass(ctx, "%s: %d\n", counter.name, int(v))
 		}
 	}
 	if hasError {
@@ -58,61 +70,51 @@ func checkServiceCounters(ctx *tool.Context) error {
 	return nil
 }
 
-func checkSingleCounter(ctx *tool.Context, counter prodServiceCounter) (float64, error) {
-	// Run "debug stats read" to get the counter's value.
-	debug := filepath.Join(binDirFlag, "debug")
-	var buf bytes.Buffer
-	value := 0.0
-	if err := ctx.NewSeq().Capture(&buf, &buf).Timeout(timeout).
-		Last(debug, "--v23.credentials", credentialsFlag, "stats", "read", counter.objectName); err != nil {
-		if !runutil.IsTimeout(err) {
-			return 0, fmt.Errorf("debug command failed: %v\n%s", err, buf.String())
+func checkSingleCounter(ctx *tool.Context, serviceName string, counter prodServiceCounter) ([]counterData, error) {
+	mountedName, err := getMountedName(serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve name and group results by routing ids.
+	groups, err := resolveAndProcessServiceName(ctx, serviceName, mountedName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get counters for each group.
+	counters := []counterData{}
+	for _, group := range groups {
+		value := 0.0
+		availableName := group[0]
+		succeeded := false
+		for _, name := range group {
+			if output, err := getStat(ctx, fmt.Sprintf("%s/%s", mountedName, counter.statSuffix), false); err == nil {
+				parts := strings.Split(strings.TrimSpace(output), " ")
+				if len(parts) != 2 {
+					return nil, fmt.Errorf("invalid debug output: %s", output)
+				}
+				v, err := strconv.ParseFloat(parts[1], 64)
+				if err != nil {
+					return nil, fmt.Errorf("ParseFloat(%s) failed: %v", parts[1], err)
+				}
+				availableName = name
+				value = v
+				succeeded = true
+			}
 		}
-		return 0, err
-	}
-	parts := strings.Split(strings.TrimSpace(buf.String()), " ")
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid debug output: %s", buf.String())
-	}
-	var err error
-	value, err = strconv.ParseFloat(parts[1], 64)
-	if err != nil {
-		return 0, fmt.Errorf("ParseFloat(%s) failed: %v", parts[1], err)
-	}
-
-	// Add the counter as a custom metric to GCM.
-	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
-	if serviceLocation == nil {
-		return 0, fmt.Errorf("service location not found for %q", namespaceRootFlag)
-	}
-	mdLat := monitoring.CustomMetricDescriptors["service-counters"]
-	s, err := monitoring.Authenticate(keyFileFlag)
-	if err != nil {
-		return 0, err
-	}
-	timeStr := time.Now().Format(time.RFC3339)
-	_, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-		Timeseries: []*cloudmonitoring.TimeseriesPoint{
-			&cloudmonitoring.TimeseriesPoint{
-				Point: &cloudmonitoring.Point{
-					DoubleValue: value,
-					Start:       timeStr,
-					End:         timeStr,
-				},
-				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-					Metric: mdLat.Name,
-					Labels: map[string]string{
-						mdLat.Labels[0].Key: serviceLocation.Instance,
-						mdLat.Labels[1].Key: serviceLocation.Zone,
-						mdLat.Labels[2].Key: counter.name,
-					},
-				},
-			},
-		},
-	}).Do()
-	if err != nil {
-		return 0, fmt.Errorf("Timeseries Write failed: %v", err)
+		if !succeeded {
+			return nil, fmt.Errorf("failed to check service %q", serviceName)
+		}
+		location, err := getServiceLocation(ctx, availableName, serviceName)
+		if err != nil {
+			return nil, err
+		}
+		counters = append(counters, counterData{
+			location: location,
+			value:    value,
+		})
 	}
 
-	return value, nil
+	return counters, nil
 }

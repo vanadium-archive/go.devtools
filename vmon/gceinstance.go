@@ -111,7 +111,7 @@ type nginxStat struct {
 }
 
 // checkGCEInstances checks all GCE instances in a GCE project.
-func checkGCEInstances(ctx *tool.Context) error {
+func checkGCEInstances(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	msg := "Getting instance list\n"
 	instances, err := getInstances(ctx)
 	if err != nil {

@@ -5,17 +5,15 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/monitoring"
+	"v.io/x/devtools/internal/test"
 )
 
 const (
@@ -26,103 +24,103 @@ var (
 	buildTimeRE = regexp.MustCompile(`^.*/build\.Time: (.*)`)
 )
 
+type metadataData struct {
+	location  *monitoring.ServiceLocation
+	buildTime time.Time
+}
+
 // checkServiceMetadata checks all service metadata and adds the results to GCM.
-func checkServiceMetadata(ctx *tool.Context) error {
+func checkServiceMetadata(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
 		snApplications,
 		snBinaries,
 		snIdentity,
 		snGroups,
+		snRole,
 		snProxy,
 	}
 
-	// Run "debug stats read" to get metadata from each service.
+	hasError := false
+	mdMetadata := monitoring.CustomMetricDescriptors["service-metadata"]
 	now := time.Now()
 	strNow := now.Format(time.RFC3339)
-	// TODO(jingjin): get location by reading stats/system/hostname.
-	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
-	if serviceLocation == nil {
-		return fmt.Errorf("service location not found for %q", namespaceRootFlag)
-	}
-	s, err := monitoring.Authenticate(keyFileFlag)
-	if err != nil {
-		return err
-	}
-	mdMetadata := monitoring.CustomMetricDescriptors["service-metadata"]
-	debug := filepath.Join(binDirFlag, "debug")
 	for _, serviceName := range serviceNames {
-		serviceMountedName, err := getMountedName(serviceName)
-		if err != nil {
-			return err
-		}
+		if ms, err := checkSingleServiceMetadata(ctx, serviceName); err != nil {
+			test.Fail(ctx, "%s\n", serviceName)
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			hasError = true
+		} else {
+			for _, m := range ms {
+				buildTimeUnix := m.buildTime.Unix()
+				buildAgeInHours := now.Sub(m.buildTime).Hours()
+				label := fmt.Sprintf("%s build time (%s, %s)", serviceName, m.location.Instance, m.location.Zone)
+				test.Pass(ctx, "%s: %d, %v\n", label, buildTimeUnix, buildAgeInHours)
 
-		// Query build time.
-		buildTimeStat := fmt.Sprintf("%s/%s", serviceMountedName, buildTimeStatSuffix)
-		var stdoutBuf, stderrBuf bytes.Buffer
-		args := []string{
-			"--v23.credentials",
-			credentialsFlag,
-			"stats",
-			"read",
-			buildTimeStat,
-		}
-		if err := ctx.NewSeq().Capture(&stdoutBuf, &stderrBuf).Timeout(timeout).
-			Last(debug, args...); err != nil {
-			if !runutil.IsTimeout(err) {
-				return fmt.Errorf("debug command failed: %v\nSTDOUT:\n%s\nSTDERR:\n:%s", err, stdoutBuf.String(), stderrBuf.String())
+				// Send data to GCM
+				if err := sendDataToGCM(s, mdMetadata, float64(buildTimeUnix), strNow, m.location.Instance, m.location.Zone, serviceName, "build time"); err != nil {
+					return err
+				}
+				if err := sendDataToGCM(s, mdMetadata, buildAgeInHours, strNow, m.location.Instance, m.location.Zone, serviceName, "build age"); err != nil {
+					return err
+				}
 			}
-			return err
-		}
-		if stdoutBuf.Len() == 0 {
-			return fmt.Errorf("debug command returned no output. STDERR:\n%s", stderrBuf.String())
-		}
-
-		// Parse build time.
-		output := stdoutBuf.String()
-		matches := buildTimeRE.FindStringSubmatch(output)
-		if matches == nil {
-			return fmt.Errorf("invalid stat: %s", output)
-		}
-		strTime := matches[1]
-		buildTime, err := time.Parse("2006-01-02T15:04:05Z", strTime)
-		if err != nil {
-			return fmt.Errorf("Parse(%v) failed: %v", strTime, err)
-		}
-
-		// Send to GCM.
-		if err := sendMetadataToGCM(mdMetadata, float64(buildTime.Unix()), strNow, serviceLocation.Instance, serviceLocation.Zone, serviceName, "build time", s); err != nil {
-			return err
-		}
-		if err := sendMetadataToGCM(mdMetadata, now.Sub(buildTime).Hours(), strNow, serviceLocation.Instance, serviceLocation.Zone, serviceName, "build age", s); err != nil {
-			return err
 		}
 	}
+	if hasError {
+		return fmt.Errorf("failed to check metadata for some services.")
+	}
+
 	return nil
 }
 
-func sendMetadataToGCM(md *cloudmonitoring.MetricDescriptor, value float64, now, instance, zone, serviceName, metadataName string, s *cloudmonitoring.Service) error {
-	if _, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-		Timeseries: []*cloudmonitoring.TimeseriesPoint{
-			&cloudmonitoring.TimeseriesPoint{
-				Point: &cloudmonitoring.Point{
-					DoubleValue: value,
-					Start:       now,
-					End:         now,
-				},
-				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-					Metric: md.Name,
-					Labels: map[string]string{
-						md.Labels[0].Key: instance,
-						md.Labels[1].Key: zone,
-						md.Labels[2].Key: serviceName,
-						md.Labels[3].Key: metadataName,
-					},
-				},
-			},
-		},
-	}).Do(); err != nil {
-		return fmt.Errorf("Timeseries Write failed for service %q, metadata %q: %v", serviceName, metadataName, err)
+func checkSingleServiceMetadata(ctx *tool.Context, serviceName string) ([]metadataData, error) {
+	mountedName, err := getMountedName(serviceName)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	// Resolve name and group results by routing ids.
+	groups, err := resolveAndProcessServiceName(ctx, serviceName, mountedName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get metadata for each group.
+	metadata := []metadataData{}
+	for _, group := range groups {
+		buildTime := time.Time{}
+		availableName := group[0]
+		for _, name := range group {
+			// Query build time.
+			buildTimeStat := fmt.Sprintf("%s/%s", mountedName, buildTimeStatSuffix)
+			if output, err := getStat(ctx, buildTimeStat, false); err == nil {
+				// Parse build time.
+				matches := buildTimeRE.FindStringSubmatch(output)
+				if matches == nil {
+					return nil, fmt.Errorf("invalid stat: %s", output)
+				}
+				strTime := matches[1]
+				t, err := time.Parse("2006-01-02T15:04:05Z", strTime)
+				if err != nil {
+					return nil, fmt.Errorf("Parse(%v) failed: %v", strTime, err)
+				}
+				buildTime = t
+				availableName = name
+			}
+		}
+		if buildTime.IsZero() {
+			return nil, fmt.Errorf("failed to check build time for service %q", serviceName)
+		}
+		location, err := getServiceLocation(ctx, availableName, serviceName)
+		if err != nil {
+			return nil, err
+		}
+		metadata = append(metadata, metadataData{
+			location:  location,
+			buildTime: buildTime,
+		})
+	}
+
+	return metadata, nil
 }
