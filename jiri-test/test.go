@@ -54,7 +54,7 @@ var cmdTest = &cmdline.Command{
 	Name:     "test",
 	Short:    "Manage vanadium tests",
 	Long:     "Manage vanadium tests.",
-	Children: []*cmdline.Command{cmdTestGenerate, cmdTestProject, cmdTestRun, cmdTestList},
+	Children: []*cmdline.Command{cmdTestProject, cmdTestRun, cmdTestList},
 }
 
 // cmdTestProject represents the "jiri test project" command.

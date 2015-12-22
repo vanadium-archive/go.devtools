@@ -2,30 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file was auto-generated via go generate.
-// DO NOT UPDATE MANUALLY
 package foo_test
 
 import "testing"
 import "os"
 
-import "v.io/x/ref/test/v23tests"
-
-func TestMain(m *testing.M) {
-	cleanup := v23tests.UseSharedBinDir()
-	r := m.Run()
-	cleanup()
-	os.Exit(r)
-}
+import "v.io/x/ref/lib/v23test"
 
 func TestV23(t *testing.T) {
-	v23tests.RunTest(t, V23Test)
+	v23test.SkipUnlessRunningIntegrationTests(t)
 }
 
 func TestV23B(t *testing.T) {
-	v23tests.RunTest(t, V23TestB)
+	v23test.SkipUnlessRunningIntegrationTests(t)
 }
 
 func TestV23Hello(t *testing.T) {
-	v23tests.RunTest(t, V23TestHello)
+	v23test.SkipUnlessRunningIntegrationTests(t)
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

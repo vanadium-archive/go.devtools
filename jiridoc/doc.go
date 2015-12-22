@@ -1000,71 +1000,11 @@ Usage:
    jiri test [flags] <command>
 
 The jiri test commands are:
-   generate    Generate supporting code for v23 integration tests
    project     Run tests for a vanadium project
    run         Run vanadium tests
    list        List vanadium tests
 
 The jiri test flags are:
- -color=true
-   Use color to format output.
- -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
- -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
-   specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
- -profiles=base,jiri
-   a comma separated list of profiles to use
- -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
- -skip-profiles=false
-   if set, no profiles will be used
- -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
- -v=false
-   Print verbose output.
-
-Jiri test generate - Generate supporting code for v23 integration tests
-
-The generate command supports the vanadium integration test framework and unit
-tests by generating go files that contain supporting code.  jiri test generate
-is intended to be invoked via the 'go generate' mechanism and the resulting
-files are to be checked in.
-
-Integration tests are functions of the following form:
-
-    func V23Test<x>(i *v23tests.T)
-
-These functions are typically defined in 'external' *_test packages, to ensure
-better isolation.  But they may also be defined directly in the 'internal' *
-package.  The following helper functions will be generated:
-
-    func TestV23<x>(t *testing.T) {
-      v23tests.RunTest(t, V23Test<x>)
-    }
-
-In addition a TestMain function is generated, if it doesn't already exist.  Note
-that Go requires that at most one TestMain function is defined across both the
-internal and external test packages.
-
-The generated TestMain performs common initialization, and also performs child
-process dispatching for tests that use "v.io/veyron/test/modules".
-
-Usage:
-   jiri test generate [flags] [packages]
-
-list of go packages
-
-The jiri test generate flags are:
- -prefix=v23
-   Specifies the prefix to use for generated files. Up to two files may
-   generated, the defaults are v23_test.go and v23_internal_test.go, or
-   <prefix>_test.go and <prefix>_internal_test.go.
- -progress=false
-   Print verbose progress information.
-
  -color=true
    Use color to format output.
  -env=

@@ -371,8 +371,8 @@ func runGoList(jirix *jiri.X, goBin string, env map[string]string, pkgs []string
 	// output, or by writing the output to a temporary file
 	// instead of an in-memory buffer.
 	// TODO(cnicolaou): the sequence code in runutil streams using a pipe
-	// internally so that could probably be taken advantage of here by having stdout
-	// be a pipe that the scanner reads below.
+	// internally so that could probably be taken advantage of here by having
+	// stdout be a pipe that the scanner reads below.
 	if err := jirix.NewSeq().Env(env).Capture(&stdout, &stderr).Last(goBin, goListArgs...); err != nil {
 		return nil, fmt.Errorf("failed to compute go deps: %v\n%s\n%v", err, stderr.String(), pkgs)
 	}
