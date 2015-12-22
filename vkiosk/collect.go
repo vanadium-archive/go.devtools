@@ -14,7 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/jiri/tool"
+	"v.io/jiri/jiri"
+	"v.io/jiri/runutil"
 	"v.io/x/lib/cmdline"
 )
 
@@ -48,20 +49,23 @@ Google Chrome,Xvfb, and Fluxbox.
 }
 
 func runCollect(env *cmdline.Env, args []string) error {
-	ctx := tool.NewContextFromEnv(env)
+	jirix, err := jiri.NewX(env)
+	if err != nil {
+		return err
+	}
 	if err := checkPreRequisites(); err != nil {
 		return err
 	}
 
 	// A tmp dir to store screenshots.
-	tmpDir, err := ctx.NewSeq().TempDir("", "vkiosk")
+	tmpDir, err := jirix.NewSeq().TempDir("", "vkiosk")
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(ctx.Stdout(), "Tmp screenshot dir: %s\n", tmpDir)
+	fmt.Fprintf(jirix.Stdout(), "Tmp screenshot dir: %s\n", tmpDir)
 
-	fmt.Fprintf(ctx.Stdout(), "Starting Xvfb at DISPLAY=%s with resolution %s...\n", displayFlag, resolutionFlag)
-	p, err := startXvfb(ctx)
+	fmt.Fprintf(jirix.Stdout(), "Starting Xvfb at DISPLAY=%s with resolution %s...\n", displayFlag, resolutionFlag)
+	p, err := startXvfb(jirix)
 	if err != nil {
 		return err
 	}
@@ -71,7 +75,7 @@ func runCollect(env *cmdline.Env, args []string) error {
 	// automatically.
 	cleanupFn := func() {
 		// Ignore all errors.
-		ctx.NewSeq().RemoveAll(tmpDir)
+		jirix.NewSeq().RemoveAll(tmpDir)
 		p.Kill()
 	}
 	defer cleanupFn()
@@ -85,17 +89,17 @@ func runCollect(env *cmdline.Env, args []string) error {
 		os.Exit(0)
 	}()
 
-	fmt.Fprintf(ctx.Stdout(), "Starting Chrome for %q in Xvfb...\n", urlFlag)
-	if err := startChrome(ctx); err != nil {
+	fmt.Fprintf(jirix.Stdout(), "Starting Chrome for %q in Xvfb...\n", urlFlag)
+	if err := startChrome(jirix); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(ctx.Stdout(), "Starting Fluxbox in Xvfb...\n")
-	if err := startFluxbox(ctx); err != nil {
+	fmt.Fprintf(jirix.Stdout(), "Starting Fluxbox in Xvfb...\n")
+	if err := startFluxbox(jirix); err != nil {
 		return err
 	}
 
-	if err := takeScreenshots(ctx, tmpDir); err != nil {
+	if err := takeScreenshots(jirix, tmpDir); err != nil {
 		return err
 	}
 	return nil
@@ -117,7 +121,7 @@ func checkPreRequisites() error {
 
 // startXvfb starts Xvfb at the given display and screen resolution.
 // It provides an virtual X11 environment for Chrome to run in.
-func startXvfb(ctx *tool.Context) (*os.Process, error) {
+func startXvfb(jirix *jiri.X) (*runutil.Handle, error) {
 	args := []string{
 		displayFlag,
 		"-screen",
@@ -125,37 +129,36 @@ func startXvfb(ctx *tool.Context) (*os.Process, error) {
 		resolutionFlag,
 		"-ac",
 	}
-	cmd, err := ctx.Start().Command("Xvfb", args...)
+	cmd, err := jirix.NewSeq().Start("Xvfb", args...)
 	if err != nil {
 		return nil, err
 	}
 	// Wait a little bit to make sure it finishes initialization.
 	time.Sleep(time.Second * 5)
-	return cmd.Process, nil
+	return cmd, nil
 }
 
 // startFluxbox starts a light weight windows manager Fluxbox.
 // Without it, Chrome can't be maximized or run in kiosk mode properly.
-func startFluxbox(ctx *tool.Context) error {
+func startFluxbox(jirix *jiri.X) error {
 	args := []string{
 		"-display",
 		displayFlag,
 	}
-	if _, err := ctx.Start().Command("fluxbox", args...); err != nil {
+	if _, err := jirix.NewSeq().Start("fluxbox", args...); err != nil {
 		return err
 	}
 	return nil
 }
 
 // startChrome starts Chrome in a kiosk mode in the given X11 environment.
-func startChrome(ctx *tool.Context) error {
+func startChrome(jirix *jiri.X) error {
 	args := []string{
 		"--kiosk",
 		urlFlag,
 	}
-	opts := ctx.Start().Opts()
-	opts.Env = map[string]string{"DISPLAY": displayFlag}
-	if _, err := ctx.Start().CommandWithOpts(opts, "google-chrome", args...); err != nil {
+	env := map[string]string{"DISPLAY": displayFlag}
+	if _, err := jirix.NewSeq().Env(env).Start("google-chrome", args...); err != nil {
 		return err
 	}
 	return nil
@@ -163,7 +166,7 @@ func startChrome(ctx *tool.Context) error {
 
 // takeScreenshot takes screenshots periodically, and stores them in the given
 // export dir.
-func takeScreenshots(ctx *tool.Context, tmpDir string) error {
+func takeScreenshots(jirix *jiri.X, tmpDir string) error {
 	d, err := time.ParseDuration(screenshotIntervalFlag)
 	if err != nil {
 		return fmt.Errorf("ParseDuration(%s) failed: %v", screenshotIntervalFlag, err)
@@ -172,7 +175,7 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 	scrotArgs := []string{
 		screenshotFile,
 	}
-	s := ctx.NewSeq()
+	s := jirix.NewSeq()
 	env := map[string]string{"DISPLAY": displayFlag}
 	gsutilArgs := []string{
 		"-q",
@@ -183,21 +186,21 @@ func takeScreenshots(ctx *tool.Context, tmpDir string) error {
 	ticker := time.NewTicker(d)
 	for range ticker.C {
 		// Use "scrot" command to take screenshots.
-		fmt.Fprintf(ctx.Stdout(), "[%s]: take screenshot to %q...\n", nowTimestamp(), screenshotFile)
+		fmt.Fprintf(jirix.Stdout(), "[%s]: take screenshot to %q...\n", nowTimestamp(), screenshotFile)
 		if err := s.Env(env).Last("scrot", scrotArgs...); err != nil {
-			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+			fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 			continue
 		}
 
 		// Store the screenshots to export dir.
-		fmt.Fprintf(ctx.Stdout(), "[%s]: copying screenshot to %s...\n", nowTimestamp(), exportDirFlag)
+		fmt.Fprintf(jirix.Stdout(), "[%s]: copying screenshot to %s...\n", nowTimestamp(), exportDirFlag)
 		if strings.HasPrefix(exportDirFlag, "gs://") {
 			if err := s.Last("gsutil", gsutilArgs...); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+				fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 			}
 		} else {
 			if err := s.Rename(screenshotFile, filepath.Join(exportDirFlag, screenshotNameFlag)).Done(); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+				fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 			}
 		}
 	}
