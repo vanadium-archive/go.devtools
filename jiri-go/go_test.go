@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"v.io/jiri/jiritest"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -32,7 +32,7 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 	oldProfilesModeFlag := readerFlags.ProfilesMode
-	readerFlags.ProfilesMode = reader.SkipProfiles
+	readerFlags.ProfilesMode = profilesreader.SkipProfiles
 	defer func() {
 		if err := os.Setenv("GOPATH", oldGoPath); err != nil {
 			t.Error(err)

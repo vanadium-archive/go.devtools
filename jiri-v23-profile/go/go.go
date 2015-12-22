@@ -16,8 +16,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/project"
 	"v.io/x/lib/envvar"
 )
@@ -73,7 +73,7 @@ func init() {
 				"560937434d5f2857bb69e0a6881a38201a197a8d", nil},
 		}, "1.5.1"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -163,7 +163,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 
 	// Merge our target environment and GOROOT
 	goEnv := []string{"GOROOT=" + m.goInstDir.Symbolic()}
-	reader.MergeEnv(reader.ProfileMergePolicies(), env, goEnv)
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, goEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.goInstDir)
 	pdb.InstallProfile(profileName, string(m.goRoot))

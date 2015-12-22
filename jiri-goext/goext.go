@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/commandline"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilescmdline"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
@@ -23,11 +23,11 @@ import (
 
 var (
 	envFlag     bool
-	readerFlags commandline.ReaderFlagValues
+	readerFlags profilescmdline.ReaderFlagValues
 )
 
 func init() {
-	commandline.RegisterReaderFlags(&cmdGoExt.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterReaderFlags(&cmdGoExt.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
 	tool.InitializeRunFlags(&cmdGoExt.Flags)
 }
@@ -55,7 +55,7 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(jirix *jiri.X, _ []string) error {
-	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
+	rd, err := profilesreader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}

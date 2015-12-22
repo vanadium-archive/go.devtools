@@ -16,8 +16,8 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/x/lib/envvar"
 )
 
@@ -36,7 +36,7 @@ func init() {
 			"1.8+": versionSpec{"1.8+"},
 		}, "1.8+"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -89,7 +89,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	}
 	baseTarget := target
 	baseTarget.SetVersion("")
-	if err := manager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", root, baseTarget); err != nil {
+	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", root, baseTarget); err != nil {
 		return err
 	}
 	// NOTE(spetrovic): For now, we install android profile along with Java,
@@ -98,7 +98,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	if err != nil {
 		return err
 	}
-	if err := manager.EnsureProfileTargetIsInstalled(jirix, pdb, "android", root, androidTarget); err != nil {
+	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "android", root, androidTarget); err != nil {
 		return err
 	}
 
@@ -113,7 +113,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	}
 
 	baseProfileEnv := pdb.EnvFromProfile("base", baseTarget)
-	reader.MergeEnv(reader.ProfileMergePolicies(), env, baseProfileEnv, javaProfileEnv)
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, baseProfileEnv, javaProfileEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = javaHome
 	pdb.InstallProfile(profileName, string(m.javaRoot))

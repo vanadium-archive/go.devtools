@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/commandline"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilescmdline"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/golib"
@@ -42,11 +42,11 @@ var (
 	extraLDFlags string
 	systemGoFlag bool
 	envFlag      bool
-	readerFlags  commandline.ReaderFlagValues
+	readerFlags  profilescmdline.ReaderFlagValues
 )
 
 func init() {
-	commandline.RegisterReaderFlags(&cmdGo.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterReaderFlags(&cmdGo.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
@@ -57,11 +57,11 @@ func runGo(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		return jirix.UsageErrorf("not enough arguments")
 	}
-	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
+	rd, err := profilesreader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	profileNames := reader.InitProfilesFromFlag(readerFlags.Profiles, reader.AppendJiriProfile)
+	profileNames := profilesreader.InitProfilesFromFlag(readerFlags.Profiles, profilesreader.AppendJiriProfile)
 	if err := rd.ValidateRequestedProfilesAndTarget(profileNames, readerFlags.Target); err != nil {
 		return err
 	}

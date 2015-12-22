@@ -15,8 +15,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
@@ -79,7 +79,7 @@ func init() {
 			},
 		}, "3"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -167,7 +167,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	}
 
 	baseProfileEnv := pdb.EnvFromProfile("base", dependency)
-	reader.MergeEnv(reader.ProfileMergePolicies(), env, baseProfileEnv)
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, baseProfileEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.ndkRoot)
 	pdb.InstallProfile(profileName, string(m.androidRoot))
@@ -179,7 +179,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, 
 		return err
 	}
 	target.Env.Vars = append(target.Env.Vars, "GOARM=7")
-	if err := manager.EnsureProfileTargetIsUninstalled(jirix, pdb, "base", root, target); err != nil {
+	if err := profilesmanager.EnsureProfileTargetIsUninstalled(jirix, pdb, "base", root, target); err != nil {
 		return err
 	}
 	if err := jirix.NewSeq().RemoveAll(m.androidRoot.Abs(jirix)).Done(); err != nil {
@@ -244,5 +244,5 @@ func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, pdb *profiles.DB, tar
 	if err != nil {
 		return err
 	}
-	return manager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", m.root, androidTarget)
+	return profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", m.root, androidTarget)
 }

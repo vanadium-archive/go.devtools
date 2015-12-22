@@ -22,7 +22,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/jiritest"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/tool"
 )
 
@@ -216,11 +216,11 @@ func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 }
 
 func configureDefaultBuildConfig(jirix *jiri.X, tags []string) (cleanup func(), err error) {
-	rd, err := reader.NewReader(jirix, reader.SkipProfiles, "")
+	rd, err := profilesreader.NewReader(jirix, profilesreader.SkipProfiles, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
 	}
-	rd.MergeEnvFromProfiles(reader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	rd.MergeEnvFromProfiles(profilesreader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	env := rd.Vars
 	prevGOPATH := build.Default.GOPATH
 	prevBuildTags := build.Default.BuildTags

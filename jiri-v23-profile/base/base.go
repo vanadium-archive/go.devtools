@@ -10,8 +10,8 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/x/lib/envvar"
 )
 
@@ -45,7 +45,7 @@ func init() {
 				},
 			}, "1"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -89,7 +89,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := manager.EnsureProfileTargetIsInstalled(jirix, pdb, profile.name, root, dependency); err != nil {
+		if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, profile.name, root, dependency); err != nil {
 			return err
 		}
 		installed := pdb.LookupProfileTarget(profile.name, dependency)
@@ -102,7 +102,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	base := envvar.VarsFromSlice(target.Env.Vars)
 	base.Set("GOARCH", target.Arch())
 	base.Set("GOOS", target.OS())
-	reader.MergeEnv(reader.ProfileMergePolicies(), base, profileEnvs...)
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), base, profileEnvs...)
 	target.Env.Vars = base.ToSlice()
 	pdb.InstallProfile(profileName, root.Symbolic())
 	return pdb.AddProfileTarget(profileName, target)
@@ -115,7 +115,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, 
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := manager.EnsureProfileTargetIsUninstalled(jirix, pdb, profile.name, root, dependency); err != nil {
+		if err := profilesmanager.EnsureProfileTargetIsUninstalled(jirix, pdb, profile.name, root, dependency); err != nil {
 			return err
 		}
 	}

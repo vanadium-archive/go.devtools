@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/commandline"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilescmdline"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
@@ -22,13 +22,13 @@ import (
 )
 
 var (
-	readerFlags commandline.ReaderFlagValues
+	readerFlags profilescmdline.ReaderFlagValues
 	envFlag     bool
 )
 
 func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
-	commandline.RegisterReaderFlags(&cmdRun.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterReaderFlags(&cmdRun.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
 }
 
@@ -52,11 +52,11 @@ func runRun(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		return jirix.UsageErrorf("no command to run")
 	}
-	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
+	rd, err := profilesreader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	profileNames := reader.InitProfilesFromFlag(readerFlags.Profiles, reader.DoNotAppendJiriProfile)
+	profileNames := profilesreader.InitProfilesFromFlag(readerFlags.Profiles, profilesreader.DoNotAppendJiriProfile)
 	if err := rd.ValidateRequestedProfilesAndTarget(profileNames, readerFlags.Target); err != nil {
 		return err
 	}

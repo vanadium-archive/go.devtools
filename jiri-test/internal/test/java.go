@@ -10,7 +10,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/lib/envvar"
 )
@@ -24,12 +24,12 @@ func runJavaTest(jirix *jiri.X, testName string, cwd []string, task string) (_ *
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	rd, err := reader.NewReader(jirix, reader.UseProfiles, ProfilesDBFilename)
+	rd, err := profilesreader.NewReader(jirix, profilesreader.UseProfiles, ProfilesDBFilename)
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
 	target := profiles.NativeTarget()
-	rd.MergeEnvFromProfiles(reader.JiriMergePolicies(), target, "java")
+	rd.MergeEnvFromProfiles(profilesreader.JiriMergePolicies(), target, "java")
 	env := envvar.VarsFromOS()
 	env.Set("JAVA_HOME", rd.Get("JAVA_HOME"))
 	// Run tests.

@@ -18,7 +18,7 @@ import (
 	"regexp"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/goutil"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
@@ -75,7 +75,7 @@ const (
 )
 
 func configureBuilder(jirix *jiri.X) (cleanup func(), err error) {
-	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
+	rd, err := profilesreader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return nil, err
 	}

@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/profiles/profilescmdline"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
@@ -32,7 +32,7 @@ var (
 	oauthBlesserFlag  string
 	adminRoleFlag     string
 	publisherRoleFlag string
-	readerFlags       commandline.ReaderFlagValues
+	readerFlags       profilescmdline.ReaderFlagValues
 )
 
 func init() {
@@ -45,7 +45,7 @@ func init() {
 	cmdTestRun.Flags.StringVar(&pkgsFlag, "pkgs", "", "Comma-separated list of Go package expressions that identify a subset of tests to run; only relevant for Go-based tests")
 	cmdTestRun.Flags.BoolVar(&cleanGoFlag, "clean-go", true, "Specify whether to remove Go object files and binaries before running the tests. Setting this flag to 'false' may lead to faster Go builds, but it may also result in some source code changes not being reflected in the tests (e.g., if the change was made in a different Go workspace).")
 	tool.InitializeRunFlags(&cmdTest.Flags)
-	commandline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 
 }
 

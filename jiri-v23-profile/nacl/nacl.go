@@ -12,7 +12,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
+	"v.io/jiri/profiles/profilesmanager"
 	"v.io/x/lib/envvar"
 )
 
@@ -32,7 +32,7 @@ func init() {
 			"2": &versionSpec{"5e967194049bd1a6f097854f09fcbbbaa21afc05"},
 		}, "2"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {

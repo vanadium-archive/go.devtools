@@ -14,8 +14,8 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
@@ -31,7 +31,7 @@ func init() {
 			"1": "1",
 		}, "1"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -123,7 +123,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	if err != nil {
 		return err
 	}
-	reader.MergeEnv(reader.ProfileMergePolicies(), env, syncbaseEnv)
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, syncbaseEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.syncbaseInstRoot)
 	pdb.InstallProfile(profileName, string(m.syncbaseRoot))

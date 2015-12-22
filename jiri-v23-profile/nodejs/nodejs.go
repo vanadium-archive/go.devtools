@@ -11,7 +11,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
-	"v.io/jiri/profiles/manager"
+	"v.io/jiri/profiles/profilesmanager"
 )
 
 const (
@@ -28,7 +28,7 @@ func init() {
 			"10.24": &versionSpec{"node-v0.10.24"},
 		}, "10.24"),
 	}
-	manager.Register(profileName, m)
+	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {

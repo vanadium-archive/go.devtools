@@ -19,7 +19,7 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -211,7 +211,7 @@ func (PkgsOpt) Opt() {}
 
 // MergePoliciesOpt is an option that specifies merge policies for use
 // when merging environment variables from the environment and from profiles.
-type MergePoliciesOpt reader.MergePolicies
+type MergePoliciesOpt profilesreader.MergePolicies
 
 func (MergePoliciesOpt) Opt() {}
 

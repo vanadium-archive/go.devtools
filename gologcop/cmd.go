@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles/commandline"
-	"v.io/jiri/profiles/reader"
+	"v.io/jiri/profiles/profilescmdline"
+	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 )
@@ -30,7 +30,7 @@ var (
 	removeCallFlag       string
 	injectCallFlag       string
 	injectCallImportFlag string
-	mergePoliciesFlag    reader.MergePolicies
+	mergePoliciesFlag    profilesreader.MergePolicies
 )
 
 const (
@@ -58,8 +58,8 @@ func init() {
 	cmdRoot.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
 	cmdRoot.Flags.BoolVar(&useContextFlag, "use-v23-context", true, "Pass a context.T argument (which must be of type v.io/v23/context.T), if available, to the injected call as its first parameter.")
 
-	mergePoliciesFlag = reader.JiriMergePolicies()
-	commandline.RegisterMergePoliciesFlag(&cmdRoot.Flags, &mergePoliciesFlag)
+	mergePoliciesFlag = profilesreader.JiriMergePolicies()
+	profilescmdline.RegisterMergePoliciesFlag(&cmdRoot.Flags, &mergePoliciesFlag)
 	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
 

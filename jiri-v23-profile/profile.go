@@ -8,7 +8,7 @@
 package main
 
 import (
-	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/profiles/profilescmdline"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
@@ -31,12 +31,12 @@ import (
 var commandLineDriver = &cmdline.Command{
 	Name:  "v23-profile",
 	Short: "Manage profiles",
-	Long:  commandline.HelpMsg,
+	Long:  profilescmdline.HelpMsg(),
 }
 
 func main() {
-	commandline.RegisterManagementCommands(commandLineDriver, v23_profile.DefaultDBFilename)
-	commandline.RegisterReaderCommands(commandLineDriver, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterManagementCommands(commandLineDriver, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterReaderCommands(commandLineDriver, v23_profile.DefaultDBFilename)
 	tool.InitializeRunFlags(&commandLineDriver.Flags)
 	cmdline.Main(commandLineDriver)
 }
