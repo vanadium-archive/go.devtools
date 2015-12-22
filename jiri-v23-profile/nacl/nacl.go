@@ -13,6 +13,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -125,7 +126,7 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 	switch runtime.GOOS {
 	case "darwin":
 	case "linux":
-		if err := profiles.InstallPackages(jirix, []string{"g++", "libc6-i386", "zip"}); err != nil {
+		if err := profilesutil.InstallPackages(jirix, []string{"g++", "libc6-i386", "zip"}); err != nil {
 			return err
 		}
 	}
@@ -142,13 +143,13 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 			Call(func() error { return jirix.Git().Clone(gitRemote, tmpDir) }, "").
 			Call(func() error { return jirix.Git().Reset(m.spec.gitRevision) }, "").
 			Popd().
-			MkdirAll(m.naclRoot.Abs(jirix), profiles.DefaultDirPerm).
+			MkdirAll(m.naclRoot.Abs(jirix), profilesutil.DefaultDirPerm).
 			RemoveAll(naclSrcDir).
 			Rename(tmpDir, naclSrcDir).Done()
 	}
 	// Cloning is slow so we handle it as an atomic action and then create
 	// a copy for the actual build.
-	if err := profiles.AtomicAction(jirix, cloneGoPpapiFn, naclSrcDir, "Clone Go Ppapi repository"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, cloneGoPpapiFn, naclSrcDir, "Clone Go Ppapi repository"); err != nil {
 		return err
 	}
 
@@ -156,9 +157,9 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 	compileGoPpapiFn := func() error {
 		dir := filepath.Dir(naclInstDir)
 		goPpapiCompileScript := filepath.Join(naclInstDir, "src", "make-nacl-amd64p32.sh")
-		return jirix.NewSeq().MkdirAll(dir, profiles.DefaultDirPerm).
+		return jirix.NewSeq().MkdirAll(dir, profilesutil.DefaultDirPerm).
 			Run("cp", "-r", naclSrcDir, naclInstDir).
 			Last(goPpapiCompileScript)
 	}
-	return profiles.AtomicAction(jirix, compileGoPpapiFn, naclInstDir, "Compile Go Ppapi compiler")
+	return profilesutil.AtomicAction(jirix, compileGoPpapiFn, naclInstDir, "Compile Go Ppapi compiler")
 }

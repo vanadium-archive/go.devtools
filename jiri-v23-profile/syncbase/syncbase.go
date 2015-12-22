@@ -16,6 +16,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
@@ -155,7 +156,7 @@ func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
 	default:
 		return fmt.Errorf("%q is not supported", runtime.GOOS)
 	}
-	return profiles.InstallPackages(jirix, pkgs)
+	return profilesutil.InstallPackages(jirix, pkgs)
 }
 
 func getAndroidRoot(pdb *profiles.DB, root jiri.RelPath) (jiri.RelPath, error) {
@@ -286,7 +287,7 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			Env(env).Run("make", "install").
 			Last("make", "distclean")
 	}
-	if err := profiles.AtomicAction(jirix, installSnappyFn, m.snappyInstDir.Abs(jirix), "Build and install Snappy"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, installSnappyFn, m.snappyInstDir.Abs(jirix), "Build and install Snappy"); err != nil {
 		return err
 	}
 
@@ -356,7 +357,7 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 		return s.Run("make", "clean").
 			Env(env).Last("make", "static")
 	}
-	if err := profiles.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Abs(jirix), "Build and install LevelDB"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Abs(jirix), "Build and install LevelDB"); err != nil {
 		return err
 	}
 	return nil

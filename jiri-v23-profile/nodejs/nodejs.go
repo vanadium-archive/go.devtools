@@ -12,6 +12,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesutil"
 )
 
 const (
@@ -99,7 +100,7 @@ func (m *Manager) installNode(jirix *jiri.X, target profiles.Target) error {
 	switch target.OS() {
 	case "darwin":
 	case "linux":
-		if err := profiles.InstallPackages(jirix, []string{"g++"}); err != nil {
+		if err := profilesutil.InstallPackages(jirix, []string{"g++"}); err != nil {
 			return err
 		}
 	default:
@@ -113,5 +114,5 @@ func (m *Manager) installNode(jirix *jiri.X, target profiles.Target) error {
 			Run("make", fmt.Sprintf("-j%d", runtime.NumCPU())).
 			Last("make", "install")
 	}
-	return profiles.AtomicAction(jirix, installNodeFn, m.nodeInstDir.Abs(jirix), "Build and install node.js")
+	return profilesutil.AtomicAction(jirix, installNodeFn, m.nodeInstDir.Abs(jirix), "Build and install node.js")
 }

@@ -15,6 +15,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -244,7 +245,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	}
 
 	seq := jirix.NewSeq()
-	seq.MkdirAll(m.mojoInstDir.Abs(jirix), profiles.DefaultDirPerm).
+	seq.MkdirAll(m.mojoInstDir.Abs(jirix), profilesutil.DefaultDirPerm).
 		Call(func() error { return m.installMojoDevtools(jirix, m.devtoolsDir.Abs(jirix)) }, "install mojo devtools").
 		Call(func() error { return m.installMojoSdk(jirix, m.sdkDir.Abs(jirix)) }, "install mojo SDK").
 		Call(func() error { return m.installMojoShellAndServices(jirix, m.shellDir.Abs(jirix)) }, "install mojo shell and services").
@@ -291,14 +292,14 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, outDir string) erro
 		androidPlatformToolsZipFile := filepath.Join(tmpDir, "platform-tools.zip")
 		return jirix.NewSeq().
 			Call(func() error {
-			return profiles.Fetch(jirix, androidPlatformToolsZipFile, androidPlatformToolsUrl(m.spec.androidPlatformToolsVersion))
+			return profilesutil.Fetch(jirix, androidPlatformToolsZipFile, androidPlatformToolsUrl(m.spec.androidPlatformToolsVersion))
 		}, "fetch android platform tools").
-			Call(func() error { return profiles.Unzip(jirix, androidPlatformToolsZipFile, tmpDir) }, "unzip android platform tools").
-			MkdirAll(filepath.Dir(outDir), profiles.DefaultDirPerm).
+			Call(func() error { return profilesutil.Unzip(jirix, androidPlatformToolsZipFile, tmpDir) }, "unzip android platform tools").
+			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
 			Rename(filepath.Join(tmpDir, "platform-tools"), outDir).
 			Done()
 	}
-	return profiles.AtomicAction(jirix, fn, outDir, "Install Android Platform Tools")
+	return profilesutil.AtomicAction(jirix, fn, outDir, "Install Android Platform Tools")
 }
 
 // installMojoNetworkService installs network_services.mojo into outDir.
@@ -315,9 +316,9 @@ func (m *Manager) installMojoNetworkService(jirix *jiri.X, outDir string) error 
 	outFile := filepath.Join(outDir, "network_service.mojo")
 
 	return jirix.NewSeq().
-		Call(func() error { return profiles.Fetch(jirix, networkServiceZipFile, networkServiceUrl) }, "fetch %s", networkServiceUrl).
-		Call(func() error { return profiles.Unzip(jirix, networkServiceZipFile, tmpDir) }, "unzip network service").
-		MkdirAll(filepath.Dir(outDir), profiles.DefaultDirPerm).
+		Call(func() error { return profilesutil.Fetch(jirix, networkServiceZipFile, networkServiceUrl) }, "fetch %s", networkServiceUrl).
+		Call(func() error { return profilesutil.Unzip(jirix, networkServiceZipFile, tmpDir) }, "unzip network service").
+		MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
 		Rename(tmpFile, outFile).
 		Done()
 }
@@ -326,14 +327,14 @@ func (m *Manager) installMojoNetworkService(jirix *jiri.X, outDir string) error 
 func (m *Manager) installMojoDevtools(jirix *jiri.X, outDir string) error {
 	fn := func() error {
 		return jirix.NewSeq().
-			MkdirAll(outDir, profiles.DefaultDirPerm).
+			MkdirAll(outDir, profilesutil.DefaultDirPerm).
 			Pushd(outDir).
 			Call(func() error { return jirix.Git().Clone(mojoDevtoolsRemote, outDir) }, "git clone %s", mojoDevtoolsRemote).
 			Call(func() error { return jirix.Git().Reset(m.spec.devtoolsVersion) }, "git reset --hard %s", m.spec.devtoolsVersion).
 			Popd().
 			Done()
 	}
-	return profiles.AtomicAction(jirix, fn, outDir, "Install Mojo devtools")
+	return profilesutil.AtomicAction(jirix, fn, outDir, "Install Mojo devtools")
 }
 
 // installMojoSdk clones the mojo_sdk repo into outDir/src/mojo/public.  It
@@ -346,7 +347,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 		// we'll clone into src/mojo/public so that go import paths work.
 		repoDst := filepath.Join(outDir, "src", "mojo", "public")
 		seq.
-			MkdirAll(repoDst, profiles.DefaultDirPerm).
+			MkdirAll(repoDst, profilesutil.DefaultDirPerm).
 			Pushd(repoDst).
 			Call(func() error { return jirix.Git().Clone(mojoSdkRemote, repoDst) }, "git clone %s", mojoSdkRemote).
 			Call(func() error { return jirix.Git().Reset(m.spec.sdkVersion) }, "git reset --hard %s", m.spec.sdkVersion).
@@ -401,7 +402,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 		return seq.Done()
 	}
 
-	return profiles.AtomicAction(jirix, fn, outDir, "Clone Mojo SDK repository")
+	return profilesutil.AtomicAction(jirix, fn, outDir, "Clone Mojo SDK repository")
 }
 
 // installMojoShellAndServices installs the mojo shell and all services into outDir.
@@ -414,14 +415,14 @@ func (m *Manager) installMojoShellAndServices(jirix *jiri.X, outDir string) erro
 
 	fn := func() error {
 		seq := jirix.NewSeq()
-		seq.MkdirAll(outDir, profiles.DefaultDirPerm)
+		seq.MkdirAll(outDir, profilesutil.DefaultDirPerm)
 
 		// Install mojo shell.
 		url := mojoShellUrl(m.platform, m.buildVersion)
 		mojoShellZipFile := filepath.Join(tmpDir, "mojo_shell.zip")
 		seq.
-			Call(func() error { return profiles.Fetch(jirix, mojoShellZipFile, url) }, "fetch %s", url).
-			Call(func() error { return profiles.Unzip(jirix, mojoShellZipFile, tmpDir) }, "unzip %s", mojoShellZipFile)
+			Call(func() error { return profilesutil.Fetch(jirix, mojoShellZipFile, url) }, "fetch %s", url).
+			Call(func() error { return profilesutil.Unzip(jirix, mojoShellZipFile, tmpDir) }, "unzip %s", mojoShellZipFile)
 
 		files := []string{"mojo_shell", "mojo_shell_child"}
 		if m.platform == "android-arm" {
@@ -450,24 +451,24 @@ func (m *Manager) installMojoShellAndServices(jirix *jiri.X, outDir string) erro
 		for _, serviceName := range serviceNames {
 			outFile := filepath.Join(outDir, serviceName)
 			serviceUrl := mojoServiceUrl(m.platform, serviceName, m.buildVersion)
-			seq.Call(func() error { return profiles.Fetch(jirix, outFile, serviceUrl) }, "fetch %s", serviceUrl)
+			seq.Call(func() error { return profilesutil.Fetch(jirix, outFile, serviceUrl) }, "fetch %s", serviceUrl)
 		}
 		return seq.Done()
 	}
 
-	return profiles.AtomicAction(jirix, fn, outDir, "install mojo_shell")
+	return profilesutil.AtomicAction(jirix, fn, outDir, "install mojo_shell")
 }
 
 // installMojoSystemThunks installs the mojo system thunks lib into outDir.
 func (m *Manager) installMojoSystemThunks(jirix *jiri.X, outDir string) error {
 	fn := func() error {
 		outFile := filepath.Join(outDir, "libsystem_thunks.a")
-		return jirix.NewSeq().MkdirAll(outDir, profiles.DefaultDirPerm).
+		return jirix.NewSeq().MkdirAll(outDir, profilesutil.DefaultDirPerm).
 			Call(func() error {
-			return profiles.Fetch(jirix, outFile, mojoSystemThunksUrl(m.platform, m.buildVersion))
+			return profilesutil.Fetch(jirix, outFile, mojoSystemThunksUrl(m.platform, m.buildVersion))
 		}, "fetch mojo system thunks").Done()
 	}
-	return profiles.AtomicAction(jirix, fn, outDir, "Download Mojo system thunks")
+	return profilesutil.AtomicAction(jirix, fn, outDir, "Download Mojo system thunks")
 }
 
 func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {

@@ -18,6 +18,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/jiri/project"
 	"v.io/x/lib/envvar"
 )
@@ -39,16 +40,16 @@ type xbuilder func(*jiri.X, *Manager, jiri.RelPath, profiles.Target, profiles.Ac
 
 var xcompilers = map[xspec]map[xspec]xbuilder{
 	xspec{"amd64", "darwin"}: {
-		xspec{"amd64", "linux"}: darwin_to_linux,
-		xspec{"arm", "linux"}:   darwin_to_linux,
-		xspec{"arm", "android"}: to_android,
-		xspec{"amd64", "android"}:   to_android,
+		xspec{"amd64", "linux"}:   darwin_to_linux,
+		xspec{"arm", "linux"}:     darwin_to_linux,
+		xspec{"arm", "android"}:   to_android,
+		xspec{"amd64", "android"}: to_android,
 	},
 	xspec{"amd64", "linux"}: {
-		xspec{"amd64", "fnl"}:   to_fnl,
-		xspec{"arm", "linux"}:   linux_to_linux,
-		xspec{"arm", "android"}: to_android,
-		xspec{"amd64", "android"}:   to_android,
+		xspec{"amd64", "fnl"}:     to_fnl,
+		xspec{"arm", "linux"}:     linux_to_linux,
+		xspec{"arm", "android"}:   to_android,
+		xspec{"amd64", "android"}: to_android,
 	},
 }
 
@@ -218,14 +219,14 @@ func installGo14(jirix *jiri.X, go14Dir string, env *envvar.Vars) error {
 			Run("tar", "-C", tmpDir, "-xzf", local).
 			Remove(local).
 			RemoveAll(go14Dir).
-			MkdirAll(parentDir, profiles.DefaultDirPerm).Done(); err != nil {
+			MkdirAll(parentDir, profilesutil.DefaultDirPerm).Done(); err != nil {
 			return err
 		}
 		return s.Rename(filepath.Join(tmpDir, "go"), go14Dir).
 			Chdir(goSrcDir).
 			Env(env.ToMap()).Last(makeBin, "--no-clean")
 	}
-	return profiles.AtomicAction(jirix, installGo14Fn, go14Dir, "Build and install Go 1.4")
+	return profilesutil.AtomicAction(jirix, installGo14Fn, go14Dir, "Build and install Go 1.4")
 }
 
 // installGo15Plus installs any version of go past 1.5 at the specified git and go
@@ -256,7 +257,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 			Popd().
 			RemoveAll(goInstDir).
 			Rename(tmpDir, goInstDir).
-			MkdirAll(m.targetDir.Abs(jirix), profiles.DefaultDirPerm).
+			MkdirAll(m.targetDir.Abs(jirix), profilesutil.DefaultDirPerm).
 			Done(); err != nil {
 			return err
 		}
@@ -274,7 +275,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(jirix, installGo15Fn, m.goInstDir.Abs(jirix), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
+	if err := profilesutil.AtomicAction(jirix, installGo15Fn, m.goInstDir.Abs(jirix), "Build and install Go "+version+" @ "+m.spec.gitRevision); err != nil {
 		return err
 	}
 	env.Set("GOROOT_BOOTSTRAP", goBootstrapDir.Symbolic())
@@ -308,7 +309,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 		"automake", "bison", "bzip2", "curl", "flex", "g++", "gawk", "libexpat1-dev",
 		"gettext", "gperf", "libncurses5-dev", "libtool", "subversion", "texinfo",
 	}
-	if err := profiles.InstallPackages(jirix, pkgs); err != nil {
+	if err := profilesutil.InstallPackages(jirix, pkgs); err != nil {
 		return "", nil, err
 	}
 
@@ -323,7 +324,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 			Run("make", "install").
 			Last("make", "distclean")
 	}
-	if err := profiles.AtomicAction(jirix, installNgFn, xtoolInstDir, "Build and install crosstool-ng"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, installNgFn, xtoolInstDir, "Build and install crosstool-ng"); err != nil {
 		return "", nil, err
 	}
 
@@ -352,7 +353,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 		old, new := "/usr/local/vanadium", filepath.Join(m.root.Abs(jirix), "profiles", "cout")
 		newConfig := strings.Replace(string(config), old, new, -1)
 		newConfigFile := filepath.Join(tmpDir, ".config")
-		if err := s.WriteFile(newConfigFile, []byte(newConfig), profiles.DefaultFilePerm).Done(); err != nil {
+		if err := s.WriteFile(newConfigFile, []byte(newConfig), profilesutil.DefaultFilePerm).Done(); err != nil {
 			return fmt.Errorf("WriteFile(%v) failed: %v", newConfigFile, err)
 		}
 
@@ -367,7 +368,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 		// "action completed" file.
 		return s.Chmod(xgccInstDir, dirinfo.Mode()|0755).Done()
 	}
-	if err := profiles.AtomicAction(jirix, installXgccFn, xgccInstDir, "Build arm/linux gcc tools"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, installXgccFn, xgccInstDir, "Build arm/linux gcc tools"); err != nil {
 		return "", nil, err
 	}
 
@@ -375,7 +376,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 	// Create arm/linux gcc symlinks.
 	installLinksFn := func() error {
 		s := jirix.NewSeq()
-		err := s.MkdirAll(linkBinDir, profiles.DefaultDirPerm).
+		err := s.MkdirAll(linkBinDir, profilesutil.DefaultDirPerm).
 			Chdir(xgccLinkInstDir).Done()
 		if err != nil {
 			return err
@@ -397,7 +398,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 		}
 		return nil
 	}
-	if err := profiles.AtomicAction(jirix, installLinksFn, xgccLinkInstDir, "Create gcc symlinks"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, installLinksFn, xgccLinkInstDir, "Create gcc symlinks"); err != nil {
 		return "", nil, err
 	}
 	vars := []string{

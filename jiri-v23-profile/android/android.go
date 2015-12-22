@@ -17,6 +17,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
@@ -51,7 +52,7 @@ func tarExtract(seq runutil.Sequence, src, dst string) runutil.Sequence {
 }
 
 func selfExtract(seq runutil.Sequence, src, dst string) runutil.Sequence {
-	return seq.Chmod(src, profiles.DefaultDirPerm).Run(src, "-y", "-o"+dst)
+	return seq.Chmod(src, profilesutil.DefaultDirPerm).Run(src, "-y", "-o"+dst)
 }
 
 func init() {
@@ -201,7 +202,7 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X, target profiles.Target) (e er
 	default:
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
-	if err := profiles.InstallPackages(jirix, pkgs); err != nil {
+	if err := profilesutil.InstallPackages(jirix, pkgs); err != nil {
 		return err
 	}
 	// Download Android NDK.
@@ -233,7 +234,7 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X, target profiles.Target) (e er
 		ndkArgs := []string{ndkBin, fmt.Sprintf("--platform=android-%d", m.spec.ndkAPILevel), fmt.Sprintf("--arch=%s", archOption), "--install-dir=" + m.ndkRoot.Abs(jirix)}
 		return s.Last("bash", ndkArgs...)
 	}
-	return profiles.AtomicAction(jirix, installNdkFn, m.ndkRoot.Abs(jirix), "Download Android NDK")
+	return profilesutil.AtomicAction(jirix, installNdkFn, m.ndkRoot.Abs(jirix), "Download Android NDK")
 }
 
 // installAndroidTargets installs android targets for other profiles, currently

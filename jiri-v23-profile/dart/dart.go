@@ -13,6 +13,7 @@ import (
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -107,14 +108,14 @@ func (m *Manager) installDartSdk(jirix *jiri.X, target profiles.Target, outDir s
 		sdkZipFile := filepath.Join(tmpDir, "dart-sdk.zip")
 		return jirix.NewSeq().
 			Call(func() error {
-			return profiles.Fetch(jirix, sdkZipFile, sdkUrl)
+			return profilesutil.Fetch(jirix, sdkZipFile, sdkUrl)
 		}, "fetch dart sdk").
-			Call(func() error { return profiles.Unzip(jirix, sdkZipFile, tmpDir) }, "unzip dart sdk").
-			MkdirAll(filepath.Dir(outDir), profiles.DefaultDirPerm).
+			Call(func() error { return profilesutil.Unzip(jirix, sdkZipFile, tmpDir) }, "unzip dart sdk").
+			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
 			Rename(filepath.Join(tmpDir, "dart-sdk"), outDir).
 			Done()
 	}
-	return profiles.AtomicAction(jirix, fn, outDir, "Install Dart SDK")
+	return profilesutil.AtomicAction(jirix, fn, outDir, "Install Dart SDK")
 }
 
 func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {

@@ -12,6 +12,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -77,7 +78,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	// Install packages
 	if !target.CrossCompiling() && target.OS() == "linux" {
-		if err := profiles.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
+		if err := profilesutil.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
 			return err
 		}
 	}

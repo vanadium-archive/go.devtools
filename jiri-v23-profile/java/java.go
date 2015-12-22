@@ -18,6 +18,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
+	"v.io/jiri/profiles/profilesutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -134,7 +135,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, 
 func (m *Manager) install(jirix *jiri.X, target profiles.Target) (string, error) {
 	switch target.OS() {
 	case "darwin":
-		if err := profiles.InstallPackages(jirix, []string{"gradle"}); err != nil {
+		if err := profilesutil.InstallPackages(jirix, []string{"gradle"}); err != nil {
 			return "", err
 		}
 		javaHome, err := getJDKDarwin(jirix, m.spec)
@@ -149,7 +150,7 @@ func (m *Manager) install(jirix *jiri.X, target profiles.Target) (string, error)
 		jirix.NewSeq().Last(javaHomeBin, "-t", "CommandLine", "--request")
 		return "", fmt.Errorf("Please follow the OS X prompt instructions to install JDK, then set JAVA_HOME and re-run the profile installation command.")
 	case "linux":
-		if err := profiles.InstallPackages(jirix, []string{"gradle"}); err != nil {
+		if err := profilesutil.InstallPackages(jirix, []string{"gradle"}); err != nil {
 			return "", err
 		}
 		javaHome, err := getJDKLinux(jirix, m.spec)

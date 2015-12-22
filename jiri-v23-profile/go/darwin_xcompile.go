@@ -16,6 +16,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/profilesutil"
 )
 
 type absoluteLink struct {
@@ -107,13 +108,13 @@ func useLLVM(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Targe
 	binutilsFn := func() error {
 		return jirix.NewSeq().Pushd(src.Abs(jirix)).
 			Pushd(binutilsSrc).
-			MkdirAll(absBinutilsBin, profiles.DefaultDirPerm).
+			MkdirAll(absBinutilsBin, profilesutil.DefaultDirPerm).
 			Run("./configure", "--target="+targetABI, "--program-prefix=",
 			"--prefix="+absBinutilsBin, "--with-sysroot=yes").
 			Run("make", "-j8").
 			Last("make", "install")
 	}
-	if err := profiles.AtomicAction(jirix, binutilsFn, absBinutilsBin, "Build and install binutils"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, binutilsFn, absBinutilsBin, "Build and install binutils"); err != nil {
 		return "", nil, err
 	}
 
@@ -121,7 +122,7 @@ func useLLVM(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Targe
 	absClangSrc := src.Join(clangSrc).Abs(jirix)
 	absLLVMSrc := src.Join(llvmSrc).Abs(jirix)
 	clangFn := func() error {
-		return jirix.NewSeq().MkdirAll(absClangBuildSrc, profiles.DefaultDirPerm).
+		return jirix.NewSeq().MkdirAll(absClangBuildSrc, profilesutil.DefaultDirPerm).
 			Pushd(absClangBuildSrc).
 			Run("cmake", "-GUnix Makefiles", "-DCMAKE_INSTALL_PREFIX="+inst.Abs(jirix),
 			"-DLLVM_TARGETS_TO_BUILD=ARM",
@@ -129,7 +130,7 @@ func useLLVM(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Targe
 			Run("make", "-j8").
 			Last("make", "install")
 	}
-	if err := profiles.AtomicAction(jirix, clangFn, absClangBuildSrc, "Build and install clang"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, clangFn, absClangBuildSrc, "Build and install clang"); err != nil {
 		return "", nil, err
 	}
 
@@ -174,11 +175,11 @@ func useLLVM(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Targe
 	}
 	sysrootCopyFn := func() error {
 		return jirix.NewSeq().
-			MkdirAll(absSysrootTarballDir, profiles.DefaultDirPerm).
+			MkdirAll(absSysrootTarballDir, profilesutil.DefaultDirPerm).
 			Pushd(goSysrootFlag).
 			Last("tar", tarArgs...)
 	}
-	if err := profiles.AtomicAction(jirix, sysrootCopyFn, absSysrootTarballDir, "Copy sysroot"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, sysrootCopyFn, absSysrootTarballDir, "Copy sysroot"); err != nil {
 		return "", nil, err
 	}
 
@@ -189,14 +190,14 @@ func useLLVM(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Targe
 		sysrootRoot := filepath.Join(absSysrootTarballDir, "root")
 		if err := s.Pushd(absSysrootTarballDir).
 			RemoveAll("root").
-			MkdirAll("root", profiles.DefaultDirPerm).
+			MkdirAll("root", profilesutil.DefaultDirPerm).
 			Pushd("root").
 			Last("tar", "zxf", sysrootTGZ); err != nil {
 			return err
 		}
 		return rewriteSysroot(jirix, sysrootRoot)
 	}
-	if err := profiles.AtomicAction(jirix, sysrootConfigFn, absSysroot, "Configure sysroot"); err != nil {
+	if err := profilesutil.AtomicAction(jirix, sysrootConfigFn, absSysroot, "Configure sysroot"); err != nil {
 		return "", nil, err
 	}
 
@@ -279,11 +280,11 @@ func downloadAndUnpackFile(jirix *jiri.X, uri, toRoot string) error {
 		return s.Pushd(tmpDir).
 			Run(downloadCmd[0], downloadCmd[1:]...).
 			Run(unpackCmd[0], unpackCmd[1:]...).
-			MkdirAll(toRoot, profiles.DefaultDirPerm).
+			MkdirAll(toRoot, profilesutil.DefaultDirPerm).
 			Rename(filepath.Join(tmpDir, dirname), toDir).
 			Done()
 	}
-	return profiles.AtomicAction(jirix, fn, toDir, "Download and unpack: "+uri)
+	return profilesutil.AtomicAction(jirix, fn, toDir, "Download and unpack: "+uri)
 }
 
 func rewriteSysroot(jirix *jiri.X, sysroot string) error {
