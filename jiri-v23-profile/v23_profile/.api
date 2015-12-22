@@ -1,1 +1,1 @@
-pkg v23_profile, const DefaultManifestFilename ideal-string
+pkg v23_profile, const DefaultDBFilename ideal-string

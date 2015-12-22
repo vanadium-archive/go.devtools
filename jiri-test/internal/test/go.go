@@ -31,6 +31,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -118,7 +119,7 @@ func goListOpts(opts []Opt) []string {
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case MergePoliciesOpt:
-			ret = append(ret, "-merge-policies="+profiles.MergePolicies(typedOpt).String())
+			ret = append(ret, "-merge-policies="+reader.MergePolicies(typedOpt).String())
 		case jiriGoOpt:
 			ret = append(ret, typedOpt...)
 		}
@@ -478,11 +479,11 @@ var (
 func goListPackagesAndFuncs(jirix *jiri.X, opts []Opt, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(jirix.Stdout(), "listing test packages and functions ... ")
 
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
+	rd, err := reader.NewReader(jirix, reader.UseProfiles, ProfilesDBFilename)
 	if err != nil {
 		return nil, nil, err
 	}
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	rd.MergeEnvFromProfiles(reader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	pkgList, err := goutil.List(jirix, goListOpts(opts), pkgs...)
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
@@ -493,7 +494,7 @@ func goListPackagesAndFuncs(jirix *jiri.X, opts []Opt, pkgs []string, matcher fu
 	pkgsWithTests := []string{}
 
 	buildContext := build.Default
-	buildContext.GOPATH = ch.Get("GOPATH")
+	buildContext.GOPATH = rd.Get("GOPATH")
 	for _, pkg := range pkgList {
 		pi, err := buildContext.Import(pkg, ".", build.ImportMode(0))
 		if err != nil {

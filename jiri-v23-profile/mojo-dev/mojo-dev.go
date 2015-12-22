@@ -15,6 +15,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
 	"v.io/x/lib/envvar"
 )
 
@@ -31,7 +32,7 @@ func init() {
 			"0": nil,
 		}, "0"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -60,7 +61,7 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 	}
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if mojoDir == "" {
 		return fmt.Errorf("flag %q must be set", mojoDirFlagName)
 	}
@@ -92,10 +93,10 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 		})
 	}
 
-	return profiles.AddProfileTarget(profileName, target)
+	return pdb.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
-	profiles.RemoveProfileTarget(profileName, target)
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }

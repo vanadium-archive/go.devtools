@@ -13,15 +13,14 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
 var (
-	// The name of the v23-profile manifest file to use. It is intended
+	// The name of the v23-profile database file to use. It is intended
 	// to be set via a command line flag.
-	ManifestFilename = v23_profile.DefaultManifestFilename
+	ProfilesDBFilename = v23_profile.DefaultDBFilename
 
 	// cleanGo is used to control whether the initTest function removes
 	// all stale Go object files and binaries. It is used to prevent the
@@ -144,17 +143,6 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 	// Install profiles.
 	args := []string{"-v", "v23-profile", "install"}
 	for _, profile := range profileNames {
-		t := profiles.NativeTarget()
-		if len(target) > 0 {
-			var err error
-			t, err = profiles.NewTarget(target)
-			if err != nil {
-				return nil, fmt.Errorf("NewTarget(%v): %v", target, err)
-			}
-		}
-		if profiles.LookupProfileTarget(profile, t) != nil {
-			continue
-		}
 		clargs := append(args, insertTarget(profile)...)
 		fmt.Fprintf(jirix.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
 		if err := s.Last("jiri", clargs...); err != nil {

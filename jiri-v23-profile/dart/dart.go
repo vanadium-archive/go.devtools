@@ -12,6 +12,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
 	"v.io/x/lib/envvar"
 )
 
@@ -38,7 +39,7 @@ func init() {
 			},
 		}, "1.14.0-dev.1.0"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -75,7 +76,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profil
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
@@ -90,9 +91,8 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 	})
 
 	target.InstallationDir = string(m.dartInstDir)
-	profiles.InstallProfile(profileName, string(m.dartRoot))
-
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.dartRoot))
+	return pdb.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) installDartSdk(jirix *jiri.X, target profiles.Target, outDir string) error {
@@ -117,14 +117,14 @@ func (m *Manager) installDartSdk(jirix *jiri.X, target profiles.Target, outDir s
 	return profiles.AtomicAction(jirix, fn, outDir, "Install Dart SDK")
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
 	if err := jirix.NewSeq().RemoveAll(m.dartInstDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
-	profiles.RemoveProfileTarget(profileName, target)
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }
 

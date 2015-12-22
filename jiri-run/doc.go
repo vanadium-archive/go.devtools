@@ -17,13 +17,15 @@ verbatim to the executable.
 The jiri run flags are:
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -skip-profiles=false
    if set, no profiles will be used
@@ -36,9 +38,9 @@ The jiri run flags are:
 The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
+ -print-run-env=false
+   print detailed info on environment variables and the command line used
  -time=false
    Dump timing information to stderr before exiting the program.
- -v=false
-   print verbose debugging information
 */
 package main

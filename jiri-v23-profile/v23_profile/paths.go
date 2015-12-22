@@ -4,6 +4,6 @@
 
 package v23_profile
 
-// DefaultManifestFilename is the default manifest filename used
+// DefaultDBFilename is the default filename used for the profiles database
 // by the jiri-v23-profile subcommand.
-const DefaultManifestFilename = ".jiri_v23_profiles"
+const DefaultDBFilename = ".jiri_v23_profiles"

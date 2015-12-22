@@ -20,6 +20,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
@@ -31,8 +33,7 @@ import (
 var (
 	detailedOutputFlag bool
 	gotoolsBinPathFlag string
-	mergePoliciesFlag  profiles.MergePolicies
-	manifestFlag       string
+	readerFlags        commandline.ReaderFlagValues
 
 	commentRE = regexp.MustCompile("^($|[:space:]*#)")
 )
@@ -40,9 +41,7 @@ var (
 func init() {
 	cmdAPICheck.Flags.BoolVar(&detailedOutputFlag, "detailed", true, "If true, shows each API change in an expanded form. Otherwise, only a summary is shown.")
 	cmdAPI.Flags.StringVar(&gotoolsBinPathFlag, "gotools-bin", "", "The path to the gotools binary to use. If empty, gotools will be built if necessary.")
-	mergePoliciesFlag = profiles.JiriMergePolicies()
-	profiles.RegisterMergePoliciesFlag(&cmdAPI.Flags, &mergePoliciesFlag)
-	profiles.RegisterManifestFlag(&cmdAPI.Flags, &manifestFlag, v23_profile.DefaultManifestFilename)
+	commandline.RegisterReaderFlags(&cmdAPI.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 	tool.InitializeProjectFlags(&cmdAPI.Flags)
 	tool.InitializeRunFlags(&cmdAPI.Flags)
 }
@@ -147,14 +146,14 @@ func buildGotools(jirix *jiri.X) (string, func() error, error) {
 // getCurrentAPI runs the gotools api command against the given directory and
 // returns the bytes that should go into the .api file for that directory.
 func getCurrentAPI(jirix *jiri.X, gotoolsBin, dir string) ([]byte, error) {
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, manifestFlag)
+	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
+	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, profiles.NativeTarget(), "jiri")
 	s := jirix.NewSeq()
 	var output bytes.Buffer
-	if err := s.Capture(&output, nil).Env(ch.ToMap()).Last(gotoolsBin, "goapi", dir); err != nil {
+	if err := s.Capture(&output, nil).Env(rd.ToMap()).Last(gotoolsBin, "goapi", dir); err != nil {
 		return nil, err
 	}
 	return output.Bytes(), nil

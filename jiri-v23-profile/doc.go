@@ -20,17 +20,15 @@ Targets
 Profiles generally refer to uncompiled source code that needs to be compiled for
 a specific "target". Targets hence represent compiled code and consist of:
 
-1. A 'tag' that can be used a short hand for refering to a target
+1. An 'architecture' that refers to the CPU to be generate code for
 
-2. An 'architecture' that refers to the CPU to be generate code for
-
-3. An 'operating system' that refers to the operating system to generate code
+2. An 'operating system' that refers to the operating system to generate code
 for
 
-4. A lexicographically orderd set of supported versions, one of which is
+3. A lexicographically orderd set of supported versions, one of which is
 designated as the default.
 
-5. An 'environment' which is a set of environment variables to use when
+4. An 'environment' which is a set of environment variables to use when
 compiling the profile
 
 Targets thus provide the basic support needed for cross compilation.
@@ -60,14 +58,14 @@ access the environment variables specified and stored in each profile
 installation and a command (recreate) to generate a list of commands that can be
 run to recreate the currently installed profiles.
 
-The Manifest
+The Profiles Database
 
-The profiles packages manages a manifest that tracks the installed profiles and
+The profiles packages manages a database that tracks the installed profiles and
 their configurations. Other command line tools and packages are expected to read
-information about the currently installed profiles from this manifest via the
-profiles package. The profile command line tools support displaying the manifest
+information about the currently installed profiles from this database via the
+profiles package. The profile command line tools support displaying the database
 (via the list command) or for specifying an alternate version of the file (via
-the -manifest flag) which is generally useful for debugging.
+the -profiles-db flag) which is generally useful for debugging.
 
 Adding Profiles
 
@@ -81,11 +79,11 @@ Usage:
 
 The jiri v23-profile commands are:
    install     Install the given profiles
-   list        List available or installed profiles
-   env         Display profile environment variables
    uninstall   Uninstall the given profiles
    update      Install the latest default version of the given profiles
    cleanup     Cleanup the locally installed profiles
+   list        List available or installed profiles
+   env         Display profile environment variables
    help        Display help for commands or topics
 
 The jiri v23-profile flags are:
@@ -114,13 +112,11 @@ Usage:
 The jiri v23-profile install flags are:
  -env=
    specifcy an environment variable in the form: <var>=[<val>],...
- -go.sysroot-image=
-   sysroot image for cross compiling to the currently specified target
- -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
-   a colon separated list of directories to use from the sysroot image
- -mojo-dev.dir=
-   Path of mojo repo checkout.
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -force=false
+   force install the profile even if it is already installed
+ -profile-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
@@ -132,6 +128,88 @@ The jiri v23-profile install flags are:
    Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
+
+Jiri v23-profile uninstall - Uninstall the given profiles
+
+Uninstall the given profiles.
+
+Usage:
+   jiri v23-profile uninstall [flags] <profiles>
+
+<profiles> is a list of profiles to uninstall.
+
+The jiri v23-profile uninstall flags are:
+ -all-targets=false
+   apply to all targets for the specified profile(s)
+ -profile-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+ -v=false
+   print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
+Jiri v23-profile update - Install the latest default version of the given profiles
+
+Install the latest default version of the given profiles.
+
+Usage:
+   jiri v23-profile update [flags] <profiles>
+
+<profiles> is a list of profiles to update, if omitted all profiles are updated.
+
+The jiri v23-profile update flags are:
+ -profile-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -v=false
+   print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
+Jiri v23-profile cleanup - Cleanup the locally installed profiles
+
+Cleanup the locally installed profiles. This is generally required when
+recovering from earlier bugs or when preparing for a subsequent change to the
+profiles implementation.
+
+Usage:
+   jiri v23-profile cleanup [flags] <profiles>
+
+<profiles> is a list of profiles to cleanup, if omitted all profiles are
+cleaned.
+
+The jiri v23-profile cleanup flags are:
+ -ensure-specific-versions-are-set=false
+   ensure that profile targets have a specific version set
+ -gc=false
+   uninstall profile targets that are older than the current default
+ -profile-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -rewrite-profiles-manifest=false
+   rewrite the profiles manifest file to use the latest schema version
+ -rm-all=false
+   remove profiles manifest and all profile generated output files.
+ -v=false
+   print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
 
 Jiri v23-profile list - List available or installed profiles
 
@@ -146,6 +224,8 @@ specifically requested.
 The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
  -info=
    The following fields for use with --profile-info are available:
    	SchemaVersion - the version of the profiles implementation.
@@ -160,10 +240,16 @@ The jiri v23-profile list flags are:
    	Profile.DefaultVersion - the default version of the requested profile.
    	Profile.LatestVersion - the latest version available for the requested profile.
    	Note: if no profiles are specified then the requested field will be displayed for all profiles.
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
- -show-profiles-manifest=false
-   print out the manifest file
+ -show-profiles-db=false
+   print out the profiles database file
+ -skip-profiles=false
+   if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
@@ -192,95 +278,19 @@ Usage:
 display
 
 The jiri v23-profile env flags are:
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -profiles=base,jiri
    a comma separated list of profiles to use
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form:
    <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
- -v=false
-   print more detailed information
-
- -color=true
-   Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
-
-Jiri v23-profile uninstall - Uninstall the given profiles
-
-Uninstall the given profiles.
-
-Usage:
-   jiri v23-profile uninstall [flags] <profiles>
-
-<profiles> is a list of profiles to uninstall.
-
-The jiri v23-profile uninstall flags are:
- -all-targets=false
-   apply to all targets for the specified profile(s)
- -go.sysroot-image=
-   sysroot image for cross compiling to the currently specified target
- -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
-   a colon separated list of directories to use from the sysroot image
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
- -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
-
- -color=true
-   Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
- -v=false
-   Print verbose output.
-
-Jiri v23-profile update - Install the latest default version of the given profiles
-
-Install the latest default version of the given profiles.
-
-Usage:
-   jiri v23-profile update [flags] <profiles>
-
-<profiles> is a list of profiles to update, if omitted all profiles are updated.
-
-The jiri v23-profile update flags are:
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
- -v=false
-   print more detailed information
-
- -color=true
-   Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
-
-Jiri v23-profile cleanup - Cleanup the locally installed profiles
-
-Cleanup the locally installed profiles. This is generally required when
-recovering from earlier bugs or when preparing for a subsequent change to the
-profiles implementation.
-
-Usage:
-   jiri v23-profile cleanup [flags] <profiles>
-
-<profiles> is a list of profiles to cleanup, if omitted all profiles are
-cleaned.
-
-The jiri v23-profile cleanup flags are:
- -ensure-specific-versions-are-set=false
-   ensure that profile targets have a specific version set
- -gc=false
-   uninstall profile targets that are older than the current default
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
- -rewrite-profiles-manifest=false
-   rewrite the profiles manifest file to use the latest schema version
- -rm-all=false
-   remove profiles manifest and all profile generated output files.
  -v=false
    print more detailed information
 

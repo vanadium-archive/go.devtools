@@ -9,7 +9,9 @@ package main
 
 import (
 	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
+	"v.io/x/lib/cmdline"
 
 	// Add profile manager implementations here.
 	_ "v.io/x/devtools/jiri-v23-profile/android"
@@ -24,10 +26,17 @@ import (
 	_ "v.io/x/devtools/jiri-v23-profile/syncbase"
 )
 
-func init() {
-	commandline.Init(v23_profile.DefaultManifestFilename)
+// commandLineDriver implements the command line for the 'v23-profile'
+// subcommand.
+var commandLineDriver = &cmdline.Command{
+	Name:  "v23-profile",
+	Short: "Manage profiles",
+	Long:  commandline.HelpMsg,
 }
 
 func main() {
-	commandline.Main("v23-profile")
+	commandline.RegisterManagementCommands(commandLineDriver, v23_profile.DefaultDBFilename)
+	commandline.RegisterReaderCommands(commandLineDriver, v23_profile.DefaultDBFilename)
+	tool.InitializeRunFlags(&commandLineDriver.Flags)
+	cmdline.Main(commandLineDriver)
 }

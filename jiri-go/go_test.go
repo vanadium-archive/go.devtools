@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"v.io/jiri/jiritest"
-	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/jiri/util"
@@ -31,13 +31,13 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	if err := os.Setenv("GOPATH", ""); err != nil {
 		t.Fatal(err)
 	}
-	oldProfilesModeFlag := profilesModeFlag
-	profilesModeFlag = profiles.SkipProfiles
+	oldProfilesModeFlag := readerFlags.ProfilesMode
+	readerFlags.ProfilesMode = reader.SkipProfiles
 	defer func() {
 		if err := os.Setenv("GOPATH", oldGoPath); err != nil {
 			t.Error(err)
 		}
-		profilesModeFlag = oldProfilesModeFlag
+		readerFlags.ProfilesMode = oldProfilesModeFlag
 	}()
 
 	fake, cleanup := jiritest.NewFakeJiriRoot(t)

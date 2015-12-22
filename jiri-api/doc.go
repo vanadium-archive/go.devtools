@@ -20,6 +20,8 @@ The jiri api commands are:
 The jiri api flags are:
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -29,8 +31,15 @@ The jiri api flags are:
    specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
@@ -57,6 +66,8 @@ The jiri api check flags are:
 
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -66,8 +77,15 @@ The jiri api check flags are:
    specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
@@ -84,6 +102,8 @@ project APIs are updated.
 The jiri api fix flags are:
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -93,8 +113,15 @@ The jiri api fix flags are:
    specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 

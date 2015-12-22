@@ -79,7 +79,7 @@ func testGenerate(t *testing.T, gendir, srcdir, name string) {
 	env := cmdline.EnvFromOS()
 	// We want to prepend the GOPATH value in the environment to that used
 	// by the jiri tool.
-	if err := cmdline.ParseAndRun(cmdTestGenerate, env, []string{"--merge-policies=:GOPATH", "-prefix=" + prefix, "v.io/x/devtools/jiri-test/testdata/generate/" + name}); err != nil {
+	if err := cmdline.ParseAndRun(cmdTest, env, []string{"--merge-policies=:GOPATH", "generate", "-prefix=" + prefix, "v.io/x/devtools/jiri-test/testdata/generate/" + name}); err != nil {
 		t.Fatal(err)
 	}
 	// Validate generated files.

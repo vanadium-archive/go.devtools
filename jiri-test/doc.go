@@ -21,8 +21,21 @@ The jiri test commands are:
 The jiri test flags are:
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
@@ -64,8 +77,6 @@ Usage:
 list of go packages
 
 The jiri test generate flags are:
- -merge-policies=
-   specify policies for merging environment variables
  -prefix=v23
    Specifies the prefix to use for generated files. Up to two files may
    generated, the defaults are v23_test.go and v23_internal_test.go, or
@@ -75,8 +86,21 @@ The jiri test generate flags are:
 
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
@@ -95,8 +119,21 @@ Usage:
 The jiri test project flags are:
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
@@ -117,8 +154,6 @@ The jiri test run flags are:
    tests. Setting this flag to 'false' may lead to faster Go builds, but it may
    also result in some source code changes not being reflected in the tests
    (e.g., if the change was made in a different Go workspace).
- -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
-   specify policies for merging environment variables
  -num-test-workers=<runtime.NumCPU()>
    Set the number of test workers to use; use 1 to serialize all tests.
  -output-dir=
@@ -128,15 +163,26 @@ The jiri test run flags are:
  -pkgs=
    Comma-separated list of Go package expressions that identify a subset of
    tests to run; only relevant for Go-based tests
- -profiles-manifest=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 
@@ -150,8 +196,21 @@ Usage:
 The jiri test list flags are:
  -color=true
    Use color to format output.
+ -env=
+   specifcy an environment variable in the form: <var>=[<val>],...
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
  -n=false
    Show what commands will run but do not execute them.
+ -profiles=base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
+   specify the profiles XML manifest filename.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form:
+   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
  -v=false
    Print verbose output.
 

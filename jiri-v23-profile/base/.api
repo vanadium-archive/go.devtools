@@ -1,6 +1,6 @@
 pkg base, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg base, method (*Manager) Install(*jiri.X, jiri.RelPath, profiles.Target) error
-pkg base, method (*Manager) Uninstall(*jiri.X, jiri.RelPath, profiles.Target) error
+pkg base, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg base, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
 pkg base, method (Manager) Info() string
 pkg base, method (Manager) Name() string
 pkg base, method (Manager) String() string

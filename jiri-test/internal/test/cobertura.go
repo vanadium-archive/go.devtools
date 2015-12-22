@@ -14,6 +14,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/util"
 )
 
@@ -75,13 +76,13 @@ func coverageFromGoTestOutput(jirix *jiri.X, testOutput io.Reader) (*testCoverag
 	if err != nil {
 		return nil, err
 	}
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
+	rd, err := reader.NewReader(jirix, reader.UseProfiles, ProfilesDBFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	rd.MergeEnvFromProfiles(reader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
 	var out bytes.Buffer
-	if err := jirix.NewSeq().Read(testOutput).Capture(&out, nil).Env(ch.ToMap()).Last(bin); err != nil {
+	if err := jirix.NewSeq().Read(testOutput).Capture(&out, nil).Env(rd.ToMap()).Last(bin); err != nil {
 		return nil, err
 	}
 	var coverage testCoverage

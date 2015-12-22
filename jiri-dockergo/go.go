@@ -15,7 +15,8 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/golib"
@@ -65,22 +66,16 @@ such as invoking the VDL compiler on packages to generate up-to-date .go files.
 }
 
 var (
-	imageFlag                  string
-	manifestFlag, profilesFlag string
-	profilesModeFlag           profiles.ProfilesMode
-	targetFlag                 profiles.Target
-	extraLDFlags               string
-	mergePoliciesFlag          profiles.MergePolicies
-	verboseFlag                bool
+	imageFlag    string
+	extraLDFlags string
+	readerFlags  commandline.ReaderFlagValues
 )
 
 const dockerBin = "docker"
 
 func init() {
 	tool.InitializeRunFlags(&cmd.Flags)
-	mergePoliciesFlag = profiles.JiriMergePolicies()
-	profiles.RegisterProfileFlags(&cmd.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &mergePoliciesFlag,
-		&targetFlag)
+	commandline.RegisterReaderFlags(&cmd.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 	flag.StringVar(&imageFlag, "image", "", "Name of the docker image to use. If empty, the tool will automatically select an image based on the environment variables, possibly edited by the profile")
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 }
@@ -89,21 +84,21 @@ func runGo(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		return jirix.UsageErrorf("not enough arguments")
 	}
-	ch, err := profiles.NewConfigHelper(jirix, profilesModeFlag, manifestFlag)
+	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	profileNames := profiles.InitProfilesFromFlag(profilesFlag, profiles.DoNotAppendJiriProfile)
-	if err := ch.ValidateRequestedProfilesAndTarget(profileNames, targetFlag); err != nil {
+	profileNames := reader.InitProfilesFromFlag(readerFlags.Profiles, reader.DoNotAppendJiriProfile)
+	if err := rd.ValidateRequestedProfilesAndTarget(profileNames, readerFlags.Target); err != nil {
 		return err
 	}
-	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
-	if verboseFlag {
-		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", profileNames)
-		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
-		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, readerFlags.Target, "jiri")
+	if jirix.Verbose() {
+		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", readerFlags.Profiles)
+		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", readerFlags.MergePolicies)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(rd.ToSlice(), "\n"))
 	}
-	envMap := ch.ToMap()
+	envMap := rd.ToMap()
 	// docker can only be used to build linux binaries
 	if os, exists := envMap["GOOS"]; exists && os != "linux" {
 		return fmt.Errorf("Only GOOS=linux is supported, not %q", os)
@@ -121,7 +116,7 @@ func runGo(jirix *jiri.X, args []string) error {
 		return err
 	}
 	var installSuffix string
-	if targetFlag.OS() == "fnl" {
+	if readerFlags.Target.OS() == "fnl" {
 		installSuffix = "musl"
 	}
 	if args, err = golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix); err != nil {

@@ -14,23 +14,21 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
 var (
-	manifestFlag      string
-	verboseFlag       bool
-	mergePoliciesFlag profiles.MergePolicies
+	envFlag     bool
+	readerFlags commandline.ReaderFlagValues
 )
 
 func init() {
-	mergePoliciesFlag = profiles.JiriMergePolicies()
-	profiles.RegisterMergePoliciesFlag(&cmdGoExt.Flags, &mergePoliciesFlag)
-	profiles.RegisterManifestFlag(&cmdGoExt.Flags, &manifestFlag, v23_profile.DefaultManifestFilename)
-	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
+	commandline.RegisterReaderFlags(&cmdGoExt.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
 	tool.InitializeRunFlags(&cmdGoExt.Flags)
 }
 
@@ -57,23 +55,23 @@ packages that no longer exist in the source tree.
 }
 
 func runGoExtDistClean(jirix *jiri.X, _ []string) error {
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, manifestFlag)
+	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
+	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, readerFlags.Target, "jiri")
 	failed := false
-	if verboseFlag {
-		fmt.Fprintf(jirix.Stdout(), "GOPATH:\n%s\n", strings.Join(ch.GetTokens("GOPATH", ":"), "\n"))
-		fmt.Fprintf(jirix.Stdout(), "Jiri Root: %v\n", ch.Root())
+	if envFlag {
+		fmt.Fprintf(jirix.Stdout(), "GOPATH:\n%s\n", strings.Join(rd.GetTokens("GOPATH", ":"), "\n"))
+		fmt.Fprintf(jirix.Stdout(), "Jiri Root: %v\n", jirix.Root)
 	}
-	for _, workspace := range ch.GetTokens("GOPATH", ":") {
-		if !strings.HasPrefix(workspace, ch.Root()) {
+	for _, workspace := range rd.GetTokens("GOPATH", ":") {
+		if !strings.HasPrefix(workspace, jirix.Root) {
 			continue
 		}
 		for _, name := range []string{"bin", "pkg"} {
 			dir := filepath.Join(workspace, name)
-			if verboseFlag {
+			if envFlag {
 				fmt.Fprintf(jirix.Stdout(), "removing: %s\n", dir)
 			}
 			if err := jirix.NewSeq().RemoveAll(dir).Done(); err != nil {

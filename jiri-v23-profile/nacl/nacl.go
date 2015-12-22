@@ -12,6 +12,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
 	"v.io/x/lib/envvar"
 )
 
@@ -31,7 +32,7 @@ func init() {
 			"2": &versionSpec{"5e967194049bd1a6f097854f09fcbbbaa21afc05"},
 		}, "2"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -83,11 +84,11 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
 	}
-	if p := profiles.LookupProfileTarget(profileName, target); p != nil {
+	if p := pdb.LookupProfileTarget(profileName, target); p != nil {
 		fmt.Fprintf(jirix.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
 		return nil
 	}
@@ -100,11 +101,11 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 		"GOROOT=" + m.naclInstDir.Symbolic(),
 	})
 	target.InstallationDir = string(m.naclInstDir)
-	profiles.InstallProfile(profileName, string(m.naclRoot))
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.naclRoot))
+	return pdb.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	// ignore errors to allow for older installs to be removed.
 	m.initForTarget(jirix, "uninstalled", root, &target)
 
@@ -113,7 +114,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Ta
 		RemoveAll(m.naclSrcDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
-	if profiles.RemoveProfileTarget(profileName, target) {
+	if pdb.RemoveProfileTarget(profileName, target) {
 		return s.RemoveAll(m.naclRoot.Abs(jirix)).Done()
 	}
 	return nil

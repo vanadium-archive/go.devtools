@@ -16,6 +16,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/project"
 	"v.io/x/lib/envvar"
 )
@@ -71,7 +73,7 @@ func init() {
 				"560937434d5f2857bb69e0a6881a38201a197a8d", nil},
 		}, "1.5.1"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -120,7 +122,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profil
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
@@ -161,14 +163,14 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 
 	// Merge our target environment and GOROOT
 	goEnv := []string{"GOROOT=" + m.goInstDir.Symbolic()}
-	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, goEnv)
+	reader.MergeEnv(reader.ProfileMergePolicies(), env, goEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.goInstDir)
-	profiles.InstallProfile(profileName, string(m.goRoot))
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.goRoot))
+	return pdb.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
@@ -187,7 +189,7 @@ func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Ta
 	if err := s.RemoveAll(m.targetDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
-	if profiles.RemoveProfileTarget(profileName, target) {
+	if pdb.RemoveProfileTarget(profileName, target) {
 		// If there are no more targets then remove the entire go directory,
 		// including the bootstrap one.
 		return s.RemoveAll(m.goRoot.Abs(jirix)).Done()

@@ -18,7 +18,7 @@ import (
 	"regexp"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/goutil"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
@@ -33,7 +33,6 @@ var (
 func init() {
 	cmdTestGenerate.Flags.StringVar(&prefixFlag, "prefix", defaultV23TestPrefix, "Specifies the prefix to use for generated files. Up to two files may generated, the defaults are v23_test.go and v23_internal_test.go, or <prefix>_test.go and <prefix>_internal_test.go.")
 	cmdTestGenerate.Flags.BoolVar(&progressFlag, "progress", false, "Print verbose progress information.")
-	profiles.RegisterMergePoliciesFlag(&cmdTestGenerate.Flags, &mergePoliciesFlag)
 }
 
 var cmdTestGenerate = &cmdline.Command{
@@ -76,24 +75,26 @@ const (
 )
 
 func configureBuilder(jirix *jiri.X) (cleanup func(), err error) {
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, jiriTest.ManifestFilename)
+	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.MergeEnvFromProfiles(mergePoliciesFlag, profiles.NativeTarget(), "jiri")
+	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, readerFlags.Target, "jiri")
 	prevGOPATH := build.Default.GOPATH
 	cleanup = func() {
 		build.Default.GOPATH = prevGOPATH
 	}
-	build.Default.GOPATH = ch.Get("GOPATH")
+	build.Default.GOPATH = rd.Get("GOPATH")
 	return cleanup, nil
 }
 
 func runTestGenerate(jirix *jiri.X, args []string) error {
+	jiriTest.ProfilesDBFilename = readerFlags.DBFilename
+
 	// Delete all files we're going to generate, to start with a clean slate.  We
 	// do this first to avoid any issues where packages in the cache might include
 	// the generated files.
-	dirs, err := goutil.ListDirs(jirix, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	dirs, err := goutil.ListDirs(jirix, []string{"--merge-policies=" + readerFlags.MergePolicies.String()}, args...)
 	if err != nil {
 		return jirix.UsageErrorf("failed to list %v: %v", args, err)
 	}
@@ -108,7 +109,7 @@ func runTestGenerate(jirix *jiri.X, args []string) error {
 	}
 
 	// Now list the package paths and generate each one.
-	paths, err := goutil.List(jirix, []string{"--merge-policies=" + mergePoliciesFlag.String()}, args...)
+	paths, err := goutil.List(jirix, []string{"--merge-policies=" + readerFlags.MergePolicies.String()}, args...)
 	if err != nil {
 		return jirix.UsageErrorf("failed to list %v: %v", args, err)
 	}

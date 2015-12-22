@@ -1,6 +1,6 @@
 pkg java, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg java, method (*Manager) Install(*jiri.X, jiri.RelPath, profiles.Target) error
-pkg java, method (*Manager) Uninstall(*jiri.X, jiri.RelPath, profiles.Target) error
+pkg java, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg java, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
 pkg java, method (Manager) Info() string
 pkg java, method (Manager) Name() string
 pkg java, method (Manager) String() string

@@ -14,7 +14,8 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/commandline"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/golib"
@@ -38,20 +39,17 @@ VDL generated files are regenerated before compilation.
 }
 
 var (
-	manifestFlag, profilesFlag string
-	systemGoFlag, verboseFlag  bool
-	profilesModeFlag           profiles.ProfilesMode
-	targetFlag                 profiles.Target
-	extraLDFlags               string
-	mergePoliciesFlag          profiles.MergePolicies
+	extraLDFlags string
+	systemGoFlag bool
+	envFlag      bool
+	readerFlags  commandline.ReaderFlagValues
 )
 
 func init() {
-	mergePoliciesFlag = profiles.JiriMergePolicies()
-	profiles.RegisterProfileFlags(&cmdGo.Flags, &profilesModeFlag, &manifestFlag, &profilesFlag, v23_profile.DefaultManifestFilename, &mergePoliciesFlag, &targetFlag)
+	commandline.RegisterReaderFlags(&cmdGo.Flags, &readerFlags, v23_profile.DefaultDBFilename)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
-	flag.BoolVar(&verboseFlag, "v", false, "print verbose debugging information")
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
+	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
 	tool.InitializeRunFlags(&cmdGo.Flags)
 }
 
@@ -59,28 +57,28 @@ func runGo(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		return jirix.UsageErrorf("not enough arguments")
 	}
-	ch, err := profiles.NewConfigHelper(jirix, profilesModeFlag, manifestFlag)
+	rd, err := reader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	profileNames := profiles.InitProfilesFromFlag(profilesFlag, profiles.AppendJiriProfile)
-	if err := ch.ValidateRequestedProfilesAndTarget(profileNames, targetFlag); err != nil {
+	profileNames := reader.InitProfilesFromFlag(readerFlags.Profiles, reader.AppendJiriProfile)
+	if err := rd.ValidateRequestedProfilesAndTarget(profileNames, readerFlags.Target); err != nil {
 		return err
 	}
-	ch.MergeEnvFromProfiles(mergePoliciesFlag, targetFlag, profileNames...)
+	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, readerFlags.Target, profileNames...)
 	if !systemGoFlag {
-		if len(ch.Get("GOROOT")) > 0 {
-			ch.PrependToPATH(filepath.Join(ch.Get("GOROOT"), "bin"))
+		if len(rd.Get("GOROOT")) > 0 {
+			rd.PrependToPATH(filepath.Join(rd.Get("GOROOT"), "bin"))
 		}
 	}
-	if verboseFlag {
+	if envFlag {
 		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", profileNames)
-		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", mergePoliciesFlag)
-		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(ch.ToSlice(), "\n"))
+		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", readerFlags.MergePolicies)
+		fmt.Fprintf(jirix.Stdout(), "%v\n", strings.Join(rd.ToSlice(), "\n"))
 	}
-	envMap := ch.ToMap()
+	envMap := rd.ToMap()
 	var installSuffix string
-	if targetFlag.OS() == "fnl" {
+	if readerFlags.Target.OS() == "fnl" {
 		installSuffix = "musl"
 	}
 	if args, err = golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix); err != nil {
@@ -91,7 +89,7 @@ func runGo(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	if verboseFlag {
+	if envFlag {
 		fmt.Fprintf(jirix.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
 	}
 	err = jirix.NewSeq().Env(envMap).Capture(jirix.Stdout(), jirix.Stderr()).Last(goBin, args...)

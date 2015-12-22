@@ -15,6 +15,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
@@ -77,7 +79,7 @@ func init() {
 			},
 		}, "3"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -132,58 +134,58 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
 	}
-	if p := profiles.LookupProfileTarget(profileName, target); p != nil {
+	if p := pdb.LookupProfileTarget(profileName, target); p != nil {
 		fmt.Fprintf(jirix.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
 		return nil
 	}
 	if err := m.installAndroidNDK(jirix, target); err != nil {
 		return err
 	}
-	profiles.InstallProfile(profileName, string(m.androidRoot))
-	if err := profiles.AddProfileTarget(profileName, target); err != nil {
+	pdb.InstallProfile(profileName, string(m.androidRoot))
+	if err := pdb.AddProfileTarget(profileName, target); err != nil {
 		return err
 	}
 
 	// Install android targets for other profiles.
 	dependency := target
+
 	dependency.SetVersion("4")
-	if err := m.installAndroidBaseTargets(jirix, dependency); err != nil {
+	if err := m.installAndroidBaseTargets(jirix, pdb, dependency); err != nil {
 		return err
 	}
 
 	// Merge the target and baseProfile environments.
 	env := envvar.VarsFromSlice(target.Env.Vars)
-
 	if target.Arch() == "amd64" {
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
 		ldflags = append(ldflags, m.ndkRoot.Join("x86_64-linux-android", "lib64", "libstdc++.a").Symbolic())
 		env.SetTokens("CGO_LDFLAGS", ldflags, " ")
 	}
 
-	baseProfileEnv := profiles.EnvFromProfile(dependency, "base")
-	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, baseProfileEnv)
+	baseProfileEnv := pdb.EnvFromProfile("base", dependency)
+	reader.MergeEnv(reader.ProfileMergePolicies(), env, baseProfileEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.ndkRoot)
-	profiles.InstallProfile(profileName, string(m.androidRoot))
-	return profiles.UpdateProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.androidRoot))
+	return pdb.UpdateProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "uninstalled", root, &target); err != nil {
 		return err
 	}
 	target.Env.Vars = append(target.Env.Vars, "GOARM=7")
-	if err := profiles.EnsureProfileTargetIsUninstalled(jirix, "base", root, target); err != nil {
+	if err := manager.EnsureProfileTargetIsUninstalled(jirix, pdb, "base", root, target); err != nil {
 		return err
 	}
 	if err := jirix.NewSeq().RemoveAll(m.androidRoot.Abs(jirix)).Done(); err != nil {
 		return err
 	}
-	profiles.RemoveProfileTarget(profileName, target)
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }
 
@@ -236,11 +238,11 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X, target profiles.Target) (e er
 
 // installAndroidTargets installs android targets for other profiles, currently
 // just the base profile (i.e. go and syncbase.)
-func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, target profiles.Target) (e error) {
+func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, pdb *profiles.DB, target profiles.Target) (e error) {
 	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", m.ndkRoot.Symbolic())
-	androidTarget, err := profiles.NewTargetWithEnv(target.String(), env)
+	androidTarget, err := profiles.NewTarget(target.String(), env)
 	if err != nil {
 		return err
 	}
-	return profiles.EnsureProfileTargetIsInstalled(jirix, "base", m.root, androidTarget)
+	return manager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", m.root, androidTarget)
 }

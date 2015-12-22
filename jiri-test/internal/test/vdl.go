@@ -13,6 +13,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/reader"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -35,14 +36,14 @@ func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 	}
 
 	// Check that "vdl audit --lang=go all" produces no output.
-	ch, err := profiles.NewConfigHelper(jirix, profiles.UseProfiles, ManifestFilename)
+	rd, err := reader.NewReader(jirix, reader.UseProfiles, ProfilesDBFilename)
 	if err != nil {
 		return nil, err
 	}
-	ch.MergeEnvFromProfiles(profiles.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
-	env := ch.ToMap()
-	env["VDLROOT"] = filepath.Join(ch.Root(), "release", "go", "src", "v.io", "v23", "vdlroot")
-	vdl := filepath.Join(ch.Root(), "release", "go", "bin", "vdl")
+	rd.MergeEnvFromProfiles(reader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	env := rd.ToMap()
+	env["VDLROOT"] = filepath.Join(jirix.Root, "release", "go", "src", "v.io", "v23", "vdlroot")
+	vdl := filepath.Join(jirix.Root, "release", "go", "bin", "vdl")
 	var out bytes.Buffer
 	err = s.Env(env).Capture(&out, &out).Last(vdl, "audit", "--lang=go", "all")
 	output := strings.TrimSpace(out.String())

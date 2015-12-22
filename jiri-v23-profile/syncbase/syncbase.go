@@ -14,6 +14,8 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
+	"v.io/jiri/profiles/reader"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/envvar"
 )
@@ -29,7 +31,7 @@ func init() {
 			"1": "1",
 		}, "1"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -108,12 +110,12 @@ func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, 
 	return env.ToSlice(), nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	m.initForTarget(jirix, root, target)
 	if err := m.installDependencies(jirix, target.Arch(), target.OS()); err != nil {
 		return err
 	}
-	if err := m.installCommon(jirix, root, target); err != nil {
+	if err := m.installCommon(jirix, pdb, root, target); err != nil {
 		return err
 	}
 	env := envvar.VarsFromSlice(target.Env.Vars)
@@ -121,21 +123,21 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 	if err != nil {
 		return err
 	}
-	profiles.MergeEnv(profiles.ProfileMergePolicies(), env, syncbaseEnv)
+	reader.MergeEnv(reader.ProfileMergePolicies(), env, syncbaseEnv)
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(m.syncbaseInstRoot)
-	profiles.InstallProfile(profileName, string(m.syncbaseRoot))
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.syncbaseRoot))
+	return pdb.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	m.initForTarget(jirix, root, target)
 	if err := jirix.NewSeq().
 		RemoveAll(m.snappyInstDir.Abs(jirix)).
 		RemoveAll(m.leveldbInstDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
-	profiles.RemoveProfileTarget(profileName, target)
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }
 
@@ -156,18 +158,18 @@ func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
 	return profiles.InstallPackages(jirix, pkgs)
 }
 
-func getAndroidRoot(root jiri.RelPath) (jiri.RelPath, error) {
+func getAndroidRoot(pdb *profiles.DB, root jiri.RelPath) (jiri.RelPath, error) {
 	rp := jiri.NewRelPath()
-	androidProfile := profiles.LookupProfile("android")
+	androidProfile := pdb.LookupProfile("android")
 	if androidProfile == nil {
 		return rp, fmt.Errorf("android profile is not installed")
 	}
-	return rp.Join(androidProfile.Root), nil
+	return rp.Join(androidProfile.Root()), nil
 }
 
-func initClangEnv(jirix *jiri.X, target profiles.Target) (map[string]string, error) {
+func initClangEnv(jirix *jiri.X, pdb *profiles.DB, target profiles.Target) (map[string]string, error) {
 	target.SetVersion("")
-	goProfile := profiles.LookupProfileTarget("go", target)
+	goProfile := pdb.LookupProfileTarget("go", target)
 	if goProfile == nil {
 		return nil, fmt.Errorf("go profile is not installed for %s", target)
 	}
@@ -206,7 +208,7 @@ func ndkArch(goArch string) (string, error) {
 }
 
 // installSyncbaseCommon installs the syncbase profile.
-func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profiles.Target) (e error) {
+func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) (e error) {
 	// Build and install Snappy.
 	installSnappyFn := func() error {
 		s := jirix.NewSeq()
@@ -233,7 +235,7 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
 		case target.OS() == "android":
-			androidRoot, err := getAndroidRoot(root)
+			androidRoot, err := getAndroidRoot(pdb, root)
 			if err != nil {
 				return err
 			}
@@ -264,7 +266,7 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			args = append(args, "--host=amd64-linux")
 		case target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux":
-			clangEnv, err := initClangEnv(jirix, target)
+			clangEnv, err := initClangEnv(jirix, pdb, target)
 			if err != nil {
 				return err
 			}
@@ -312,7 +314,7 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
 		} else if target.OS() == "android" {
-			androidRoot, err := getAndroidRoot(root)
+			androidRoot, err := getAndroidRoot(pdb, root)
 			if err != nil {
 				return err
 			}
@@ -340,7 +342,7 @@ func (m *Manager) installCommon(jirix *jiri.X, root jiri.RelPath, target profile
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			env["AR"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-ar")
 		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
-			clangEnv, err := initClangEnv(jirix, target)
+			clangEnv, err := initClangEnv(jirix, pdb, target)
 			if err != nil {
 				return err
 			}

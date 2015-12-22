@@ -10,6 +10,8 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
+	"v.io/jiri/profiles/reader"
 	"v.io/x/lib/envvar"
 )
 
@@ -43,7 +45,7 @@ func init() {
 				},
 			}, "1"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -72,7 +74,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	// Install packages
 	if !target.CrossCompiling() && target.OS() == "linux" {
 		if err := profiles.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
@@ -87,10 +89,10 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := profiles.EnsureProfileTargetIsInstalled(jirix, profile.name, root, dependency); err != nil {
+		if err := manager.EnsureProfileTargetIsInstalled(jirix, pdb, profile.name, root, dependency); err != nil {
 			return err
 		}
-		installed := profiles.LookupProfileTarget(profile.name, dependency)
+		installed := pdb.LookupProfileTarget(profile.name, dependency)
 		if installed == nil {
 			return fmt.Errorf("%s %s should have been installed, but apparently is not", profile.name, dependency)
 		}
@@ -100,22 +102,23 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 	base := envvar.VarsFromSlice(target.Env.Vars)
 	base.Set("GOARCH", target.Arch())
 	base.Set("GOOS", target.OS())
-	profiles.MergeEnv(profiles.ProfileMergePolicies(), base, profileEnvs...)
+	reader.MergeEnv(reader.ProfileMergePolicies(), base, profileEnvs...)
 	target.Env.Vars = base.ToSlice()
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, root.Symbolic())
+	return pdb.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}
 	for _, profile := range m.spec.dependencies {
 		dependency := target
 		dependency.SetVersion(profile.version)
-		if err := profiles.EnsureProfileTargetIsUninstalled(jirix, profile.name, root, dependency); err != nil {
+		if err := manager.EnsureProfileTargetIsUninstalled(jirix, pdb, profile.name, root, dependency); err != nil {
 			return err
 		}
 	}
-	profiles.RemoveProfileTarget(profileName, target)
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }

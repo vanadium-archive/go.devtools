@@ -11,6 +11,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
 )
 
 const (
@@ -27,7 +28,7 @@ func init() {
 			"10.24": &versionSpec{"node-v0.10.24"},
 		}, "10.24"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -68,7 +69,7 @@ func (m *Manager) initForTarget(root jiri.RelPath, target profiles.Target) error
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
@@ -79,18 +80,18 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 		return err
 	}
 	target.InstallationDir = string(m.nodeInstDir)
-	profiles.InstallProfile(profileName, string(m.nodeRoot))
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.nodeRoot))
+	return pdb.AddProfileTarget(profileName, target)
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
 	}
 	if err := jirix.NewSeq().RemoveAll(m.nodeInstDir.Abs(jirix)).Done(); err != nil {
 		return err
 	}
-	profiles.RemoveProfileTarget(profileName, target)
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }
 

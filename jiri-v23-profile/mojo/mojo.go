@@ -14,6 +14,7 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/manager"
 	"v.io/x/lib/envvar"
 )
 
@@ -158,7 +159,7 @@ func init() {
 			},
 		}, "4"),
 	}
-	profiles.Register(profileName, m)
+	manager.Register(profileName, m)
 }
 
 type Manager struct {
@@ -237,7 +238,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, root jiri.RelPath, target *profil
 	return nil
 }
 
-func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, root, &target); err != nil {
 		return err
 	}
@@ -274,8 +275,8 @@ func (m *Manager) Install(jirix *jiri.X, root jiri.RelPath, target profiles.Targ
 	}
 
 	target.InstallationDir = string(m.mojoInstDir)
-	profiles.InstallProfile(profileName, string(m.mojoRoot))
-	return profiles.AddProfileTarget(profileName, target)
+	pdb.InstallProfile(profileName, string(m.mojoRoot))
+	return pdb.AddProfileTarget(profileName, target)
 }
 
 // installAndroidPlatformTools installs the android platform tools in outDir.
@@ -469,12 +470,12 @@ func (m *Manager) installMojoSystemThunks(jirix *jiri.X, outDir string) error {
 	return profiles.AtomicAction(jirix, fn, outDir, "Download Mojo system thunks")
 }
 
-func (m *Manager) Uninstall(jirix *jiri.X, root jiri.RelPath, target profiles.Target) error {
+func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	// TODO(nlacasse): What should we do with all the installed artifacts?
 	// They could be used by other profile versions, so deleting them does not
 	// make sense.  Should we check that they are only used by this profile
 	// before deleting?
-	profiles.RemoveProfileTarget(profileName, target)
+	pdb.RemoveProfileTarget(profileName, target)
 	return nil
 }
 

@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"v.io/jiri/jiri"
-	"v.io/jiri/profiles"
+	"v.io/jiri/profiles/commandline"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
@@ -32,7 +32,7 @@ var (
 	oauthBlesserFlag  string
 	adminRoleFlag     string
 	publisherRoleFlag string
-	mergePoliciesFlag profiles.MergePolicies
+	readerFlags       commandline.ReaderFlagValues
 )
 
 func init() {
@@ -44,10 +44,9 @@ func init() {
 	cmdTestRun.Flags.IntVar(&partFlag, "part", -1, "Specify which part of the test to run.")
 	cmdTestRun.Flags.StringVar(&pkgsFlag, "pkgs", "", "Comma-separated list of Go package expressions that identify a subset of tests to run; only relevant for Go-based tests")
 	cmdTestRun.Flags.BoolVar(&cleanGoFlag, "clean-go", true, "Specify whether to remove Go object files and binaries before running the tests. Setting this flag to 'false' may lead to faster Go builds, but it may also result in some source code changes not being reflected in the tests (e.g., if the change was made in a different Go workspace).")
-	profiles.RegisterManifestFlag(&cmdTestRun.Flags, &jiriTest.ManifestFilename, v23_profile.DefaultManifestFilename)
-	mergePoliciesFlag = profiles.JiriMergePolicies()
-	profiles.RegisterMergePoliciesFlag(&cmdTestRun.Flags, &mergePoliciesFlag)
 	tool.InitializeRunFlags(&cmdTest.Flags)
+	commandline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+
 }
 
 // cmdTest represents the "jiri test" command.
@@ -74,6 +73,7 @@ specified using the basename of the URL (e.g. "vanadium.go.core" implies
 }
 
 func runTestProject(jirix *jiri.X, args []string) error {
+	jiriTest.ProfilesDBFilename = readerFlags.DBFilename
 	if len(args) != 1 {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
@@ -102,6 +102,7 @@ var cmdTestRun = &cmdline.Command{
 }
 
 func runTestRun(jirix *jiri.X, args []string) error {
+	jiriTest.ProfilesDBFilename = readerFlags.DBFilename
 	if len(args) == 0 {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
@@ -136,7 +137,7 @@ func optsFromFlags() (opts []jiriTest.Opt) {
 		jiriTest.NumWorkersOpt(numWorkersFlag),
 		jiriTest.OutputDirOpt(outputDirFlag),
 		jiriTest.CleanGoOpt(cleanGoFlag),
-		jiriTest.MergePoliciesOpt(mergePoliciesFlag),
+		jiriTest.MergePoliciesOpt(readerFlags.MergePolicies),
 	)
 	return
 }
@@ -167,6 +168,7 @@ var cmdTestList = &cmdline.Command{
 }
 
 func runTestList(jirix *jiri.X, _ []string) error {
+	jiriTest.ProfilesDBFilename = readerFlags.DBFilename
 	testList, err := jiriTest.ListTests()
 	if err != nil {
 		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
