@@ -24,6 +24,14 @@ func runMakefileTestWithNacl(jirix *jiri.X, testName, testDir, target string, en
 	return runMakefileTest(jirix, testName, testDir, target, env, profiles, timeout)
 }
 
+// vanadiumBakuTest runs the tests for the Baku toolkit.
+// NOTE: A new file for Baku tests should be added if this becomes more
+// complicated than simply running `make test`.
+func vanadiumBakuTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	testDir := filepath.Join(jirix.Root, "release", "projects", "baku")
+	return runMakefileTest(jirix, testName, testDir, "test", nil, nil, defaultProjectTestTimeout)
+}
+
 // vanadiumBrowserTest runs the tests for the Vanadium browser.
 func vanadiumBrowserTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	env := map[string]string{

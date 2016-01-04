@@ -76,6 +76,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"third_party-go-test":                     thirdPartyGoTest,
 	"third_party-go-race":                     thirdPartyGoRace,
 	"vanadium-android-build":                  vanadiumAndroidBuild,
+	"vanadium-baku-test":                      vanadiumBakuTest,
 	"vanadium-bootstrap":                      vanadiumBootstrap,
 	"vanadium-browser-test":                   vanadiumBrowserTest,
 	"vanadium-browser-test-web":               vanadiumBrowserTestWeb,

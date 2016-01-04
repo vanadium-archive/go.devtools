@@ -20,6 +20,11 @@ import (
 var (
 	mirrors = []Mirror{
 		Mirror{
+			name:         "baku",
+			googlesource: "https://vanadium.googlesource.com/release.projects.baku",
+			github:       "git@github.com:vanadium/baku.git",
+		},
+		Mirror{
 			name:         "browser",
 			googlesource: "https://vanadium.googlesource.com/release.projects.browser",
 			github:       "git@github.com:vanadium/browser.git",

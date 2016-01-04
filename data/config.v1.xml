@@ -21,6 +21,7 @@
     <project>release.mojo.shared</project>
     <project>release.mojo.syncbase</project>
     <project>release.mojo.v23proxy</project>
+    <project>release.projects.baku</project>
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
     <project>release.projects.croupier</project>
