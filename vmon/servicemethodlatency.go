@@ -5,17 +5,15 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
-	"path/filepath"
 	"regexp"
+	"sort"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
@@ -23,52 +21,62 @@ import (
 
 var (
 	latMethodRE = regexp.MustCompile(`.*/methods/([^/]*)/.*`)
-	statsSuffix = "/__debug/stats/rpc/server/routing-id/*/methods/*/latency-ms/delta1m"
+	statsSuffix = "__debug/stats/rpc/server/routing-id/*/methods/*/latency-ms/delta1m"
 )
 
-type perMethodLatencyInfo struct {
-	name       string
-	objectName string
+type perMethodLatencyData struct {
+	location *monitoring.ServiceLocation
+	latency  map[string]float64
 }
 
-// checkAllServicePerMethodLatency checks service per-method RPC latency and
+// checkServicePerMethodLatency checks service per-method RPC latency and
 // adds the results to GCM.
-func checkAllServicePerMethodLatency(ctx *tool.Context) error {
-	infos := []perMethodLatencyInfo{
-		perMethodLatencyInfo{
-			name:       "mounttable",
-			objectName: namespaceRootFlag,
-		},
-		perMethodLatencyInfo{
-			name:       "binaries",
-			objectName: namespaceRootFlag + "/binaries",
-		},
-		perMethodLatencyInfo{
-			name:       "applications",
-			objectName: namespaceRootFlag + "/applications",
-		},
-		perMethodLatencyInfo{
-			name:       "groups",
-			objectName: namespaceRootFlag + "/groups",
-		},
-		perMethodLatencyInfo{
-			name:       "proxy-mon",
-			objectName: namespaceRootFlag + "/proxy-mon",
-		},
+func checkServicePerMethodLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
+	serviceNames := []string{
+		snMounttable,
+		snBinaries,
+		snApplications,
+		snIdentity,
+		snGroups,
+		snRole,
+		// TODO(jingjin): not working when talking to resolved address.
+		// Figure out why.
+		// snProxy,
 	}
 
 	hasError := false
-	for _, info := range infos {
-		if latPerMethod, err := checkOneServicePerMethodLatency(ctx, info); err != nil {
-			if runutil.IsTimeout(err) {
-				test.Warn(ctx, "%s: [TIMEOUT]\n", info.name)
-			} else {
-				test.Fail(ctx, "%s\n", info.name)
-				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
-			}
+	mdLatPerMethod := monitoring.CustomMetricDescriptors["service-permethod-latency"]
+	now := time.Now().Format(time.RFC3339)
+	for _, serviceName := range serviceNames {
+		if lats, err := checkSingleServicePerMethodLatency(ctx, serviceName); err != nil {
+			test.Fail(ctx, "%s\n", serviceName)
+			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
 		} else {
-			test.Pass(ctx, "%s:\n     - Per method: %v\n", info.name, latPerMethod)
+			for _, lat := range lats {
+				label := fmt.Sprintf("%s (%s, %s)", serviceName, lat.location.Instance, lat.location.Zone)
+				result := ""
+				methods := []string{}
+				for m := range lat.latency {
+					methods = append(methods, m)
+				}
+				sort.Strings(methods)
+				for _, m := range methods {
+					result += fmt.Sprintf("     - %s: %f\n", m, lat.latency[m])
+				}
+				test.Pass(ctx, "%s:\n%s\n", label, result)
+
+				// Send to GCM.
+				for _, m := range methods {
+					curLat := lat.latency[m]
+					if curLat == 0 {
+						continue
+					}
+					if err := sendDataToGCM(s, mdLatPerMethod, curLat, now, lat.location.Instance, lat.location.Zone, serviceName, m); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
 	if hasError {
@@ -77,92 +85,67 @@ func checkAllServicePerMethodLatency(ctx *tool.Context) error {
 	return nil
 }
 
-func checkOneServicePerMethodLatency(ctx *tool.Context, info perMethodLatencyInfo) (map[string]float64, error) {
-	// Run "debug stats read" for the corresponding object.
-	debug := filepath.Join(binDirFlag, "debug")
-	var buf bytes.Buffer
-	var stderr bytes.Buffer
-	args := []string{
-		"--v23.credentials",
-		credentialsFlag,
-		"stats",
-		"read",
-		"-json",
-		info.objectName + statsSuffix,
-	}
-	if err := ctx.NewSeq().Capture(&buf, &stderr).Timeout(timeout).
-		Last(debug, args...); err != nil {
-		if !runutil.IsTimeout(err) {
-			return nil, fmt.Errorf("debug command failed: %v\n%s", err, stderr.String())
-		}
-		fmt.Fprintf(ctx.Stdout(), "%s %s TIMED OUT: %s\n", debug, args, stderr.String())
-		return nil, err
-	}
-
-	// Parse output.
-	var stats []struct {
-		Name  string
-		Value struct {
-			Count float64
-			Sum   float64
-		}
-	}
-	latPerMethod := map[string]float64{}
-	if err := json.Unmarshal(buf.Bytes(), &stats); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal() failed: %v", err)
-	}
-	for _, s := range stats {
-		matches := latMethodRE.FindStringSubmatch(s.Name)
-		if matches == nil {
-			continue
-		}
-		method := matches[1]
-		latency := 0.0
-		if s.Value.Count != 0 {
-			latency = s.Value.Sum / s.Value.Count
-		}
-		latPerMethod[method] = math.Max(latPerMethod[method], latency)
-	}
-
-	// Send data to GCM.
-	serviceLocation := monitoring.ServiceLocationMap[namespaceRootFlag]
-	if serviceLocation == nil {
-		return nil, fmt.Errorf("service location not found for %q", namespaceRootFlag)
-	}
-	mdLatPerMethod := monitoring.CustomMetricDescriptors["service-permethod-latency"]
-	s, err := monitoring.Authenticate(keyFileFlag)
+func checkSingleServicePerMethodLatency(ctx *tool.Context, serviceName string) ([]perMethodLatencyData, error) {
+	mountedName, err := getMountedName(serviceName)
 	if err != nil {
 		return nil, err
 	}
-	timeStr := time.Now().Format(time.RFC3339)
-	for method, lat := range latPerMethod {
-		if lat == 0 {
-			continue
-		}
-		_, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-			Timeseries: []*cloudmonitoring.TimeseriesPoint{
-				&cloudmonitoring.TimeseriesPoint{
-					Point: &cloudmonitoring.Point{
-						DoubleValue: lat,
-						Start:       timeStr,
-						End:         timeStr,
-					},
-					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-						Metric: mdLatPerMethod.Name,
-						Labels: map[string]string{
-							mdLatPerMethod.Labels[0].Key: serviceLocation.Instance,
-							mdLatPerMethod.Labels[1].Key: serviceLocation.Zone,
-							mdLatPerMethod.Labels[2].Key: info.name,
-							mdLatPerMethod.Labels[3].Key: method,
-						},
-					},
-				},
-			},
-		}).Do()
-		if err != nil {
-			return nil, fmt.Errorf("Timeseries Write failed: %v", err)
-		}
+
+	// Resolve name and group results by routing ids.
+	groups, err := resolveAndProcessServiceName(ctx, serviceName, mountedName)
+	if err != nil {
+		return nil, err
 	}
 
-	return latPerMethod, nil
+	// Get per-method latency for each group.
+	latencies := []perMethodLatencyData{}
+	for _, group := range groups {
+		latency := map[string]float64{}
+		availableName := group[0]
+		for _, name := range group {
+			// Run "debug stats read" for the corresponding object.
+			if output, err := getStat(ctx, fmt.Sprintf("%s/%s", name, statsSuffix), true); err == nil {
+				// Parse output.
+				var stats []struct {
+					Name  string
+					Value struct {
+						Count float64
+						Sum   float64
+					}
+				}
+				latPerMethod := map[string]float64{}
+				if err := json.Unmarshal([]byte(output), &stats); err != nil {
+					return nil, fmt.Errorf("json.Unmarshal() failed: %v", err)
+				}
+				for _, s := range stats {
+					matches := latMethodRE.FindStringSubmatch(s.Name)
+					if matches == nil {
+						continue
+					}
+					method := matches[1]
+					latency := 0.0
+					if s.Value.Count != 0 {
+						latency = s.Value.Sum / s.Value.Count
+					}
+					latPerMethod[method] = math.Max(latPerMethod[method], latency)
+				}
+				latency = latPerMethod
+				availableName = name
+				break
+			}
+		}
+		if len(latency) == 0 {
+			return nil, fmt.Errorf("failed to check latency for service %q", serviceName)
+		}
+		location, err := getServiceLocation(ctx, availableName, serviceName)
+		if err != nil {
+			return nil, err
+		}
+		latencies = append(latencies, perMethodLatencyData{
+			location: location,
+			latency:  latency,
+		})
+	}
+
+	return latencies, nil
 }
