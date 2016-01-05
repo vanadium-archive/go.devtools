@@ -1,16 +1,3 @@
 <godepcop>
-  <!-- The packages under devtools are used during daily development.  It is
-       very painful when these packages cannot be built, since common operations
-       such as bootstrapping the codebase, sending code reviews and running
-       presubmit and integration tests will no longer work.
-
-       Most packages follow the strict rule of only allowing dependencies on
-       devtools itself and v.io/x/lib, to reduce the exposure to breakage. -->
-  <pkg allow="golang.org/x/oauth2/..."/>
-  <pkg allow="google.golang.org/cloud/..."/>
-  <pkg allow="v.io/jiri/..."/>
-  <pkg allow="v.io/v23/..."/>
-  <pkg allow="v.io/x/devtools/..."/>
-  <pkg allow="v.io/x/lib/..."/>
-  <pkg deny="..."/>
+  <pkg allow="..."/>
 </godepcop>

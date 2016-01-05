@@ -42,7 +42,8 @@ func checkServiceLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
 		snGoogleIdentity,
 		snBinaryDischarger,
 		snRole,
-		snProxy,
+		// snProxy,
+		// TODO(jingjin): this is pretty flaky. Figure out why.
 		snGroups,
 	}
 

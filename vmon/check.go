@@ -12,8 +12,10 @@ import (
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/jiri/tool"
+	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/v23cmd"
 )
 
 // checkFunctions is a map from check names to the corresponding check functions.
@@ -40,13 +42,13 @@ var cmdCheck = &cmdline.Command{
 
 // cmdCheckList represents the "vmon check list" command.
 var cmdCheckList = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runCheckList),
+	Runner: v23cmd.RunnerFunc(runCheckList),
 	Name:   "list",
 	Short:  "List known checks",
 	Long:   "List known checks.",
 }
 
-func runCheckList(env *cmdline.Env, _ []string) error {
+func runCheckList(_ *context.T, env *cmdline.Env, _ []string) error {
 	checks := []string{}
 	for name := range checkFunctions {
 		checks = append(checks, name)
@@ -60,7 +62,7 @@ func runCheckList(env *cmdline.Env, _ []string) error {
 
 // cmdCheckRun represents the "vmon check run" command.
 var cmdCheckRun = &cmdline.Command{
-	Runner:   cmdline.RunnerFunc(runCheckRun),
+	Runner:   v23cmd.RunnerFunc(runCheckRun),
 	Name:     "run",
 	Short:    "Run the given checks",
 	Long:     "Run the given checks.",
@@ -68,7 +70,7 @@ var cmdCheckRun = &cmdline.Command{
 	ArgsLong: "<names> is a list of names identifying the checks to run. Available: " + strings.Join(knownCheckNames(), ", "),
 }
 
-func runCheckRun(env *cmdline.Env, args []string) error {
+func runCheckRun(_ *context.T, env *cmdline.Env, args []string) error {
 	// Check args.
 	for _, arg := range args {
 		if _, ok := checkFunctions[arg]; !ok {

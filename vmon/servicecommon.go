@@ -33,12 +33,13 @@ const (
 	snProxy            = "proxy service"
 	snGroups           = "groups service"
 
-	defaultZone        = "us-central1-c"
 	hostnameStatSuffix = "__debug/stats/system/hostname"
+	zoneStatSuffix     = "__debug/stats/system/gce/zone"
 )
 
 var (
 	hostnameRE = regexp.MustCompile(`^.*/hostname: (.*)`)
+	zoneRE     = regexp.MustCompile(`^.*/zone: .*/zones/(.*)`)
 )
 
 // serviceMountedNames is a map from human-readable service names to their
@@ -54,23 +55,6 @@ var serviceMountedNames = map[string]string{
 	snRole:             "identity/role",
 	snProxy:            "proxy-mon",
 	snGroups:           "groups",
-}
-
-// serviceZones records the zones of all services.
-//
-// It is a two-level map.
-// The key of the first level is the project name.
-// The key of the second level is the service name, and the corresponding value
-// is the zone name.
-//
-// If a service is not found in the corresponding project map, it is located at
-// the default zone (see "defaultZone" variable above).
-//
-// TODO(jingjin): make service export its project and zone, just like the
-// hostname.
-var serviceZones = map[string]map[string]string{
-	"vanadium-production": map[string]string{},
-	"vanadium-staging":    map[string]string{},
 }
 
 func getMountedName(serviceName string) (string, error) {
@@ -132,7 +116,8 @@ func resolveAndProcessServiceName(ctx *tool.Context, serviceName, serviceMounted
 		groups["-"] = []string{serviceMountedName}
 	} else {
 		for _, resolvedName := range resolvedNames {
-			ep, err := v23.NewEndpoint(resolvedName)
+			serverName, _ := naming.SplitAddressName(resolvedName)
+			ep, err := v23.NewEndpoint(serverName)
 			if err != nil {
 				return nil, err
 			}
@@ -153,7 +138,7 @@ func getServiceLocation(ctx *tool.Context, name, serviceName string) (*monitorin
 	// Check "__debug/stats/system/metadata/hostname" stat to get service's
 	// host name.
 	serverName, _ := naming.SplitAddressName(name)
-	hostnameStat := fmt.Sprintf("%s/%s", serverName, hostnameStatSuffix)
+	hostnameStat := fmt.Sprintf("/%s/%s", serverName, hostnameStatSuffix)
 	output, err := getStat(ctx, hostnameStat, false)
 	if err != nil {
 		return nil, err
@@ -164,15 +149,18 @@ func getServiceLocation(ctx *tool.Context, name, serviceName string) (*monitorin
 	}
 	hostname := matches[1]
 
-	// Look up zone from serviceZones map.
-	zone := defaultZone
-	if _, ok := serviceZones[projectFlag]; !ok {
-		return nil, fmt.Errorf("invalid project: %s", projectFlag)
+	// Check "__debug/stats/system/gce/zone" stat to get service's
+	// zone name.
+	zoneStat := fmt.Sprintf("/%s/%s", serverName, zoneStatSuffix)
+	output, err = getStat(ctx, zoneStat, false)
+	if err != nil {
+		return nil, err
 	}
-	z, ok := serviceZones[projectFlag][serviceName]
-	if ok {
-		zone = z
+	matches = zoneRE.FindStringSubmatch(output)
+	if matches == nil {
+		return nil, fmt.Errorf("invalid stat: %s", output)
 	}
+	zone := matches[1]
 
 	return &monitoring.ServiceLocation{
 		Instance: hostname,
