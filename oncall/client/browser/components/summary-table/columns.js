@@ -89,11 +89,13 @@ function genCellsInZoneLevel(state, data) {
       var metricKey = curMetric.metricKey;
       if (!Util.isEmptyObj(instanceData[dataKey])) {
         var metricData = instanceData[dataKey][metricKey];
-        if (metricData.MinTime < minTime) {
-          minTime = metricData.MinTime;
-        }
-        if (metricData.MaxTime > maxTime) {
-          maxTime = metricData.MaxTime;
+        if (metricData) {
+          if (metricData.MinTime < minTime) {
+            minTime = metricData.MinTime;
+          }
+          if (metricData.MaxTime > maxTime) {
+            maxTime = metricData.MaxTime;
+          }
         }
       }
     });
@@ -135,12 +137,20 @@ function genCellsInZoneLevel(state, data) {
 function renderCell(state, cellData, minTime, maxTime,
     dataKey, metricKey, column, zone) {
   var data = cellData[dataKey][metricKey];
+  var health = 'unhealthy';
+  if (data) {
+    health = (data.Healthy ? 'healthy' : 'unhealthy');
+  }
+
   // 100 is the default logical width of any svg graphs.
+  var points = '0,100 100,100';
   var mouseOffset = 100 * state.mouseMoveCellData.offsetFactor;
   var mouseEventData = {column: column, dataKey: dataKey, metricKey: metricKey};
-  var points = Util.genPolylinePoints(
+  if (data && data.HistoryTimestamps) {
+    points = Util.genPolylinePoints(
       data.HistoryTimestamps, data.HistoryValues,
       minTime, maxTime, data.MinValue, data.MaxValue);
+  }
 
   // Show mouse line based on the dataKey type (CloudService or Nginx).
   var mouseMoveOnCloudServices =
@@ -150,14 +160,15 @@ function renderCell(state, cellData, minTime, maxTime,
       ((dataKey.startsWith('CloudService') && mouseMoveOnCloudServices) ||
        (dataKey.startsWith('Nginx') && mouseMoveOnNginx)));
 
-  var curValue = data.CurrentValue;
+  var curValue = data ? data.CurrentValue : 0;
   var curValueClass = 'value';
-  if (showMouseLine) {
+  if (data && showMouseLine) {
     curValue = Util.interpolateValue(
         data.CurrentValue, state.mouseMoveCellData.offsetFactor,
         data.HistoryTimestamps, data.HistoryValues);
     curValueClass += '.history';
   }
+  var formattedCurValue = data ? Util.formatValue(curValue) : '?';
   var items = [
     h('div.highlight-overlay'),
     h('div.mouse-line', showMouseLine ? renderMouseLine(mouseOffset) : []),
@@ -166,11 +177,10 @@ function renderCell(state, cellData, minTime, maxTime,
           state.channels.mouseMoveOnSparkline, mouseEventData),
       'ev-mouseout': hg.send(state.channels.mouseOutOfSparkline)
     }, renderSparkline(points)),
-    h('div.' + curValueClass, Util.formatValue(curValue))
+    h('div.' + curValueClass, formattedCurValue)
   ];
 
-  var cellClassName =
-      'zone-col-cell.cell.' + (data.Healthy ? 'healthy' : 'unhealthy');
+  var cellClassName = 'zone-col-cell.cell.' + health;
   return h('div.' + cellClassName, {
     'ev-mouseout': hg.send(state.channels.mouseOutOfTableCell),
     'ev-mouseover': hg.send(state.channels.mouseOverTableCell, mouseEventData),

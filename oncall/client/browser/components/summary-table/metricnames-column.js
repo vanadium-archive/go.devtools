@@ -88,7 +88,8 @@ function checkHealthForMetric(state, metric) {
       var zone = availableZones[i];
       var aggData = data[zone][aggType];
       if (!Util.isEmptyObj(aggData[metric.dataKey])) {
-        if (!aggData[metric.dataKey][metric.metricKey].Healthy) {
+        var metricAggData = aggData[metric.dataKey][metric.metricKey];
+        if (!metricAggData || !metricAggData.Healthy) {
           isHealthy = false;
           break;
         }
@@ -101,7 +102,8 @@ function checkHealthForMetric(state, metric) {
       var instance = instances[i];
       var instanceData = data[zoneLevelZone].Instances[instance];
       if (!Util.isEmptyObj(instanceData[metric.dataKey])) {
-        if (!instanceData[metric.dataKey][metric.metricKey].Healthy) {
+        var metricData = instanceData[metric.dataKey][metric.metricKey];
+        if (!metricData || !metricData.Healthy) {
           isHealthy = false;
           break;
         }

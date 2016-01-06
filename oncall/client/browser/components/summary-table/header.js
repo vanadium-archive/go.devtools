@@ -116,7 +116,8 @@ function checkMetricsHealthForHeader(state, header) {
     for (i = 0; i < Consts.mainMetrics.length; i++) {
       curMetric = Consts.mainMetrics[i];
       if (!Util.isEmptyObj(aggData[curMetric.dataKey])) {
-        if (!aggData[curMetric.dataKey][curMetric.metricKey].Healthy) {
+        var metricAggData = aggData[curMetric.dataKey][curMetric.metricKey];
+        if (!metricAggData || !metricAggData.Healthy) {
           isHealthy = false;
           break;
         }
@@ -132,7 +133,8 @@ function checkMetricsHealthForHeader(state, header) {
     for (i = 0; i < metrics.length; i++) {
       curMetric = metrics[i];
       if (!Util.isEmptyObj(instanceData[curMetric.dataKey])) {
-        if (!instanceData[curMetric.dataKey][curMetric.metricKey].Healthy) {
+        var metricData = instanceData[curMetric.dataKey][curMetric.metricKey];
+        if (!metricData || !metricData.Healthy) {
           isHealthy = false;
           break;
         }

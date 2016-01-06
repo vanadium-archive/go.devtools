@@ -104,7 +104,7 @@ func picHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Reque
 		return
 	}
 	// Read picture file from Google Storage.
-	cachedFile, err := cache.StoreGoogleStorageFile(jirix, root, bucketPics, id+".jpg")
+	cachedFile, err := cache.StoreGoogleStorageFile(jirix, root, bucketPics, id+".png")
 	if err != nil {
 		// Read "_unknown.jpg" as fallback.
 		cachedFile, err = cache.StoreGoogleStorageFile(jirix, root, bucketPics, "_unknown.jpg")

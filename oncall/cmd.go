@@ -14,7 +14,7 @@ import (
 
 const (
 	bucketData = "gs://vanadium-oncall/data"
-	bucketPics = "gs://vanadium-oncall/pics"
+	bucketPics = "gs://vanadium-oncall-pics"
 )
 
 func init() {
