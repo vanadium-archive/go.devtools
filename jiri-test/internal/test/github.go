@@ -264,7 +264,7 @@ func makeTestCase(action string, err error) *xunit.TestCase {
 
 func clone(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
-	return jirix.Git().Clone(mirror.googlesource, dirname)
+	return jirix.Git().CloneRecursive(mirror.googlesource, dirname)
 }
 
 func pull(jirix *jiri.X, mirror Mirror, projects string) error {
