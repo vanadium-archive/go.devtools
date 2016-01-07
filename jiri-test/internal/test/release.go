@@ -366,22 +366,6 @@ func checkServices(jirix *jiri.X) error {
 	return nil
 }
 
-// createSnapshot creates a snapshot with "release" label.
-func createSnapshot(jirix *jiri.X) (e error) {
-	s := jirix.NewSeq()
-	args := []string{
-		"snapshot",
-		"--remote",
-		"create",
-		"--time-format=2006-01-02", // Only include date in label names
-		"release",
-	}
-	if err := s.Last("jiri", args...); err != nil {
-		return err
-	}
-	return nil
-}
-
 // updateLatestFile updates the "latest" file in Google Storage bucket to the
 // given release candidate label.
 func updateLatestFile(jirix *jiri.X, rcLabel string) error {
@@ -408,23 +392,23 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	s := jirix.NewSeq()
-
 	// Take snapshot.
+	snapshotDir := filepath.Join(jirix.ManifestDir(), "snapshot")
 	args := []string{
 		"snapshot",
-		"--remote",
+		"--dir=" + snapshotDir,
+		"--push-remote",
 		"create",
 		// TODO(jingjin): change this to use "date-rc<n>" format when the function is ready.
 		"--time-format=2006-01-02.15:04",
 		snapshotName,
 	}
+	s := jirix.NewSeq()
 	if err := s.Last("jiri", args...); err != nil {
 		return nil, newInternalError(err, "Snapshot")
 	}
 
 	// Get the symlink target of the newly created snapshot manifest.
-	snapshotDir := jirix.RemoteSnapshotDir()
 	symlink := filepath.Join(snapshotDir, snapshotName)
 	target, err := filepath.EvalSymlinks(symlink)
 	if err != nil {
