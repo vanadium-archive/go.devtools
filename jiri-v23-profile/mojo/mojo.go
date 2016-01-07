@@ -366,7 +366,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 
 		seq.
 			Pushd(tmpMojoCheckout).
-			Call(func() error { return jirix.Git().Clone(mojoRemote, tmpMojoCheckout) }, "git clone %s", mojoRemote).
+			Call(func() error { return jirix.Git().CloneNonRecursive(mojoRemote, tmpMojoCheckout) }, "git clone %s", mojoRemote).
 			Call(func() error { return jirix.Git().Reset(m.buildVersion) }, "git reset --hard %s", m.buildVersion).
 			Popd()
 
