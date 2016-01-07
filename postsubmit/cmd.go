@@ -57,26 +57,34 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(jirix *jiri.X, _ []string) error {
-	// Get the latest snapshot file from the update history directory.
+	// Get the second latest snapshot file from the update history directory.
 	var maxTime time.Time
-	var latestSnapshot string
-	findLatest := func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+	var secondMaxTime time.Time
+	var secondLatestSnapshot string
+	findSecondLatest := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
 			return nil
 		}
 		if t := info.ModTime(); t.After(maxTime) {
+			secondMaxTime = maxTime
 			maxTime = t
-			latestSnapshot = path
+			secondLatestSnapshot = path
+		} else if t.After(secondMaxTime) {
+			secondMaxTime = t
+			secondLatestSnapshot = path
 		}
 		return nil
 	}
 	// TODO(toddw): Stop looking in the .update_history directory when the
 	// transition to the new .jiri_root is complete.
-	filepath.Walk(filepath.Join(jirix.Root, ".update_history"), findLatest)
-	filepath.Walk(jirix.UpdateHistoryDir(), findLatest)
+	filepath.Walk(filepath.Join(jirix.Root, ".update_history"), findSecondLatest)
+	filepath.Walk(jirix.UpdateHistoryDir(), findSecondLatest)
 
-	// Get projects with new changes from the latest snapshots.
-	snapshotFileBytes, err := ioutil.ReadFile(latestSnapshot)
+	// Get projects with new changes from the second latest snapshots.
+	snapshotFileBytes, err := ioutil.ReadFile(secondLatestSnapshot)
 	if err != nil {
 		return fmt.Errorf("ReadFile() failed: %v", err)
 	}
