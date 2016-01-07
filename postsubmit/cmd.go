@@ -60,6 +60,7 @@ func runPoll(jirix *jiri.X, _ []string) error {
 	// Get the second latest snapshot file from the update history directory.
 	var maxTime time.Time
 	var secondMaxTime time.Time
+	var latestSnapshot string
 	var secondLatestSnapshot string
 	findSecondLatest := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -69,9 +70,10 @@ func runPoll(jirix *jiri.X, _ []string) error {
 			return nil
 		}
 		if t := info.ModTime(); t.After(maxTime) {
+			secondLatestSnapshot = latestSnapshot
 			secondMaxTime = maxTime
 			maxTime = t
-			secondLatestSnapshot = path
+			latestSnapshot = path
 		} else if t.After(secondMaxTime) {
 			secondMaxTime = t
 			secondLatestSnapshot = path
