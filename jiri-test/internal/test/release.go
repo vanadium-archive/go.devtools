@@ -392,8 +392,13 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
+	// TODO(nlacasse): Are we going to continue storing snapshots here?  Maybe
+	// we need some configuation to tell us where these should be, so we don't
+	// need to hard-code this path.
+	manifestDir := filepath.Join(jirix.Root, ".manifest", "v2")
+	snapshotDir := filepath.Join(manifestDir, "snapshot")
+
 	// Take snapshot.
-	snapshotDir := filepath.Join(jirix.ManifestDir(), "snapshot")
 	args := []string{
 		"snapshot",
 		"--dir=" + snapshotDir,
@@ -416,7 +421,6 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 
 	// Get manifest file's relative path to the root manifest dir.
-	manifestDir := jirix.ManifestDir()
 	relativePath := strings.TrimPrefix(target, manifestDir+string(filepath.Separator))
 
 	// Get all the tests to run.

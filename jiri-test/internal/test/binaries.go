@@ -40,8 +40,14 @@ func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 		return nil, newInternalError(err, "Update & Install")
 	}
 
+	// TODO(nlacasse): Are we going to continue storing snapshots here?  Maybe
+	// we need some configuation to tell us where these should be, so we don't
+	// need to hard-code this path.
+	manifestDir := filepath.Join(jirix.Root, ".manifest", "v2")
+	snapshotDir := filepath.Join(manifestDir, "snapshot")
+
 	// Compute the timestamp for the build snapshot.
-	labelFile := jirix.ManifestFile("snapshot/stable-go")
+	labelFile := filepath.Join(snapshotDir, "stable-go")
 	snapshotFile, err := filepath.EvalSymlinks(labelFile)
 	if err != nil {
 		return nil, newInternalError(err, "EvalSymlinks")

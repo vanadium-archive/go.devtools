@@ -320,10 +320,6 @@ func persistTestData(jirix *jiri.X, outputDir string, testName string, partIndex
 
 // sanityChecks performs basic sanity checks for various flags.
 func sanityChecks(jirix *jiri.X) error {
-	manifestFilePath := jirix.ManifestFile(tool.ManifestFlag)
-	if _, err := jirix.NewSeq().Stat(manifestFilePath); err != nil {
-		return err
-	}
 	if projectsFlag == "" {
 		return jirix.UsageErrorf("-projects flag is required")
 	}
