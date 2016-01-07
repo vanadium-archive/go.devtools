@@ -397,8 +397,8 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	args := []string{
 		"snapshot",
 		"--dir=" + snapshotDir,
-		"--push-remote",
 		"create",
+		"--push-remote",
 		// TODO(jingjin): change this to use "date-rc<n>" format when the function is ready.
 		"--time-format=2006-01-02.15:04",
 		snapshotName,

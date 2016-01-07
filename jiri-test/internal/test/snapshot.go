@@ -5,6 +5,8 @@
 package test
 
 import (
+	"path/filepath"
+
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/jiri/retry"
@@ -22,7 +24,13 @@ func vanadiumGoSnapshot(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 
 	// Create a new snapshot.
 	fn := func() error {
-		return jirix.NewSeq().Last("jiri", "snapshot", "-remote", "create", "stable-go")
+		snapshotDir := filepath.Join(jirix.ManifestDir(), "snapshot")
+		return jirix.NewSeq().Last("jiri",
+			"snapshot",
+			"--dir="+snapshotDir,
+			"create",
+			"-push-remote",
+			"stable-go")
 	}
 	if err := retry.Function(jirix.Context, fn); err != nil {
 		return nil, newInternalError(err, "Snapshot")
