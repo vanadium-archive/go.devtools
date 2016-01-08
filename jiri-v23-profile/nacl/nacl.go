@@ -140,7 +140,7 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 		}
 		defer jirix.NewSeq().RemoveAll(tmpDir)
 		return s.Pushd(tmpDir).
-			Call(func() error { return jirix.Git().Clone(gitRemote, tmpDir) }, "").
+			Call(func() error { return jirix.Git().CloneRecursive(gitRemote, tmpDir) }, "").
 			Call(func() error { return jirix.Git().Reset(m.spec.gitRevision) }, "").
 			Popd().
 			MkdirAll(m.naclRoot.Abs(jirix), profilesutil.DefaultDirPerm).

@@ -329,7 +329,7 @@ func (m *Manager) installMojoDevtools(jirix *jiri.X, outDir string) error {
 		return jirix.NewSeq().
 			MkdirAll(outDir, profilesutil.DefaultDirPerm).
 			Pushd(outDir).
-			Call(func() error { return jirix.Git().Clone(mojoDevtoolsRemote, outDir) }, "git clone %s", mojoDevtoolsRemote).
+			Call(func() error { return jirix.Git().CloneRecursive(mojoDevtoolsRemote, outDir) }, "git clone --recursive %s", mojoDevtoolsRemote).
 			Call(func() error { return jirix.Git().Reset(m.spec.devtoolsVersion) }, "git reset --hard %s", m.spec.devtoolsVersion).
 			Popd().
 			Done()
@@ -349,7 +349,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 		seq.
 			MkdirAll(repoDst, profilesutil.DefaultDirPerm).
 			Pushd(repoDst).
-			Call(func() error { return jirix.Git().Clone(mojoSdkRemote, repoDst) }, "git clone %s", mojoSdkRemote).
+			Call(func() error { return jirix.Git().CloneRecursive(mojoSdkRemote, repoDst) }, "git clone --recursive %s", mojoSdkRemote).
 			Call(func() error { return jirix.Git().Reset(m.spec.sdkVersion) }, "git reset --hard %s", m.spec.sdkVersion).
 			Popd()
 
@@ -366,7 +366,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 
 		seq.
 			Pushd(tmpMojoCheckout).
-			Call(func() error { return jirix.Git().CloneNonRecursive(mojoRemote, tmpMojoCheckout) }, "git clone %s", mojoRemote).
+			Call(func() error { return jirix.Git().Clone(mojoRemote, tmpMojoCheckout) }, "git clone %s", mojoRemote).
 			Call(func() error { return jirix.Git().Reset(m.buildVersion) }, "git reset --hard %s", m.buildVersion).
 			Popd()
 
