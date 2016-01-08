@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/x/devtools/internal/monitoring"
+	"v.io/x/devtools/internal/test"
 )
 
 // Human-readable service names.
@@ -55,6 +57,35 @@ var serviceMountedNames = map[string]string{
 	snRole:             "identity/role",
 	snProxy:            "proxy-mon",
 	snGroups:           "groups",
+}
+
+type aggregator struct {
+	data []float64
+	min  float64
+	max  float64
+	sum  float64
+}
+
+func newAggregator() *aggregator {
+	return &aggregator{
+		data: []float64{},
+		min:  math.MaxFloat64,
+	}
+}
+
+func (a *aggregator) add(v float64) {
+	a.data = append(a.data, v)
+	a.min = math.Min(a.min, v)
+	a.max = math.Max(a.max, v)
+	a.sum += v
+}
+
+func (a *aggregator) avg() float64 {
+	return a.sum / float64(len(a.data))
+}
+
+func (a *aggregator) String() string {
+	return fmt.Sprintf("min: %f, max: %f, avg: %f", a.min, a.max, a.avg())
 }
 
 func getMountedName(serviceName string) (string, error) {
@@ -170,7 +201,18 @@ func getServiceLocation(ctx *tool.Context, name, serviceName string) (*monitorin
 
 // sendDataToGCM sends the given metric to Google Cloud Monitoring.
 func sendDataToGCM(s *cloudmonitoring.Service, md *cloudmonitoring.MetricDescriptor, value float64, now, instance, zone string, extraLabelKeys ...string) error {
-	labels := []string{instance, zone}
+	// Sending value 0 will cause error.
+	if math.Abs(value) < 1e-7 {
+		return nil
+	}
+
+	labels := []string{}
+	if instance != "" {
+		labels = append(labels, instance)
+	}
+	if zone != "" {
+		labels = append(labels, zone)
+	}
 	for _, key := range extraLabelKeys {
 		labels = append(labels, key)
 	}
@@ -198,5 +240,26 @@ func sendDataToGCM(s *cloudmonitoring.Service, md *cloudmonitoring.MetricDescrip
 	}).Do(); err != nil {
 		return fmt.Errorf("Timeseries Write failed for metric %q with value %q: %v", md.Name, value, err)
 	}
+	return nil
+}
+
+func sendAggregatedDataToGCM(ctx *tool.Context, s *cloudmonitoring.Service, md *cloudmonitoring.MetricDescriptor, agg *aggregator, now string, extraLabelKeys ...string) error {
+	labels := []string{}
+	for _, l := range extraLabelKeys {
+		labels = append(labels, l)
+	}
+	minLabels := append(labels, "min")
+	if err := sendDataToGCM(s, md, agg.min, now, "", "", minLabels...); err != nil {
+		return err
+	}
+	maxLabels := append(labels, "max")
+	if err := sendDataToGCM(s, md, agg.max, now, "", "", maxLabels...); err != nil {
+		return err
+	}
+	avgLabels := append(labels, "avg")
+	if err := sendDataToGCM(s, md, agg.avg(), now, "", "", avgLabels...); err != nil {
+		return err
+	}
+	test.Pass(ctx, "%s: %s\n", strings.Join(extraLabelKeys, " "), agg)
 	return nil
 }

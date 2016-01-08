@@ -38,6 +38,13 @@ type qpsData struct {
 func checkServiceQPS(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
+		snApplications,
+		snBinaries,
+		snIdentity,
+		snRole,
+		// snProxy,
+		// TODO(jingjin): add this back when the RPC bug is fixed.
+		snGroups,
 	}
 
 	hasError := false
@@ -45,40 +52,58 @@ func checkServiceQPS(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	mdTotalQPS := monitoring.CustomMetricDescriptors["service-qps-total"]
 	now := time.Now().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		if qps, err := checkSingleServiceQPS(ctx, serviceName); err != nil {
+		qps, err := checkSingleServiceQPS(ctx, serviceName)
+		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
-		} else {
-			for _, curQPS := range qps {
-				label := fmt.Sprintf("%s (%s, %s)", serviceName, curQPS.location.Instance, curQPS.location.Zone)
-				result := ""
-				methods := []string{}
-				for m := range curQPS.perMethodQPS {
-					methods = append(methods, m)
-				}
-				sort.Strings(methods)
-				for _, m := range methods {
-					result += fmt.Sprintf("     - %s: %f\n", m, curQPS.perMethodQPS[m])
-				}
-				result += fmt.Sprintf("     Total: %f\n", curQPS.totalQPS)
-				test.Pass(ctx, "%s:\n%s\n", label, result)
+			continue
+		}
+		agg := newAggregator()
+		aggByMethod := map[string]*aggregator{}
+		for _, curQPS := range qps {
+			instance := curQPS.location.Instance
+			zone := curQPS.location.Zone
+			agg.add(curQPS.totalQPS)
 
-				// Send data to GCM.
-				// Total qps:
-				if err := sendDataToGCM(s, mdTotalQPS, curQPS.totalQPS, now, curQPS.location.Instance, curQPS.location.Zone, serviceName); err != nil {
+			label := fmt.Sprintf("%s (%s, %s)", serviceName, instance, zone)
+			result := ""
+			methods := []string{}
+			for m := range curQPS.perMethodQPS {
+				methods = append(methods, m)
+			}
+			sort.Strings(methods)
+			for _, m := range methods {
+				result += fmt.Sprintf("     - %s: %f\n", m, curQPS.perMethodQPS[m])
+			}
+			result += fmt.Sprintf("     Total: %f", curQPS.totalQPS)
+
+			// Send data to GCM.
+			// Total qps:
+			if err := sendDataToGCM(s, mdTotalQPS, curQPS.totalQPS, now, instance, zone, serviceName); err != nil {
+				return err
+			}
+			// Per-method qps:
+			for _, m := range methods {
+				curPerMethodQPS := curQPS.perMethodQPS[m]
+				if _, ok := aggByMethod[m]; !ok {
+					aggByMethod[m] = newAggregator()
+				}
+				aggByMethod[m].add(curPerMethodQPS)
+				if err := sendDataToGCM(s, mdPerMethodQPS, curPerMethodQPS, now, instance, zone, serviceName, m); err != nil {
 					return err
 				}
-				// Per-method qps:
-				for _, m := range methods {
-					curPerMethodQPS := curQPS.perMethodQPS[m]
-					if curPerMethodQPS == 0 {
-						continue
-					}
-					if err := sendDataToGCM(s, mdPerMethodQPS, curPerMethodQPS, now, curQPS.location.Instance, curQPS.location.Zone, serviceName, m); err != nil {
-						return err
-					}
-				}
+			}
+			test.Pass(ctx, "%s:\n%s\n", label, result)
+		}
+
+		// Send aggregated data to GCM.
+		if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-qps-total-agg"], agg, now, serviceName); err != nil {
+			return err
+		}
+		for method, agg := range aggByMethod {
+			if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-qps-method-agg"], agg, now, serviceName, method); err != nil {
+				return err
 			}
 		}
 	}

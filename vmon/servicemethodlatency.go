@@ -39,43 +39,51 @@ func checkServicePerMethodLatency(ctx *tool.Context, s *cloudmonitoring.Service)
 		snIdentity,
 		snGroups,
 		snRole,
-		// TODO(jingjin): not working when talking to resolved address.
-		// Figure out why.
-		// snProxy,
+		snProxy,
 	}
 
 	hasError := false
 	mdLatPerMethod := monitoring.CustomMetricDescriptors["service-permethod-latency"]
 	now := time.Now().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		if lats, err := checkSingleServicePerMethodLatency(ctx, serviceName); err != nil {
+		lats, err := checkSingleServicePerMethodLatency(ctx, serviceName)
+		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
-		} else {
-			for _, lat := range lats {
-				label := fmt.Sprintf("%s (%s, %s)", serviceName, lat.location.Instance, lat.location.Zone)
-				result := ""
-				methods := []string{}
-				for m := range lat.latency {
-					methods = append(methods, m)
-				}
-				sort.Strings(methods)
-				for _, m := range methods {
-					result += fmt.Sprintf("     - %s: %f\n", m, lat.latency[m])
-				}
-				test.Pass(ctx, "%s:\n%s\n", label, result)
+			continue
+		}
+		aggByMethod := map[string]*aggregator{}
+		for _, lat := range lats {
+			label := fmt.Sprintf("%s (%s, %s)", serviceName, lat.location.Instance, lat.location.Zone)
+			result := ""
+			methods := []string{}
+			for m := range lat.latency {
+				methods = append(methods, m)
+			}
+			sort.Strings(methods)
+			for _, m := range methods {
+				result += fmt.Sprintf("     - %s: %f\n", m, lat.latency[m])
+			}
 
-				// Send to GCM.
-				for _, m := range methods {
-					curLat := lat.latency[m]
-					if curLat == 0 {
-						continue
-					}
-					if err := sendDataToGCM(s, mdLatPerMethod, curLat, now, lat.location.Instance, lat.location.Zone, serviceName, m); err != nil {
-						return err
-					}
+			// Send to GCM.
+			for _, m := range methods {
+				curLat := lat.latency[m]
+				if _, ok := aggByMethod[m]; !ok {
+					aggByMethod[m] = newAggregator()
 				}
+				aggByMethod[m].add(curLat)
+				if err := sendDataToGCM(s, mdLatPerMethod, curLat, now, lat.location.Instance, lat.location.Zone, serviceName, m); err != nil {
+					return err
+				}
+			}
+			test.Pass(ctx, "%s:\n%s", label, result)
+		}
+
+		// Send aggregated data to GCM.
+		for method, agg := range aggByMethod {
+			if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-permethod-latency-agg"], agg, now, serviceName, method); err != nil {
+				return err
 			}
 		}
 	}

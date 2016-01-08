@@ -47,33 +47,61 @@ type labelData struct {
 	description string
 }
 
+var aggLabelData = []labelData{
+	labelData{
+		key:         "aggregation",
+		description: "The aggregation type (min, max, avg)",
+	},
+}
+
 // CustomMetricDescriptors is a map from metric's short names to their
 // MetricDescriptor definitions.
 var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
-	// Custom metric for recording check latency of vanadium production services.
-	"service-latency": createMetric("service/latency", "The check latency (ms) of vanadium production services.", "double", true, nil),
+	// Custom metrics for recording check latency and its aggregation
+	// of vanadium production services.
+	"service-latency":     createMetric("service/latency", "The check latency (ms) of vanadium production services.", "double", true, nil),
+	"service-latency-agg": createMetric("service/latency-agg", "The aggregated check latency (ms) of vanadium production services.", "double", false, aggLabelData),
 
-	// Custom metric for recording per-method rpc latency for a service.
+	// Custom metric for recording per-method rpc latency and its aggregation
+	// for a service.
 	"service-permethod-latency": createMetric("service/latency/method", "Service latency (ms) per method.", "double", true, []labelData{
 		labelData{
 			key:         "method-name",
 			description: "The method name",
 		},
 	}),
+	"service-permethod-latency-agg": createMetric("service/latency/method-agg", "Aggregated service latency (ms) per method.", "double", false, []labelData{
+		labelData{
+			key:         "method-name",
+			description: "The method name",
+		},
+		aggLabelData[0],
+	}),
 
-	// Custom metric for recording various counters of vanadium production services.
-	"service-counters": createMetric("service/counters", "Various counters of vanadium production services.", "double", true, nil),
+	// Custom metric for recording various counters and their aggregations
+	// of vanadium production services.
+	"service-counters":     createMetric("service/counters", "Various counters of vanadium production services.", "double", true, nil),
+	"service-counters-agg": createMetric("service/counters-agg", "Aggregated counters of vanadium production services.", "double", false, aggLabelData),
 
-	// Custom metric for recording service metadata of vanadium production services.
+	// Custom metric for recording service metadata and its aggregation
+	// of vanadium production services.
 	"service-metadata": createMetric("service/metadata", "Various metadata of vanadium production services.", "double", true, []labelData{
 		labelData{
 			key:         "metadata-name",
 			description: "The metadata name",
 		},
 	}),
+	"service-metadata-agg": createMetric("service/metadata-agg", "Aggregated metadata of vanadium production services.", "double", false, []labelData{
+		labelData{
+			key:         "metadata-name",
+			description: "The metadata name",
+		},
+		aggLabelData[0],
+	}),
 
-	// Custom metric for recording total rpc qps for a service.
-	"service-qps-total": createMetric("service/qps/total", "Total service QPS.", "double", true, nil),
+	// Custom metric for recording total rpc qps and its aggregation for a service.
+	"service-qps-total":     createMetric("service/qps/total", "Total service QPS.", "double", true, nil),
+	"service-qps-total-agg": createMetric("service/qps/total-agg", "Aggregated total service QPS.", "double", false, aggLabelData),
 
 	// Custom metric for recording per-method rpc qps for a service.
 	"service-qps-method": createMetric("service/qps/method", "Service QPS per method.", "double", true, []labelData{
@@ -81,6 +109,13 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 			key:         "method-name",
 			description: "The method name",
 		},
+	}),
+	"service-qps-method-agg": createMetric("service/qps/method-agg", "Aggregated service QPS per method.", "double", false, []labelData{
+		labelData{
+			key:         "method-name",
+			description: "The method name",
+		},
+		aggLabelData[0],
 	}),
 
 	// Custom metric for recording gce instance stats.

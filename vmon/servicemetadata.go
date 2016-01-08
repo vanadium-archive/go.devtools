@@ -46,25 +46,43 @@ func checkServiceMetadata(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	now := time.Now()
 	strNow := now.Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		if ms, err := checkSingleServiceMetadata(ctx, serviceName); err != nil {
+		ms, err := checkSingleServiceMetadata(ctx, serviceName)
+		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
-		} else {
-			for _, m := range ms {
-				buildTimeUnix := m.buildTime.Unix()
-				buildAgeInHours := now.Sub(m.buildTime).Hours()
-				label := fmt.Sprintf("%s build time (%s, %s)", serviceName, m.location.Instance, m.location.Zone)
-				test.Pass(ctx, "%s: %d, %v\n", label, buildTimeUnix, buildAgeInHours)
+			continue
+		}
+		aggBuildTime := newAggregator()
+		aggBuildAge := newAggregator()
+		for _, m := range ms {
+			buildTimeUnix := m.buildTime.Unix()
+			buildAgeInHours := now.Sub(m.buildTime).Hours()
 
-				// Send data to GCM
-				if err := sendDataToGCM(s, mdMetadata, float64(buildTimeUnix), strNow, m.location.Instance, m.location.Zone, serviceName, "build time"); err != nil {
-					return err
-				}
-				if err := sendDataToGCM(s, mdMetadata, buildAgeInHours, strNow, m.location.Instance, m.location.Zone, serviceName, "build age"); err != nil {
-					return err
-				}
+			instance := m.location.Instance
+			zone := m.location.Zone
+			aggBuildTime.add(float64(buildTimeUnix))
+			aggBuildAge.add(buildAgeInHours)
+
+			// Send data to GCM
+			if err := sendDataToGCM(s, mdMetadata, float64(buildTimeUnix), strNow, instance, zone, serviceName, "build time"); err != nil {
+				return err
 			}
+			if err := sendDataToGCM(s, mdMetadata, buildAgeInHours, strNow, instance, zone, serviceName, "build age"); err != nil {
+				return err
+			}
+
+			label := fmt.Sprintf("%s (%s, %s)", serviceName, instance, zone)
+			test.Pass(ctx, "%s: build time: %d, build age: %v\n", label, buildTimeUnix, buildAgeInHours)
+		}
+
+		// Send aggregated data to GCM.
+		mdMetadataAgg := monitoring.CustomMetricDescriptors["service-metadata-agg"]
+		if err := sendAggregatedDataToGCM(ctx, s, mdMetadataAgg, aggBuildTime, strNow, serviceName, "build time"); err != nil {
+			return err
+		}
+		if err := sendAggregatedDataToGCM(ctx, s, mdMetadataAgg, aggBuildAge, strNow, serviceName, "build age"); err != nil {
+			return err
 		}
 	}
 	if hasError {
