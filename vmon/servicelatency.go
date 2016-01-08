@@ -42,8 +42,7 @@ func checkServiceLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
 		snGoogleIdentity,
 		snBinaryDischarger,
 		snRole,
-		// snProxy,
-		// TODO(jingjin): this is pretty flaky. Figure out why.
+		snProxy,
 		snGroups,
 	}
 
@@ -51,25 +50,36 @@ func checkServiceLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	mdLat := monitoring.CustomMetricDescriptors["service-latency"]
 	now := time.Now().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		if lats, err := checkSingleServiceLatency(ctx, serviceName); err != nil {
+		lats, err := checkSingleServiceLatency(ctx, serviceName)
+		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			hasError = true
-		} else {
-			for _, lat := range lats {
-				label := fmt.Sprintf("%s (%s, %s)", serviceName, lat.location.Instance, lat.location.Zone)
-				if lat.latency == timeout {
-					test.Warn(ctx, "%s: %s [TIMEOUT]\n", label, lat.latency)
-				} else {
-					test.Pass(ctx, "%s: %s\n", label, lat.latency)
-				}
+			continue
+		}
+		agg := newAggregator()
+		for _, lat := range lats {
+			instance := lat.location.Instance
+			zone := lat.location.Zone
+			latMs := float64(lat.latency.Nanoseconds()) / 1000000.0
+			agg.add(latMs)
 
-				// Send data to GCM.
-				latMs := float64(lat.latency.Nanoseconds()) / 1000000.0
-				if err := sendDataToGCM(s, mdLat, latMs, now, lat.location.Instance, lat.location.Zone, serviceName); err != nil {
-					return err
-				}
+			// Send data to GCM.
+			if err := sendDataToGCM(s, mdLat, latMs, now, instance, zone, serviceName); err != nil {
+				return err
 			}
+
+			label := fmt.Sprintf("%s (%s, %s)", serviceName, instance, zone)
+			if lat.latency == timeout {
+				test.Warn(ctx, "%s: %fms [TIMEOUT]\n", label, latMs)
+			} else {
+				test.Pass(ctx, "%s: %fms\n", label, latMs)
+			}
+		}
+
+		// Send aggregated data to GCM.
+		if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-latency-agg"], agg, now, serviceName); err != nil {
+			return err
 		}
 	}
 	if hasError {

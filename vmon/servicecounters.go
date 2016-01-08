@@ -43,24 +43,35 @@ func checkServiceCounters(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	}
 
 	hasError := false
-	mdLat := monitoring.CustomMetricDescriptors["service-counters"]
+	mdCounter := monitoring.CustomMetricDescriptors["service-counters"]
 	now := time.Now().Format(time.RFC3339)
 	for serviceName, serviceCounters := range counters {
 		for _, counter := range serviceCounters {
-			if vs, err := checkSingleCounter(ctx, serviceName, counter); err != nil {
+			vs, err := checkSingleCounter(ctx, serviceName, counter)
+			if err != nil {
 				test.Fail(ctx, "%s\n", counter.name)
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 				hasError = true
-			} else {
-				for _, v := range vs {
-					label := fmt.Sprintf("%s (%s, %s)", counter.name, v.location.Instance, v.location.Zone)
-					test.Pass(ctx, "%s: %f\n", label, v.value)
+				continue
+			}
+			agg := newAggregator()
+			for _, v := range vs {
+				instance := v.location.Instance
+				zone := v.location.Zone
+				agg.add(v.value)
 
-					// Send data to GCM.
-					if err := sendDataToGCM(s, mdLat, v.value, now, v.location.Instance, v.location.Zone, counter.name); err != nil {
-						return err
-					}
+				// Send data to GCM.
+				if err := sendDataToGCM(s, mdCounter, v.value, now, instance, zone, counter.name); err != nil {
+					return err
 				}
+
+				label := fmt.Sprintf("%s (%s, %s)", counter.name, instance, zone)
+				test.Pass(ctx, "%s: %f\n", label, v.value)
+			}
+
+			// Send aggregated data to GCM.
+			if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-counters-agg"], agg, now, counter.name); err != nil {
+				return err
 			}
 		}
 	}
