@@ -78,6 +78,12 @@ func vanadiumCroupierTestUnit(jirix *jiri.X, testName string, _ ...Opt) (*test.R
 	return runMakefileTest(jirix, testName, testDir, "test-unit", nil, []string{"dart"}, defaultProjectTestTimeout)
 }
 
+// vanadiumCroupierTestUnitGo runs the Go unit tests for the croupier example application.
+func vanadiumCroupierTestUnitGo(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	testDir := filepath.Join(jirix.Root, "release", "projects", "croupier", "go")
+	return runMakefileTest(jirix, testName, testDir, "test", nil, nil, defaultProjectTestTimeout)
+}
+
 // vanadiumReaderTest runs the tests for the reader example application.
 func vanadiumReaderTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	testDir := filepath.Join(jirix.Root, "release", "projects", "reader")
