@@ -426,8 +426,6 @@ The jiri snapshot commands are:
 The jiri snapshot flags are:
  -dir=
    Directory where snapshot are stored.  Defaults to $JIRI_ROOT/.snapshot.
- -remote=false
-   Manage remote snapshots.
 
  -color=true
    Use color to format output.
@@ -480,8 +478,6 @@ The jiri snapshot create flags are:
    Directory where snapshot are stored.  Defaults to $JIRI_ROOT/.snapshot.
  -n=false
    Show what commands will run but do not execute them.
- -remote=false
-   Manage remote snapshots.
  -v=false
    Print verbose output.
 
@@ -503,8 +499,6 @@ The jiri snapshot list flags are:
    Directory where snapshot are stored.  Defaults to $JIRI_ROOT/.snapshot.
  -n=false
    Show what commands will run but do not execute them.
- -remote=false
-   Manage remote snapshots.
  -v=false
    Print verbose output.
 
