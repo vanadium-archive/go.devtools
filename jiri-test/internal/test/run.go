@@ -337,11 +337,15 @@ func runTests(jirix *jiri.X, tests []string, results map[string]*test.Result, op
 		defer collect.Error(func() error { return outputFile.Close() }, &e)
 	}
 
+	// Validate all tests before running any tests.
 	for _, t := range tests {
-		testFn, ok := testFunctions[t]
-		if !ok {
+		if _, ok := testFunctions[t]; !ok {
 			return fmt.Errorf("test %v does not exist", t)
 		}
+	}
+
+	for _, t := range tests {
+		testFn := testFunctions[t]
 		fmt.Fprintf(jirix.Stdout(), "##### Running test %q #####\n", t)
 
 		// Create a 1MB buffer to capture the test function output.
