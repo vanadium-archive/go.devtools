@@ -20,7 +20,7 @@ The jiri go flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false

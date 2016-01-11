@@ -21,7 +21,7 @@ The jiri api flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -67,7 +67,7 @@ The jiri api check flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -103,7 +103,7 @@ The jiri api fix flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.

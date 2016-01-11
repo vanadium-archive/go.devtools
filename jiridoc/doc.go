@@ -651,7 +651,7 @@ The jiri api flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -691,7 +691,7 @@ The jiri api check flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -727,7 +727,7 @@ The jiri api fix flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -gotools-bin=
    The path to the gotools binary to use. If empty, gotools will be built if
    necessary.
@@ -858,7 +858,7 @@ The jiri dockergo flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -891,7 +891,7 @@ The jiri go flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -922,7 +922,7 @@ The jiri goext flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -955,7 +955,7 @@ The jiri goext distclean flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -1022,7 +1022,7 @@ The jiri run flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -1055,7 +1055,7 @@ The jiri test flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -1088,7 +1088,7 @@ The jiri test project flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -1130,14 +1130,15 @@ The jiri test run flags are:
    Specify which part of the test to run.
  -pkgs=
    Comma-separated list of Go package expressions that identify a subset of
-   tests to run; only relevant for Go-based tests
+   tests to run; only relevant for Go-based tests. Example usage: jiri test run
+   -pkgs v.io/x/ref vanadium-go-test
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -1165,7 +1166,7 @@ The jiri test list flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -1282,7 +1283,7 @@ Usage:
 
 The jiri v23-profile install flags are:
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -force=false
    force install the profile even if it is already installed
  -go.sysroot-image=
@@ -1407,7 +1408,7 @@ The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -info=
    The following fields for use with --profile-info are available:
    	SchemaVersion - the version of the profiles implementation.
@@ -1461,7 +1462,7 @@ display
 
 The jiri v23-profile env flags are:
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -profiles=base,jiri
