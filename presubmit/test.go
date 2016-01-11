@@ -378,23 +378,18 @@ func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects project.Projec
 	// Pull changes for each cl.
 	printf(jirix.Stdout(), "### Preparing to test %s\n", strings.Join(strCLs, ", "))
 	prepareFn := func(curCL cl) error {
-		localRepo, err := projects.FindUnique(curCL.project)
+		localProject, err := projects.FindUnique(curCL.project)
 		if err != nil {
 			return fmt.Errorf("error finding project %q: %v", curCL.project, err)
 		}
-		localRepoDir := localRepo.Path
-		if err := jirix.NewSeq().Chdir(localRepoDir).Done(); err != nil {
-			return fmt.Errorf("Chdir(%v) failed: %v", localRepoDir, err)
+		if err := jirix.NewSeq().Chdir(localProject.Path).Done(); err != nil {
+			return fmt.Errorf("Chdir(%v) failed: %v", localProject.Path, err)
 		}
 		branchName := presubmitTestBranchName(curCL.ref)
 		if err := jirix.Git().CreateAndCheckoutBranch(branchName); err != nil {
 			return err
 		}
-		gitHost, err := project.GitHost(jirix)
-		if err != nil {
-			return err
-		}
-		if err := jirix.Git().Pull(gitHost+localRepo.Name, curCL.ref); err != nil {
+		if err := jirix.Git().Pull(localProject.Remote, curCL.ref); err != nil {
 			return err
 		}
 		return nil
