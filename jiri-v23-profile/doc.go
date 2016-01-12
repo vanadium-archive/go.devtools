@@ -111,7 +111,7 @@ Usage:
 
 The jiri v23-profile install flags are:
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -force=false
    force install the profile even if it is already installed
  -go.sysroot-image=
@@ -235,7 +235,7 @@ The jiri v23-profile list flags are:
  -available=false
    print the list of available profiles
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -info=
    The following fields for use with --profile-info are available:
    	SchemaVersion - the version of the profiles implementation.
@@ -289,7 +289,7 @@ display
 
 The jiri v23-profile env flags are:
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -profiles=base,jiri

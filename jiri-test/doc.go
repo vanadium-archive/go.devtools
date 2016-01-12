@@ -21,7 +21,7 @@ The jiri test flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -60,7 +60,7 @@ The jiri test project flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -102,14 +102,15 @@ The jiri test run flags are:
    Specify which part of the test to run.
  -pkgs=
    Comma-separated list of Go package expressions that identify a subset of
-   tests to run; only relevant for Go-based tests
+   tests to run; only relevant for Go-based tests. Example usage: jiri test run
+   -pkgs v.io/x/ref vanadium-go-test
  -v23.namespace.root=/ns.dev.v.io:8101
    The namespace root.
 
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
@@ -137,7 +138,7 @@ The jiri test list flags are:
  -color=true
    Use color to format output.
  -env=
-   specifcy an environment variable in the form: <var>=[<val>],...
+   specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
  -n=false
