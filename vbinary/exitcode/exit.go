@@ -9,4 +9,3 @@ const (
 	// find a snapshot for the given date.
 	NoSnapshotExitCode = 3
 )
-

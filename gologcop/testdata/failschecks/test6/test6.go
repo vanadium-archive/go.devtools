@@ -9,7 +9,9 @@
 // pointer.
 package test6
 
-import ( "v.io/x/ref/lib/apilog" )
+import (
+	"v.io/x/ref/lib/apilog"
+)
 
 type Type struct{}
 

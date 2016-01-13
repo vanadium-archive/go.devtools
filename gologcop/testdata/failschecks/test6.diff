@@ -1,9 +1,3 @@
 ReturnsSomething: output arguments should be passed to the log function via their addresses
-12c12,14
-< import ( "v.io/x/ref/lib/apilog" )
----
-> import (
-> 	"v.io/x/ref/lib/apilog"
-> )
-16a19
+18a19
 > 	defer apilog.LogCallf("a=%v", a)("b=%v", &b) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

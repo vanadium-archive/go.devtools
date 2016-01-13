@@ -432,7 +432,7 @@ func isIgnored(path string, expressions []*regexp.Regexp) (bool, error) {
 		}
 	}
 
-	// Skip copyright check for symlinks because the symlink target will 
+	// Skip copyright check for symlinks because the symlink target will
 	// already be checked if it is in the repo.
 	fi, err := os.Lstat(path)
 	return fi != nil && fi.Mode()&os.ModeSymlink != 0, err
