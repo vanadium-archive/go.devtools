@@ -81,6 +81,8 @@ Usage:
 The vbinary download flags are:
  -attempts=1
    Number of attempts before failing.
+ -max-parallel-downloads=8
+   Maximum number of downloads that can happen at the same time.
  -output-dir=
    Directory for storing downloaded binaries.
 

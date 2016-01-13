@@ -31,13 +31,14 @@ import (
 )
 
 var (
-	archFlag       string
-	attemptsFlag   int
-	datePrefixFlag string
-	keyFileFlag    string
-	osFlag         string
-	outputDirFlag  string
-	releaseFlag    bool
+	archFlag             string
+	attemptsFlag         int
+	datePrefixFlag       string
+	keyFileFlag          string
+	osFlag               string
+	outputDirFlag        string
+	releaseFlag          bool
+	maxParallelDownloads int
 
 	waitTimeBetweenAttempts = 3 * time.Minute
 )
@@ -92,6 +93,7 @@ func init() {
 	cmdRoot.Flags.StringVar(&datePrefixFlag, "date-prefix", "", "Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.")
 	cmdDownload.Flags.IntVar(&attemptsFlag, "attempts", 1, "Number of attempts before failing.")
 	cmdDownload.Flags.StringVar(&outputDirFlag, "output-dir", "", "Directory for storing downloaded binaries.")
+	cmdDownload.Flags.IntVar(&maxParallelDownloads, "max-parallel-downloads", 8, "Maximum number of downloads that can happen at the same time.")
 
 	tool.InitializeRunFlags(&cmdRoot.Flags)
 }
@@ -180,8 +182,10 @@ func runDownload(env *cmdline.Env, args []string) error {
 	downloadBinaries := func() error {
 		downloadFn := func() error {
 			errChan := make(chan error, numBinaries)
+			downloadingChan := make(chan struct{}, maxParallelDownloads)
 			for _, name := range binaries {
-				go downloadBinary(ctx, client, name, errChan)
+				downloadingChan <- struct{}{}
+				go downloadBinary(ctx, client, name, errChan, downloadingChan)
 			}
 			gotError := false
 			for i := 0; i < numBinaries; i++ {
@@ -323,7 +327,7 @@ func createClient(ctx *tool.Context) (*http.Client, error) {
 	return google.DefaultClient(oauth2.NoContext, storage.CloudPlatformScope)
 }
 
-func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, errChan chan<- error) {
+func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, errChan chan<- error, downloadingChan chan struct{}) {
 	helper := func() error {
 		b, err := downloadFileBytes(client, binaryPath)
 		if err != nil {
@@ -336,6 +340,7 @@ func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, e
 		return nil
 	}
 	errChan <- helper()
+	<-downloadingChan
 }
 
 func downloadFileBytes(client *http.Client, filePath string) (b []byte, e error) {
