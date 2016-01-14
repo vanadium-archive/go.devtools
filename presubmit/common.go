@@ -13,6 +13,14 @@ import (
 	"v.io/x/devtools/internal/test"
 )
 
+func gerritBaseUrl() (*url.URL, error) {
+	u, err := url.Parse(gerritBaseUrlFlag)
+	if err != nil {
+		return nil, fmt.Errorf("invalid gerrit url %q: %v", gerritBaseUrlFlag, err)
+	}
+	return u, nil
+}
+
 func genStartPresubmitBuildLink(strRefs, strProjects, strTests string) string {
 	return fmt.Sprintf("%s/%s/buildWithParameters?REFS=%s&PROJECTS=%s&TESTS=%s",
 		jenkinsBaseJobUrl,
@@ -37,7 +45,11 @@ func postMessage(jirix *jiri.X, message string, refs []string, success bool) err
 		if _, ok := refsUsingVerifiedLabel[ref]; ok {
 			labels["Verified"] = value
 		}
-		if err := jirix.Gerrit(gerritBaseUrlFlag).PostReview(ref, message, labels); err != nil {
+		gUrl, err := gerritBaseUrl()
+		if err != nil {
+			return err
+		}
+		if err := jirix.Gerrit(gUrl).PostReview(ref, message, labels); err != nil {
 			return err
 		}
 		test.Pass(jirix.Context, "review posted for %q with labels %v.\n", ref, labels)
@@ -47,7 +59,11 @@ func postMessage(jirix *jiri.X, message string, refs []string, success bool) err
 
 func getRefsUsingVerifiedLabel(jirix *jiri.X) (map[string]struct{}, error) {
 	// Query all open CLs.
-	cls, err := jirix.Gerrit(gerritBaseUrlFlag).Query(defaultQueryString)
+	gUrl, err := gerritBaseUrl()
+	if err != nil {
+		return nil, err
+	}
+	cls, err := jirix.Gerrit(gUrl).Query(defaultQueryString)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +156,11 @@ func submitCLs(jirix *jiri.X, cls clList) error {
 	for _, cl := range cls {
 		curRef := cl.Reference()
 		msg := fmt.Sprintf("submit CL: %s\n", curRef)
-		if err := jirix.Gerrit(gerritBaseUrlFlag).Submit(cl.Change_id); err != nil {
+		gUrl, err := gerritBaseUrl()
+		if err != nil {
+			return err
+		}
+		if err := jirix.Gerrit(gUrl).Submit(cl.Change_id); err != nil {
 			test.Fail(jirix.Context, msg)
 			fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 			if err := postMessage(jirix, fmt.Sprintf("Failed to submit CL:\n%v\n", err), []string{curRef}, true); err != nil {
