@@ -113,7 +113,7 @@ func buildGotools(jirix *jiri.X) (string, func() error, error) {
 	}
 
 	// Determine the location of the gotools source.
-	projects, _, err := project.ReadManifest(jirix)
+	projects, _, err := project.ReadJiriManifest(jirix)
 	if err != nil {
 		return "", nopCleanup, err
 	}
