@@ -93,6 +93,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 		})
 	}
 
+	pdb.InstallProfile(profileName, "mojo-dev") // Needed to confirm installation, but nothing will be inside.
 	return pdb.AddProfileTarget(profileName, target)
 }
 
