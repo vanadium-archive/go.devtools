@@ -183,7 +183,7 @@ func runQuery(jirix *jiri.X, args []string) error {
 
 	// Send the new open CLs one by one to the given Jenkins
 	// project to run presubmit-test builds.
-	projects, _, err := project.ReadManifest(jirix)
+	projects, _, err := project.ReadJiriManifest(jirix)
 	if err != nil {
 		return err
 	}

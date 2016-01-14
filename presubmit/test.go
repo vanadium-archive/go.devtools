@@ -117,7 +117,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 		return err
 	}
 
-	projects, tools, err := project.ReadManifest(jirix)
+	projects, tools, err := project.ReadJiriManifest(jirix)
 	if err != nil {
 		return err
 	}
