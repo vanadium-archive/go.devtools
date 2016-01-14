@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
@@ -382,14 +383,16 @@ func preparePresubmitTestBranch(jirix *jiri.X, cls []cl, projects project.Projec
 		if err != nil {
 			return fmt.Errorf("error finding project %q: %v", curCL.project, err)
 		}
-		if err := jirix.NewSeq().Chdir(localProject.Path).Done(); err != nil {
+		s := jirix.NewSeq()
+		if err := s.Chdir(localProject.Path).Done(); err != nil {
 			return fmt.Errorf("Chdir(%v) failed: %v", localProject.Path, err)
 		}
+		git := gitutil.New(s)
 		branchName := presubmitTestBranchName(curCL.ref)
-		if err := jirix.Git().CreateAndCheckoutBranch(branchName); err != nil {
+		if err := git.CreateAndCheckoutBranch(branchName); err != nil {
 			return err
 		}
-		if err := jirix.Git().Pull(localProject.Remote, curCL.ref); err != nil {
+		if err := git.Pull(localProject.Remote, curCL.ref); err != nil {
 			return err
 		}
 		return nil

@@ -338,8 +338,9 @@ func TestSetBuildInfo(t *testing.T) {
 	defer fake.X.NewSeq().RemoveAll(dir)
 
 	env := map[string]string{
-		"PATH":   os.Getenv("PATH"),
-		"GOPATH": os.Getenv("GOPATH"),
+		"PATH":    os.Getenv("PATH"),
+		"GOPATH":  os.Getenv("GOPATH"),
+		"VDLPATH": os.Getenv("VDLPATH"),
 	}
 	args, err := PrepareGo(fake.X, env, []string{"build"}, "-when=now -why", "mypath")
 	if err != nil {

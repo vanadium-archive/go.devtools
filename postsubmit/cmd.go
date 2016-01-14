@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
@@ -133,7 +134,7 @@ func getChangedProjectsFromSnapshot(jirix *jiri.X, snapshotContent []byte) ([]st
 	for _, project := range snapshot.Projects {
 		switch project.Protocol {
 		case "git":
-			git := jirix.Git(tool.RootDirOpt(filepath.Join(jirix.Root, project.Path)))
+			git := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(filepath.Join(jirix.Root, project.Path)))
 			commits, err := git.Log("master", project.Revision, "")
 			if err != nil {
 				return nil, err

@@ -31,7 +31,7 @@ func cleanupProfilesImpl(jirix *jiri.X) error {
 	fmt.Fprintf(jirix.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
 	cmds = append(cmds, "list")
-	removals := []string{}
+	removals := []string{""}
 	if isCI() {
 		fmt.Fprintf(jirix.Stdout(), "cleanupProfiles: remove: %s\n", removals)
 		if len(removals) > 0 {

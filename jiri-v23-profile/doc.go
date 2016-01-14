@@ -125,8 +125,7 @@ The jiri v23-profile install flags are:
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
 
  -color=true
    Use color to format output.
@@ -156,8 +155,7 @@ The jiri v23-profile uninstall flags are:
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    print more detailed information
 
@@ -261,8 +259,7 @@ The jiri v23-profile list flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    print more detailed information
 
@@ -299,8 +296,7 @@ The jiri v23-profile env flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    print more detailed information
 

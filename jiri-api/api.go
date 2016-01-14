@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilescmdline"
@@ -28,6 +29,7 @@ import (
 	"v.io/jiri/util"
 	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/envvar"
 )
 
 var (
@@ -134,7 +136,7 @@ func buildGotools(jirix *jiri.X) (string, func() error, error) {
 	cleanup := func() error { return jirix.NewSeq().RemoveAll(tempDir).Done() }
 
 	gotoolsBin := filepath.Join(tempDir, "gotools")
-	env := jirix.Env()
+	env := envvar.CopyMap(jirix.Env())
 	env["GOPATH"] = newGoPath
 	if err := s.Env(env).Last("go", "build", "-o", gotoolsBin, "github.com/visualfc/gotools"); err != nil {
 		return "", cleanup, err
@@ -212,11 +214,11 @@ func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args
 	}
 	for _, project := range projects {
 		path := project.Path
-		branch, err := jirix.Git(tool.RootDirOpt(path)).CurrentBranchName()
+		branch, err := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(path)).CurrentBranchName()
 		if err != nil {
 			return nil, err
 		}
-		files, err := jirix.Git(tool.RootDirOpt(path)).ModifiedFiles("master", branch)
+		files, err := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(path)).ModifiedFiles("master", branch)
 		if err != nil {
 			return nil, err
 		}

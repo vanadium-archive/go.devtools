@@ -33,8 +33,7 @@ The jiri test flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -72,8 +71,7 @@ The jiri test project flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -122,8 +120,7 @@ The jiri test run flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -150,8 +147,7 @@ The jiri test list flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 

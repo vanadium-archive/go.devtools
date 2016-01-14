@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
@@ -193,7 +194,7 @@ func reportOutdatedBranches(jirix *jiri.X) (e error) {
 		}
 		switch project.Protocol {
 		case "git":
-			branches, _, err := jirix.Git().GetBranches("--merged")
+			branches, _, err := gitutil.New(jirix.NewSeq()).GetBranches("--merged")
 			if err != nil {
 				return err
 			}
@@ -204,7 +205,7 @@ func reportOutdatedBranches(jirix *jiri.X) (e error) {
 					break
 				}
 			}
-			merging, err := jirix.Git().MergeInProgress()
+			merging, err := gitutil.New(jirix.NewSeq()).MergeInProgress()
 			if err != nil {
 				return err
 			}
@@ -366,6 +367,7 @@ func runGoList(jirix *jiri.X, goBin string, env map[string]string, pkgs []string
 	}
 	goListArgs = append(goListArgs, pkgs...)
 	var stdout, stderr bytes.Buffer
+
 	// TODO(jsimsa): Avoid buffering all of the output in memory
 	// either by extending the runutil API to support piping of
 	// output, or by writing the output to a temporary file

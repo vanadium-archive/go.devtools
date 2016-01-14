@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
@@ -252,8 +253,8 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 
 		// Git clone the code and get into the right directory.
 		if err := s.Pushd(tmpDir).
-			Call(func() error { return jirix.Git().Clone(go15GitRemote, tmpDir) }, "").
-			Call(func() error { return jirix.Git().Reset(m.spec.gitRevision) }, "").
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Clone(go15GitRemote, tmpDir) }, "").
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.spec.gitRevision) }, "").
 			Popd().
 			RemoveAll(goInstDir).
 			Rename(tmpDir, goInstDir).

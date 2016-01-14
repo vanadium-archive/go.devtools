@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesreader"
@@ -1481,7 +1482,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 		if err := s.Pushd(project.Path).Error(); err != nil {
 			return nil, err
 		}
-		stashed, err := jirix.Git().Stash()
+		stashed, err := gitutil.New(jirix.NewSeq()).Stash()
 		if err != nil {
 			return nil, err
 		}
@@ -1493,11 +1494,11 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 			if err := jirix.NewSeq().Chdir(localProject.Path).Done(); err != nil {
 				return err
 			}
-			if err := jirix.Git().Reset("HEAD"); err != nil {
+			if err := gitutil.New(jirix.NewSeq()).Reset("HEAD"); err != nil {
 				return err
 			}
 			if stashed {
-				return jirix.Git().StashPop()
+				return gitutil.New(jirix.NewSeq()).StashPop()
 			}
 			return nil
 		}, &e)
@@ -1518,7 +1519,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 		}, &e)
 	}
 	for _, project := range projects {
-		files, err := jirix.Git(tool.RootDirOpt(project.Path)).FilesWithUncommittedChanges()
+		files, err := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(project.Path)).FilesWithUncommittedChanges()
 		if err != nil {
 			return nil, err
 		}

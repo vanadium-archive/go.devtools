@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
@@ -329,8 +330,8 @@ func (m *Manager) installMojoDevtools(jirix *jiri.X, outDir string) error {
 		return jirix.NewSeq().
 			MkdirAll(outDir, profilesutil.DefaultDirPerm).
 			Pushd(outDir).
-			Call(func() error { return jirix.Git().CloneRecursive(mojoDevtoolsRemote, outDir) }, "git clone --recursive %s", mojoDevtoolsRemote).
-			Call(func() error { return jirix.Git().Reset(m.spec.devtoolsVersion) }, "git reset --hard %s", m.spec.devtoolsVersion).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).CloneRecursive(mojoDevtoolsRemote, outDir) }, "git clone --recursive %s", mojoDevtoolsRemote).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.spec.devtoolsVersion) }, "git reset --hard %s", m.spec.devtoolsVersion).
 			Popd().
 			Done()
 	}
@@ -349,8 +350,8 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 		seq.
 			MkdirAll(repoDst, profilesutil.DefaultDirPerm).
 			Pushd(repoDst).
-			Call(func() error { return jirix.Git().CloneRecursive(mojoSdkRemote, repoDst) }, "git clone --recursive %s", mojoSdkRemote).
-			Call(func() error { return jirix.Git().Reset(m.spec.sdkVersion) }, "git reset --hard %s", m.spec.sdkVersion).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).CloneRecursive(mojoSdkRemote, repoDst) }, "git clone --recursive %s", mojoSdkRemote).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.spec.sdkVersion) }, "git reset --hard %s", m.spec.sdkVersion).
 			Popd()
 
 		// Download the authentication and network service mojom files.
@@ -366,8 +367,8 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 
 		seq.
 			Pushd(tmpMojoCheckout).
-			Call(func() error { return jirix.Git().Clone(mojoRemote, tmpMojoCheckout) }, "git clone %s", mojoRemote).
-			Call(func() error { return jirix.Git().Reset(m.buildVersion) }, "git reset --hard %s", m.buildVersion).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Clone(mojoRemote, tmpMojoCheckout) }, "git clone %s", mojoRemote).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.buildVersion) }, "git reset --hard %s", m.buildVersion).
 			Popd()
 
 		servicesSrc := filepath.Join(tmpMojoCheckout, "mojo", "services")

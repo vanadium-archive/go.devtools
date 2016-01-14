@@ -38,8 +38,7 @@ The jiri api flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -84,8 +83,7 @@ The jiri api check flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -120,8 +118,7 @@ The jiri api fix flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 

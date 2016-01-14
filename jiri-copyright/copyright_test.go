@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"testing"
 
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
@@ -72,7 +73,7 @@ func TestCopyright(t *testing.T) {
 		if got, want := missing, false; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
+		if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}
@@ -80,7 +81,7 @@ func TestCopyright(t *testing.T) {
 		if err := s.WriteFile(filepath.Join(projectPath, file), []byte(data), os.FileMode(0600)).Done(); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
+		if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile(file, "adding "+file); err != nil {
 			t.Fatalf("%v", err)
 		}
 	}
@@ -105,7 +106,7 @@ func TestCopyright(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 		path := filepath.Join(projectPath, file)
-		if err := fake.X.Git(tool.RootDirOpt(projectPath)).Remove(file); err != nil {
+		if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).Remove(file); err != nil {
 			t.Fatalf("%v", err)
 		}
 		missing, err = checkProject(fake.X, project, assets, false)
@@ -290,7 +291,7 @@ func TestCopyright(t *testing.T) {
 	}
 	// Since this file is in a subdir, we must run "git add" to have git track it.
 	// Without this, the test passes regardless of the subdir name.
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).Add(path); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).Add(path); err != nil {
 		t.Fatalf("%v", err)
 	}
 	missing, err = checkProject(fake.X, project, assets, false)
@@ -321,7 +322,7 @@ func TestCopyright(t *testing.T) {
 	// Since the copyright check only applies to tracked files, we must run "git
 	// add" to have git track it. Without this, the test passes regardless of the
 	// subdir name.
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).Add(filename); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).Add(filename); err != nil {
 		t.Fatalf("%v", err)
 	}
 	missing, err = checkProject(fake.X, project, assets, false)

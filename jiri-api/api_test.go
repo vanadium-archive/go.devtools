@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
@@ -40,6 +41,7 @@ func setupAPITest(t *testing.T) (*jiritest.FakeJiriRoot, func()) {
 	if err := fake.CreateRemoteProject("test"); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := fake.AddProject(project.Project{
 		Name:   "test",
 		Path:   "test",
@@ -47,6 +49,7 @@ func setupAPITest(t *testing.T) (*jiritest.FakeJiriRoot, func()) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
 	// Set up a third_party project, based on the real root.  We need the real
 	// third_party sources in order for buildGotools to work.
 	if err := fake.CreateRemoteProject("third_party"); err != nil {
@@ -59,9 +62,11 @@ func setupAPITest(t *testing.T) (*jiritest.FakeJiriRoot, func()) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
+
 	// Build gotools for use in the rest of the api tests.
 	gotoolsPath, cleanupGotools, err := buildGotools(fake.X)
 	if err != nil {
@@ -90,7 +95,7 @@ func TestPublicAPICheckError(t *testing.T) {
 	}
 	branch := "my-branch"
 	projectPath := filepath.Join(fake.X.Root, "test")
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -106,7 +111,7 @@ func testFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -130,7 +135,7 @@ func TestPublicAPICheckOk(t *testing.T) {
 	}
 	branch := "my-branch"
 	projectPath := filepath.Join(fake.X.Root, "test")
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -146,7 +151,7 @@ func TestFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -170,7 +175,7 @@ func TestPublicAPIMissingAPIFile(t *testing.T) {
 	}
 	branch := "my-branch"
 	projectPath := filepath.Join(fake.X.Root, "test")
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -181,7 +186,7 @@ func TestFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -207,7 +212,7 @@ func TestPublicAPIMissingAPIFileNoPublicAPI(t *testing.T) {
 	}
 	branch := "my-branch"
 	projectPath := filepath.Join(fake.X.Root, "test")
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -218,7 +223,7 @@ func testFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -243,7 +248,7 @@ func TestPublicAPIMissingAPIFileNotRequired(t *testing.T) {
 	}
 	branch := "my-branch"
 	projectPath := filepath.Join(fake.X.Root, "test")
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -258,7 +263,7 @@ func TestFunction() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile(testFilePath, commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile(testFilePath, commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -281,7 +286,7 @@ func TestPublicAPIUpdate(t *testing.T) {
 	}
 	branch := "my-branch"
 	projectPath := filepath.Join(fake.X.Root, "test")
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CreateAndCheckoutBranch(branch); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -297,7 +302,7 @@ func TestFunction1() {
 }`)
 
 	commitMessage := "Commit file.go"
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -323,7 +328,7 @@ func TestFunction1() {
 
 func testFunction1() {
 }`)
-	if err := fake.X.Git(tool.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
+	if err := gitutil.New(fake.X.NewSeq(), gitutil.RootDirOpt(projectPath)).CommitFile("file.go", commitMessage); err != nil {
 		t.Fatalf("%v", err)
 	}
 

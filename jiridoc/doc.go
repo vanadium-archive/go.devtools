@@ -662,8 +662,7 @@ The jiri api flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -702,8 +701,7 @@ The jiri api check flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -738,8 +736,7 @@ The jiri api fix flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -864,8 +861,7 @@ The jiri dockergo flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -897,8 +893,7 @@ The jiri go flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -928,8 +923,7 @@ The jiri goext flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -961,8 +955,7 @@ The jiri goext distclean flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -1028,8 +1021,7 @@ The jiri run flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -1061,8 +1053,7 @@ The jiri test flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -1094,8 +1085,7 @@ The jiri test project flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -1144,8 +1134,7 @@ The jiri test run flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -1172,8 +1161,7 @@ The jiri test list flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
 
@@ -1291,8 +1279,7 @@ The jiri v23-profile install flags are:
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
 
  -color=true
    Use color to format output.
@@ -1322,8 +1309,7 @@ The jiri v23-profile uninstall flags are:
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
    specify the profiles XML manifest filename.
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    print more detailed information
 
@@ -1428,8 +1414,7 @@ The jiri v23-profile list flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    print more detailed information
 
@@ -1466,8 +1451,7 @@ The jiri v23-profile env flags are:
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
-   specifies a profile target in the following form:
-   <arch>-<os>[@<version>]|<arch>-<val>[@<version>]
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    print more detailed information
 

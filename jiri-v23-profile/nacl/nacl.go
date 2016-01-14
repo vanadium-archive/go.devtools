@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
@@ -140,8 +141,8 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 		}
 		defer jirix.NewSeq().RemoveAll(tmpDir)
 		return s.Pushd(tmpDir).
-			Call(func() error { return jirix.Git().CloneRecursive(gitRemote, tmpDir) }, "").
-			Call(func() error { return jirix.Git().Reset(m.spec.gitRevision) }, "").
+			Call(func() error { return gitutil.New(jirix.NewSeq()).CloneRecursive(gitRemote, tmpDir) }, "").
+			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.spec.gitRevision) }, "").
 			Popd().
 			MkdirAll(m.naclRoot.Abs(jirix), profilesutil.DefaultDirPerm).
 			RemoveAll(naclSrcDir).

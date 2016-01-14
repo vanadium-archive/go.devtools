@@ -15,7 +15,6 @@ import (
 	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/retry"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -44,15 +43,17 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 	}
 
 	// Create a feature branch in the infrastructure project.
-	infraDir := tool.RootDirOpt(filepath.Join(jirix.Root, "infrastructure"))
-	if err := jirix.Git(infraDir).CreateAndCheckoutBranch("update"); err != nil {
+	infraDir := gitutil.RootDirOpt(filepath.Join(jirix.Root, "infrastructure"))
+	git := gitutil.New(jirix.NewSeq(), infraDir)
+	if err := git.CreateAndCheckoutBranch("update"); err != nil {
 		return nil, newInternalError(err, "create")
 	}
 	defer collect.Error(func() error {
-		if err := jirix.Git(infraDir).CheckoutBranch("master", gitutil.ForceOpt(true)); err != nil {
+		git := gitutil.New(jirix.NewSeq(), infraDir)
+		if err := git.CheckoutBranch("master", gitutil.ForceOpt(true)); err != nil {
 			return newInternalError(err, "checkout")
 		}
-		if err := jirix.Git(infraDir).DeleteBranch("update", gitutil.ForceOpt(true)); err != nil {
+		if err := git.DeleteBranch("update", gitutil.ForceOpt(true)); err != nil {
 			return newInternalError(err, "delete")
 		}
 		return nil
@@ -67,22 +68,22 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 			if err := s.Read(bytes.NewReader(data)).Last("jiri", "go", "run", mergeSrc, "-whitelist="+whitelist); err != nil {
 				return nil, newInternalError(err, "merge")
 			}
-			if err := jirix.Git(infraDir).Add(whitelist); err != nil {
+			if err := gitutil.New(jirix.NewSeq(), infraDir).Add(whitelist); err != nil {
 				return nil, newInternalError(err, "commit")
 			}
 		}
 	}
 
 	// Push changes (if any exist) to master.
-	changed, err := jirix.Git(infraDir).HasUncommittedChanges()
+	changed, err := git.HasUncommittedChanges()
 	if err != nil {
 		return nil, newInternalError(err, "changes")
 	}
 	if changed {
-		if err := jirix.Git(infraDir).CommitWithMessage("updating list of emails"); err != nil {
+		if err := git.CommitWithMessage("updating list of emails"); err != nil {
 			return nil, newInternalError(err, "commit")
 		}
-		if err := jirix.Git(infraDir).Push("origin", "update:master", gitutil.VerifyOpt(false)); err != nil {
+		if err := git.Push("origin", "update:master", gitutil.VerifyOpt(false)); err != nil {
 			return nil, newInternalError(err, "push")
 		}
 	}
@@ -140,34 +141,36 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 	}
 
 	// Create a feature branch in the infrastructure project.
-	infraDir := tool.RootDirOpt(filepath.Join(jirix.Root, "infrastructure"))
-	if err := jirix.Git(infraDir).CreateAndCheckoutBranch("update"); err != nil {
+	infraDir := gitutil.RootDirOpt(filepath.Join(jirix.Root, "infrastructure"))
+	git := gitutil.New(jirix.NewSeq(), infraDir)
+	if err := git.CreateAndCheckoutBranch("update"); err != nil {
 		return nil, newInternalError(err, "create")
 	}
 	defer collect.Error(func() error {
-		if err := jirix.Git(infraDir).CheckoutBranch("master", gitutil.ForceOpt(true)); err != nil {
+		git := gitutil.New(jirix.NewSeq(), infraDir)
+		if err := git.CheckoutBranch("master", gitutil.ForceOpt(true)); err != nil {
 			return newInternalError(err, "checkout")
 		}
-		if err := jirix.Git(infraDir).DeleteBranch("update", gitutil.ForceOpt(true)); err != nil {
+		if err := git.DeleteBranch("update", gitutil.ForceOpt(true)); err != nil {
 			return newInternalError(err, "delete")
 		}
 		return nil
 	}, &e)
 
-	if err := jirix.Git(infraDir).Add(sentlist); err != nil {
+	if err := git.Add(sentlist); err != nil {
 		return nil, newInternalError(err, "commit")
 	}
 
 	// Push changes (if any exist) to master.
-	changed, err := jirix.Git(infraDir).HasUncommittedChanges()
+	changed, err := git.HasUncommittedChanges()
 	if err != nil {
 		return nil, newInternalError(err, "changes")
 	}
 	if changed {
-		if err := jirix.Git(infraDir).CommitWithMessage("infrastructure/signup: updating sentlist"); err != nil {
+		if err := git.CommitWithMessage("infrastructure/signup: updating sentlist"); err != nil {
 			return nil, newInternalError(err, "commit")
 		}
-		if err := jirix.Git(infraDir).Push("origin", "update:master", gitutil.VerifyOpt(false)); err != nil {
+		if err := git.Push("origin", "update:master", gitutil.VerifyOpt(false)); err != nil {
 			return nil, newInternalError(err, "push")
 		}
 	}

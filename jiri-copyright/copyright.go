@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
@@ -317,7 +318,7 @@ func checkProject(jirix *jiri.X, project project.Project, assets *copyrightAsset
 		return false, err
 	}
 	defer collect.Error(func() error { return jirix.NewSeq().Chdir(cwd).Done() }, &e)
-	files, err := jirix.Git().TrackedFiles()
+	files, err := gitutil.New(jirix.NewSeq()).TrackedFiles()
 	if err != nil {
 		return false, err
 	}

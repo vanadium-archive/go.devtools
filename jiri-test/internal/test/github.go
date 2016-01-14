@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/runutil"
-	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )
@@ -259,17 +259,17 @@ func makeTestCase(action string, err error) *xunit.TestCase {
 
 func clone(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
-	return jirix.Git().CloneRecursive(mirror.googlesource, dirname)
+	return gitutil.New(jirix.NewSeq()).CloneRecursive(mirror.googlesource, dirname)
 }
 
 func pull(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
-	opts := tool.RootDirOpt(dirname)
-	return jirix.Git(opts).Pull("origin", "master")
+	opts := gitutil.RootDirOpt(dirname)
+	return gitutil.New(jirix.NewSeq(), opts).Pull("origin", "master")
 }
 
 func push(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
-	opts := tool.RootDirOpt(dirname)
-	return jirix.Git(opts).Push(mirror.github, "master")
+	opts := gitutil.RootDirOpt(dirname)
+	return gitutil.New(jirix.NewSeq(), opts).Push(mirror.github, "master")
 }
