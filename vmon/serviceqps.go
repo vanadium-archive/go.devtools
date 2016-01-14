@@ -8,15 +8,15 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/jiri/tool"
+	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/ref/services/stats"
 )
 
 const (
@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	qpsRE = regexp.MustCompile(`.*/methods/([^/]*)/.*: Count: (\d+).*`)
+	qpsRE = regexp.MustCompile(`.*/methods/([^/]*)/.*`)
 )
 
 type qpsData struct {
@@ -35,15 +35,14 @@ type qpsData struct {
 
 // checkServiceQPS checks service RPC QPS (per-method and total) and adds
 // the results to GCM.
-func checkServiceQPS(ctx *tool.Context, s *cloudmonitoring.Service) error {
+func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
 		snApplications,
 		snBinaries,
 		snIdentity,
 		snRole,
-		// snProxy,
-		// TODO(jingjin): add this back when the RPC bug is fixed.
+		snProxy,
 		snGroups,
 	}
 
@@ -52,7 +51,7 @@ func checkServiceQPS(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	mdTotalQPS := monitoring.CustomMetricDescriptors["service-qps-total"]
 	now := time.Now().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		qps, err := checkSingleServiceQPS(ctx, serviceName)
+		qps, err := checkSingleServiceQPS(v23ctx, ctx, serviceName)
 		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -113,14 +112,14 @@ func checkServiceQPS(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	return nil
 }
 
-func checkSingleServiceQPS(ctx *tool.Context, serviceName string) ([]qpsData, error) {
+func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]qpsData, error) {
 	mountedName, err := getMountedName(serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(ctx, serviceName, mountedName)
+	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -133,26 +132,24 @@ func checkSingleServiceQPS(ctx *tool.Context, serviceName string) ([]qpsData, er
 		totalQPS := 0.0
 		for _, name := range group {
 			// Run "debug stats read" for the corresponding object.
-			if output, err := getStat(ctx, fmt.Sprintf("%s/%s", name, qpsSuffix), false); err == nil {
+			if qpsResults, err := getStat(v23ctx, ctx, fmt.Sprintf("%s/%s", name, qpsSuffix)); err == nil {
 				// Parse output.
 				curPerMethodQPS := map[string]float64{}
 				curTotalQPS := 0.0
-				lines := strings.Split(output, "\n")
-				for _, line := range lines {
-					// Each line is in the form of:
-					// <root>/__debug/stats/rpc/server/routing-id/<routing-id>/methods/<method>/latency-ms/delta1m: Count: 10  Min: 38  Max: 43  Avg: 39.30
-					matches := qpsRE.FindStringSubmatch(line)
-					if matches != nil {
-						method := matches[1]
-						strCount := matches[2]
-						count, err := strconv.ParseFloat(strCount, 64)
-						qps := count / 60.0
-						if err != nil {
-							return nil, fmt.Errorf("strconv.ParseFloat(%s, 64) failed: %v", strCount, err)
-						}
-						curPerMethodQPS[method] += qps
-						curTotalQPS += qps
+				for _, r := range qpsResults {
+					data, ok := r.value.(stats.HistogramValue)
+					if !ok {
+						return nil, fmt.Errorf("invalid qps data: %v", r)
 					}
+					matches := qpsRE.FindStringSubmatch(r.name)
+					if matches == nil {
+						continue
+					}
+					method := matches[1]
+					qps := (float64)(data.Count) / 60.0
+					curPerMethodQPS[method] += qps
+					curTotalQPS += qps
+
 				}
 				availableName = name
 				perMethodQPS = curPerMethodQPS
@@ -163,7 +160,7 @@ func checkSingleServiceQPS(ctx *tool.Context, serviceName string) ([]qpsData, er
 		if len(perMethodQPS) == 0 {
 			return nil, fmt.Errorf("failed to check qps for service %q", serviceName)
 		}
-		location, err := getServiceLocation(ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
 		if err != nil {
 			return nil, err
 		}

@@ -5,16 +5,15 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
+	"v.io/v23/context"
+	"v.io/v23/rpc/reserved"
+	"v.io/v23/verror"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 )
@@ -33,7 +32,7 @@ type latencyData struct {
 }
 
 // checkServiceLatency checks all services and adds their check latency to GCM.
-func checkServiceLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
+func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
 		snApplications,
@@ -50,7 +49,7 @@ func checkServiceLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	mdLat := monitoring.CustomMetricDescriptors["service-latency"]
 	now := time.Now().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		lats, err := checkSingleServiceLatency(ctx, serviceName)
+		lats, err := checkSingleServiceLatency(v23ctx, ctx, serviceName)
 		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -88,7 +87,7 @@ func checkServiceLatency(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	return nil
 }
 
-func checkSingleServiceLatency(ctx *tool.Context, serviceName string) ([]latencyData, error) {
+func checkSingleServiceLatency(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]latencyData, error) {
 	// Get service's mounted name.
 	serviceMountedName, err := getMountedName(serviceName)
 	if err != nil {
@@ -98,28 +97,25 @@ func checkSingleServiceLatency(ctx *tool.Context, serviceName string) ([]latency
 	if serviceName == snProxy {
 		serviceMountedName = fmt.Sprintf("%s/__debug", serviceMountedName)
 	}
-	s := ctx.NewSeq()
-
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(ctx, serviceName, serviceMountedName)
+	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, serviceMountedName)
 	if err != nil {
 		return nil, err
 	}
 
 	// For each group, get the latency from the first available name.
-	vrpc := filepath.Join(binDirFlag, "vrpc")
 	latencies := []latencyData{}
 	for _, group := range groups {
 		latency := timeout
 		availableName := group[0]
 		for _, name := range group {
+			v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
+			defer cancel()
 			start := time.Now()
-			var bufErr bytes.Buffer
-			if err := s.Capture(ioutil.Discard, &bufErr).Timeout(timeout).
-				Last(vrpc, "signature", "--insecure", name); err != nil {
-				if !runutil.IsTimeout(err) {
-					// Fail immediately on non-timeout errors (e.g. vrpc command errors).
-					return nil, fmt.Errorf("%v: %s", err, bufErr.String())
+			if _, err := reserved.Signature(v23ctx, name); err != nil {
+				if verror.ErrorID(err) != verror.ErrTimeout.ID {
+					// Fail immediately on non-timeout errors.
+					return nil, err
 				}
 			} else {
 				latency = time.Now().Sub(start)
@@ -127,7 +123,7 @@ func checkSingleServiceLatency(ctx *tool.Context, serviceName string) ([]latency
 				break
 			}
 		}
-		location, err := getServiceLocation(ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
 		if err != nil {
 			return nil, err
 		}

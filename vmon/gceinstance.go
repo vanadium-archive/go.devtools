@@ -22,6 +22,7 @@ import (
 
 	"v.io/jiri/collect"
 	"v.io/jiri/tool"
+	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 )
@@ -111,7 +112,7 @@ type nginxStat struct {
 }
 
 // checkGCEInstances checks all GCE instances in a GCE project.
-func checkGCEInstances(ctx *tool.Context, s *cloudmonitoring.Service) error {
+func checkGCEInstances(_ *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	msg := "Getting instance list\n"
 	instances, err := getInstances(ctx)
 	if err != nil {

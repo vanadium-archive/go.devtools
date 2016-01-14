@@ -14,12 +14,13 @@ import (
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/jiri/tool"
+	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 )
 
 // checkRPCLoadTest checks the result of RPC load test and sends the result to GCM.
-func checkRPCLoadTest(ctx *tool.Context, s *cloudmonitoring.Service) error {
+func checkRPCLoadTest(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	// Parse result file.
 	seq := ctx.NewSeq()
 	resultFile := filepath.Join(os.Getenv("WORKSPACE"), "load_stats.json")

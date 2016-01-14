@@ -6,13 +6,12 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/jiri/tool"
+	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 )
@@ -28,7 +27,7 @@ type counterData struct {
 }
 
 // checkServiceCounters checks all service counters and adds the results to GCM.
-func checkServiceCounters(ctx *tool.Context, s *cloudmonitoring.Service) error {
+func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	counters := map[string][]prodServiceCounter{
 		snMounttable: []prodServiceCounter{
 			prodServiceCounter{
@@ -47,7 +46,7 @@ func checkServiceCounters(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	now := time.Now().Format(time.RFC3339)
 	for serviceName, serviceCounters := range counters {
 		for _, counter := range serviceCounters {
-			vs, err := checkSingleCounter(ctx, serviceName, counter)
+			vs, err := checkSingleCounter(v23ctx, ctx, serviceName, counter)
 			if err != nil {
 				test.Fail(ctx, "%s\n", counter.name)
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -81,14 +80,14 @@ func checkServiceCounters(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	return nil
 }
 
-func checkSingleCounter(ctx *tool.Context, serviceName string, counter prodServiceCounter) ([]counterData, error) {
+func checkSingleCounter(v23ctx *context.T, ctx *tool.Context, serviceName string, counter prodServiceCounter) ([]counterData, error) {
 	mountedName, err := getMountedName(serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(ctx, serviceName, mountedName)
+	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -100,14 +99,10 @@ func checkSingleCounter(ctx *tool.Context, serviceName string, counter prodServi
 		availableName := group[0]
 		succeeded := false
 		for _, name := range group {
-			if output, err := getStat(ctx, fmt.Sprintf("%s/%s", mountedName, counter.statSuffix), false); err == nil {
-				parts := strings.Split(strings.TrimSpace(output), " ")
-				if len(parts) != 2 {
-					return nil, fmt.Errorf("invalid debug output: %s", output)
-				}
-				v, err := strconv.ParseFloat(parts[1], 64)
+			if counterResult, err := getStat(v23ctx, ctx, fmt.Sprintf("%s/%s", mountedName, counter.statSuffix)); err == nil {
+				v, err := counterResult[0].getFloat64Value()
 				if err != nil {
-					return nil, fmt.Errorf("ParseFloat(%s) failed: %v", parts[1], err)
+					return nil, err
 				}
 				availableName = name
 				value = v
@@ -117,7 +112,7 @@ func checkSingleCounter(ctx *tool.Context, serviceName string, counter prodServi
 		if !succeeded {
 			return nil, fmt.Errorf("failed to check service %q", serviceName)
 		}
-		location, err := getServiceLocation(ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
 		if err != nil {
 			return nil, err
 		}

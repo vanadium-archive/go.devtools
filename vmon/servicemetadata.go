@@ -6,12 +6,12 @@ package main
 
 import (
 	"fmt"
-	"regexp"
 	"time"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/jiri/tool"
+	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 )
@@ -20,17 +20,13 @@ const (
 	buildTimeStatSuffix = "__debug/stats/system/metadata/build.Time"
 )
 
-var (
-	buildTimeRE = regexp.MustCompile(`^.*/build\.Time: (.*)`)
-)
-
 type metadataData struct {
 	location  *monitoring.ServiceLocation
 	buildTime time.Time
 }
 
 // checkServiceMetadata checks all service metadata and adds the results to GCM.
-func checkServiceMetadata(ctx *tool.Context, s *cloudmonitoring.Service) error {
+func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
 		snApplications,
@@ -46,7 +42,7 @@ func checkServiceMetadata(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	now := time.Now()
 	strNow := now.Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
-		ms, err := checkSingleServiceMetadata(ctx, serviceName)
+		ms, err := checkSingleServiceMetadata(v23ctx, ctx, serviceName)
 		if err != nil {
 			test.Fail(ctx, "%s\n", serviceName)
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
@@ -92,14 +88,14 @@ func checkServiceMetadata(ctx *tool.Context, s *cloudmonitoring.Service) error {
 	return nil
 }
 
-func checkSingleServiceMetadata(ctx *tool.Context, serviceName string) ([]metadataData, error) {
+func checkSingleServiceMetadata(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]metadataData, error) {
 	mountedName, err := getMountedName(serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(ctx, serviceName, mountedName)
+	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -112,13 +108,8 @@ func checkSingleServiceMetadata(ctx *tool.Context, serviceName string) ([]metada
 		for _, name := range group {
 			// Query build time.
 			buildTimeStat := fmt.Sprintf("%s/%s", mountedName, buildTimeStatSuffix)
-			if output, err := getStat(ctx, buildTimeStat, false); err == nil {
-				// Parse build time.
-				matches := buildTimeRE.FindStringSubmatch(output)
-				if matches == nil {
-					return nil, fmt.Errorf("invalid stat: %s", output)
-				}
-				strTime := matches[1]
+			if timeResult, err := getStat(v23ctx, ctx, buildTimeStat); err == nil {
+				strTime := timeResult[0].getStringValue()
 				t, err := time.Parse("2006-01-02T15:04:05Z", strTime)
 				if err != nil {
 					return nil, fmt.Errorf("Parse(%v) failed: %v", strTime, err)
@@ -130,7 +121,7 @@ func checkSingleServiceMetadata(ctx *tool.Context, serviceName string) ([]metada
 		if buildTime.IsZero() {
 			return nil, fmt.Errorf("failed to check build time for service %q", serviceName)
 		}
-		location, err := getServiceLocation(ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
 		if err != nil {
 			return nil, err
 		}
