@@ -4,10 +4,11 @@
 
 package foo_test
 
-import "testing"
-import "os"
+import (
+	"testing"
 
-import "v.io/x/ref/test/v23test"
+	"v.io/x/ref/test/v23test"
+)
 
 func TestV23(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
@@ -22,5 +23,5 @@ func TestV23Hello(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }
