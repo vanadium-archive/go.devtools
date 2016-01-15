@@ -19,7 +19,7 @@ import (
 )
 
 // checkFunctions is a map from check names to the corresponding check functions.
-var checkFunctions = map[string]func(*tool.Context, *cloudmonitoring.Service) error{
+var checkFunctions = map[string]func(*context.T, *tool.Context, *cloudmonitoring.Service) error{
 	"service-latency":           checkServiceLatency,
 	"service-permethod-latency": checkServicePerMethodLatency,
 	"service-counters":          checkServiceCounters,
@@ -70,7 +70,7 @@ var cmdCheckRun = &cmdline.Command{
 	ArgsLong: "<names> is a list of names identifying the checks to run. Available: " + strings.Join(knownCheckNames(), ", "),
 }
 
-func runCheckRun(_ *context.T, env *cmdline.Env, args []string) error {
+func runCheckRun(v23ctx *context.T, env *cmdline.Env, args []string) error {
 	// Check args.
 	for _, arg := range args {
 		if _, ok := checkFunctions[arg]; !ok {
@@ -94,7 +94,7 @@ func runCheckRun(_ *context.T, env *cmdline.Env, args []string) error {
 		// We already checked the given checks all exist.
 		checkFn, _ := checkFunctions[check]
 		fmt.Fprintf(ctx.Stdout(), "##### Running check %q #####\n", check)
-		err := checkFn(ctx, s)
+		err := checkFn(v23ctx, ctx, s)
 		if err != nil {
 			fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			fmt.Fprintf(ctx.Stdout(), "##### FAIL #####\n")

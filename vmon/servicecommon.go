@@ -5,19 +5,18 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"math"
-	"path/filepath"
-	"regexp"
 	"strings"
 
 	"google.golang.org/api/cloudmonitoring/v2beta2"
 
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/services/stats"
+	"v.io/v23/vdl"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 )
@@ -37,11 +36,6 @@ const (
 
 	hostnameStatSuffix = "__debug/stats/system/hostname"
 	zoneStatSuffix     = "__debug/stats/system/gce/zone"
-)
-
-var (
-	hostnameRE = regexp.MustCompile(`^.*/hostname: (.*)`)
-	zoneRE     = regexp.MustCompile(`^.*/zone: .*/zones/(.*)`)
 )
 
 // serviceMountedNames is a map from human-readable service names to their
@@ -88,6 +82,26 @@ func (a *aggregator) String() string {
 	return fmt.Sprintf("min: %f, max: %f, avg: %f", a.min, a.max, a.avg())
 }
 
+type statValue struct {
+	name  string
+	value interface{}
+}
+
+func (sv *statValue) getStringValue() string {
+	return fmt.Sprint(sv.value)
+}
+
+func (sv *statValue) getFloat64Value() (float64, error) {
+	switch i := sv.value.(type) {
+	case float64:
+		return i, nil
+	case int64:
+		return float64(i), nil
+	default:
+		return 0, fmt.Errorf("invalid value: %v", sv.value)
+	}
+}
+
 func getMountedName(serviceName string) (string, error) {
 	relativeName, ok := serviceMountedNames[serviceName]
 	if !ok {
@@ -96,48 +110,68 @@ func getMountedName(serviceName string) (string, error) {
 	return fmt.Sprintf("%s/%s", namespaceRootFlag, relativeName), nil
 }
 
-// getStat runs "debug stats read" command for the given stat.
-func getStat(ctx *tool.Context, stat string, json bool) (string, error) {
-	// TODO(jingjin): use RPC instead of the debug command.
-	debug := filepath.Join(binDirFlag, "debug")
-	args := []string{
-		"--v23.credentials",
-		credentialsFlag,
-		"stats",
-		"read",
+// getStat gets the given stat using rpc.
+func getStat(v23ctx *context.T, ctx *tool.Context, stat string) ([]*statValue, error) {
+	v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
+	defer cancel()
+
+	// Glob the given stat pattern.
+	rc, err := v23.GetNamespace(v23ctx).Glob(v23ctx, stat)
+	if err != nil {
+		return nil, err
 	}
-	if json {
-		args = append(args, "-json")
-	}
-	args = append(args, stat)
-	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := ctx.NewSeq().Capture(&stdoutBuf, &stderrBuf).Timeout(timeout).
-		Last(debug, args...); err != nil {
-		if !runutil.IsTimeout(err) {
-			return "", fmt.Errorf("debug command failed: %v\nSTDOUT:\n%s\nSTDERR:\n:%s", err, stdoutBuf.String(), stderrBuf.String())
+
+	// Get stat value for each returned name.
+	hasErrors := false
+	ret := []*statValue{}
+	for s := range rc {
+		switch v := s.(type) {
+		case *naming.GlobReplyEntry:
+			value, err := stats.StatsClient(v.Value.Name).Value(v23ctx)
+			if err != nil {
+				fmt.Fprintf(ctx.Stderr(), "Failed to get stat: %v\n%v\n", v.Value.Name, err)
+				hasErrors = true
+				continue
+			}
+			var convertedValue interface{}
+			if err := vdl.Convert(&convertedValue, value); err != nil {
+				fmt.Fprintf(ctx.Stderr(), "Failed to convert value for %v: %v\n", v.Value.Name, err)
+				hasErrors = true
+				continue
+			}
+			ret = append(ret, &statValue{
+				name:  v.Value.Name,
+				value: convertedValue,
+			})
+		case *naming.GlobReplyError:
+			fmt.Fprintf(ctx.Stderr(), "%s can't be traversed: %s\n", v.Value.Name, v.Value.Error)
+			hasErrors = true
 		}
-		return "", err
 	}
-	if stdoutBuf.Len() == 0 {
-		return "", fmt.Errorf("debug command returned no output. STDERR:\n%s", stderrBuf.String())
+	if hasErrors || len(ret) == 0 {
+		return nil, fmt.Errorf("failed to get stat")
 	}
-	return stdoutBuf.String(), nil
+
+	return ret, nil
 }
 
 // resolveAndProcessServiceName resolves the given service name and groups the
 // result entries by their routing ids.
-func resolveAndProcessServiceName(ctx *tool.Context, serviceName, serviceMountedName string) (map[string][]string, error) {
-	s := ctx.NewSeq()
-
+func resolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceName, serviceMountedName string) (map[string][]string, error) {
 	// Resolve the name.
-	// TODO(jingjin): use RPC instead of the namespace command.
-	namespace := filepath.Join(binDirFlag, "namespace")
-	var bufOut, bufErr bytes.Buffer
-	if err := s.Capture(&bufOut, &bufErr).Timeout(timeout).
-		Last(namespace, "resolve", serviceMountedName); err != nil {
-		return nil, fmt.Errorf("%v: %s", err, bufErr.String())
+	v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
+	defer cancel()
+
+	ns := v23.GetNamespace(v23ctx)
+	entry, err := ns.Resolve(v23ctx, serviceMountedName)
+	if err != nil {
+		return nil, err
 	}
-	resolvedNames := strings.Split(strings.TrimSpace(bufOut.String()), "\n")
+	resolvedNames := []string{}
+	for _, server := range entry.Servers {
+		fullName := naming.JoinAddressName(server.Server, entry.Name)
+		resolvedNames = append(resolvedNames, fullName)
+	}
 
 	// Group resolved names by their routing ids.
 	groups := map[string][]string{}
@@ -165,33 +199,25 @@ func resolveAndProcessServiceName(ctx *tool.Context, serviceName, serviceMounted
 //
 // To make it simpler and faster, we look up service's location in hard-coded "zone maps"
 // for both non-replicated and replicated services.
-func getServiceLocation(ctx *tool.Context, name, serviceName string) (*monitoring.ServiceLocation, error) {
+func getServiceLocation(v23ctx *context.T, ctx *tool.Context, name, serviceName string) (*monitoring.ServiceLocation, error) {
 	// Check "__debug/stats/system/metadata/hostname" stat to get service's
 	// host name.
 	serverName, _ := naming.SplitAddressName(name)
 	hostnameStat := fmt.Sprintf("/%s/%s", serverName, hostnameStatSuffix)
-	output, err := getStat(ctx, hostnameStat, false)
+	hostnameResult, err := getStat(v23ctx, ctx, hostnameStat)
 	if err != nil {
 		return nil, err
 	}
-	matches := hostnameRE.FindStringSubmatch(output)
-	if matches == nil {
-		return nil, fmt.Errorf("invalid stat: %s", output)
-	}
-	hostname := matches[1]
+	hostname := hostnameResult[0].getStringValue()
 
 	// Check "__debug/stats/system/gce/zone" stat to get service's
 	// zone name.
 	zoneStat := fmt.Sprintf("/%s/%s", serverName, zoneStatSuffix)
-	output, err = getStat(ctx, zoneStat, false)
+	zoneResult, err := getStat(v23ctx, ctx, zoneStat)
 	if err != nil {
 		return nil, err
 	}
-	matches = zoneRE.FindStringSubmatch(output)
-	if matches == nil {
-		return nil, fmt.Errorf("invalid stat: %s", output)
-	}
-	zone := matches[1]
+	zone := zoneResult[0].getStringValue()
 
 	return &monitoring.ServiceLocation{
 		Instance: hostname,
