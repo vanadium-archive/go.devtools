@@ -218,6 +218,11 @@ func getServiceLocation(v23ctx *context.T, ctx *tool.Context, name, serviceName 
 		return nil, err
 	}
 	zone := zoneResult[0].getStringValue()
+	// The zone stat exported by services is in the form of:
+	// projects/632758215260/zones/us-central1-c
+	// We only need the last part.
+	parts := strings.Split(zone, "/")
+	zone = parts[len(parts)-1]
 
 	return &monitoring.ServiceLocation{
 		Instance: hostname,
