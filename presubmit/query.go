@@ -155,7 +155,11 @@ func runQuery(jirix *jiri.X, args []string) error {
 	}
 
 	// Query Gerrit.
-	curCLs, err := jirix.Gerrit(gerritBaseUrlFlag).Query(queryStringFlag)
+	gUrl, err := gerritBaseUrl()
+	if err != nil {
+		return err
+	}
+	curCLs, err := jirix.Gerrit(gUrl).Query(queryStringFlag)
 	if err != nil {
 		return fmt.Errorf("Query(%q) failed: %v", queryStringFlag, err)
 	}

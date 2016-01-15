@@ -794,7 +794,11 @@ func (r *testReporter) reportUsefulLinks(failedTestNames map[string]struct{}) {
 // submitPresubmitCLs tries to submit CLs in the current presubmit test.
 func submitPresubmitCLs(jirix *jiri.X, refs []string) error {
 	// Query open CLs.
-	openCLs, err := jirix.Gerrit(gerritBaseUrlFlag).Query(defaultQueryString)
+	gUrl, err := gerritBaseUrl()
+	if err != nil {
+		return err
+	}
+	openCLs, err := jirix.Gerrit(gUrl).Query(defaultQueryString)
 	if err != nil {
 		return err
 	}
