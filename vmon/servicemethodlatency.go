@@ -110,37 +110,34 @@ func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, se
 	latencies := []perMethodLatencyData{}
 	for _, group := range groups {
 		latency := map[string]float64{}
-		availableName := group[0]
-		for _, name := range group {
-			// Run "debug stats read" for the corresponding object.
-			if statsResult, err := getStat(v23ctx, ctx, fmt.Sprintf("%s/%s", name, statsSuffix)); err == nil {
-				// Parse output.
-				latPerMethod := map[string]float64{}
-				for _, r := range statsResult {
-					data, ok := r.value.(stats.HistogramValue)
-					if !ok {
-						return nil, fmt.Errorf("invalid latency data: %v", r)
-					}
-					matches := latMethodRE.FindStringSubmatch(r.name)
-					if matches == nil {
-						continue
-					}
-					method := matches[1]
-					latency := 0.0
-					if data.Count != 0 {
-						latency = (float64)(data.Sum) / (float64)(data.Count)
-					}
-					latPerMethod[method] = math.Max(latPerMethod[method], latency)
-				}
-				latency = latPerMethod
-				availableName = name
-				break
-			}
+		// Run "debug stats read" for the corresponding object.
+		statsResult, err := getStat(v23ctx, ctx, group, statsSuffix)
+		if err != nil {
+			return nil, err
 		}
+		// Parse output.
+		latPerMethod := map[string]float64{}
+		for _, r := range statsResult {
+			data, ok := r.value.(stats.HistogramValue)
+			if !ok {
+				return nil, fmt.Errorf("invalid latency data: %v", r)
+			}
+			matches := latMethodRE.FindStringSubmatch(r.name)
+			if matches == nil {
+				continue
+			}
+			method := matches[1]
+			latency := 0.0
+			if data.Count != 0 {
+				latency = (float64)(data.Sum) / (float64)(data.Count)
+			}
+			latPerMethod[method] = math.Max(latPerMethod[method], latency)
+		}
+		latency = latPerMethod
 		if len(latency) == 0 {
 			return nil, fmt.Errorf("failed to check latency for service %q", serviceName)
 		}
-		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			return nil, err
 		}

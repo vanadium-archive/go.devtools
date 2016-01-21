@@ -95,24 +95,15 @@ func checkSingleCounter(v23ctx *context.T, ctx *tool.Context, serviceName string
 	// Get counters for each group.
 	counters := []counterData{}
 	for _, group := range groups {
-		value := 0.0
-		availableName := group[0]
-		succeeded := false
-		for _, name := range group {
-			if counterResult, err := getStat(v23ctx, ctx, fmt.Sprintf("%s/%s", mountedName, counter.statSuffix)); err == nil {
-				v, err := counterResult[0].getFloat64Value()
-				if err != nil {
-					return nil, err
-				}
-				availableName = name
-				value = v
-				succeeded = true
-			}
+		counterResult, err := getStat(v23ctx, ctx, group, counter.statSuffix)
+		if err != nil {
+			return nil, err
 		}
-		if !succeeded {
-			return nil, fmt.Errorf("failed to check service %q", serviceName)
+		value, err := counterResult[0].getFloat64Value()
+		if err != nil {
+			return nil, err
 		}
-		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			return nil, err
 		}

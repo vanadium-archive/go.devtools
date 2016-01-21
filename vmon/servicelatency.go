@@ -12,6 +12,7 @@ import (
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/verror"
 	"v.io/x/devtools/internal/monitoring"
@@ -107,23 +108,18 @@ func checkSingleServiceLatency(v23ctx *context.T, ctx *tool.Context, serviceName
 	latencies := []latencyData{}
 	for _, group := range groups {
 		latency := timeout
-		availableName := group[0]
-		for _, name := range group {
-			v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
-			defer cancel()
-			start := time.Now()
-			if _, err := reserved.Signature(v23ctx, name); err != nil {
-				if verror.ErrorID(err) != verror.ErrTimeout.ID {
-					// Fail immediately on non-timeout errors.
-					return nil, err
-				}
-			} else {
-				latency = time.Now().Sub(start)
-				availableName = name
-				break
+		v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
+		defer cancel()
+		start := time.Now()
+		if _, err := reserved.Signature(v23ctx, "", options.Preresolved{&group}); err != nil {
+			if verror.ErrorID(err) != verror.ErrTimeout.ID {
+				// Fail immediately on non-timeout errors.
+				return nil, err
 			}
+		} else {
+			latency = time.Now().Sub(start)
 		}
-		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			return nil, err
 		}

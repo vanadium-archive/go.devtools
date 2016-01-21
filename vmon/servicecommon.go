@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"strings"
 
@@ -15,6 +16,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/services/stats"
 	"v.io/v23/vdl"
 	"v.io/x/devtools/internal/monitoring"
@@ -111,23 +114,31 @@ func getMountedName(serviceName string) (string, error) {
 }
 
 // getStat gets the given stat using rpc.
-func getStat(v23ctx *context.T, ctx *tool.Context, stat string) ([]*statValue, error) {
+func getStat(v23ctx *context.T, ctx *tool.Context, me naming.MountEntry, pattern string) ([]*statValue, error) {
 	v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
 	defer cancel()
 
-	// Glob the given stat pattern.
-	rc, err := v23.GetNamespace(v23ctx).Glob(v23ctx, stat)
+	call, err := v23.GetClient(v23ctx).StartCall(v23ctx, "", rpc.GlobMethod, []interface{}{pattern}, options.Preresolved{&me})
 	if err != nil {
 		return nil, err
 	}
-
-	// Get stat value for each returned name.
 	hasErrors := false
 	ret := []*statValue{}
-	for s := range rc {
-		switch v := s.(type) {
-		case *naming.GlobReplyEntry:
-			value, err := stats.StatsClient(v.Value.Name).Value(v23ctx)
+	mountEntryName := me.Name
+	for {
+		var gr naming.GlobReply
+		err := call.Recv(&gr)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		switch v := gr.(type) {
+		case naming.GlobReplyEntry:
+			me.Name = naming.Join(mountEntryName, v.Value.Name)
+			value, err := stats.StatsClient("").Value(v23ctx, options.Preresolved{&me})
 			if err != nil {
 				fmt.Fprintf(ctx.Stderr(), "Failed to get stat: %v\n%v\n", v.Value.Name, err)
 				hasErrors = true
@@ -143,13 +154,15 @@ func getStat(v23ctx *context.T, ctx *tool.Context, stat string) ([]*statValue, e
 				name:  v.Value.Name,
 				value: convertedValue,
 			})
-		case *naming.GlobReplyError:
-			fmt.Fprintf(ctx.Stderr(), "%s can't be traversed: %s\n", v.Value.Name, v.Value.Error)
-			hasErrors = true
+		case naming.GlobReplyError:
+			fmt.Fprintf(ctx.Stderr(), "Glob failed at %q: %v", v.Value.Name, v.Value.Error)
 		}
 	}
 	if hasErrors || len(ret) == 0 {
 		return nil, fmt.Errorf("failed to get stat")
+	}
+	if err := call.Finish(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil
@@ -157,7 +170,7 @@ func getStat(v23ctx *context.T, ctx *tool.Context, stat string) ([]*statValue, e
 
 // resolveAndProcessServiceName resolves the given service name and groups the
 // result entries by their routing ids.
-func resolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceName, serviceMountedName string) (map[string][]string, error) {
+func resolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceName, serviceMountedName string) (map[string]naming.MountEntry, error) {
 	// Resolve the name.
 	v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
 	defer cancel()
@@ -174,20 +187,30 @@ func resolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceN
 	}
 
 	// Group resolved names by their routing ids.
-	groups := map[string][]string{}
+	groups := map[string]naming.MountEntry{}
 	if serviceName == snMounttable {
 		// Mounttable resolves to itself, so we just use a dummy routing id with
 		// its original mounted name.
-		groups["-"] = []string{serviceMountedName}
+		groups["-"] = naming.MountEntry{
+			Servers: []naming.MountedServer{naming.MountedServer{Server: serviceMountedName}},
+		}
 	} else {
 		for _, resolvedName := range resolvedNames {
-			serverName, _ := naming.SplitAddressName(resolvedName)
+			serverName, relativeName := naming.SplitAddressName(resolvedName)
 			ep, err := v23.NewEndpoint(serverName)
 			if err != nil {
 				return nil, err
 			}
 			routingId := ep.RoutingID().String()
-			groups[routingId] = append(groups[routingId], resolvedName)
+			if _, ok := groups[routingId]; !ok {
+				groups[routingId] = naming.MountEntry{}
+			}
+			curMountEntry := groups[routingId]
+			curMountEntry.Servers = append(curMountEntry.Servers, naming.MountedServer{Server: serverName})
+			// resolvedNames are resolved from the same service so they should have
+			// the same relative name.
+			curMountEntry.Name = relativeName
+			groups[routingId] = curMountEntry
 		}
 	}
 
@@ -199,12 +222,11 @@ func resolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceN
 //
 // To make it simpler and faster, we look up service's location in hard-coded "zone maps"
 // for both non-replicated and replicated services.
-func getServiceLocation(v23ctx *context.T, ctx *tool.Context, name, serviceName string) (*monitoring.ServiceLocation, error) {
+func getServiceLocation(v23ctx *context.T, ctx *tool.Context, me naming.MountEntry) (*monitoring.ServiceLocation, error) {
 	// Check "__debug/stats/system/metadata/hostname" stat to get service's
 	// host name.
-	serverName, _ := naming.SplitAddressName(name)
-	hostnameStat := fmt.Sprintf("/%s/%s", serverName, hostnameStatSuffix)
-	hostnameResult, err := getStat(v23ctx, ctx, hostnameStat)
+	me.Name = ""
+	hostnameResult, err := getStat(v23ctx, ctx, me, hostnameStatSuffix)
 	if err != nil {
 		return nil, err
 	}
@@ -212,8 +234,7 @@ func getServiceLocation(v23ctx *context.T, ctx *tool.Context, name, serviceName 
 
 	// Check "__debug/stats/system/gce/zone" stat to get service's
 	// zone name.
-	zoneStat := fmt.Sprintf("/%s/%s", serverName, zoneStatSuffix)
-	zoneResult, err := getStat(v23ctx, ctx, zoneStat)
+	zoneResult, err := getStat(v23ctx, ctx, me, zoneStatSuffix)
 	if err != nil {
 		return nil, err
 	}

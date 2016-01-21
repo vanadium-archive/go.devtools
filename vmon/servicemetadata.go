@@ -103,25 +103,17 @@ func checkSingleServiceMetadata(v23ctx *context.T, ctx *tool.Context, serviceNam
 	// Get metadata for each group.
 	metadata := []metadataData{}
 	for _, group := range groups {
-		buildTime := time.Time{}
-		availableName := group[0]
-		for _, name := range group {
-			// Query build time.
-			buildTimeStat := fmt.Sprintf("%s/%s", mountedName, buildTimeStatSuffix)
-			if timeResult, err := getStat(v23ctx, ctx, buildTimeStat); err == nil {
-				strTime := timeResult[0].getStringValue()
-				t, err := time.Parse("2006-01-02T15:04:05Z", strTime)
-				if err != nil {
-					return nil, fmt.Errorf("Parse(%v) failed: %v", strTime, err)
-				}
-				buildTime = t
-				availableName = name
-			}
+		// Query build time.
+		timeResult, err := getStat(v23ctx, ctx, group, buildTimeStatSuffix)
+		if err != nil {
+			return nil, err
 		}
-		if buildTime.IsZero() {
-			return nil, fmt.Errorf("failed to check build time for service %q", serviceName)
+		strTime := timeResult[0].getStringValue()
+		buildTime, err := time.Parse("2006-01-02T15:04:05Z", strTime)
+		if err != nil {
+			return nil, fmt.Errorf("Parse(%v) failed: %v", strTime, err)
 		}
-		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			return nil, err
 		}

@@ -127,40 +127,34 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 	// Get qps for each group.
 	qps := []qpsData{}
 	for _, group := range groups {
-		availableName := group[0]
 		perMethodQPS := map[string]float64{}
 		totalQPS := 0.0
-		for _, name := range group {
-			// Run "debug stats read" for the corresponding object.
-			if qpsResults, err := getStat(v23ctx, ctx, fmt.Sprintf("%s/%s", name, qpsSuffix)); err == nil {
-				// Parse output.
-				curPerMethodQPS := map[string]float64{}
-				curTotalQPS := 0.0
-				for _, r := range qpsResults {
-					data, ok := r.value.(stats.HistogramValue)
-					if !ok {
-						return nil, fmt.Errorf("invalid qps data: %v", r)
-					}
-					matches := qpsRE.FindStringSubmatch(r.name)
-					if matches == nil {
-						continue
-					}
-					method := matches[1]
-					qps := (float64)(data.Count) / 60.0
-					curPerMethodQPS[method] += qps
-					curTotalQPS += qps
-
-				}
-				availableName = name
-				perMethodQPS = curPerMethodQPS
-				totalQPS = curTotalQPS
-				break
-			}
+		qpsResults, err := getStat(v23ctx, ctx, group, qpsSuffix)
+		if err != nil {
+			return nil, err
 		}
+		curPerMethodQPS := map[string]float64{}
+		curTotalQPS := 0.0
+		for _, r := range qpsResults {
+			data, ok := r.value.(stats.HistogramValue)
+			if !ok {
+				return nil, fmt.Errorf("invalid qps data: %v", r)
+			}
+			matches := qpsRE.FindStringSubmatch(r.name)
+			if matches == nil {
+				continue
+			}
+			method := matches[1]
+			qps := (float64)(data.Count) / 60.0
+			curPerMethodQPS[method] += qps
+			curTotalQPS += qps
+		}
+		perMethodQPS = curPerMethodQPS
+		totalQPS = curTotalQPS
 		if len(perMethodQPS) == 0 {
 			return nil, fmt.Errorf("failed to check qps for service %q", serviceName)
 		}
-		location, err := getServiceLocation(v23ctx, ctx, availableName, serviceName)
+		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			return nil, err
 		}
