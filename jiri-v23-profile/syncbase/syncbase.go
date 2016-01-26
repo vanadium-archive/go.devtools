@@ -5,6 +5,8 @@
 package syncbase
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -208,6 +210,115 @@ func ndkArch(goArch string) (string, error) {
 	}
 }
 
+// iosSDKName determines if we are using the simulator or device SDK for a given target architecture.
+func iosSDKName(goArch string) (string, error) {
+	switch goArch {
+	case "386", "amd64":
+		return "iphonesimulator", nil
+	case "arm", "arm64":
+		return "iphoneos", nil
+	default:
+		return "", fmt.Errorf("Unsupported architecture for iOS: %v", goArch)
+	}
+}
+
+// iosSDKPath asks the system for the path to a given autodetected iOS SDK (device or simulator).
+func iosSDKPath(jirix *jiri.X, target profiles.Target) (string, error) {
+	sdk, err := iosSDKName(target.Arch())
+	if err != nil {
+		return "", err
+	}
+
+	var out bytes.Buffer
+	outWriter := bufio.NewWriter(&out)
+	s := jirix.NewSeq()
+	if err := s.Capture(outWriter, outWriter).Last("xcrun", "--sdk", sdk, "--show-sdk-path"); err != nil {
+		return "", fmt.Errorf("Unable to get iOS SDK path from xcrun: %s", out.String())
+	}
+	outWriter.Flush()
+	return strings.TrimSpace(out.String()), nil
+}
+
+// iosToolPath asks the system for the path to a tool like clang for a given auto-detected SDK (device or simulator).
+func iosToolPath(jirix *jiri.X, target profiles.Target, tool string) (string, error) {
+	sdk, err := iosSDKName(target.Arch())
+	if err != nil {
+		return "", err
+	}
+
+	var out bytes.Buffer
+	outWriter := bufio.NewWriter(&out)
+	s := jirix.NewSeq()
+	if err := s.Capture(outWriter, outWriter).Last("xcrun", "--sdk", sdk, "--find", tool); err != nil {
+		return "", fmt.Errorf("Unable to get %s path from xcrun: %s", tool, out.String())
+	}
+	outWriter.Flush()
+	return strings.TrimSpace(out.String()), nil
+}
+
+func iosArch(goArch string) (string, error) {
+	switch goArch {
+	case "arm":
+		return "armv7", nil
+	case "arm64":
+		return "arm64", nil
+	case "386":
+		return "i386", nil
+	case "amd64":
+		return "x86_64", nil
+	default:
+		return "", fmt.Errorf("Unsupported architecture for iOS: %v", goArch)
+	}
+}
+
+// initIOSEnv sets the appropriate environmental vars based on autodetecting the
+// device or simulator environment (from the target architecture) to use the right clang and
+// configure it for the iOS SDK. It returns the clang env flags or error.
+func initIOSEnv(jirix *jiri.X, target profiles.Target) (map[string]string, error) {
+	sdkName, err := iosSDKName(target.Arch())
+	if err != nil {
+		return nil, err
+	}
+	sysroot, err := iosSDKPath(jirix, target)
+	if err != nil {
+		return nil, err
+	}
+	clangPath, err := iosToolPath(jirix, target, "clang")
+	if err != nil {
+		return nil, err
+	}
+	clangxxPath, err := iosToolPath(jirix, target, "clang++")
+	if err != nil {
+		return nil, err
+	}
+	iosArch, err := iosArch(target.Arch())
+	if err != nil {
+		return nil, err
+	}
+	// Currently we are setting a deployment target of 8 as it gives us the most APIs and the
+	// ability to load shared libraries while achieving a high usage rate (~96% as of Jan 15 2016).
+	deploymentTarget := "8.0"
+	// TODO(zinman): Enable bitcode via -fembed-bitcode as currently it errors with:
+	// ld: -bind_at_load and -bitcode_bundle (Xcode setting ENABLE_BITCODE=YES) cannot be used together
+	minVersionEnvFlag := sdkName
+	if minVersionEnvFlag == "iphonesimulator" {
+		minVersionEnvFlag = "ios-simulator"
+	}
+	// either -miphoneos-version-min or -mios-simulator-version-min
+	iosFlags := fmt.Sprintf("-m%v-version-min=%v -isysroot %v", minVersionEnvFlag, deploymentTarget, sysroot)
+	env := map[string]string{
+		"IPHONEOS_DEPLOYMENT_TARGET": deploymentTarget,
+		"TARGET":                     "arm-apple-darwin", // this is true for 32 and 64-bits
+		"CFLAGS":                     fmt.Sprintf("%v -arch %v", iosFlags, iosArch),
+		"CXXFLAGS":                   fmt.Sprintf("%v -arch %v", iosFlags, iosArch),
+		"LDFLAGS":                    iosFlags,
+		"CC":                         clangPath,
+		"CXX":                        clangxxPath,
+	}
+
+	return env, nil
+}
+
 // installSyncbaseCommon installs the syncbase profile.
 func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) (e error) {
 	// Build and install Snappy.
@@ -232,9 +343,6 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			"CXXFLAGS": " -fPIC",
 		}
 		switch {
-		case target.Arch() == "386":
-			env["CC"] = "gcc -m32"
-			env["CXX"] = "g++ -m32"
 		case target.OS() == "android":
 			androidRoot, err := getAndroidRoot(pdb, root)
 			if err != nil {
@@ -257,7 +365,14 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			env["CXX"] = ndkRoot.Join("bin", fmt.Sprintf("%s-g++", abi)).Abs(jirix)
 			env["AR"] = ndkRoot.Join(abi, "bin", "ar").Abs(jirix)
 			env["RANLIB"] = ndkRoot.Join(abi, "bin", "ranlib").Abs(jirix)
-		case target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl":
+		case target.OS() == "ios":
+			clangEnv, err := initIOSEnv(jirix, target)
+			if err != nil {
+				return err
+			}
+			env = envvar.MergeMaps(env, clangEnv)
+			args = append(args, "--host="+clangEnv["TARGET"])
+		case target.OS() == "fnl" && target.Arch() == "amd64" && runtime.GOOS == "linux":
 			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
 			if len(fnlRoot) == 0 {
 				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
@@ -266,7 +381,7 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			args = append(args, "--host=amd64-linux")
-		case target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux":
+		case target.OS() == "linux" && target.Arch() == "arm" && runtime.GOOS == "darwin":
 			clangEnv, err := initClangEnv(jirix, pdb, target)
 			if err != nil {
 				return err
@@ -276,6 +391,9 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 				"--host="+clangEnv["TARGET"],
 				"--target="+clangEnv["TARGET"],
 			)
+		case target.Arch() == "386":
+			env["CC"] = "gcc -m32"
+			env["CXX"] = "g++ -m32"
 		}
 		if jirix.Verbose() {
 			fmt.Fprintf(jirix.Stdout(), "Environment: %s\n", strings.Join(envvar.MapToSlice(env), " "))
@@ -311,10 +429,8 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			"CXXFLAGS": "-I" + filepath.Join(m.snappyInstDir.Abs(jirix), "include") + " -fPIC",
 			"LDFLAGS":  "-L" + filepath.Join(m.snappyInstDir.Abs(jirix), "lib"),
 		}
-		if target.Arch() == "386" {
-			env["CC"] = "gcc -m32"
-			env["CXX"] = "g++ -m32"
-		} else if target.OS() == "android" {
+		switch {
+		case target.OS() == "android":
 			androidRoot, err := getAndroidRoot(pdb, root)
 			if err != nil {
 				return err
@@ -333,7 +449,16 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
 			env["AR"] = ndkRoot.Join(abi, "bin", "ar").Abs(jirix)
 			env["RANLIB"] = ndkRoot.Join(abi, "bin", "ranlib").Abs(jirix)
-		} else if target.Arch() == "amd64" && runtime.GOOS == "linux" && target.OS() == "fnl" {
+		case target.OS() == "ios":
+			// NOTE(zinman): LevelDB has its own ability to prepare for the iOS platform by setting TARGET_OS,
+			// but we still want to use our existing minimum iOS deployment target.
+			clangEnv, err := initIOSEnv(jirix, target)
+			if err != nil {
+				return err
+			}
+			env["TARGET_OS"] = "IOS"
+			env["IPHONEOS_DEPLOYMENT_TARGET"] = clangEnv["IPHONEOS_DEPLOYMENT_TARGET"]
+		case target.OS() == "fnl" && target.Arch() == "amd64" && runtime.GOOS == "linux":
 			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
 			if len(fnlRoot) == 0 {
 				return fmt.Errorf("FNL_JIRI_ROOT not specified in the command line environment")
@@ -342,7 +467,7 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			env["CC"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-gcc")
 			env["CXX"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-g++")
 			env["AR"] = filepath.Join(muslBin, "x86_64-fuchsia-linux-musl-ar")
-		} else if target.Arch() == "arm" && runtime.GOOS == "darwin" && target.OS() == "linux" {
+		case target.OS() == "linux" && target.Arch() == "arm" && runtime.GOOS == "darwin":
 			clangEnv, err := initClangEnv(jirix, pdb, target)
 			if err != nil {
 				return err
@@ -350,12 +475,36 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 			env["CXXFLAGS"] = "-I" + filepath.Join(m.snappyInstDir.Abs(jirix), "include")
 			env["TARGET_OS"] = "Linux"
 			env = envvar.MergeMaps(env, clangEnv)
+		case target.Arch() == "386":
+			env["CC"] = "gcc -m32"
+			env["CXX"] = "g++ -m32"
 		}
 		if jirix.Verbose() {
 			fmt.Fprintf(jirix.Stdout(), "Environment: %s\n", strings.Join(envvar.MapToSlice(env), " "))
 		}
-		return s.Run("make", "clean").
+
+		err = s.Run("make", "clean").
 			Env(env).Last("make", "static")
+		if err != nil {
+			return err
+		}
+		if target.OS() == "ios" {
+			// Clean up the iOS binary to trim for this target architecture. The leveldb makefile will be
+			// produce VERY fat binaries (i386, x86_64, armv6, armv7, armv7s, arm64). As we eventually combine
+			// all our libraries at a future point into a fat binary for distribution, we seek to minimize
+			// conflicts by removing unnecessary architectures here at this build juncture.
+			// N.B. Apple's "standard architectures" are only armv7 (pre-iPhone 5) and arm64 (future)
+			// at this point (Jan 15 2016). iOS 8, our current minimum, runs on armv7.
+			leveldbStaticLibPath := filepath.Join(leveldbLibDir, "libleveldb.a")
+			targetIosArch, err := iosArch(target.Arch())
+			if err != nil {
+				return err
+			}
+			if err := s.Last("lipo", leveldbStaticLibPath, "-output", leveldbStaticLibPath, "-thin", targetIosArch); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	if err := profilesutil.AtomicAction(jirix, installLeveldbFn, m.leveldbInstDir.Abs(jirix), "Build and install LevelDB"); err != nil {
 		return err
