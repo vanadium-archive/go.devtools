@@ -258,6 +258,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 			Popd().
 			RemoveAll(goInstDir).
 			Rename(tmpDir, goInstDir).
+			Chmod(goInstDir, profilesutil.DefaultDirPerm).
 			MkdirAll(m.targetDir.Abs(jirix), profilesutil.DefaultDirPerm).
 			Done(); err != nil {
 			return err
