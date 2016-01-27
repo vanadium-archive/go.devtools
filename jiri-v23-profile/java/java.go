@@ -95,11 +95,18 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	}
 	// NOTE(spetrovic): For now, we install android profile along with Java,
 	// as the two are bundled up for ease of development.
-	androidTarget, err := profiles.NewTarget("arm-android", "")
+	androidArmTarget, err := profiles.NewTarget("arm-android", "")
 	if err != nil {
 		return err
 	}
-	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "android", root, androidTarget); err != nil {
+	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "android", root, androidArmTarget); err != nil {
+		return err
+	}
+	androidAmd64Target, err := profiles.NewTarget("amd64-android", "")
+	if err != nil {
+		return err
+	}
+	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "android", root, androidAmd64Target); err != nil {
 		return err
 	}
 

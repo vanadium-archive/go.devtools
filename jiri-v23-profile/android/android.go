@@ -78,7 +78,7 @@ func init() {
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    21,
 			},
-		}, "3"),
+		}, "5"),
 	}
 	profilesmanager.Register(profileName, m)
 }
