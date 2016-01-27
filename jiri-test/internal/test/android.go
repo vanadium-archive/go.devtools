@@ -11,5 +11,5 @@ import (
 
 // vanadiumAndroidBuild tests that the android files build.
 func vanadiumAndroidBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	return runJavaTest(jirix, testName, []string{"release", "java"}, ":android-lib:assemble")
+	return runJavaTest(jirix, testName, []string{"release", "java"}, []string{":android-lib:clean", ":android-lib:assemble"})
 }

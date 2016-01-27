@@ -11,10 +11,10 @@ import (
 
 // bakuAndroidBuild tests that the Baku Toolkit for Android Java builds.
 func bakuAndroidBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	return runJavaTest(jirix, testName, []string{"release", "java", "baku-toolkit"}, ":lib:install")
+	return runJavaTest(jirix, testName, []string{"release", "java", "baku-toolkit"}, []string{":lib:clean", ":lib:install"})
 }
 
 // bakuJavaTest runs Baku Toolkit Java tests.
 func bakuJavaTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	return runJavaTest(jirix, testName, []string{"release", "java", "baku-toolkit"}, ":lib:test")
+	return runJavaTest(jirix, testName, []string{"release", "java", "baku-toolkit"}, []string{":lib:clean", ":lib:test"})
 }
