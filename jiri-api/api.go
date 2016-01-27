@@ -115,11 +115,10 @@ func buildGotools(jirix *jiri.X) (string, func() error, error) {
 	}
 
 	// Determine the location of the gotools source.
-	projects, _, err := project.ReadJiriManifest(jirix)
+	projects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return "", nopCleanup, err
 	}
-
 	project, err := projects.FindUnique("third_party")
 	if err != nil {
 		return "", nopCleanup, fmt.Errorf("error finding project %q: %v", "third_party", err)
