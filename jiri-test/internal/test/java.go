@@ -16,7 +16,7 @@ import (
 )
 
 // runJavaTest includes common run logic for Java tests.
-func runJavaTest(jirix *jiri.X, testName string, cwd []string, task string) (_ *test.Result, e error) {
+func runJavaTest(jirix *jiri.X, testName string, cwd []string, tasks []string) (_ *test.Result, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"java"})
 	if err != nil {
@@ -34,10 +34,12 @@ func runJavaTest(jirix *jiri.X, testName string, cwd []string, task string) (_ *
 	env.Set("JAVA_HOME", rd.Get("JAVA_HOME"))
 	// Run tests.
 	javaDir := filepath.Join(append([]string{jirix.Root}, cwd...)...)
+	args := []string{"--info"}
+	args = append(args, tasks...)
 	if err := jirix.NewSeq().
 		Pushd(javaDir).
 		Env(env.ToMap()).
-		Last(filepath.Join(javaDir, "gradlew"), "--info", task); err != nil {
+		Last(filepath.Join(javaDir, "gradlew"), args...); err != nil {
 		return nil, err
 	}
 	return &test.Result{Status: test.Passed}, nil
@@ -45,5 +47,5 @@ func runJavaTest(jirix *jiri.X, testName string, cwd []string, task string) (_ *
 
 // vanadiumJavaTest runs all Java tests.
 func vanadiumJavaTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	return runJavaTest(jirix, testName, []string{"release", "java"}, ":lib:check")
+	return runJavaTest(jirix, testName, []string{"release", "java"}, []string{":lib:clean", ":lib:check"})
 }
