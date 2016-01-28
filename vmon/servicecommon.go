@@ -81,6 +81,10 @@ func (a *aggregator) avg() float64 {
 	return a.sum / float64(len(a.data))
 }
 
+func (a *aggregator) count() float64 {
+	return float64(len(a.data))
+}
+
 func (a *aggregator) String() string {
 	return fmt.Sprintf("min: %f, max: %f, avg: %f", a.min, a.max, a.avg())
 }
@@ -310,6 +314,14 @@ func sendAggregatedDataToGCM(ctx *tool.Context, s *cloudmonitoring.Service, md *
 	}
 	avgLabels := append(labels, "avg")
 	if err := sendDataToGCM(s, md, agg.avg(), now, "", "", avgLabels...); err != nil {
+		return err
+	}
+	sumLabels := append(labels, "sum")
+	if err := sendDataToGCM(s, md, agg.sum, now, "", "", sumLabels...); err != nil {
+		return err
+	}
+	countLabels := append(labels, "count")
+	if err := sendDataToGCM(s, md, agg.count(), now, "", "", countLabels...); err != nil {
 		return err
 	}
 	test.Pass(ctx, "%s: %s\n", strings.Join(extraLabelKeys, " "), agg)
