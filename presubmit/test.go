@@ -39,6 +39,9 @@ const (
 
 	// Timeout value for jiri-test command.
 	jiriTestTimeout = time.Minute * 55
+
+	// Timeout value for "jiri v23-profile" command.
+	jiriV23ProfileTimeout = time.Minute * 5
 )
 
 var (
@@ -230,6 +233,16 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	stderr := io.MultiWriter(&out, jirix.Stderr())
 	if err := s.Env(env).Capture(stdout, stderr).Timeout(jiriTestTimeout).
 		Last("jiri-test", jiriArgs...); err != nil {
+		// Clean up profiles if any of the CLs modified profile related files.
+		profilesModified, err := profileFilesModified(jirix, cls)
+		if err != nil {
+			fmt.Fprintf(jirix.Stderr(), "%v\n", err)
+		}
+		if (err == nil && profilesModified) || err != nil {
+			if err := cleanupProfiles(jirix, env, cls); err != nil {
+				fmt.Fprintf(jirix.Stderr(), "%v\n", err)
+			}
+		}
 		// jiri-test command times out.
 		if runutil.IsTimeout(err) {
 			result := test.Result{
@@ -277,6 +290,40 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	}
 
 	return writeTestStatusFile(jirix, *result, curTimestamp, testName, partIndex)
+}
+
+// profileFilesModified checks any of the given CLs modified files under the
+// "jiri-v23-profile/" directory in the "release.go.x.devtools" project.
+func profileFilesModified(jirix *jiri.X, cls []cl) (bool, error) {
+	gUrl, err := gerritBaseUrl()
+	if err != nil {
+		return false, err
+	}
+	for _, curCL := range cls {
+		results, err := jirix.Gerrit(gUrl).Query(fmt.Sprintf("change:%d", curCL.clNumber))
+		if err != nil {
+			return false, err
+		}
+		for _, result := range results {
+			if result.Project != "release.go.x.devtools" {
+				continue
+			}
+			for _, revision := range result.Revisions {
+				for filename := range revision.Files {
+					if strings.HasPrefix(filename, "jiri-v23-profile/") {
+						return true, nil
+					}
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
+func cleanupProfiles(jirix *jiri.X, env map[string]string, cls []cl) error {
+	fmt.Fprintf(jirix.Stdout(), "### Cleanning up profiles ###")
+	return jirix.NewSeq().Env(env).Timeout(jiriV23ProfileTimeout).
+		Last("jiri", "v23-profile", "cleanup", "--rm-all")
 }
 
 // persistTestData uploads test data to Google Storage.
