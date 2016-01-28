@@ -50,7 +50,7 @@ type labelData struct {
 var aggLabelData = []labelData{
 	labelData{
 		key:         "aggregation",
-		description: "The aggregation type (min, max, avg)",
+		description: "The aggregation type (min, max, avg, sum, count)",
 	},
 }
 
