@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -159,7 +160,29 @@ func init() {
 				sdkVersion:                  "ab83ef213a4fb310e7de5d617046e9e4120efb75",
 				androidPlatformToolsVersion: "2219198",
 			},
-		}, "4"),
+			"5": &versionSpec{
+				serviceNames: []string{
+					"authenticating_url_loader_interceptor.mojo",
+					"dart_content_handler.mojo",
+					"debugger.mojo",
+					"files.mojo",
+					"kiosk_wm.mojo",
+					"tracing.mojo",
+				},
+				serviceNamesAndroid: []string{
+					"shortcut.mojo",
+				},
+				serviceNamesLinux: []string{
+					"authentication.mojo",
+				},
+				buildVersionAndroid:         "25d53bf53b4040f29db984d4774483c5de9d2dc5",
+				buildVersionLinux:           "a8adeba2e48f2fc5f8a89b39dc637dbab474bab7",
+				devtoolsVersion:             "f71528bb1d9d9b9f874ce503b3cf3d7532283eb5",
+				networkServiceVersion:       "0a814ed5512598e595c0ae7975a09d90a7a54e90",
+				sdkVersion:                  "832aa6a651b4468c4d0c0025bca7605bc248f82b",
+				androidPlatformToolsVersion: "2219198",
+			},
+		}, "5"),
 	}
 	profilesmanager.Register(profileName, m)
 }
@@ -384,6 +407,22 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 
 		// Generate the mojom.go files from all mojom files.
 		seq.Pushd(filepath.Join(outDir, "src"))
+		// Fetch the mojom compiler
+		compilerDir := filepath.Join(outDir, "src", "mojo", "public", "tools", "bindings", "mojom_parser", "bin")
+
+		fetchCompiler := func(arch string) error {
+			hash, err := ioutil.ReadFile(filepath.Join(compilerDir, arch, "mojom_parser.sha1"))
+			if err != nil {
+				return err
+			}
+			binary := mojoCompilerUrl(arch, string(hash))
+			return profilesutil.Fetch(jirix, filepath.Join(compilerDir, arch, "mojom_parser"), binary)
+		}
+		seq.
+			Call(func() error { return fetchCompiler("linux64") }, "fetch linux64 mojom compiler").
+			Chmod(filepath.Join(compilerDir, "linux64", "mojom_parser"), 0755).
+			Call(func() error { return fetchCompiler("mac64") }, "fetch mac64 mojom compiler").
+			Chmod(filepath.Join(compilerDir, "mac64", "mojom_parser"), 0755)
 		genMojomTool := filepath.Join(outDir, "src", "mojo", "public", "tools", "bindings", "mojom_bindings_generator.py")
 		for _, mojomFile := range mojomFiles {
 			trimmedFile := strings.TrimSpace(mojomFile)
@@ -396,6 +435,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 				"-o", filepath.Join("..", "gen"),
 				"-I", ".",
 				"-I", servicesDst,
+				"--generate-type-info",
 				trimmedFile)
 		}
 		seq.Popd()
@@ -509,4 +549,8 @@ func mojoShellUrl(platform, gitRevision string) string {
 // given platform and git revision.
 func mojoSystemThunksUrl(platform, gitRevision string) string {
 	return mojoStorageBucket + fmt.Sprintf("/system_thunks/%s/%s/libsystem_thunks.a", platform, gitRevision)
+}
+
+func mojoCompilerUrl(platform string, sha1 string) string {
+	return mojoStorageBucket + fmt.Sprintf("/mojom_parser/%s/%s", platform, sha1)
 }
