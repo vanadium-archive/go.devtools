@@ -45,6 +45,11 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 		xspec{"arm", "linux"}:     darwin_to_linux,
 		xspec{"arm", "android"}:   to_android,
 		xspec{"amd64", "android"}: to_android,
+		xspec{"arm", "ios"}:       darwin_to_ios,
+		xspec{"arm64", "ios"}:     darwin_to_ios,
+		// Both 386 and amd64 are for the iOS simulator
+		xspec{"386", "ios"}:       darwin_to_ios,
+		xspec{"amd64", "ios"}:     darwin_to_ios,
 	},
 	xspec{"amd64", "linux"}: {
 		xspec{"amd64", "fnl"}:     to_fnl,
@@ -415,6 +420,40 @@ func darwin_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profil
 		return useLLVM(jirix, m, root, target, action)
 	}
 	return "", nil, fmt.Errorf("cross compilation from darwin to %s linux is not yet supported.", target.Arch())
+}
+
+func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {
+	if action == profiles.Uninstall {
+		return "", nil, nil
+	}
+
+	// As of Go 1.5.1 the linker fails for darwin/32-bit
+	if target.Arch() == "386" {
+		return "", nil, fmt.Errorf("32-bit iOS simulator is not supported by go yet with c-archive. " +
+			"See https://github.com/golang/go/issues/12683")
+	}
+
+	vars := []string{
+		"CGO_ENABLED=1",
+		"CC_FOR_TARGET=" + filepath.Join(jirix.Root, "release/swift/clang/clangwrap.sh"),
+		"CXX_FOR_TARGET=" + filepath.Join(jirix.Root, "release/swift/clang/clangwrap++.sh"),
+		"GOOS=darwin",
+		"GOHOSTARCH=amd64",
+		"GOHOSTOS=darwin",
+		// We need to explicitly pass the ios build tag to the make.bash script for go so that it won't compile
+		// crypto code that's meant for the mac. It'll work on the device because those files have a build tag
+		// of !arm64, but the simulator will fail because those specific APIs don't exist on iOS.
+		"GO_FLAGS=-tags ios",
+	}
+
+	// 32-bit arm is always armv7 in Apple-land
+	if target.Arch() == "arm" {
+		vars = append(vars, "GOARM=7")
+	} else if target.Arch() == "arm64" {
+		vars = append(vars, "GOARM=arm64")
+	}
+
+	return "", vars, nil
 }
 
 func to_android(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Target, action profiles.Action) (bindir string, env []string, e error) {

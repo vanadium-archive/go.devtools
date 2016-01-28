@@ -103,7 +103,12 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	// Merge the environments for go and syncbase and store it in the base profile.
 	base := envvar.VarsFromSlice(target.Env.Vars)
 	base.Set("GOARCH", target.Arch())
-	base.Set("GOOS", target.OS())
+	// iOS specifically uses Darwin as its GOOS. Using "ios" aka target.OS() will make go cry.
+	os := target.OS()
+	if target.OS() == "ios" {
+		os = "darwin"
+	}
+	base.Set("GOOS", os)
 	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), base, profileEnvs...)
 	target.Env.Vars = base.ToSlice()
 	pdb.InstallProfile(profileName, root.Symbolic())
