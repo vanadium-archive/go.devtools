@@ -112,7 +112,7 @@ Usage:
 
 The jiri cl mail flags are:
  -autosubmit=false
-   Automatically submit the changelist when feasiable.
+   Automatically submit the changelist when feasible.
  -cc=
    Comma-seperated list of emails or LDAPs to cc.
  -check-uncommitted=true
