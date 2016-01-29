@@ -53,7 +53,9 @@
     <job arch="false" OS="true" parts="false" showOS="true">third_party-go-build</job>
     <job arch="false" OS="true" parts="false" showOS="true">third_party-go-test</job>
     <job arch="false" OS="true" parts="true"  showOS="false">third_party-go-race</job>
+    <!-- TODO(spetrovic): this is flaky due to profile issues.  Re-enable after fixing.
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-android-build</job>
+    -->
     <job arch="false" OS="true" parts="false" showOS="false">vanadium-bootstrap</job>
     <job arch="true"  OS="true" parts="false" showOS="true">vanadium-go-build</job>
     <job arch="true"  OS="true" parts="false" showOS="true">vanadium-go-test</job>
@@ -261,7 +263,9 @@
     <group name="java">
       <test>baku-android-build</test>
       <test>baku-java-test</test>
+      <!-- TODO(spetrovic): this is flaky due to profile issues.  Re-enable after fixing.
       <test>vanadium-android-build</test>
+      -->
       <test>vanadium-java-test</test>
     </group>
     <group name="javascript">
