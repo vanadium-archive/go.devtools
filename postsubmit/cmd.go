@@ -10,10 +10,8 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
@@ -58,36 +56,8 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(jirix *jiri.X, _ []string) error {
-	// Get the second latest snapshot file from the update history directory.
-	var maxTime time.Time
-	var secondMaxTime time.Time
-	var latestSnapshot string
-	var secondLatestSnapshot string
-	findSecondLatest := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if t := info.ModTime(); t.After(maxTime) {
-			secondLatestSnapshot = latestSnapshot
-			secondMaxTime = maxTime
-			maxTime = t
-			latestSnapshot = path
-		} else if t.After(secondMaxTime) {
-			secondMaxTime = t
-			secondLatestSnapshot = path
-		}
-		return nil
-	}
-	// TODO(toddw): Stop looking in the .update_history directory when the
-	// transition to the new .jiri_root is complete.
-	filepath.Walk(filepath.Join(jirix.Root, ".update_history"), findSecondLatest)
-	filepath.Walk(jirix.UpdateHistoryDir(), findSecondLatest)
-
 	// Get projects with new changes from the second latest snapshots.
-	snapshotFileBytes, err := ioutil.ReadFile(secondLatestSnapshot)
+	snapshotFileBytes, err := ioutil.ReadFile(jirix.UpdateHistorySecondLatestLink())
 	if err != nil {
 		return fmt.Errorf("ReadFile() failed: %v", err)
 	}
