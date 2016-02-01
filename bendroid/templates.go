@@ -36,9 +36,12 @@ var mainTempl = template.Must(template.New("main").Parse(`
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 	"golang.org/x/mobile/app"
@@ -60,17 +63,15 @@ var examples = []testing.InternalExample{ {{range .Examples}}
 }
 
 var testMain func(m *testing.M) = {{if .TestMainPackage}}{{.TestMainPackage}}.TestMain{{else}}nil{{end}}
-
 func main() {
 	fmt.Fprintf(os.Stderr, "BENDROIDPID=%d\n", os.Getpid())
-	// TODO(mattr,ashankar): Also log information about the CPU (architecture, clock speed etc.)
-	// and OS (version number)
 	// TODO(mattr): Consider using a file to send flags to android instead of compiling
 	// them into the apk.
 	{{range .Flags}}
 	os.Args = append(os.Args, "{{.}}"){{end}}
 
 	go func() {
+		describeDevice()
 		m := testing.MainStart(regexp.MatchString, tests, benchmarks, examples)
 		if testMain == nil {
 			os.Exit(m.Run())
@@ -107,5 +108,46 @@ func main() {
 			}
 		}
 	})
+}
+
+func describeDevice() {
+	f, err := os.Open("/system/build.prop")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to read OS and CPU information: %v", err)
+		return
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	var osver struct {
+		Release, SDK, BuildID, Incremental string
+	}
+	var cpu struct {
+		Architecture       string
+		Brand, Model, Name string
+	}
+	buildprops := []struct {
+		key   []byte
+		field *string
+	}{
+		{[]byte("ro.build.version.release="), &osver.Release},
+		{[]byte("ro.build.version.sdk="), &osver.SDK},
+		{[]byte("ro.build.id="), &osver.BuildID},
+		{[]byte("ro.build.version.incremental="), &osver.Incremental},
+		{[]byte("ro.product.cpu.abilist="), &cpu.Architecture},
+		{[]byte("ro.product.brand="), &cpu.Brand},
+		{[]byte("ro.product.model="), &cpu.Model},
+		{[]byte("ro.product.name="), &cpu.Name},
+	}
+	for s.Scan() {
+		byts := s.Bytes()
+		for _, p := range buildprops {
+			if bytes.HasPrefix(byts, p.key) {
+				*p.field = string(bytes.TrimPrefix(byts, p.key))
+			}
+		}
+	}
+	fmt.Fprintf(os.Stdout, "BENDROIDCPU_ARCHITECTURE=%v\n", cpu.Architecture)
+	fmt.Fprintf(os.Stdout, "BENDROIDCPU_DESCRIPTION=%v\n", strings.Join([]string{cpu.Brand, cpu.Model, cpu.Name}, " "))
+	fmt.Fprintf(os.Stdout, "BENDROIDOS_VERSION=%v (Build %v Release %v SDK %v)\n", osver.Release, osver.BuildID, osver.Incremental, osver.SDK)
 }
 `))
