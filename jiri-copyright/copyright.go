@@ -410,10 +410,10 @@ func loadAssets(jirix *jiri.X, dir string) (*copyrightAssets, error) {
 		}
 		return nil
 	}
-	if err := load([]string{"CONTRIBUTING.md", "LICENSE", "PATENTS", "VERSION"}, result.MatchFiles); err != nil {
+	if err := load([]string{"LICENSE", "PATENTS", "VERSION"}, result.MatchFiles); err != nil {
 		return nil, err
 	}
-	if err := load([]string{"AUTHORS", "CONTRIBUTORS"}, result.MatchPrefixFiles); err != nil {
+	if err := load([]string{"AUTHORS", "CONTRIBUTORS", "CONTRIBUTING.md"}, result.MatchPrefixFiles); err != nil {
 		return nil, err
 	}
 	path := filepath.Join(dir, "COPYRIGHT")
