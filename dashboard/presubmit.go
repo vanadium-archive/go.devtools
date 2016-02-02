@@ -571,7 +571,9 @@ func validateValues(values url.Values) error {
 
 func checkPathTraversal(values url.Values, params []string) error {
 	for _, param := range params {
-		if value := values.Get(param); value != "" && strings.Contains(value, "..") {
+		value := values.Get(param)
+		traversalCount := strings.Count(value, "..")
+		if traversalCount > 1 || (traversalCount == 1 && !strings.HasSuffix(value, "...")) {
 			return fmt.Errorf("parameter %q is not allowed to contain '..'", param)
 		}
 	}
