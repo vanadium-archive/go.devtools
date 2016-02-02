@@ -234,11 +234,11 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	if err := s.Env(env).Capture(stdout, stderr).Timeout(jiriTestTimeout).
 		Last("jiri-test", jiriArgs...); err != nil {
 		// Clean up profiles if any of the CLs modified profile related files.
-		profilesModified, err := profileFilesModified(jirix, cls)
-		if err != nil {
-			fmt.Fprintf(jirix.Stderr(), "%v\n", err)
+		profilesModified, pmErr := profileFilesModified(jirix, cls)
+		if pmErr != nil {
+			fmt.Fprintf(jirix.Stderr(), "%v\n", pmErr)
 		}
-		if (err == nil && profilesModified) || err != nil {
+		if (pmErr == nil && profilesModified) || pmErr != nil {
 			if err := cleanupProfiles(jirix, env, cls); err != nil {
 				fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 			}
