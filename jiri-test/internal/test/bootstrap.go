@@ -19,7 +19,8 @@ import (
 	"v.io/x/devtools/internal/xunit"
 )
 
-// vanadiumBootstrap runs a test of Vanadium bootstrapping.
+// vanadiumBootstrap checks that the Vanadium install script, bootstrap.sh,
+// executes successfully.
 func vanadiumBootstrap(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, nil)
@@ -57,7 +58,7 @@ func vanadiumBootstrap(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result
 	env["PATH"] = strings.Replace(os.Getenv("PATH"), filepath.Dir(jiriPath), "", -1)
 	env["JIRI_ROOT"] = root
 	fn := func() error {
-		return s.Env(env).Capture(stdout, stderr).Last(filepath.Join(oldRoot, "www", "public", "bootstrap"))
+		return s.Env(env).Capture(stdout, stderr).Last(filepath.Join(oldRoot, "website", "public", "bootstrap.sh"))
 	}
 	if err := retry.Function(jirix.Context, fn); err != nil {
 		// Create xUnit report.
