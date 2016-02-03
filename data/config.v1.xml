@@ -34,6 +34,7 @@
     <project>release.projects.syncslides</project>
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
+    <project>website</project>
     <project>www</project>
   </copyrightCheckProjects>
   <goWorkspaces>
@@ -197,6 +198,13 @@
       <test>projects</test>
       <test>third_party-go</test>
     </project>
+    <project name="website">
+      <test>vanadium-bootstrap</test>
+      <test>vanadium-copyright</test>
+      <test>vanadium-website-site</test>
+      <test>vanadium-website-tutorials-core</test>
+      <test>vanadium-website-tutorials-js-node</test>
+    </project>
     <project name="www">
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
@@ -249,10 +257,10 @@
       <test>vanadium-go-race</test>
       <test>vanadium-go-test</test>
       <test>vanadium-go-vdl</test>
-      <!-- TODO(sjr) figure out what to do with go vet. It currently produces
+      <!-- TODO(sjr): figure out what to do with go vet. It currently produces
            false positives which we can't workaround with CLs like
            https://vanadium.googlesource.com/third_party/+/5e07c533eb2dfa525b5d0f3782112a2a5c4b6912,
-           because go vet moved back into core go as of Go1.5.
+           because go vet moved back into core go as of Go 1.5.
       <test>vanadium-go-vet</test>
       -->
       <test>vanadium-integration-test</test>
