@@ -6,7 +6,6 @@ package test
 
 import (
 	"path/filepath"
-	"strings"
 	"time"
 
 	"v.io/jiri/collect"
@@ -69,39 +68,4 @@ func vanadiumWebsiteTutorialsJava(jirix *jiri.X, testName string, _ ...Opt) (*te
 
 func vanadiumWebsiteTutorialsJSNode(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	return commonVanadiumWebsite(jirix, testName, "test-tutorials-js-node", defaultWebsiteTestTimeout, nil)
-}
-
-func vanadiumWebsiteDeployStaging(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return commonVanadiumWebsite(jirix, testName, "deploy-staging", defaultWebsiteTestTimeout, nil)
-}
-
-func vanadiumWebsiteDeployProduction(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return commonVanadiumWebsite(jirix, testName, "deploy-production", defaultWebsiteTestTimeout, nil)
-}
-
-// vanadiumWebsiteConfigDeployHelper updates remote instance configuration and
-// restarts remote nginx, auth, and proxy services.
-func vanadiumWebsiteConfigDeployHelper(jirix *jiri.X, testName string, env string, _ ...Opt) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, nil)
-	if err != nil {
-		return nil, newInternalError(err, "Init")
-	}
-	defer collect.Error(func() error { return cleanup() }, &e)
-
-	dir := filepath.Join(jirix.Root, "infrastructure", "nginx")
-	target := strings.Join([]string{"deploy", env}, "-")
-	project := strings.Join([]string{"vanadium", env}, "-")
-	if err := jirix.NewSeq().Chdir(dir).
-		Run("make", target).
-		Last("./restart.sh", project); err != nil {
-		return &test.Result{Status: test.Failed}, err
-	}
-	return &test.Result{Status: test.Passed}, nil
-}
-
-func vanadiumWebsiteConfigDeployProduction(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	return vanadiumWebsiteConfigDeployHelper(jirix, testName, "production")
-}
-func vanadiumWebsiteConfigDeployStaging(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	return vanadiumWebsiteConfigDeployHelper(jirix, testName, "staging")
 }
