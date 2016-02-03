@@ -35,7 +35,6 @@
     <project>release.projects.travel</project>
     <project>release.projects.todos</project>
     <project>website</project>
-    <project>www</project>
   </copyrightCheckProjects>
   <goWorkspaces>
     <workspace>infrastructure/go</workspace>
@@ -63,8 +62,8 @@
     <job arch="false" OS="true" parts="true"  showOS="false">vanadium-go-race</job>
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-integration-test</job>
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-java-test</job>
-    <job arch="false" OS="true" parts="false" showOS="true">vanadium-www-site</job>
-    <job arch="false" OS="true" parts="false" showOS="true">vanadium-www-tutorial</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-site</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorial</job>
   </jenkinsMatrixJobs>
   <projectTests>
     <project name="release.go.jiri">
@@ -205,13 +204,6 @@
       <test>vanadium-website-tutorials-core</test>
       <test>vanadium-website-tutorials-js-node</test>
     </project>
-    <project name="www">
-      <test>vanadium-bootstrap</test>
-      <test>vanadium-copyright</test>
-      <test>vanadium-www-site</test>
-      <test>vanadium-www-tutorials-core</test>
-      <test>vanadium-www-tutorials-js-node</test>
-    </project>
   </projectTests>
   <testDependencies>
     <test name="third_party-go-race">
@@ -266,7 +258,7 @@
       <test>vanadium-integration-test</test>
       <test>vanadium-regression-test</test>
       <test>vanadium-prod-services-test</test>
-      <test>vanadium-www-tutorials-core</test>
+      <test>vanadium-website-tutorials-core</test>
     </group>
     <group name="java">
       <test>baku-android-build</test>
@@ -288,7 +280,7 @@
       <test>vanadium-js-vdl</test>
       <test>vanadium-js-vdl-audit</test>
       <test>vanadium-js-vom</test>
-      <test>vanadium-www-tutorials-js-node</test>
+      <test>vanadium-website-tutorials-js-node</test>
     </group>
     <group name="mojo">
       <test>vanadium-mojo-syncbase-test</test>
