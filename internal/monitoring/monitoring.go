@@ -126,6 +126,9 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 
 	// Custom metric for rpc load tests.
 	"rpc-load-test": createMetric("rpc-load-test", "Results of rpc load test.", "double", false, nil),
+
+	// Custom metric for recording jenkins related data.
+	"jenkins": createMetric("jenkins", "Jenkins related data.", "double", false, nil),
 }
 
 func createMetric(metricType, description, valueType string, includeGCELabels bool, extraLabels []labelData) *cloudmonitoring.MetricDescriptor {
