@@ -63,7 +63,10 @@
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-integration-test</job>
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-java-test</job>
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-site</job>
-    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorial</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-core</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-external</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-java</job>
+    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-js-node</job>
   </jenkinsMatrixJobs>
   <projectTests>
     <project name="release.go.jiri">
