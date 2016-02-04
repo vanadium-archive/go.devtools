@@ -159,6 +159,11 @@ var (
 			googlesource: "https://vanadium.googlesource.com/release.projects.travel",
 			github:       "git@github.com:vanadium/travel.git",
 		},
+		Mirror{
+			name:         "website",
+			googlesource: "https://vanadium.googlesource.com/website",
+			github:       "git@github.com:vanadium/website.git",
+		},
 	}
 )
 
