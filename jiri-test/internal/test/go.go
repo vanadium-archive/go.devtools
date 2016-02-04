@@ -757,7 +757,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 						if errMsg != "" {
 							ss = append(ss, xunit.CreateTestSuiteWithFailure(result.pkg, "Test", errMsg, output, result.time))
 						} else {
-							return nil, suites, err
+							return nil, suites, fmt.Errorf("%s: got error %q running go2xunit on test output %q", result.pkg, err, result.output)
 						}
 					}
 				}
