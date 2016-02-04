@@ -12,8 +12,12 @@ benchmarks on an android device.
 Note that currently we support only a small subset of the flags allowed to 'go
 test'.
 
+We rely on two environment variables being set: ANDROID_PLATFORM_TOOLS: The path
+to the android platform tools (most notably adb). GOMOBILE_BIN: The path to the
+GOMOBILE binary.
+
 Usage:
-   jiri bendroid [flags] [-c] [build and test flags] [packages] [flags for test binary]
+   bendroid [flags] [-c] [build and test flags] [packages] [flags for test binary]
 
 The global flags are:
  -bench=

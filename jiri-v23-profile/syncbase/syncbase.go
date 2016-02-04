@@ -161,15 +161,6 @@ func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
 	return profilesutil.InstallPackages(jirix, pkgs)
 }
 
-func getAndroidRoot(pdb *profiles.DB, root jiri.RelPath) (jiri.RelPath, error) {
-	rp := jiri.NewRelPath()
-	androidProfile := pdb.LookupProfile("android")
-	if androidProfile == nil {
-		return rp, fmt.Errorf("android profile is not installed")
-	}
-	return rp.Join(androidProfile.Root()), nil
-}
-
 func initClangEnv(jirix *jiri.X, pdb *profiles.DB, target profiles.Target) (map[string]string, error) {
 	target.SetVersion("")
 	goProfile := pdb.LookupProfileTarget("go", target)
@@ -344,27 +335,24 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 		}
 		switch {
 		case target.OS() == "android":
-			androidRoot, err := getAndroidRoot(pdb, root)
-			if err != nil {
-				return err
+			ev := envvar.VarsFromSlice(target.CommandLineEnv().Vars)
+			jiri.ExpandEnv(jirix, ev)
+			ndk := ev.Get("ANDROID_NDK_DIR")
+			if len(ndk) == 0 {
+				return fmt.Errorf("ANDROID_NDK_DIR not specified in the command line environment")
 			}
-			archName, err := ndkArch(target.Arch())
-			if err != nil {
-				return err
-			}
-			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", archName))
 			abi, err := androidABI(target.Arch())
 			if err != nil {
 				return err
 			}
+			env["CC"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-gcc", abi))
+			env["CXX"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-g++", abi))
+			env["AR"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-ar", abi))
+			env["RANLIB"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-ranlib", abi))
 			args = append(args,
 				fmt.Sprintf("--host=%s", abi),
 				fmt.Sprintf("--target=%s", abi),
 			)
-			env["CC"] = ndkRoot.Join("bin", fmt.Sprintf("%s-gcc", abi)).Abs(jirix)
-			env["CXX"] = ndkRoot.Join("bin", fmt.Sprintf("%s-g++", abi)).Abs(jirix)
-			env["AR"] = ndkRoot.Join(abi, "bin", "ar").Abs(jirix)
-			env["RANLIB"] = ndkRoot.Join(abi, "bin", "ranlib").Abs(jirix)
 		case target.OS() == "ios":
 			clangEnv, err := initIOSEnv(jirix, target)
 			if err != nil {
@@ -431,24 +419,21 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 		}
 		switch {
 		case target.OS() == "android":
-			androidRoot, err := getAndroidRoot(pdb, root)
-			if err != nil {
-				return err
+			ev := envvar.VarsFromSlice(target.CommandLineEnv().Vars)
+			jiri.ExpandEnv(jirix, ev)
+			ndk := ev.Get("ANDROID_NDK_DIR")
+			if len(ndk) == 0 {
+				return fmt.Errorf("ANDROID_NDK_DIR not specified in the command line environment")
 			}
-			archName, err := ndkArch(target.Arch())
-			if err != nil {
-				return err
-			}
-			ndkRoot := androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", archName))
 			abi, err := androidABI(target.Arch())
 			if err != nil {
 				return err
 			}
-			env["CC"] = ndkRoot.Join("bin", fmt.Sprintf("%s-gcc", abi)).Abs(jirix)
-			env["CXX"] = ndkRoot.Join("bin", fmt.Sprintf("%s-g++", abi)).Abs(jirix)
+			env["CC"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-gcc", abi))
+			env["CXX"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-g++", abi))
 			env["TARGET_OS"] = "OS_ANDROID_CROSSCOMPILE"
-			env["AR"] = ndkRoot.Join(abi, "bin", "ar").Abs(jirix)
-			env["RANLIB"] = ndkRoot.Join(abi, "bin", "ranlib").Abs(jirix)
+			env["AR"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-ar", abi))
+			env["RANLIB"] = filepath.Join(ndk, "bin", fmt.Sprintf("%s-ranlib", abi))
 		case target.OS() == "ios":
 			// NOTE(zinman): LevelDB has its own ability to prepare for the iOS platform by setting TARGET_OS,
 			// but we still want to use our existing minimum iOS deployment target.
