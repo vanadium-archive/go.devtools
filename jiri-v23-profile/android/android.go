@@ -13,6 +13,7 @@ import (
 	"runtime"
 
 	"v.io/jiri/collect"
+	"v.io/jiri/gitutil"
 	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
@@ -23,15 +24,19 @@ import (
 )
 
 const (
-	profileName        = "android"
-	ndkDownloadBaseURL = "https://dl.google.com/android/ndk"
+	profileName          = "android"
+	ndkDownloadBaseURL   = "https://dl.google.com/android/ndk"
+	goMobileRepoURL      = "https://go.googlesource.com/mobile"
+	platformToolsBaseURL = "http://tools.android.com/download"
 )
 
 type versionSpec struct {
 	ndkDownloadURL string
 	// seq's chain may be already in progress.
-	ndkExtract  func(seq runutil.Sequence, src, dst string) runutil.Sequence
-	ndkAPILevel int
+	ndkExtract           func(seq runutil.Sequence, src, dst string) runutil.Sequence
+	ndkAPILevel          int
+	platformToolsVersion map[string]string
+	goMobileVersion      string
 }
 
 func ndkArch(goArch string) (string, error) {
@@ -78,15 +83,29 @@ func init() {
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    21,
 			},
-		}, "5"),
+			"6": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     selfExtract,
+				ndkAPILevel:    21,
+				platformToolsVersion: map[string]string{
+					"darwin": "sdk-repo-darwin-platform-tools-2219242",
+					"linux":  "sdk-repo-linux-platform-tools-2219198",
+				},
+				goMobileVersion: "022ca032424e9f2ed95a351bdeb4e6186a17208f",
+			},
+		}, "6"),
 	}
 	profilesmanager.Register(profileName, m)
 }
 
 type Manager struct {
-	root, androidRoot, ndkRoot jiri.RelPath
-	versionInfo                *profiles.VersionInfo
-	spec                       versionSpec
+	root         jiri.RelPath
+	androidRoot  jiri.RelPath
+	ndkRoot      jiri.RelPath
+	platformRoot jiri.RelPath
+	goMobileRoot jiri.RelPath
+	versionInfo  *profiles.VersionInfo
+	spec         versionSpec
 }
 
 func (Manager) Name() string {
@@ -118,7 +137,7 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 		target.Set("arm-android")
 		fmt.Fprintf(jirix.Stdout(), "Default target %v reinterpreted as: %v\n", def, target)
 	} else {
-		if target.Arch() != "amd64" && target.Arch() != "arm" && target.OS() != "android" {
+		if (target.Arch() != "amd64" && target.Arch() != "arm") || target.OS() != "android" {
 			return fmt.Errorf("this profile can only be %v as arm-android or amd64-android and not as %v", action, target)
 		}
 	}
@@ -131,63 +150,82 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	if err != nil {
 		return err
 	}
-	m.ndkRoot = m.androidRoot.Join(fmt.Sprintf("ndk-toolchain-%s", archName))
+	m.ndkRoot = m.androidRoot.Join("ndk-toolchain", fmt.Sprintf("%s-%d", archName, m.spec.ndkAPILevel))
+	m.platformRoot = m.androidRoot.Join("platform-tools", m.spec.platformToolsVersion[runtime.GOOS])
+	m.goMobileRoot = m.androidRoot.Join("gomobile", m.spec.goMobileVersion)
 	return nil
 }
 
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
-	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
+	var err error
+	var baseEnv []string
+	if err = m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
 	}
 	if p := pdb.LookupProfileTarget(profileName, target); p != nil {
 		fmt.Fprintf(jirix.Stdout(), "%v %v is already installed as %v\n", profileName, target, p)
 		return nil
 	}
-	if err := m.installAndroidNDK(jirix, target); err != nil {
+	if err = m.installAndroidNDK(jirix, target); err != nil {
 		return err
 	}
-	pdb.InstallProfile(profileName, string(m.androidRoot))
-	if err := pdb.AddProfileTarget(profileName, target); err != nil {
+	// Note that the ordering is important here.  Installing base depends upon the NDK
+	// being installed.  Essentially there is a circular dependency between base and android.
+	if baseEnv, err = m.installBase(jirix, pdb, root, target); err != nil {
 		return err
 	}
-
-	// Install android targets for other profiles.
-	dependency := target
-
-	dependency.SetVersion("4")
-	if err := m.installAndroidBaseTargets(jirix, pdb, dependency); err != nil {
+	if target, err = m.installAndroidPlatformTools(jirix, target); err != nil {
+		return err
+	}
+	if target, err = m.installGoMobile(jirix, pdb, root, target, baseEnv); err != nil {
+		return err
+	}
+	// We have our own NDK which we use to build c libraries for syncbase etc.  We want to use
+	// the same one when running tests via gomobile.  However gomobile installs its own.
+	// Incompatibilities between the two NDKs lead to hard to explain error messages.
+	// Here we just replace the NDK gomobile installed with our own.
+	if err = m.swapGoMobileNDK(jirix, target); err != nil {
 		return err
 	}
 
 	// Merge the target and baseProfile environments.
-	env := envvar.VarsFromSlice(target.Env.Vars)
+	env := &envvar.Vars{}
 	if target.Arch() == "amd64" {
 		ldflags := env.GetTokens("CGO_LDFLAGS", " ")
 		ldflags = append(ldflags, m.ndkRoot.Join("x86_64-linux-android", "lib64", "libstdc++.a").Symbolic())
 		env.SetTokens("CGO_LDFLAGS", ldflags, " ")
 	}
-
-	baseProfileEnv := pdb.EnvFromProfile("base", dependency)
-	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, baseProfileEnv)
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, target.Env.Vars, baseEnv)
 	target.Env.Vars = env.ToSlice()
-	target.InstallationDir = string(m.ndkRoot)
+	target.InstallationDir = string(m.androidRoot)
 	pdb.InstallProfile(profileName, string(m.androidRoot))
-	return pdb.UpdateProfileTarget(profileName, target)
+	return pdb.AddProfileTarget(profileName, target)
 }
 
 func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
-	if err := m.initForTarget(jirix, "uninstalled", root, &target); err != nil {
-		return err
-	}
-	target.Env.Vars = append(target.Env.Vars, "GOARM=7")
-	if err := profilesmanager.EnsureProfileTargetIsUninstalled(jirix, pdb, "base", root, target); err != nil {
-		return err
-	}
-	if err := jirix.NewSeq().RemoveAll(m.androidRoot.Abs(jirix)).Done(); err != nil {
-		return err
-	}
 	pdb.RemoveProfileTarget(profileName, target)
 	return nil
+}
+
+func (m *Manager) installBase(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	// It turns out that you can't install base for *-android without setting
+	// at least one of these variables.
+	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", m.ndkRoot.Symbolic())
+	// target.String() only preserves the arch, opsys and version fields.
+	// So this is a good way to copy the arch/opsys and we just have to set
+	// the version.
+	baseTarget, err := profiles.NewTarget(target.String(), env)
+	if err != nil {
+		return nil, err
+	}
+	// We are setting version 4 to ensure that we get a newer version of Go that
+	// works on android.  It's not clear why the default version of the go
+	// profile is for an old version of go.
+	baseTarget.SetVersion("4")
+	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", root, baseTarget); err != nil {
+		return nil, err
+	}
+	return pdb.EnvFromProfile("base", baseTarget), nil
 }
 
 // installAndroidNDK installs the android NDK toolchain.
@@ -237,13 +275,99 @@ func (m *Manager) installAndroidNDK(jirix *jiri.X, target profiles.Target) (e er
 	return profilesutil.AtomicAction(jirix, installNdkFn, m.ndkRoot.Abs(jirix), "Download Android NDK")
 }
 
-// installAndroidTargets installs android targets for other profiles, currently
-// just the base profile (i.e. go and syncbase.)
-func (m *Manager) installAndroidBaseTargets(jirix *jiri.X, pdb *profiles.DB, target profiles.Target) (e error) {
-	env := fmt.Sprintf("ANDROID_NDK_DIR=%s,GOARM=7", m.ndkRoot.Symbolic())
-	androidTarget, err := profiles.NewTarget(target.String(), env)
-	if err != nil {
-		return err
+// installAndroidPlatformTools installs the android platform tools.
+func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, target profiles.Target) (profiles.Target, error) {
+	suffix := m.spec.platformToolsVersion[runtime.GOOS]
+	if suffix == "" {
+		return target, nil
 	}
-	return profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, "base", m.root, androidTarget)
+
+	tmpDir, err := jirix.NewSeq().TempDir("", "")
+	if err != nil {
+		return target, err
+	}
+	defer jirix.NewSeq().RemoveAll(tmpDir)
+
+	outDir := m.platformRoot.Abs(jirix)
+	target.Env.Set("ANDROID_PLATFORM_TOOLS=" + m.platformRoot.Symbolic())
+	fn := func() error {
+		androidPlatformToolsZipFile := filepath.Join(tmpDir, "platform-tools.zip")
+		return jirix.NewSeq().
+			Call(func() error {
+			url := platformToolsBaseURL + "/" + suffix + ".zip"
+			return profilesutil.Fetch(jirix, androidPlatformToolsZipFile, url)
+		}, "fetch android platform tools").
+			Call(func() error {
+			return profilesutil.Unzip(jirix, androidPlatformToolsZipFile, tmpDir)
+		}, "unzip android platform tools").
+			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
+			Rename(filepath.Join(tmpDir, "platform-tools"), outDir).
+			Done()
+	}
+	return target, profilesutil.AtomicAction(jirix, fn, outDir, "Install Android Platform Tools")
+}
+
+// installGoMobile installs the gomobile command.
+func (m *Manager) installGoMobile(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target, baseEnv []string) (profiles.Target, error) {
+	if m.spec.goMobileVersion == "" {
+		return target, nil
+	}
+	tmpDir, err := jirix.NewSeq().TempDir("", "")
+	if err != nil {
+		return target, err
+	}
+	defer jirix.NewSeq().RemoveAll(tmpDir)
+
+	env := envvar.VarsFromMap(jirix.Env())
+	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, baseEnv)
+	env.Set("GOPATH", tmpDir)
+	env.Set("PATH", filepath.Join(env.Get("GOROOT"), "bin"))
+	jiri.ExpandEnv(jirix, env)
+
+	gobin := filepath.Join(env.Get("GOROOT"), "bin", "go")
+	outDir := m.goMobileRoot.Abs(jirix)
+	fmt.Fprintln(jirix.Stdout(), "ANDROIDPATH=", env.Get("PATH"))
+	target.Env.Set("GOMOBILE_BIN=" + m.goMobileRoot.Join("bin", "gomobile").Symbolic())
+	target.Env.Set("HOSTGOROOT=" + env.Get("GOROOT"))
+	target.Env.Set("GOPATH=" + m.goMobileRoot.Symbolic())
+
+	fn := func() error {
+		reporoot := filepath.Join(tmpDir, "src", "golang.org", "x", "mobile")
+		err := jirix.NewSeq().
+			MkdirAll(reporoot, profilesutil.DefaultDirPerm).
+			Chdir(reporoot).Done()
+		if err != nil {
+			return err
+		}
+
+		seq := jirix.NewSeq()
+		git := gitutil.New(seq)
+		if err := git.Clone(goMobileRepoURL, reporoot); err != nil {
+			return err
+		}
+		if err := git.Reset(m.spec.goMobileVersion); err != nil {
+			return err
+		}
+		if err := seq.Done(); err != nil {
+			return err
+		}
+		return jirix.NewSeq().
+			SetEnv(env.ToMap()).
+			Run(gobin, "install", "golang.org/x/mobile/cmd/gomobile").
+			SetEnv(env.ToMap()).
+			Run(filepath.Join(tmpDir, "bin", "gomobile"), "init").
+			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
+			Rename(tmpDir, outDir).
+			Done()
+	}
+	return target, profilesutil.AtomicAction(jirix, fn, outDir, "Install Gomobile")
+}
+
+func (m *Manager) swapGoMobileNDK(jirix *jiri.X, target profiles.Target) error {
+	theirs := m.goMobileRoot.Join("pkg", "gomobile", "android-ndk-r10e", target.Arch()).Abs(jirix)
+	ours := m.ndkRoot.Abs(jirix)
+	return jirix.NewSeq().
+		RemoveAll(theirs).
+		Symlink(ours, theirs).
+		Done()
 }

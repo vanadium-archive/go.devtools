@@ -48,8 +48,8 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 		xspec{"arm", "ios"}:       darwin_to_ios,
 		xspec{"arm64", "ios"}:     darwin_to_ios,
 		// Both 386 and amd64 are for the iOS simulator
-		xspec{"386", "ios"}:       darwin_to_ios,
-		xspec{"amd64", "ios"}:     darwin_to_ios,
+		xspec{"386", "ios"}:   darwin_to_ios,
+		xspec{"amd64", "ios"}: darwin_to_ios,
 	},
 	xspec{"amd64", "linux"}: {
 		xspec{"amd64", "fnl"}:     to_fnl,

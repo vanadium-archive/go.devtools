@@ -32,18 +32,23 @@ func (t *testrun) build() error {
 		return err
 	}
 	var foundfunc bool
+	importPath := t.BuildPkg.ImportPath
+
+	if !t.inplace {
+		importPath = path.Join(importPath, t.BasePkg)
+	}
 	if foundfunc, err = t.rewritePackage(fset, base, t.BaseDir); err != nil {
 		return err
 	}
 	if foundfunc {
-		t.FuncImports = append(t.FuncImports, path.Join(t.BuildPkg.ImportPath, t.BasePkg))
+		t.FuncImports = append(t.FuncImports, importPath)
 	}
 	if ext != nil {
 		if foundfunc, err = t.rewritePackage(fset, ext, t.ExtDir); err != nil {
 			return err
 		}
 		if foundfunc {
-			t.FuncImports = append(t.FuncImports, path.Join(t.BuildPkg.ImportPath, t.BasePkg, t.ExtPkg))
+			t.FuncImports = append(t.FuncImports, path.Join(importPath, t.ExtPkg))
 		}
 	}
 	if len(t.FuncImports) == 0 {
@@ -60,9 +65,17 @@ func (t *testrun) build() error {
 	if len(*tags) > 0 {
 		args = append(args, "-tags", *tags)
 	}
-	args = append(args, path.Join(t.BuildPkg.ImportPath, t.BasePkg, t.MainPkg))
-	cmd := exec.Command("gomobile", args...)
-	cmd.Env = envvar.MapToSlice(t.Env.Vars)
+	args = append(args, path.Join(importPath, t.MainPkg))
+	cmd := exec.Command(t.goMobileBin, args...)
+	env := envvar.CopyMap(t.Env.Vars)
+	// We set the PATH environment variable because gomobile uses the path to find
+	// the go binary.  We want to use the one installed in our profile.
+	env["PATH"] = filepath.Join(t.Env.Vars["HOSTGOROOT"], "bin")
+	// We need to run bendroid under the android profile to get the CC/LD flags set properly,
+	// but gomobile expects to be run under the GOROOT compiled for the host.  So we set the
+	// GOROOT here back to the one for the host architecture.
+	env["GOROOT"] = filepath.Join(t.Env.Vars["HOSTGOROOT"])
+	cmd.Env = envvar.MapToSlice(env)
 	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
 	return cmd.Run()
 }
@@ -83,13 +96,28 @@ func getBaseExtPackages(pkgs map[string]*ast.Package) (base, ext *ast.Package, e
 func (t *testrun) rewritePackage(fset *token.FileSet, pkg *ast.Package, outdir string) (bool, error) {
 	var mains []funcref
 	foundfunc := false
+	copyall := outdir != t.BuildPkg.Dir
+	ignored := map[string]bool{}
+	for _, igfile := range t.BuildPkg.IgnoredGoFiles {
+		ignored[igfile] = true
+	}
+
 	for fname, f := range pkg.Files {
-		f.Name.Name = filepath.Base(outdir)
-		for _, imprt := range f.Imports {
-			if strings.Trim(imprt.Path.Value, "\"") == t.BuildPkg.ImportPath {
-				imprt.Path.Value = fmt.Sprintf(`"%s/%s"`, t.BuildPkg.ImportPath, t.BasePkg)
-				if imprt.Name == nil {
-					imprt.Name = &ast.Ident{Name: t.BuildPkg.Name}
+		if ignored[filepath.Base(fname)] {
+			continue
+		}
+		if copyall {
+			// If we are making a whole new package directory, we should change the name
+			// of the package to match the directory.
+			f.Name.Name = filepath.Base(outdir)
+		}
+		if !t.inplace {
+			for _, imprt := range f.Imports {
+				if strings.Trim(imprt.Path.Value, "\"") == t.BuildPkg.ImportPath {
+					imprt.Path.Value = fmt.Sprintf(`"%s/%s"`, t.BuildPkg.ImportPath, t.BasePkg)
+					if imprt.Name == nil {
+						imprt.Name = &ast.Ident{Name: t.BuildPkg.Name}
+					}
 				}
 			}
 		}
@@ -107,18 +135,23 @@ func (t *testrun) rewritePackage(fset *token.FileSet, pkg *ast.Package, outdir s
 				}
 			}
 		}
-		if strings.HasSuffix(fname, "_test.go") {
+		testfile := strings.HasSuffix(fname, "_test.go")
+		if testfile {
 			fname = fname[:len(fname)-len(".go")] + "_bendroid.go"
 		}
-		w, err := os.Create(filepath.Join(outdir, filepath.Base(fname)))
-		if err != nil {
-			return false, err
-		}
-		if err := format.Node(w, fset, f); err != nil {
-			return false, err
-		}
-		if err := w.Close(); err != nil {
-			return false, err
+		if testfile || copyall {
+			fname := filepath.Join(outdir, filepath.Base(fname))
+			t.cleanup = append(t.cleanup, fname)
+			w, err := os.Create(fname)
+			if err != nil {
+				return false, err
+			}
+			if err := format.Node(w, fset, f); err != nil {
+				return false, err
+			}
+			if err := w.Close(); err != nil {
+				return false, err
+			}
 		}
 	}
 	for _, ref := range mains {
