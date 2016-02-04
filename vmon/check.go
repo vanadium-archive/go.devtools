@@ -20,6 +20,7 @@ import (
 
 // checkFunctions is a map from check names to the corresponding check functions.
 var checkFunctions = map[string]func(*context.T, *tool.Context, *cloudmonitoring.Service) error{
+	"jenkins":                   checkJenkins,
 	"service-latency":           checkServiceLatency,
 	"service-permethod-latency": checkServicePerMethodLatency,
 	"service-counters":          checkServiceCounters,

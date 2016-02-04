@@ -115,8 +115,8 @@ Usage:
    vmon md create [flags] <names>
 
 <names> is a list of metric descriptor names to create. Available: gce-instance,
-nginx, rpc-load-test, service-counters, service-counters-agg, service-latency,
-service-latency-agg, service-metadata, service-metadata-agg,
+jenkins, nginx, rpc-load-test, service-counters, service-counters-agg,
+service-latency, service-latency-agg, service-metadata, service-metadata-agg,
 service-permethod-latency, service-permethod-latency-agg, service-qps-method,
 service-qps-method-agg, service-qps-total, service-qps-total-agg
 
@@ -140,8 +140,8 @@ Usage:
    vmon md delete [flags] <names>
 
 <names> is a list of metric descriptor names to delete. Available: gce-instance,
-nginx, rpc-load-test, service-counters, service-counters-agg, service-latency,
-service-latency-agg, service-metadata, service-metadata-agg,
+jenkins, nginx, rpc-load-test, service-counters, service-counters-agg,
+service-latency, service-latency-agg, service-metadata, service-metadata-agg,
 service-permethod-latency, service-permethod-latency-agg, service-qps-method,
 service-qps-method-agg, service-qps-total, service-qps-total-agg
 
@@ -265,7 +265,7 @@ Usage:
    vmon check run [flags] <names>
 
 <names> is a list of names identifying the checks to run. Available:
-gce-instance, rpc-load-test, service-counters, service-latency,
+gce-instance, jenkins, rpc-load-test, service-counters, service-latency,
 service-metadata, service-permethod-latency, service-qps
 
 The vmon check run flags are:
