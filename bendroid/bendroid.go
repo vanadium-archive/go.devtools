@@ -248,7 +248,7 @@ type testrun struct {
 	// case the package we generate to be the test main) so
 	// we have to copy the package to a new directory and
 	// rewrite every file to be some non-main package.
-	inplace                  bool
+	inplace bool
 }
 
 func newTestrun(env *cmdline.Env, pkg *build.Package, flags []string, adbBin, goMobileBin string) (*testrun, error) {

@@ -1430,8 +1430,11 @@ func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 
 	// Run the gofmt tool.
 	var out bytes.Buffer
-	if err := jirix.NewSeq().Capture(&out, &out).
-		Last("jiri", "go", "fmt", "v.io/..."); err != nil {
+	if err := jirix.NewSeq().Capture(&out, &out).Last("jiri", "go", "fmt", "v.io/..."); err != nil {
+		return nil, fmt.Errorf("unexpected error while running go fmt: %v", err)
+	}
+	// If the output is non-empty, there are format errors.
+	if len(out.String()) > 0 {
 		report := fmt.Sprintf(`The following files do not adhere to the Go formatting conventions:
 %v
 To resolve this problem, run "gofmt -w <file>" for each of them and commit the changes.
