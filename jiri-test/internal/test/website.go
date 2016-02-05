@@ -69,3 +69,30 @@ func vanadiumWebsiteTutorialsJava(jirix *jiri.X, testName string, _ ...Opt) (*te
 func vanadiumWebsiteTutorialsJSNode(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	return commonVanadiumWebsite(jirix, testName, "test-tutorials-js-node", defaultWebsiteTestTimeout, nil)
 }
+
+// vanadiumNGINXDeployHelper updates various configurations on the nginx
+// instances and restarts all managed running services that are not nginx.
+func vanadiumNGINXDeployHelper(jirix *jiri.X, testName string, env string, _ ...Opt) (_ *test.Result, e error) {
+	cleanup, err := initTest(jirix, testName, nil)
+	if err != nil {
+		return nil, newInternalError(err, "Init")
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
+	dir := filepath.Join(jirix.Root, "infrastructure", "nginx")
+	target := "deploy-" + env
+	project := "vanadium-" + env
+	if err := jirix.NewSeq().Chdir(dir).
+		Run("make", target).
+		Last("./restart.sh", project); err != nil {
+		return &test.Result{Status: test.Failed}, err
+	}
+	return &test.Result{Status: test.Passed}, nil
+}
+
+func vanadiumNGINXDeployProduction(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
+	return vanadiumNGINXDeployHelper(jirix, testName, "production")
+}
+func vanadiumNGINXDeployStaging(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
+	return vanadiumNGINXDeployHelper(jirix, testName, "staging")
+}
