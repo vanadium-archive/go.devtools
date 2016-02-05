@@ -93,7 +93,12 @@ func init() {
 				},
 				goMobileVersion: "022ca032424e9f2ed95a351bdeb4e6186a17208f",
 			},
-		}, "6"),
+			"7": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     selfExtract,
+				ndkAPILevel:    21,
+			},
+		}, "7"),
 	}
 	profilesmanager.Register(profileName, m)
 }
@@ -364,6 +369,9 @@ func (m *Manager) installGoMobile(jirix *jiri.X, pdb *profiles.DB, root jiri.Rel
 }
 
 func (m *Manager) swapGoMobileNDK(jirix *jiri.X, target profiles.Target) error {
+	if m.spec.goMobileVersion == "" {
+		return nil
+	}
 	theirs := m.goMobileRoot.Join("pkg", "gomobile", "android-ndk-r10e", target.Arch()).Abs(jirix)
 	ours := m.ndkRoot.Abs(jirix)
 	return jirix.NewSeq().
