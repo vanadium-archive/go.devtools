@@ -14,13 +14,12 @@ import (
 
 	"v.io/jiri/jiri"
 	"v.io/jiri/runutil"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 )
 
 var (
 	// The name of the v23-profile database file to use. It is intended
 	// to be set via a command line flag.
-	ProfilesDBFilename = v23_profile.DefaultDBFilename
+	ProfilesDBFilename = jiri.LegacyProfilesDBFile
 
 	// cleanGo is used to control whether the initTest function removes
 	// all stale Go object files and binaries. It is used to prevent the

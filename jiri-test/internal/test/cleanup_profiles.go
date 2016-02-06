@@ -27,11 +27,11 @@ func cleanupProfiles(jirix *jiri.X) error {
 
 func cleanupProfilesImpl(jirix *jiri.X) error {
 	cmds := []string{"list"}
-	cleanup := []string{"cleanup --ensure-specific-versions-are-set --gc"}
+	cleanup := []string{"cleanup --gc"}
 	fmt.Fprintf(jirix.Stdout(), "cleanupProfiles: commands: %s\n", cleanup)
 	cmds = append(cmds, cleanup...)
 	cmds = append(cmds, "list")
-	removals := []string{}
+	removals := []string{"cleanup -rm-all"}
 	if isCI() {
 		fmt.Fprintf(jirix.Stdout(), "cleanupProfiles: remove: %s\n", removals)
 		if len(removals) > 0 {

@@ -1,8 +1,0 @@
-pkg nodejs, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg nodejs, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
-pkg nodejs, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
-pkg nodejs, method (Manager) Info() string
-pkg nodejs, method (Manager) Name() string
-pkg nodejs, method (Manager) String() string
-pkg nodejs, method (Manager) VersionInfo() *profiles.VersionInfo
-pkg nodejs, type Manager struct

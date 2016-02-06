@@ -1,8 +1,0 @@
-pkg mojo_dev_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
-pkg mojo_dev_profile, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
-pkg mojo_dev_profile, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
-pkg mojo_dev_profile, method (Manager) Info() string
-pkg mojo_dev_profile, method (Manager) Name() string
-pkg mojo_dev_profile, method (Manager) String() string
-pkg mojo_dev_profile, method (Manager) VersionInfo() *profiles.VersionInfo
-pkg mojo_dev_profile, type Manager struct

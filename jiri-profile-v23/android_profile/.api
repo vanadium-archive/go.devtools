@@ -1,0 +1,10 @@
+pkg android_profile, func Register(string, string)
+pkg android_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
+pkg android_profile, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg android_profile, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg android_profile, method (Manager) Info() string
+pkg android_profile, method (Manager) Installer() string
+pkg android_profile, method (Manager) Name() string
+pkg android_profile, method (Manager) String() string
+pkg android_profile, method (Manager) VersionInfo() *profiles.VersionInfo
+pkg android_profile, type Manager struct

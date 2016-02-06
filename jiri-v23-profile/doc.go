@@ -82,6 +82,7 @@ The jiri v23-profile commands are:
    uninstall   Uninstall the given profiles
    update      Install the latest default version of the given profiles
    cleanup     Cleanup the locally installed profiles
+   available   List the available profiles
    list        List available or installed profiles
    env         Display profile environment variables
    help        Display help for commands or topics
@@ -118,12 +119,12 @@ The jiri v23-profile install flags are:
    sysroot image for cross compiling to the currently specified target
  -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
    a colon separated list of directories to use from the sysroot image
- -mojo-dev.dir=
+ -mojodev.dir=
    Path of mojo repo checkout.
- -profile-dir=profiles
-   the directory, relative to JIRI_ROOT, that profiles are installed in
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
+   specify the profiles database directory or file.
+ -profiles-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: <arch>-<os>[@<version>]
 
@@ -150,10 +151,10 @@ The jiri v23-profile uninstall flags are:
    sysroot image for cross compiling to the currently specified target
  -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
    a colon separated list of directories to use from the sysroot image
- -profile-dir=profiles
-   the directory, relative to JIRI_ROOT, that profiles are installed in
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
+   specify the profiles database directory or file.
+ -profiles-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
@@ -174,10 +175,10 @@ Usage:
 <profiles> is a list of profiles to update, if omitted all profiles are updated.
 
 The jiri v23-profile update flags are:
- -profile-dir=profiles
-   the directory, relative to JIRI_ROOT, that profiles are installed in
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
+   specify the profiles database directory or file.
+ -profiles-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
  -v=false
    print more detailed information
 
@@ -199,18 +200,32 @@ Usage:
 cleaned.
 
 The jiri v23-profile cleanup flags are:
- -ensure-specific-versions-are-set=false
-   ensure that profile targets have a specific version set
  -gc=false
    uninstall profile targets that are older than the current default
- -profile-dir=profiles
-   the directory, relative to JIRI_ROOT, that profiles are installed in
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
- -rewrite-profiles-manifest=false
-   rewrite the profiles manifest file to use the latest schema version
+   specify the profiles database directory or file.
+ -profiles-dir=profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
+ -rewrite-profiles-db=false
+   rewrite the profiles database to use the latest schema version
  -rm-all=false
-   remove profiles manifest and all profile generated output files.
+   remove profiles database and all profile generated output files.
+ -v=false
+   print more detailed information
+
+ -color=true
+   Use color to format output.
+ -n=false
+   Show what commands will run but do not execute them.
+
+Jiri v23-profile available - List the available profiles
+
+List the available profiles.
+
+Usage:
+   jiri v23-profile available [flags]
+
+The jiri v23-profile available flags are:
  -v=false
    print more detailed information
 
@@ -253,7 +268,7 @@ The jiri v23-profile list flags are:
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
+   specify the profiles database directory or file.
  -show-profiles-db=false
    print out the profiles database file
  -skip-profiles=false
@@ -292,7 +307,7 @@ The jiri v23-profile env flags are:
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles XML manifest filename.
+   specify the profiles database directory or file.
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>

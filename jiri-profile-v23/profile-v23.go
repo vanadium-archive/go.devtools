@@ -8,6 +8,7 @@
 package main
 
 import (
+	"v.io/jiri/jiri"
 	"v.io/jiri/profiles/profilescmdline"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
@@ -25,33 +26,27 @@ import (
 	"v.io/x/devtools/jiri-profile-v23/syncbase_profile"
 )
 
-// commandLineDriver implements the command line for the 'v23-profile'
+// commandLineDriver implements the command line for the 'profile-v23'
 // subcommand.
 var commandLineDriver = &cmdline.Command{
-	Name:  "v23-profile",
-	Short: "Manage profiles",
+	Name:  "profile-v23",
+	Short: "Manage v23 profiles",
 	Long:  profilescmdline.HelpMsg(),
 }
 
-// DefaultDBFilename is the default filename used for the profiles database
-// by the jiri-v23-profile subcommand.
-const DefaultDBFilename = ".jiri_v23_profiles"
-
 func main() {
-	android_profile.Register("", "android")
-	base_profile.Register("", "base")
-	dart_profile.Register("", "dart")
-	go_profile.Register("", "go")
-	java_profile.Register("", "java")
-	mojo_profile.Register("", "mojo")
-	mojo_dev_profile.Register("", "mojodev")
-	nacl_profile.Register("", "nacl")
-	nodejs_profile.Register("", "nodejs")
-	syncbase_profile.Register("", "syncbase")
+	android_profile.Register("v23", "android")
+	base_profile.Register("v23", "base")
+	dart_profile.Register("v23", "dart")
+	go_profile.Register("v23", "go")
+	java_profile.Register("v23", "java")
+	mojo_profile.Register("v23", "mojo")
+	mojo_dev_profile.Register("v23", "mojodev")
+	nacl_profile.Register("v23", "nacl")
+	nodejs_profile.Register("v23", "nodejs")
+	syncbase_profile.Register("v23", "syncbase")
 
-	// Using an empty installer preserves the old behaviour, pre-v5 defaults.
-	profilescmdline.RegisterManagementCommands(commandLineDriver, "", DefaultDBFilename, "profiles")
-	profilescmdline.RegisterReaderCommands(commandLineDriver, DefaultDBFilename)
+	profilescmdline.RegisterManagementCommands(commandLineDriver, "v23", jiri.ProfilesDBDir, jiri.ProfilesRootDir)
 	tool.InitializeRunFlags(&commandLineDriver.Flags)
 	cmdline.Main(commandLineDriver)
 }
