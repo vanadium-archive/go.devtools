@@ -40,11 +40,6 @@ var (
 			github:       "git@github.com:vanadium/croupier.git",
 		},
 		Mirror{
-			name:         "docs",
-			googlesource: "https://vanadium.googlesource.com/docs",
-			github:       "git@github.com:vanadium/docs.git",
-		},
-		Mirror{
 			name:         "go.devtools",
 			googlesource: "https://vanadium.googlesource.com/release.go.x.devtools",
 			github:       "git@github.com:vanadium/go.devtools.git",
