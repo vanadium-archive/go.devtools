@@ -6,5 +6,5 @@ For more information, see the [installation] and [contributing] instructions.
 This repository is fetched and the tools are built as part of the Vanadium
 installation process for contributors.
 
-[installation]: https://github.com/vanadium/docs/blob/master/installation.md
-[contributing]: https://github.com/vanadium/docs/blob/master/contributing/README.md
+[installation]: https://vanadium.github.io/installation/
+[contributing]: https://vanadium.github.io/community/contributing.html
