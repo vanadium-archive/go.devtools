@@ -7,7 +7,6 @@
     <project>release.go.x.lib</project>
   </apiCheckProjects>
   <copyrightCheckProjects>
-    <project>docs</project>
     <project>release.go.jiri</project>
     <project>release.go.v23</project>
     <project>release.go.x.devtools</project>
