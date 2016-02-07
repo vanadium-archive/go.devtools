@@ -17,7 +17,6 @@ import (
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/x/devtools/jiri-v23-profile/v23_profile"
 	"v.io/x/lib/cmdline"
 )
 
@@ -28,7 +27,7 @@ var (
 
 func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
-	profilescmdline.RegisterReaderFlags(&cmdRun.Flags, &readerFlags, v23_profile.DefaultDBFilename)
+	profilescmdline.RegisterReaderFlags(&cmdRun.Flags, &readerFlags, jiri.LegacyProfilesDBFile)
 	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
 }
 

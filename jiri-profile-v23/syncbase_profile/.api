@@ -1,0 +1,10 @@
+pkg syncbase_profile, func Register(string, string)
+pkg syncbase_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
+pkg syncbase_profile, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg syncbase_profile, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg syncbase_profile, method (Manager) Info() string
+pkg syncbase_profile, method (Manager) Installer() string
+pkg syncbase_profile, method (Manager) Name() string
+pkg syncbase_profile, method (Manager) String() string
+pkg syncbase_profile, method (Manager) VersionInfo() *profiles.VersionInfo
+pkg syncbase_profile, type Manager struct
