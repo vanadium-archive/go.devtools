@@ -44,7 +44,7 @@ func init() {
 	cmdTestRun.Flags.StringVar(&pkgsFlag, "pkgs", "", "Comma-separated list of Go package expressions that identify a subset of tests to run; only relevant for Go-based tests. Example usage: jiri test run -pkgs v.io/x/ref vanadium-go-test")
 	cmdTestRun.Flags.BoolVar(&cleanGoFlag, "clean-go", true, "Specify whether to remove Go object files and binaries before running the tests. Setting this flag to 'false' may lead to faster Go builds, but it may also result in some source code changes not being reflected in the tests (e.g., if the change was made in a different Go workspace).")
 	tool.InitializeRunFlags(&cmdTest.Flags)
-	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, jiri.LegacyProfilesDBFile)
+	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, jiri.DefaultProfilesDBPath())
 
 }
 

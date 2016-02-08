@@ -42,7 +42,7 @@ var (
 func init() {
 	cmdAPICheck.Flags.BoolVar(&detailedOutputFlag, "detailed", true, "If true, shows each API change in an expanded form. Otherwise, only a summary is shown.")
 	cmdAPI.Flags.StringVar(&gotoolsBinPathFlag, "gotools-bin", "", "The path to the gotools binary to use. If empty, gotools will be built if necessary.")
-	profilescmdline.RegisterReaderFlags(&cmdAPI.Flags, &readerFlags, jiri.LegacyProfilesDBFile)
+	profilescmdline.RegisterReaderFlags(&cmdAPI.Flags, &readerFlags, jiri.DefaultProfilesDBPath())
 	tool.InitializeProjectFlags(&cmdAPI.Flags)
 	tool.InitializeRunFlags(&cmdAPI.Flags)
 }
