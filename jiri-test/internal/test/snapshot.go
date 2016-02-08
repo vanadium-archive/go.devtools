@@ -25,7 +25,7 @@ func vanadiumGoSnapshot(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Resul
 	// TODO(nlacasse): Are we going to continue storing snapshots here?  Maybe
 	// we need some configuation to tell us where these should be, so we don't
 	// need to hard-code this path.
-	manifestDir := filepath.Join(jirix.Root, ".manifest", "v2")
+	manifestDir := filepath.Join(jirix.Root, "manifest")
 	snapshotDir := filepath.Join(manifestDir, "snapshot")
 
 	// Create a new snapshot.
