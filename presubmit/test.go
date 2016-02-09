@@ -195,7 +195,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	}
 
 	// Rebuild developer tools and override PATH to point there.
-	env, err := rebuildDeveloperTools(jirix, tools, tmpBinDir)
+	env, err := rebuildDeveloperTools(jirix, tools, projects, tmpBinDir)
 	if err != nil {
 		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, err.Error())
 		result := test.Result{
@@ -470,8 +470,8 @@ func recordPresubmitFailure(jirix *jiri.X, testCaseName, failureMessage, failure
 
 // rebuildDeveloperTools rebuilds developer tools (e.g. jiri, vdl..) in a
 // temporary directory, and overrides the PATH to use that directory.
-func rebuildDeveloperTools(jirix *jiri.X, tools project.Tools, tmpBinDir string) (map[string]string, error) {
-	if err := project.BuildTools(jirix, tools, tmpBinDir); err != nil {
+func rebuildDeveloperTools(jirix *jiri.X, tools project.Tools, projects project.Projects, tmpBinDir string) (map[string]string, error) {
+	if err := project.BuildTools(jirix, projects, tools, tmpBinDir); err != nil {
 		return nil, err
 	}
 	// Create a new PATH that replaces JIRI_ROOT/devtools/bin and
