@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultWebsiteTestTimeout = 10 * time.Minute
+	defaultWebsiteTestTimeout = 15 * time.Minute
 )
 
 // Runs the specified make target in the 'website' repo as a test.
