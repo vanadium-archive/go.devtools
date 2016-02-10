@@ -59,7 +59,14 @@ func vanadiumWebsiteTutorialsCore(jirix *jiri.X, testName string, _ ...Opt) (*te
 }
 
 func vanadiumWebsiteTutorialsExternal(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return commonVanadiumWebsite(jirix, testName, "test-tutorials-external", defaultWebsiteTestTimeout, nil)
+	// The external tutorial test installs both the jiri CLI tool and Vanadium
+	// from scratch. This simulates a new user walking through the install and
+	// tutorial process but can be time consuming. To help prevent this test from
+	// timing out before it has finished a reasonably high timeout is set for this
+	// test. The timeout should not be removed entirely, since tests do sometimes
+	// completely hang.
+	timeout := 60 * time.Minute
+	return commonVanadiumWebsite(jirix, testName, "test-tutorials-external", timeout, nil)
 }
 
 func vanadiumWebsiteTutorialsJava(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
