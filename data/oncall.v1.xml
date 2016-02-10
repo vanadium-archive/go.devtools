@@ -4,11 +4,6 @@
 -->
 <rotation>
   <shift>
-    <primary>bjornick</primary>
-    <secondary>ataly</secondary>
-    <startDate>Feb 01, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
     <primary>ataly</primary>
     <secondary>rosswang</secondary>
     <startDate>Feb 08, 2016 08:00:00 AM</startDate>
