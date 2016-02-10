@@ -11,6 +11,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -57,27 +58,42 @@ func (t *testrun) build() error {
 	if err := t.writeMainPackage(); err != nil {
 		return err
 	}
-	// TODO(mattr): Vendor gomobile and then use the vendored version.
-	args := []string{"build", "-o", t.apk}
-	if *work {
-		args = append(args, "-work")
-	}
-	if len(*tags) > 0 {
-		args = append(args, "-tags", *tags)
-	}
-	args = append(args, path.Join(importPath, t.MainPkg))
-	cmd := exec.Command(t.goMobileBin, args...)
+
 	env := envvar.CopyMap(t.Env.Vars)
-	// We set the PATH environment variable because gomobile uses the path to find
-	// the go binary.  We want to use the one installed in our profile.
-	env["PATH"] = filepath.Join(t.Env.Vars["HOSTGOROOT"], "bin")
-	// We need to run bendroid under the android profile to get the CC/LD flags set properly,
-	// but gomobile expects to be run under the GOROOT compiled for the host.  So we set the
-	// GOROOT here back to the one for the host architecture.
-	env["GOROOT"] = filepath.Join(t.Env.Vars["HOSTGOROOT"])
+	env["GOOS"] = "android"
+	if env["GOARCH"] == "" {
+		// TODO(mattr): Figure out how to set this depending on the attached device.
+		env["GOARCH"] = "arm"
+	}
+	args := []string{
+		"build",
+		"-buildmode", "c-shared",
+		"-tags", *tags,
+		"-o", filepath.Join(t.MainDir, "src", "main", "jniLibs", "armeabi-v7a", "lib"+t.MainPkg+".so"),
+		path.Join(importPath, t.MainPkg),
+	}
+	cmd := exec.Command(filepath.Join(env["GOROOT"], "bin", "go"), args...)
 	cmd.Env = envvar.MapToSlice(env)
 	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	// Generate a gradle wrapper to ensure we have a recent version to build our APK.
+	cmd = exec.Command("gradle", "-b", "build.gradle.tmp", "wrapper")
+	cmd.Dir = t.MainDir
+	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	cmd = exec.Command("./gradlew", "assembleRelease")
+	cmd.Dir = t.MainDir
+	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	output := filepath.Join(t.MainDir, "build", "outputs", "apk", t.MainPkg+"-release.apk")
+	return os.Rename(output, t.apk)
 }
 
 func getBaseExtPackages(pkgs map[string]*ast.Package) (base, ext *ast.Package, err error) {
@@ -165,23 +181,23 @@ func (t *testrun) rewritePackage(fset *token.FileSet, pkg *ast.Package, outdir s
 }
 
 func (t *testrun) writeMainPackage() error {
-	w, err := os.Create(filepath.Join(t.MainDir, "main.go"))
-	if err != nil {
-		return err
+	for fname, tmpl := range templates {
+		path := filepath.Join(t.MainDir, fname)
+		if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
+			return err
+		}
+		w, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		if err := tmpl.Execute(w, t); err != nil {
+			return err
+		}
+		if err := w.Close(); err != nil {
+			return err
+		}
 	}
-	if err := mainTempl.Execute(w, t); err != nil {
-		return err
-	}
-	w.Close()
-	w, err = os.Create(filepath.Join(t.MainDir, "AndroidManifest.xml"))
-	if err != nil {
-		return err
-	}
-	if err := manifestTempl.Execute(w, t); err != nil {
-		return err
-	}
-	w.Close()
-	return nil
+	return ioutil.WriteFile(filepath.Join(t.MainDir, "bendroid.keystore"), keystore, 0666)
 }
 
 type funcfinder struct {

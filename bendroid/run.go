@@ -19,25 +19,24 @@ var (
 	fail              = []byte("FAIL")
 	pass              = []byte("FAIL")
 	bendroidPidPrefix = []byte("BENDROIDPID=")
-	logPrefix         = []byte("/GoLog   : ")
+	logPrefix         = []byte("/Bendroid: ")
 	newline           = []byte("\n")
 )
 
 func (t *testrun) run() (time.Duration, error) {
 	// TODO(mattr): adb should be downloaded by the android profile, and we should use
 	// that version.
-	if err := exec.Command(t.adbBin, "install", "-r", t.apk).Run(); err != nil {
+	if err := exec.Command("adb", "install", "-r", t.apk).Run(); err != nil {
 		return 0, err
 	}
-	if err := exec.Command(t.adbBin, "logcat", "-c").Run(); err != nil {
+	if err := exec.Command("adb", "logcat", "-c").Run(); err != nil {
 		return 0, err
 	}
 	// TODO(mattr): Should we ensure the screen is on?
 	// TODO(mattr): Should we try to adjust the cpu governor? (seems to require root).
-	// Note that gomobile sets the stderr/stdout of the android app to send logs to GoLog:I
-	// and GoLog:E respectively.  This is just hardcoded into the gomobile tool and may
-	// be expected to change at some point.
-	logs := exec.Command(t.adbBin, "logcat", "-v", "tag", "*:S", "GoLog:*")
+	// Note we set the stderr/stdout of the android app to send logs to Bendroid:I
+	// and Bendroid:E respectively.  This is set in the main go program we generate.
+	logs := exec.Command("adb", "logcat", "-v", "tag", "*:S", "Bendroid:*")
 	logr, err := logs.StdoutPipe()
 	if err != nil {
 		return 0, err
@@ -48,7 +47,8 @@ func (t *testrun) run() (time.Duration, error) {
 	// The package name t.AndroidPackage was set in the AndroidManifest that we generated
 	// along with the code.  The GoNativeAcctivity is the activity that the gomobile tool
 	// creates.
-	cmd := exec.Command(t.adbBin, "shell", "am", "start", t.AndroidPackage+"/org.golang.app.GoNativeActivity")
+	cmd := exec.Command("adb", "shell", "am", "start", "-S",
+		t.AndroidPackage+"/io.v.x.devtools.bendroid.BendroidActivity")
 	if err := cmd.Run(); err != nil {
 		logs.Process.Kill()
 		return 0, err
@@ -118,7 +118,7 @@ func (t *testrun) run() (time.Duration, error) {
 func (t *testrun) wait(pid int64) {
 	pkg := []byte(t.AndroidPackage)
 	for {
-		cmd := exec.Command(t.adbBin, "shell", "cat", fmt.Sprintf("/proc/%d/cmdline", pid))
+		cmd := exec.Command("adb", "shell", "cat", fmt.Sprintf("/proc/%d/cmdline", pid))
 		out, err := cmd.Output()
 		// I don't know why, but we get a lot of zero bytes at the end of the /proc output.
 		if err != nil || !bytes.Equal(bytes.Trim(out, "\x00"), pkg) {

@@ -32,6 +32,7 @@ func main() {
 }
 
 // TODO(mattr): As much as possible support all the same flags as 'go test'.
+// We should especially support -x.
 var (
 	bench = flag.String("bench", "",
 		"Run benchmarks matching the regular expression."+
@@ -73,29 +74,23 @@ and benchmarks on an android device.
 Note that currently we support only a small subset of the flags allowed to
 'go test'.
 
-We rely on two environment variables being set:
-ANDROID_PLATFORM_TOOLS: The path to the android platform tools (most notably adb).
-GOMOBILE_BIN: The path to the GOMOBILE binary.
+We depend on gradle and adb, so those tools should be in your path.
+
+You should also set relevant CGO envrionment variables (for example pointing at the
+ndk cc and gcc) see: https://golang.org/cmd/cgo/.  Unlike gomobile, we don't
+set them for you.
 `,
 	ArgsName: "[-c] [build and test flags] [packages] [flags for test binary]",
 	Runner:   cmdline.RunnerFunc(bendroid),
 }
 
 func bendroid(env *cmdline.Env, args []string) error {
-	platformTools := os.Getenv("ANDROID_PLATFORM_TOOLS")
-	if platformTools == "" {
-		fmt.Println(env.Stderr, "ANDROID_PLATFORM_TOOLS not defined."+
-			" Perhaps you need to install/update your android profile.")
-		os.Exit(1)
+	for _, bin := range []string{"adb", "gradle"} {
+		if path, err := exec.LookPath(bin); err != nil || path == "" {
+			fmt.Fprintln(env.Stderr, "%s not found, it must be in your path.", bin)
+			os.Exit(1)
+		}
 	}
-	adbBin := filepath.Join(platformTools, "adb")
-	goMobileBin := os.Getenv("GOMOBILE_BIN")
-	if goMobileBin == "" {
-		fmt.Println(env.Stderr, "GOMOBILE_BIN not defined."+
-			" Perhaps you need to install/update your android profile.")
-		os.Exit(1)
-	}
-
 	var pkgFlags, pkgArgs []string
 	pkgArgs = args
 	for i, a := range args {
@@ -126,7 +121,7 @@ func bendroid(env *cmdline.Env, args []string) error {
 		}
 	}()
 	for i, p := range packages {
-		if runs[i], err = newTestrun(env, p, pkgFlags, adbBin, goMobileBin); err != nil {
+		if runs[i], err = newTestrun(env, p, pkgFlags); err != nil {
 			return err
 		}
 	}
@@ -236,7 +231,6 @@ type testrun struct {
 	FuncImports              []string
 	Flags                    []string
 	apk                      string
-	adbBin, goMobileBin      string
 	cleanup                  []string
 
 	// inplace is true if we are using the directory of the
@@ -251,12 +245,10 @@ type testrun struct {
 	inplace bool
 }
 
-func newTestrun(env *cmdline.Env, pkg *build.Package, flags []string, adbBin, goMobileBin string) (*testrun, error) {
+func newTestrun(env *cmdline.Env, pkg *build.Package, flags []string) (*testrun, error) {
 	t := &testrun{
-		BuildPkg:    pkg,
-		Env:         env,
-		adbBin:      adbBin,
-		goMobileBin: goMobileBin,
+		BuildPkg: pkg,
+		Env:      env,
 	}
 
 	for _, fname := range []string{"bench", "benchmem", "benchtime", "run", "v"} {
@@ -313,7 +305,7 @@ func (t *testrun) clean() {
 			os.RemoveAll(item)
 		}
 	}
-	exec.Command(t.adbBin, "uninstall", t.AndroidPackage).Run()
+	exec.Command("adb", "uninstall", t.AndroidPackage).Run()
 }
 
 func pkgDir(base, pfx string) (dir, pkg string, err error) {

@@ -12,9 +12,11 @@ benchmarks on an android device.
 Note that currently we support only a small subset of the flags allowed to 'go
 test'.
 
-We rely on two environment variables being set: ANDROID_PLATFORM_TOOLS: The path
-to the android platform tools (most notably adb). GOMOBILE_BIN: The path to the
-GOMOBILE binary.
+We depend on gradle and adb, so those tools should be in your path.
+
+You should also set relevant CGO envrionment variables (for example pointing at
+the ndk cc and gcc) see: https://golang.org/cmd/cgo/.  Unlike gomobile, we don't
+set them for you.
 
 Usage:
    bendroid [flags] [-c] [build and test flags] [packages] [flags for test binary]
