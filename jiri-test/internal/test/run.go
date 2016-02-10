@@ -121,6 +121,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"vanadium-mojo-syncbase-test":             vanadiumMojoSyncbaseTest,
 	"vanadium-mojo-v23proxy-unit-test":        vanadiumMojoV23ProxyUnitTest,
 	"vanadium-mojo-v23proxy-integration-test": vanadiumMojoV23ProxyIntegrationTest,
+	"vanadium-moments-test":                   vanadiumMomentsTest,
 	"vanadium-nginx-deploy-production":        vanadiumNGINXDeployProduction,
 	"vanadium-nginx-deploy-staging":           vanadiumNGINXDeployStaging,
 	"vanadium-pipe2browser-test":              vanadiumPipe2BrowserTest,

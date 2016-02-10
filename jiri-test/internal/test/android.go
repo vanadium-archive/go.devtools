@@ -13,3 +13,7 @@ import (
 func vanadiumAndroidBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	return runJavaTest(jirix, testName, []string{"release", "java"}, []string{":android-lib:clean", ":android-lib:assemble"})
 }
+
+func vanadiumMomentsTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
+	return runJavaTest(jirix, testName, []string{"release", "java", "projects", "moments"}, []string{"assembleDebug", "test"})
+}
