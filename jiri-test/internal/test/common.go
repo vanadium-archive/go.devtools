@@ -81,13 +81,13 @@ func regTestBinDirPath() string {
 
 // initTest carries out the initial actions for the given test.
 func initTest(jirix *jiri.X, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(jirix, true, true, testName, profileNames, "", opts...)
+	return initTestImpl(jirix, false, true, testName, profileNames, "", opts...)
 }
 
 // initTestForTarget carries out the initial actions for the given test using
 // a specific profile Target..
 func initTestForTarget(jirix *jiri.X, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(jirix, true, true, testName, profileNames, target, opts...)
+	return initTestImpl(jirix, false, true, testName, profileNames, target, opts...)
 }
 
 func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
