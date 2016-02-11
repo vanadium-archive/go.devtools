@@ -14,9 +14,17 @@ test'.
 
 We depend on gradle and adb, so those tools should be in your path.
 
-You should also set relevant CGO envrionment variables (for example pointing at
-the ndk cc and gcc) see: https://golang.org/cmd/cgo/.  Unlike gomobile, we don't
-set them for you.
+You should also set relevant CGO environment variables (for example pointing at
+the ndk gcc and g++) see: https://golang.org/cmd/cgo/.  Unlike gomobile, we
+don't set them for you. In particular, CC and CXX must be set to point to the
+binaries from the Android NDK toolchain. For example, if the toolchain is
+installed in $NDK_TOOLCHAIN, then:
+  export CC=${NDK_TOOLCHAIN}/arm-21/bin/arm-linux-androideabi-gcc
+  export CXX=${NDK_TOOLCHAIN}/arm-21/bin/arm-linux-androideabi-g++
+before running bendroid.
+
+Finally, bendroid requires Go 1.6 or above (since that contains some changes to
+make the generated shared library compatible with Android SDK version 23).
 
 Usage:
    bendroid [flags] [-c] [build and test flags] [packages] [flags for test binary]

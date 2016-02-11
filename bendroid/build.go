@@ -60,6 +60,8 @@ func (t *testrun) build() error {
 	}
 
 	env := envvar.CopyMap(t.Env.Vars)
+	// Require CGO_ENABLED since the generated main.go also needs cgo.
+	env["CGO_ENABLED"] = "1"
 	env["GOOS"] = "android"
 	if env["GOARCH"] == "" {
 		// TODO(mattr): Figure out how to set this depending on the attached device.
@@ -72,7 +74,11 @@ func (t *testrun) build() error {
 		"-o", filepath.Join(t.MainDir, "src", "main", "jniLibs", "armeabi-v7a", "lib"+t.MainPkg+".so"),
 		path.Join(importPath, t.MainPkg),
 	}
-	cmd := exec.Command(filepath.Join(env["GOROOT"], "bin", "go"), args...)
+	gobin := "go"
+	if goroot, ok := env["GOROOT"]; ok {
+		gobin = filepath.Join(goroot, "bin", "go")
+	}
+	cmd := exec.Command(gobin, args...)
 	cmd.Env = envvar.MapToSlice(env)
 	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
 	if err := cmd.Run(); err != nil {
