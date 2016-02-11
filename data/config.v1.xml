@@ -65,7 +65,6 @@
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-core</job>
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-external</job>
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-java</job>
-    <job arch="false" OS="true" parts="false" showOS="true">vanadium-website-tutorials-js-node</job>
   </jenkinsMatrixJobs>
   <projectTests>
     <project name="release.go.jiri">
@@ -204,7 +203,6 @@
       <test>vanadium-copyright</test>
       <test>vanadium-website-site</test>
       <test>vanadium-website-tutorials-core</test>
-      <test>vanadium-website-tutorials-js-node</test>
     </project>
   </projectTests>
   <testDependencies>
@@ -282,7 +280,6 @@
       <test>vanadium-js-vdl</test>
       <test>vanadium-js-vdl-audit</test>
       <test>vanadium-js-vom</test>
-      <test>vanadium-website-tutorials-js-node</test>
     </group>
     <group name="mojo">
       <test>vanadium-mojo-syncbase-test</test>

@@ -73,10 +73,6 @@ func vanadiumWebsiteTutorialsJava(jirix *jiri.X, testName string, _ ...Opt) (*te
 	return commonVanadiumWebsite(jirix, testName, "test-tutorials-java", defaultWebsiteTestTimeout, []string{"java"})
 }
 
-func vanadiumWebsiteTutorialsJSNode(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	return commonVanadiumWebsite(jirix, testName, "test-tutorials-js-node", defaultWebsiteTestTimeout, nil)
-}
-
 // vanadiumNGINXDeployHelper updates various configurations on the nginx
 // instances and restarts all managed running services that are not nginx.
 func vanadiumNGINXDeployHelper(jirix *jiri.X, testName string, env string, _ ...Opt) (_ *test.Result, e error) {
