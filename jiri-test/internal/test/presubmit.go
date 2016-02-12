@@ -67,10 +67,6 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		return nil, err
 	}
 
-	if err := cleanupProfiles(jirix); err != nil {
-		return nil, newInternalError(err, "Init")
-	}
-
 	// Initialize the test.
 	cleanup, err := initTestImpl(jirix, false, false, testName, nil, "")
 	if err != nil {
