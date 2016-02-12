@@ -65,6 +65,11 @@ var (
 			github:       "git@github.com:vanadium/go.ref.git",
 		},
 		Mirror{
+			name:         "go.swift",
+			googlesource: "https://vanadium.googlesource.com/release.go.x.swift",
+			github:       "git@github.com:vanadium/go.swift.git",
+		},
+		Mirror{
 			name:         "go.v23",
 			googlesource: "https://vanadium.googlesource.com/release.go.v23",
 			github:       "git@github.com:vanadium/go.v23.git",
@@ -133,6 +138,11 @@ var (
 			name:         "reader",
 			googlesource: "https://vanadium.googlesource.com/release.projects.reader",
 			github:       "git@github.com:vanadium/reader.git",
+		},
+		Mirror{
+			name:         "swift",
+			googlesource: "https://vanadium.googlesource.com/release.swift",
+			github:       "git@github.com:vanadium/swift.git",
 		},
 		Mirror{
 			name:         "syncslides",
