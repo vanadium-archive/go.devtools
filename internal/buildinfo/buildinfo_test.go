@@ -20,14 +20,14 @@ var (
 	}{
 		{
 			BuildInfo: T{
-				Manifest: project.Manifest{Label: "foo"},
+				Manifest: project.Manifest{SnapshotPath: "foo"},
 				Platform: "platform",
 				Pristine: true,
 				Time:     time.Date(2015, time.May, 3, 3, 15, 0, 0, time.UTC),
 				User:     "user",
 			},
 			MetaData: metadata.FromMap(map[string]string{
-				"build.Manifest": `<manifest label="foo">
+				"build.Manifest": `<manifest snapshotpath="foo">
 </manifest>`,
 				"build.Platform": "platform",
 				"build.Pristine": "true",
@@ -37,14 +37,14 @@ var (
 		},
 		{
 			BuildInfo: T{
-				Manifest: project.Manifest{Label: "bar"},
+				Manifest: project.Manifest{SnapshotPath: "bar"},
 				Platform: "amd64unknown-linux-unknown",
 				Pristine: false,
 				Time:     time.Unix(0, 0).UTC(),
 				User:     "Vanadium Vamoose",
 			},
 			MetaData: metadata.FromMap(map[string]string{
-				"build.Manifest": `<manifest label="bar">
+				"build.Manifest": `<manifest snapshotpath="bar">
 </manifest>`,
 				"build.Platform": "amd64unknown-linux-unknown",
 				"build.Pristine": "false",

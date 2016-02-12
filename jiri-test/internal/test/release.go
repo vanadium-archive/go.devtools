@@ -41,7 +41,7 @@ const (
 
 var (
 	defaultReleaseTestTimeout = time.Minute * 5
-	manifestRE                = regexp.MustCompile(`.*<manifest label="(.*)">`)
+	manifestRE                = regexp.MustCompile(`.*<manifest snapshotpath="(.*)">`)
 
 	serviceBinaries = []string{
 		"applicationd",
@@ -78,19 +78,22 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 		msg string
 		fn  func() error
 	}
-	rcLabel := ""
+	rcTimestamp := ""
 	steps := []step{
 		step{
-			msg: "Extract release candidate label\n",
+			msg: "Extract release candidate path\n",
 			fn: func() error {
-				var err error
-				rcLabel, err = extractRCLabel()
-				return err
+				rcPath, err := extractRCPath()
+				if err != nil {
+					return err
+				}
+				rcTimestamp = filepath.Base(rcPath)
+				return nil
 			},
 		},
 		step{
 			msg: "Prepare binaries\n",
-			fn:  func() error { return prepareBinaries(jirix, rcLabel) },
+			fn:  func() error { return prepareBinaries(jirix, rcTimestamp) },
 		},
 		step{
 			msg: "Update services\n",
@@ -108,7 +111,7 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 		},
 		step{
 			msg: "Update the 'latest' file\n",
-			fn:  func() error { return updateLatestFile(jirix, rcLabel) },
+			fn:  func() error { return updateLatestFile(jirix, rcTimestamp) },
 		},
 	}
 	for _, step := range steps {
@@ -137,18 +140,18 @@ func invoker(jirix *jiri.X, msg string, fn func() error) (*test.Result, error) {
 	return nil, nil
 }
 
-// extractRCLabel extracts release candidate label from the manifest path stored
+// extractRCPath extracts release candidate path from the manifest path stored
 // in the <manifestEnvVar> environment variable.
-func extractRCLabel() (string, error) {
+func extractRCPath() (string, error) {
 	manifestPath := os.Getenv(manifestEnvVar)
 	if manifestPath == "" {
 		return "", fmt.Errorf("Environment variable %q not set", manifestEnvVar)
 	}
-	return filepath.Base(manifestPath), nil
+	return manifestPath, nil
 }
 
 // prepareBinaries builds all vanadium binaries and uploads them to Google Storage bucket.
-func prepareBinaries(jirix *jiri.X, rcLabel string) error {
+func prepareBinaries(jirix *jiri.X, rcTimestamp string) error {
 	s := jirix.NewSeq()
 
 	// Build and upload binaries.
@@ -169,9 +172,9 @@ func prepareBinaries(jirix *jiri.X, rcLabel string) error {
 	gsutilUploadArgs := []string{
 		"-q", "-m", "cp", "-r",
 		filepath.Join(jirix.Root, "release", "go", "bin"),
-		fmt.Sprintf("%s/%s", bucket, rcLabel),
+		fmt.Sprintf("%s/%s", bucket, rcTimestamp),
 	}
-	gsutilDoneArgs := []string{"-q", "cp", doneFile, fmt.Sprintf("%s/%s", bucket, rcLabel)}
+	gsutilDoneArgs := []string{"-q", "cp", doneFile, fmt.Sprintf("%s/%s", bucket, rcTimestamp)}
 
 	return s.Run("jiri", jiriArgs...).
 		Run("gsutil", gsutilUploadArgs...).
@@ -199,7 +202,7 @@ func publisherCmd(jirix *jiri.X, cmd []string) []string {
 // updateServices pushes services' binaries to the applications and binaries
 // services and tells the device manager to update all its app.
 func updateServices(jirix *jiri.X) (e error) {
-	// debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
+	debugBin := filepath.Join(jirix.Root, "release", "go", "bin", "debug")
 	deviceBin := filepath.Join(jirix.Root, "release", "go", "bin", "device")
 	nsArg := fmt.Sprintf("--v23.namespace.root=%s", globalMountTable)
 
@@ -242,35 +245,31 @@ func updateServices(jirix *jiri.X) (e error) {
 		return nil
 	}
 
-	// A helper function to check a single app's manifest label.
-	// TODO(nlacasse): Manifest labels are currently broken.  Either fix them,
-	// or come up with a better way to ensure that the deployed binaries are
-	// the versions we expect.  Until that happens, the manifest label check is
-	// disabled.
-	// expectedManifestLabel := os.Getenv(manifestEnvVar)
-	checkManifestLabelFn := func(appName string) error {
-		// msg := fmt.Sprintf("Verify manifest label for %q\n", appName)
-		// args := adminCmd(jirix, []string{
-		// 	debugBin,
-		// 	fmt.Sprintf("--v23.namespace.root=%s", localMountTable),
-		// 	"stats",
-		// 	"read",
-		// 	fmt.Sprintf("%s/*/*/stats/system/metadata/build.Manifest", appName),
-		// })
-		// var out bytes.Buffer
-		// stdout := io.MultiWriter(jirix.Stdout(), &out)
-		// if err := s.Capture(stdout, nil).Timeout(defaultReleaseTestTimeout).Last(args[0], args[1:]...); err != nil {
-		// 	test.Fail(jirix.Context, msg)
-		// 	return err
-		// }
-		// statsOutput := out.String()
-		// matches := manifestRE.FindStringSubmatch(statsOutput)
-		// if matches == nil || (matches[1] != expectedManifestLabel) {
-		// 	test.Fail(jirix.Context, msg)
-		// 	return fmt.Errorf("failed to verify manifest label %q.\nCurrent manifest:\n%s",
-		// 		expectedManifestLabel, statsOutput)
-		// }
-		// test.Pass(jirix.Context, msg)
+	// A helper function to check a single app's manifest snapshotpath.
+	expectedManifestPath := os.Getenv(manifestEnvVar)
+	checkManifestPathFn := func(appName string) error {
+		msg := fmt.Sprintf("Verify manifest snapshotpath for %q\n", appName)
+		args := adminCmd(jirix, []string{
+			debugBin,
+			fmt.Sprintf("--v23.namespace.root=%s", localMountTable),
+			"stats",
+			"read",
+			fmt.Sprintf("%s/*/*/stats/system/metadata/build.Manifest", appName),
+		})
+		var out bytes.Buffer
+		stdout := io.MultiWriter(jirix.Stdout(), &out)
+		if err := s.Capture(stdout, nil).Timeout(defaultReleaseTestTimeout).Last(args[0], args[1:]...); err != nil {
+			test.Fail(jirix.Context, msg)
+			return err
+		}
+		statsOutput := out.String()
+		matches := manifestRE.FindStringSubmatch(statsOutput)
+		if matches == nil || (matches[1] != expectedManifestPath) {
+			test.Fail(jirix.Context, msg)
+			return fmt.Errorf("failed to verify manifest path %q.\nCurrent manifest:\n%s",
+				expectedManifestPath, statsOutput)
+		}
+		test.Pass(jirix.Context, msg)
 		return nil
 	}
 
@@ -281,7 +280,7 @@ func updateServices(jirix *jiri.X) (e error) {
 			if err := updateAppFn(app); err != nil {
 				return err
 			}
-			if err := checkManifestLabelFn(app); err != nil {
+			if err := checkManifestPathFn(app); err != nil {
 				return err
 			}
 		}
@@ -315,7 +314,7 @@ func updateServices(jirix *jiri.X) (e error) {
 		if err := waitForMounttable(jirix, globalMountTable, `.+`); err != nil {
 			return err
 		}
-		if err := checkManifestLabelFn(mounttableName); err != nil {
+		if err := checkManifestPathFn(mounttableName); err != nil {
 			return err
 		}
 	}
@@ -371,8 +370,8 @@ func checkServices(jirix *jiri.X) error {
 }
 
 // updateLatestFile updates the "latest" file in Google Storage bucket to the
-// given release candidate label.
-func updateLatestFile(jirix *jiri.X, rcLabel string) error {
+// given release candidate timestamp.
+func updateLatestFile(jirix *jiri.X, rcTimestamp string) error {
 	s := jirix.NewSeq()
 	tmpDir, err := s.TempDir("", "")
 	if err != nil {
@@ -381,7 +380,7 @@ func updateLatestFile(jirix *jiri.X, rcLabel string) error {
 	defer jirix.NewSeq().RemoveAll(tmpDir)
 	latestFile := filepath.Join(tmpDir, "latest")
 	args := []string{"-q", "cp", latestFile, fmt.Sprintf("%s/latest", bucket)}
-	return s.WriteFile(latestFile, []byte(rcLabel), os.FileMode(0600)).
+	return s.WriteFile(latestFile, []byte(rcTimestamp), os.FileMode(0600)).
 		Last("gsutil", args...)
 }
 
