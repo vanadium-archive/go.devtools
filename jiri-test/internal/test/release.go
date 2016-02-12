@@ -41,7 +41,7 @@ const (
 
 var (
 	defaultReleaseTestTimeout = time.Minute * 5
-	manifestRE                = regexp.MustCompile(`.*<manifest snapshotpath="(.*)">`)
+	manifestRE                = regexp.MustCompile(`.*<manifest snapshotpath="manifest/(.*)">`)
 
 	serviceBinaries = []string{
 		"applicationd",
