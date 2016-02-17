@@ -603,8 +603,8 @@ func (x regexpList) AnyMatch(s string) bool {
 }
 
 // listAll runs 'gcloud compute instances list' to list all nodes, and parses
-// the results into nodeInfos.  If dryrun is set, only prints the command.
-func listAll(ctx *tool.Context, dryrun bool) (nodeInfos, error) {
+// the results into nodeInfos.
+func listAll(ctx *tool.Context) (nodeInfos, error) {
 	var stdout bytes.Buffer
 	if err := ctx.NewSeq().Read(nil).Capture(&stdout, ctx.Stderr()).
 		Last("gcloud", "-q", "compute", "instances", "list", "--project", *flagProject, "--format=json"); err != nil {
@@ -646,7 +646,7 @@ func listAll(ctx *tool.Context, dryrun bool) (nodeInfos, error) {
 // listMatching runs listAll and matches the resulting nodes against exprlist, a
 // comma-separated list of regular expressions.
 func listMatching(ctx *tool.Context, exprlist string) (nodeInfos, error) {
-	all, err := listAll(ctx, false) // Never dry-run, even if -n is set.
+	all, err := listAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -659,7 +659,7 @@ func listMatching(ctx *tool.Context, exprlist string) (nodeInfos, error) {
 
 func runList(env *cmdline.Env, args []string) error {
 	ctx := newContext(env)
-	all, err := listAll(ctx, tool.DryRunFlag)
+	all, err := listAll(ctx)
 	if err != nil {
 		return err
 	}

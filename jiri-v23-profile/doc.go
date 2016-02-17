@@ -90,8 +90,6 @@ The jiri v23-profile commands are:
 The jiri v23-profile flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -130,8 +128,6 @@ The jiri v23-profile install flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -162,8 +158,6 @@ The jiri v23-profile uninstall flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile update - Install the latest default version of the given profiles
 
@@ -184,8 +178,6 @@ The jiri v23-profile update flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile cleanup - Cleanup the locally installed profiles
 
@@ -215,8 +207,6 @@ The jiri v23-profile cleanup flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile available - List the available profiles
 
@@ -231,8 +221,6 @@ The jiri v23-profile available flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile list - List available or installed profiles
 
@@ -280,8 +268,6 @@ The jiri v23-profile list flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile env - Display profile environment variables
 
@@ -317,8 +303,6 @@ The jiri v23-profile env flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile help - Display help for commands or topics
 

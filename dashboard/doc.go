@@ -16,8 +16,6 @@ The dashboard flags are:
    Directory to use for caching files.
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -port=8000
    Port for the server.
  -results-bucket=gs://vanadium-test-results

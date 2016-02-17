@@ -19,8 +19,6 @@ The oncall commands are:
 The oncall flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -50,8 +48,6 @@ The oncall collect flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -72,8 +68,6 @@ The oncall serve flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

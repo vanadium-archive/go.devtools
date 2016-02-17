@@ -21,8 +21,6 @@ The vjenkins flags are:
    Use color to format output.
  -jenkins=http://localhost:8080/jenkins
    The host of the Jenkins master.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -48,8 +46,6 @@ The vjenkins node flags are:
    Use color to format output.
  -jenkins=http://localhost:8080/jenkins
    The host of the Jenkins master.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -76,8 +72,6 @@ The vjenkins node create flags are:
    Use color to format output.
  -jenkins=http://localhost:8080/jenkins
    The host of the Jenkins master.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -95,8 +89,6 @@ The vjenkins node delete flags are:
    Use color to format output.
  -jenkins=http://localhost:8080/jenkins
    The host of the Jenkins master.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

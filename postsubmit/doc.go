@@ -20,8 +20,6 @@ The postsubmit flags are:
    Use color to format output.
  -host=
    The Jenkins host. Presubmit will not send any CLs to an empty host.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -46,8 +44,6 @@ The postsubmit poll flags are:
    Use color to format output.
  -host=
    The Jenkins host. Presubmit will not send any CLs to an empty host.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

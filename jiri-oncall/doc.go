@@ -20,8 +20,6 @@ The jiri oncall commands are:
 The jiri oncall flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -41,8 +39,6 @@ Usage:
 The jiri oncall list flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

@@ -26,8 +26,6 @@ The vbinary flags are:
    Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.
  -key-file=
    Google Developers service account JSON key file.
- -n=false
-   Show what commands will run but do not execute them.
  -os=<runtime.GOOS>
    Target operating system.  The default is the value of runtime.GOOS.
  -release=false
@@ -59,8 +57,6 @@ The vbinary list flags are:
    Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.
  -key-file=
    Google Developers service account JSON key file.
- -n=false
-   Show what commands will run but do not execute them.
  -os=<runtime.GOOS>
    Target operating system.  The default is the value of runtime.GOOS.
  -release=false
@@ -94,8 +90,6 @@ The vbinary download flags are:
    Date prefix to match daily build timestamps. Must be a prefix of YYYY-MM-DD.
  -key-file=
    Google Developers service account JSON key file.
- -n=false
-   Show what commands will run but do not execute them.
  -os=<runtime.GOOS>
    Target operating system.  The default is the value of runtime.GOOS.
  -release=false

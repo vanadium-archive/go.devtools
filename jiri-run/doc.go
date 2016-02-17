@@ -21,8 +21,6 @@ The jiri run flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles

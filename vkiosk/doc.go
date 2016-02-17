@@ -27,8 +27,6 @@ The vkiosk flags are:
  -export-dir=gs://vanadium-kiosk
    Directory for storing/retrieving screenshots. Dirs that start with 'gs://'
    point to Google Storage buckets.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -66,8 +64,6 @@ The vkiosk collect flags are:
  -export-dir=gs://vanadium-kiosk
    Directory for storing/retrieving screenshots. Dirs that start with 'gs://'
    point to Google Storage buckets.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -87,8 +83,6 @@ The vkiosk serve flags are:
  -export-dir=gs://vanadium-kiosk
    Directory for storing/retrieving screenshots. Dirs that start with 'gs://'
    point to Google Storage buckets.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

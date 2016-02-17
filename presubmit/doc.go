@@ -24,8 +24,6 @@ The presubmit flags are:
    The Jenkins host. Presubmit will not send any CLs to an empty host.
  -job=vanadium-presubmit-test
    The name of the Jenkins job to add presubmit-test builds to.
- -n=false
-   Show what commands will run but do not execute them.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false
@@ -61,8 +59,6 @@ The presubmit query flags are:
    The Jenkins host. Presubmit will not send any CLs to an empty host.
  -job=vanadium-presubmit-test
    The name of the Jenkins job to add presubmit-test builds to.
- -n=false
-   Show what commands will run but do not execute them.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false
@@ -96,8 +92,6 @@ The presubmit result flags are:
    The Jenkins host. Presubmit will not send any CLs to an empty host.
  -job=vanadium-presubmit-test
    The name of the Jenkins job to add presubmit-test builds to.
- -n=false
-   Show what commands will run but do not execute them.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false
@@ -130,8 +124,6 @@ The presubmit test flags are:
    The Jenkins host. Presubmit will not send any CLs to an empty host.
  -job=vanadium-presubmit-test
    The name of the Jenkins job to add presubmit-test builds to.
- -n=false
-   Show what commands will run but do not execute them.
  -url=https://vanadium-review.googlesource.com
    The base url of the gerrit instance.
  -v=false

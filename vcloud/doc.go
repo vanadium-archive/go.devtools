@@ -23,8 +23,6 @@ The vcloud commands are:
 The vcloud flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -61,8 +59,6 @@ The vcloud list flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -110,8 +106,6 @@ The vcloud cp flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -131,8 +125,6 @@ The vcloud node commands are:
 The vcloud node flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -151,8 +143,6 @@ from GCE node hostA as user userB. The default value for userB is userA.
 The vcloud node authorize flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -171,8 +161,6 @@ from GCE node hostA as user userB. The default value for userB is userA.
 The vcloud node deauthorize flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -201,8 +189,6 @@ The vcloud node create flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -221,8 +207,6 @@ The vcloud node delete flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -268,8 +252,6 @@ The vcloud run flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -310,8 +292,6 @@ The vcloud sh flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 

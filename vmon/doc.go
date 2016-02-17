@@ -21,8 +21,6 @@ The vmon flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -100,8 +98,6 @@ The vmon md flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -125,8 +121,6 @@ The vmon md create flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -150,8 +144,6 @@ The vmon md delete flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -169,8 +161,6 @@ The vmon md list flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -191,8 +181,6 @@ The vmon md query flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -223,8 +211,6 @@ The vmon check flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -v=false
@@ -244,8 +230,6 @@ The vmon check list flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -root=dev.v.io
@@ -275,8 +259,6 @@ The vmon check run flags are:
    Use color to format output.
  -key=
    The path to the service account's JSON credentials file.
- -n=false
-   Show what commands will run but do not execute them.
  -project=
    The GCM's corresponding GCE project ID.
  -root=dev.v.io
