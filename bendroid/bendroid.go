@@ -109,6 +109,14 @@ func bendroid(env *cmdline.Env, args []string) error {
 			break
 		}
 	}
+	// Require CGO_ENABLED since the generated main.go also needs cgo.
+	env.Vars["CGO_ENABLED"] = "1"
+	env.Vars["GOOS"] = "android"
+	if env.Vars["GOARCH"] == "" {
+		// TODO(mattr): Figure out how to set this depending on the attached device.
+		env.Vars["GOARCH"] = "arm"
+	}
+
 	packages, err := readPackages(env, pkgArgs)
 	if err != nil {
 		return err
