@@ -72,6 +72,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"ignore-this":                             testMock,
 	"baku-android-build":                      bakuAndroidBuild,
 	"baku-java-test":                          bakuJavaTest,
+	"test-presubmit-test":                     testPresubmitTest,
 	"third_party-go-build":                    thirdPartyGoBuild,
 	"third_party-go-test":                     thirdPartyGoTest,
 	"third_party-go-race":                     thirdPartyGoRace,

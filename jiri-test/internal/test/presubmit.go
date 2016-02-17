@@ -12,6 +12,7 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/devtools/internal/xunit"
 )
 
 var (
@@ -148,4 +149,54 @@ func vanadiumPresubmitResult(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 	}
 
 	return &test.Result{Status: test.Passed}, nil
+}
+
+// TestPresubmitTestOpt is an option used in testPresubmitTest for checking
+// the content of a file.
+type TestPresubmitTestOpt struct {
+	FilePaths            []string
+	ExpectedFileContents []string
+}
+
+func (TestPresubmitTestOpt) Opt() {}
+
+// testPresubmitTest is used to test the "test" phase of presubmit.
+// It reads a set of given files and compares their contents with the given
+// expected contents. The test will pass when the file contents can be read and
+// correctly matched.
+func testPresubmitTest(jirix *jiri.X, testName string, opts ...Opt) (*test.Result, error) {
+	testData := TestPresubmitTestOpt{}
+	gotTestData := false
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case TestPresubmitTestOpt:
+			testData = TestPresubmitTestOpt(typedOpt)
+			gotTestData = true
+		}
+	}
+	if !gotTestData {
+		return nil, fmt.Errorf("TestPresubmitTestOpt not found")
+	}
+
+	status := test.Passed
+	errMsg := "Failed to match file content"
+	if len(testData.FilePaths) != len(testData.ExpectedFileContents) {
+		status = test.Failed
+		if err := xunit.CreateFailureReport(jirix, testName, "MockTest", "MockTest", errMsg, ""); err != nil {
+			return nil, err
+		}
+	} else {
+		for i, path := range testData.FilePaths {
+			expectedContent := testData.ExpectedFileContents[i]
+			content, err := jirix.NewSeq().ReadFile(path)
+			if err != nil || expectedContent != string(content) {
+				status = test.Failed
+				if err := xunit.CreateFailureReport(jirix, testName, "MockTest", "MockTest", errMsg, ""); err != nil {
+					return nil, err
+				}
+				break
+			}
+		}
+	}
+	return &test.Result{Status: status}, nil
 }
