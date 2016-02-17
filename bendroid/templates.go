@@ -27,7 +27,7 @@ var templates = map[string]*template.Template{
 
     <uses-sdk android:minSdkVersion="23"/>
 
-    <application >
+    <application>
         <activity android:name="io.v.x.devtools.bendroid.BendroidActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -106,9 +106,12 @@ package io.v.x.devtools.bendroid;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
+import java.io.PrintWriter;
+import java.lang.Thread;
 
 public class BendroidActivity extends Activity {
-    private native void nativeRun();
+    private native void nativeRun(String cacheDir);
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -116,13 +119,26 @@ public class BendroidActivity extends Activity {
     @Override
     public void onStart() {
         super.onStart();
+        String cacheDir = getApplication().getCacheDir().getAbsolutePath();
         System.loadLibrary("{{.MainPkg}}");
-        nativeRun();
+        nativeRun(cacheDir);
     }
 }
 `)),
 
-	"main.go": template.Must(template.New("main").Parse(`
+	"main.c": template.Must(template.New("main.c").Parse(`
+#include <stdlib.h>
+#include <jni.h>
+
+const char* MyJToCString(JNIEnv* env, jstring jstr) {
+  return (*env)->GetStringUTFChars(env, jstr, NULL);
+}
+void MyReleaseJString(JNIEnv* env, jstring jstr, const char* cstr) {
+  (*env)->ReleaseStringUTFChars(env, jstr, cstr);
+}
+`)),
+
+	"main.go": template.Must(template.New("main.go").Parse(`
 package main
 
 // #cgo LDFLAGS: -llog
@@ -130,6 +146,8 @@ package main
 // #include <stdlib.h>
 // #include <android/log.h>
 // #include <jni.h>
+// const char* MyJToCString(JNIEnv* env, jstring jstr);
+// void MyReleaseJString(JNIEnv* env, jstring jstr, const char* cstr);
 import "C"
 
 import (
@@ -145,6 +163,13 @@ import (
 	{{range .FuncImports}}
 	"{{.}}"{{end}}
 )
+
+func jToGoString(env *C.JNIEnv, jstr C.jstring) string {
+	cstr := C.MyJToCString(env, jstr)
+	gostr := C.GoString(cstr)
+	C.MyReleaseJString(env, jstr, cstr)
+	return gostr
+}
 
 var ctag = C.CString("Bendroid")
 
@@ -207,7 +232,9 @@ var examples = []testing.InternalExample{ {{range .Examples}}
 var testMain func(m *testing.M) = {{if .TestMainPackage}}{{.TestMainPackage}}.TestMain{{else}}nil{{end}}
 
 //export Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun
-func Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun(jenv *C.JNIEnv, jVClass C.jclass) {
+func Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun(jenv *C.JNIEnv, jVClass C.jclass, jCacheDir C.jstring) {
+	cacheDir := jToGoString(jenv, jCacheDir)
+	os.Setenv("TMPDIR", cacheDir)
 	fmt.Fprintf(os.Stderr, "BENDROIDPID=%d\n", os.Getpid())
 	// TODO(mattr): Consider using a file to send flags to android instead of compiling
 	// them into the apk.

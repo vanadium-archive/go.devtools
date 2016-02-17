@@ -62,6 +62,8 @@ var (
 		"a list of build tags to consider satisfied during the build."+
 			" For more information about build tags, see the description of"+
 			" build constraints in the documentation for the go/build package.")
+	timeout = flag.Duration("timeout", 10*time.Minute,
+		"If a test runs longer than t, panic.  The default is 10 minutes (10m).")
 )
 
 var cmdBendroid = &cmdline.Command{
@@ -259,7 +261,7 @@ func newTestrun(env *cmdline.Env, pkg *build.Package, flags []string) (*testrun,
 		Env:      env,
 	}
 
-	for _, fname := range []string{"bench", "benchmem", "benchtime", "run", "v"} {
+	for _, fname := range []string{"bench", "benchmem", "benchtime", "run", "v", "timeout"} {
 		t.Flags = append(t.Flags, "-test."+fname+"="+flag.Lookup(fname).Value.String())
 	}
 	t.Flags = append(t.Flags, flags...)

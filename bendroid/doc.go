@@ -54,6 +54,8 @@ The global flags are:
    documentation for the go/build package.
  -time=false
    Dump timing information to stderr before exiting the program.
+ -timeout=10m0s
+   If a test runs longer than t, panic.  The default is 10 minutes (10m).
  -v=false
    Verbose output: log all tests as they are run. Also print all text from Log
    and Logf calls even if the test succeeds.
