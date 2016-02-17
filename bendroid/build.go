@@ -70,24 +70,14 @@ func (t *testrun) build() error {
 	if goroot, ok := t.Env.Vars["GOROOT"]; ok {
 		gobin = filepath.Join(goroot, "bin", "go")
 	}
-	cmd := exec.Command(gobin, args...)
-	cmd.Env = envvar.MapToSlice(t.Env.Vars)
-	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := t.execBuildCommand(t.Env.Vars, gobin, args...); err != nil {
 		return err
 	}
 	// Generate a gradle wrapper to ensure we have a recent version to build our APK.
-	cmd = exec.Command("gradle", "-b", "build.gradle.tmp", "wrapper")
-	cmd.Dir = t.MainDir
-	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := t.execBuildCommand(nil, "gradle", "-b", "build.gradle.tmp", "wrapper"); err != nil {
 		return err
 	}
-
-	cmd = exec.Command("./gradlew", "assembleRelease")
-	cmd.Dir = t.MainDir
-	cmd.Stdout, cmd.Stderr = t.Env.Stdout, t.Env.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := t.execBuildCommand(nil, "./gradlew", "assembleRelease"); err != nil {
 		return err
 	}
 	output := filepath.Join(t.MainDir, "build", "outputs", "apk", t.MainPkg+"-release.apk")
@@ -292,4 +282,21 @@ func changePackage(expr ast.Expr, namedImports map[string]string) bool {
 	default:
 		return false
 	}
+}
+
+func (t *testrun) execBuildCommand(env map[string]string, bin string, args ...string) error {
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "+%v\n", append([]string{bin}, args...))
+	cmd := exec.Command(bin, args...)
+	if env != nil {
+		cmd.Env = envvar.MapToSlice(env)
+	}
+	cmd.Dir = t.MainDir
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+	if err := cmd.Run(); err != nil {
+		t.buildErr = buf.Bytes()
+		return err
+	}
+	return nil
 }

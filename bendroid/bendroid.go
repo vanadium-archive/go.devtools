@@ -97,7 +97,7 @@ to make the generated shared library compatible with Android SDK version 23).
 func bendroid(env *cmdline.Env, args []string) error {
 	for _, bin := range []string{"adb", "gradle"} {
 		if path, err := exec.LookPath(bin); err != nil || path == "" {
-			fmt.Fprintln(env.Stderr, "%s not found, it must be in your path.", bin)
+			fmt.Fprintln(env.Stderr, bin, "not found, it must be in your path.")
 			os.Exit(1)
 		}
 	}
@@ -183,6 +183,7 @@ func bendroid(env *cmdline.Env, args []string) error {
 				fmt.Fprintf(env.Stdout, "FAIL\t%s\t%s\n", r.BuildPkg.ImportPath, duration)
 				errors++
 			default:
+				io.Copy(env.Stderr, bytes.NewBuffer(r.buildErr))
 				fmt.Fprintf(env.Stdout, "FAIL\t%s\t[setup failed]\n", r.BuildPkg.ImportPath)
 				errors++
 			}
@@ -239,7 +240,6 @@ type testrun struct {
 	Env                      *cmdline.Env
 	BuildPkg                 *build.Package
 	AndroidPackage           string
-	TmpDir                   string
 	Tests                    []funcref
 	Benchmarks               []funcref
 	Examples                 []funcref
@@ -250,6 +250,7 @@ type testrun struct {
 	Flags                    []string
 	apk                      string
 	cleanup                  []string
+	buildErr                 []byte
 
 	// inplace is true if we are using the directory of the
 	// tested package to rewrite code, or if we are using a
