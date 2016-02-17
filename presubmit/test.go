@@ -48,6 +48,11 @@ var (
 	reviewTargetRefsFlag string
 	testFlag             string
 	testPartRE           = regexp.MustCompile(`(.*)-part(\d)$`)
+
+	// The variables below are used for testing presubmit only.
+	testMode                 = false
+	testFilePaths            = ""
+	testFileExpectedContents = ""
 )
 
 func init() {
@@ -103,7 +108,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 
 	// Warn users that presubmit will delete all non-master branches when
 	// running on their local machines.
-	if os.Getenv("USER") != "veyron" {
+	if !testMode && os.Getenv("USER") != "veyron" {
 		fmt.Printf("WARNING: Presubmit will delete all non-master branches.\nContinue? y/N:")
 		var response string
 		if _, err := fmt.Scanf("%s\n", &response); err != nil || response != "y" {
@@ -195,18 +200,22 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	}
 
 	// Rebuild developer tools and override PATH to point there.
-	env, err := rebuildDeveloperTools(jirix, tools, projects, tmpBinDir)
-	if err != nil {
-		message := fmt.Sprintf(toolsBuildFailureMessageTmpl, err.Error())
-		result := test.Result{
-			Status:               test.ToolsBuildFailure,
-			ToolsBuildFailureMsg: err.Error(),
+	env := map[string]string{}
+	if !testMode {
+		var err error
+		env, err = rebuildDeveloperTools(jirix, tools, projects, tmpBinDir)
+		if err != nil {
+			message := fmt.Sprintf(toolsBuildFailureMessageTmpl, err.Error())
+			result := test.Result{
+				Status:               test.ToolsBuildFailure,
+				ToolsBuildFailureMsg: err.Error(),
+			}
+			if err := recordPresubmitFailure(jirix, "BuildTools", "Failed to build tools", message, testName, -1, result); err != nil {
+				return err
+			}
+			fmt.Fprintf(jirix.Stderr(), "failed to build tools:\n%s\n", err.Error())
+			return nil
 		}
-		if err := recordPresubmitFailure(jirix, "BuildTools", "Failed to build tools", message, testName, -1, result); err != nil {
-			return err
-		}
-		fmt.Fprintf(jirix.Stderr(), "failed to build tools:\n%s\n", err.Error())
-		return nil
 	}
 
 	// Run the tests via "jiri test run" and collect the test results.
@@ -221,6 +230,10 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	jiriArgs := []string{
 		"run",
 		"-output-dir", outputDir,
+	}
+	if testMode {
+		jiriArgs = append(jiriArgs,
+			"-mock-file-paths", testFilePaths, "-mock-file-contents", testFileExpectedContents)
 	}
 	if partIndex != -1 {
 		jiriArgs = append(jiriArgs, "-part", fmt.Sprintf("%d", partIndex))

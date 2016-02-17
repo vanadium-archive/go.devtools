@@ -21,17 +21,19 @@ import (
 )
 
 var (
-	blessingsRootFlag string
-	cleanGoFlag       bool
-	namespaceRootFlag string
-	numWorkersFlag    int
-	outputDirFlag     string
-	partFlag          int
-	pkgsFlag          string
-	oauthBlesserFlag  string
-	adminRoleFlag     string
-	publisherRoleFlag string
-	readerFlags       profilescmdline.ReaderFlagValues
+	blessingsRootFlag    string
+	cleanGoFlag          bool
+	mockTestFilePaths    string
+	mockTestFileContents string
+	namespaceRootFlag    string
+	numWorkersFlag       int
+	outputDirFlag        string
+	partFlag             int
+	pkgsFlag             string
+	oauthBlesserFlag     string
+	adminRoleFlag        string
+	publisherRoleFlag    string
+	readerFlags          profilescmdline.ReaderFlagValues
 )
 
 func init() {
@@ -43,9 +45,10 @@ func init() {
 	cmdTestRun.Flags.IntVar(&partFlag, "part", -1, "Specify which part of the test to run.")
 	cmdTestRun.Flags.StringVar(&pkgsFlag, "pkgs", "", "Comma-separated list of Go package expressions that identify a subset of tests to run; only relevant for Go-based tests. Example usage: jiri test run -pkgs v.io/x/ref vanadium-go-test")
 	cmdTestRun.Flags.BoolVar(&cleanGoFlag, "clean-go", true, "Specify whether to remove Go object files and binaries before running the tests. Setting this flag to 'false' may lead to faster Go builds, but it may also result in some source code changes not being reflected in the tests (e.g., if the change was made in a different Go workspace).")
+	cmdTestRun.Flags.StringVar(&mockTestFilePaths, "mock-file-paths", "", "Colon-separated file paths to read when testing presubmit test. This flag is only used when running presubmit end-to-end test.")
+	cmdTestRun.Flags.StringVar(&mockTestFileContents, "mock-file-contents", "", "Colon-separated file contents to check when testing presubmit test. This flag is only used when running presubmit end-to-end test.")
 	tool.InitializeRunFlags(&cmdTest.Flags)
 	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, jiri.DefaultProfilesDBPath())
-
 }
 
 // cmdTest represents the "jiri test" command.
@@ -138,6 +141,12 @@ func optsFromFlags() (opts []jiriTest.Opt) {
 		jiriTest.CleanGoOpt(cleanGoFlag),
 		jiriTest.MergePoliciesOpt(readerFlags.MergePolicies),
 	)
+	if mockTestFilePaths != "" && mockTestFileContents != "" {
+		opts = append(opts, jiriTest.TestPresubmitTestOpt{
+			FilePaths:            strings.Split(mockTestFilePaths, ":"),
+			ExpectedFileContents: strings.Split(mockTestFileContents, ":"),
+		})
+	}
 	return
 }
 
