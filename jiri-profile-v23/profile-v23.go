@@ -46,7 +46,7 @@ func main() {
 	nodejs_profile.Register("v23", "nodejs")
 	syncbase_profile.Register("v23", "syncbase")
 
-	profilescmdline.RegisterManagementCommands(commandLineDriver, "v23", jiri.ProfilesDBDir, jiri.ProfilesRootDir)
+	profilescmdline.RegisterManagementCommands(commandLineDriver, true, "v23", jiri.ProfilesDBDir, jiri.ProfilesRootDir)
 	tool.InitializeRunFlags(&commandLineDriver.Flags)
 	cmdline.Main(commandLineDriver)
 }
