@@ -100,10 +100,19 @@ func setBuildInfoFlags(jirix *jiri.X, args []string, env map[string]string, extr
 	}
 	info.Platform = platform
 	// Compute the "manifest" value.
-	manifest, err := project.CurrentManifest(jirix)
+	latestManifest := jirix.UpdateHistoryLatestLink()
+	manifest, err := project.ManifestFromFile(jirix, latestManifest)
 	if err != nil {
-		return nil, err
+		if !runutil.IsNotExist(err) {
+			return nil, err
+		}
+		fmt.Fprintf(jirix.Stderr(), `WARNING: Could not find %s.
+The contents of this file are stored as metadata in binaries the jiri
+tool builds. To fix this problem, please run "jiri update".
+`, latestManifest)
+		manifest = &project.Manifest{}
 	}
+
 	info.Manifest = *manifest
 	// Compute the "pristine" value.
 	states, err := project.GetProjectStates(jirix, true)
