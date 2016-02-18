@@ -130,11 +130,17 @@ func bendroid(env *cmdline.Env, args []string) error {
 		fmt.Fprintln(env.Stderr, "cannot use -o flag with multiple packages")
 		os.Exit(1)
 	}
+	if npackages > 1 && *work {
+		fmt.Fprintln(env.Stderr, "cannot use -work flag with multiple packages")
+		os.Exit(1)
+	}
 	runs := make([]*testrun, len(packages))
 	defer func() {
 		for _, r := range runs {
 			if r != nil {
-				r.clean()
+				r.cleanAllButMain()
+				r.cleanMain()
+				r.uninstall()
 			}
 		}
 	}()
@@ -142,9 +148,10 @@ func bendroid(env *cmdline.Env, args []string) error {
 		if runs[i], err = newTestrun(env, p, pkgFlags); err != nil {
 			return err
 		}
+		runs[i].buildso()
 	}
 	if *compileOnly {
-		return runs[0].build()
+		return runs[0].buildapk()
 	}
 
 	done := make(chan error)
@@ -161,7 +168,7 @@ func bendroid(env *cmdline.Env, args []string) error {
 		for idx := range runs {
 			buildSema <- struct{}{}
 			go func(idx int) {
-				buildReady[idx] <- runs[idx].build()
+				buildReady[idx] <- runs[idx].buildapk()
 				<-buildSema
 			}(idx)
 		}
@@ -307,7 +314,6 @@ func newTestrun(env *cmdline.Env, pkg *build.Package, flags []string) (*testrun,
 	if t.MainDir, t.MainPkg, err = pkgDir(t.BaseDir, "bendroidmain"); err != nil {
 		return nil, err
 	}
-	t.cleanup = append(t.cleanup, t.MainDir)
 	if len(*outName) > 0 {
 		t.apk = *outName
 	} else if *compileOnly {
@@ -318,12 +324,21 @@ func newTestrun(env *cmdline.Env, pkg *build.Package, flags []string) (*testrun,
 	return t, nil
 }
 
-func (t *testrun) clean() {
+func (t *testrun) cleanMain() {
+	if !*work {
+		os.RemoveAll(t.MainDir)
+	}
+}
+
+func (t *testrun) cleanAllButMain() {
 	if !*work {
 		for _, item := range t.cleanup {
 			os.RemoveAll(item)
 		}
 	}
+}
+
+func (t *testrun) uninstall() {
 	if !*compileOnly {
 		exec.Command("adb", "uninstall", t.AndroidPackage).Run()
 	}

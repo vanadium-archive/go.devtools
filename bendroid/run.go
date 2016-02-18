@@ -24,6 +24,10 @@ var (
 )
 
 func (t *testrun) run() (time.Duration, error) {
+	defer func() {
+		t.cleanMain()
+		t.uninstall()
+	}()
 	// TODO(mattr): adb should be downloaded by the android profile, and we should use
 	// that version.
 	if err := exec.Command("adb", "install", "-r", t.apk).Run(); err != nil {
