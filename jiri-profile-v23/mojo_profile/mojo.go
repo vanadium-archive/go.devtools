@@ -338,7 +338,7 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, outDir string) erro
 	if err != nil {
 		return err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir)
+	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
 
 	fn := func() error {
 		androidPlatformToolsZipFile := filepath.Join(tmpDir, "platform-tools.zip")
@@ -360,7 +360,7 @@ func (m *Manager) installMojoNetworkService(jirix *jiri.X, outDir string) error 
 	if err != nil {
 		return err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir)
+	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
 
 	networkServiceUrl := mojoNetworkServiceUrl(m.platform, m.spec.networkServiceVersion)
 	networkServiceZipFile := filepath.Join(tmpDir, "network_service.mojo.zip")
@@ -414,7 +414,7 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 		if err != nil {
 			return err
 		}
-		defer jirix.NewSeq().RemoveAll(tmpMojoCheckout)
+		defer jirix.NewSeq().RemoveAll(tmpMojoCheckout).Done()
 
 		seq.
 			Pushd(tmpMojoCheckout).
@@ -480,7 +480,7 @@ func (m *Manager) installMojoShellAndServices(jirix *jiri.X, outDir string) erro
 	if err != nil {
 		return err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir)
+	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
 
 	fn := func() error {
 		seq := jirix.NewSeq()

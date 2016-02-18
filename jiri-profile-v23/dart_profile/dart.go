@@ -104,7 +104,7 @@ func (m *Manager) installDartSdk(jirix *jiri.X, target profiles.Target, outDir s
 	if err != nil {
 		return err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir)
+	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
 
 	fn := func() error {
 		sdkUrl := dartSdkUrl(m.spec.dartSdkChannel, m.spec.dartSdkVersion, target.OS())

@@ -220,7 +220,7 @@ func installGo14(jirix *jiri.X, go14Dir string, env *envvar.Vars) error {
 		if err != nil {
 			return err
 		}
-		defer jirix.NewSeq().RemoveAll(tmpDir)
+		defer jirix.NewSeq().RemoveAll(tmpDir).Done()
 
 		name := "go1.4.2.src.tar.gz"
 		remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
@@ -258,7 +258,7 @@ func (m *Manager) installGo15Plus(jirix *jiri.X, version string, env *envvar.Var
 		if err != nil {
 			return err
 		}
-		defer jirix.NewSeq().RemoveAll(tmpDir)
+		defer jirix.NewSeq().RemoveAll(tmpDir).Done()
 
 		goInstDir := m.goInstDir.Abs(jirix)
 		goSrcDir := filepath.Join(goInstDir, "src")
