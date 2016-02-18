@@ -146,7 +146,7 @@ func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versio
 		if err != nil {
 			return err
 		}
-		defer jirix.NewSeq().RemoveAll(tmpDir).Done()
+		defer jirix.NewSeq().RemoveAll(tmpDir)
 		return s.Pushd(tmpDir).
 			Call(func() error { return gitutil.New(jirix.NewSeq()).CloneRecursive(gitRemote, tmpDir) }, "").
 			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.spec.gitRevision) }, "").

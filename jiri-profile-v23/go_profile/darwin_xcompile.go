@@ -276,7 +276,7 @@ func downloadAndUnpackFile(jirix *jiri.X, uri, toRoot string) error {
 		if err != nil {
 			return err
 		}
-		defer jirix.NewSeq().RemoveAll(tmpDir).Done()
+		defer jirix.NewSeq().RemoveAll(tmpDir)
 		return s.Pushd(tmpDir).
 			Run(downloadCmd[0], downloadCmd[1:]...).
 			Run(unpackCmd[0], unpackCmd[1:]...).

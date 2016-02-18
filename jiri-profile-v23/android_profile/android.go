@@ -300,7 +300,7 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, target profiles.Tar
 	if err != nil {
 		return target, err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
+	defer jirix.NewSeq().RemoveAll(tmpDir)
 
 	outDir := m.platformRoot.Abs(jirix)
 	target.Env.Set("ANDROID_PLATFORM_TOOLS=" + m.platformRoot.Symbolic())
@@ -330,7 +330,7 @@ func (m *Manager) installGoMobile(jirix *jiri.X, pdb *profiles.DB, root jiri.Rel
 	if err != nil {
 		return target, err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
+	defer jirix.NewSeq().RemoveAll(tmpDir)
 
 	env := envvar.VarsFromMap(jirix.Env())
 	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, baseEnv)
