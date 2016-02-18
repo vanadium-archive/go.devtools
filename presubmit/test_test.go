@@ -92,7 +92,7 @@ func TestParseCLs(t *testing.T) {
 	}
 }
 
-// xTestPresubmitTest is an end-to-end test for the "test" phase of presubmit.
+// TestPresubmitTest is an end-to-end test for the "test" phase of presubmit.
 // It follows the steps below:
 //
 // 1. Create a fake JIRI_ROOT.
@@ -107,10 +107,7 @@ func TestParseCLs(t *testing.T) {
 //    file.
 // 5. We run through step 2-4 twice, one for a passed presubmit test, and one
 //    for a failed presubmit test.
-//
-// TODO(jingjin): enable this test when related changes in presubmit are
-// submitted.
-func xTestPresubmitTest(t *testing.T) {
+func TestPresubmitTest(t *testing.T) {
 	fake, _ := jiritest.NewFakeJiriRoot(t)
 
 	// Set WORKSPACE to JIRI_ROOT.
