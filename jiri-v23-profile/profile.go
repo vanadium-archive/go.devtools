@@ -23,6 +23,7 @@ import (
 	"v.io/x/devtools/jiri-profile-v23/nacl_profile"
 	"v.io/x/devtools/jiri-profile-v23/nodejs_profile"
 	"v.io/x/devtools/jiri-profile-v23/syncbase_profile"
+	"v.io/x/devtools/jiri-profile-v23/terraform_profile"
 )
 
 // commandLineDriver implements the command line for the 'v23-profile'
@@ -48,6 +49,7 @@ func main() {
 	nacl_profile.Register("", "nacl")
 	nodejs_profile.Register("", "nodejs")
 	syncbase_profile.Register("", "syncbase")
+	terraform_profile.Register("", "terraform")
 
 	// Using an empty installer preserves the old behaviour, pre-v5 defaults.
 	profilescmdline.RegisterManagementCommands(commandLineDriver, "", DefaultDBFilename, "profiles")

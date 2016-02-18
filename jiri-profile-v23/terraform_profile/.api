@@ -1,0 +1,10 @@
+pkg terraform_profile, func Register(string, string)
+pkg terraform_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
+pkg terraform_profile, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg terraform_profile, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg terraform_profile, method (Manager) Info() string
+pkg terraform_profile, method (Manager) Installer() string
+pkg terraform_profile, method (Manager) Name() string
+pkg terraform_profile, method (Manager) String() string
+pkg terraform_profile, method (Manager) VersionInfo() *profiles.VersionInfo
+pkg terraform_profile, type Manager struct

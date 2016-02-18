@@ -24,6 +24,7 @@ import (
 	"v.io/x/devtools/jiri-profile-v23/nacl_profile"
 	"v.io/x/devtools/jiri-profile-v23/nodejs_profile"
 	"v.io/x/devtools/jiri-profile-v23/syncbase_profile"
+	"v.io/x/devtools/jiri-profile-v23/terraform_profile"
 )
 
 // commandLineDriver implements the command line for the 'profile-v23'
@@ -45,6 +46,7 @@ func main() {
 	nacl_profile.Register("v23", "nacl")
 	nodejs_profile.Register("v23", "nodejs")
 	syncbase_profile.Register("v23", "syncbase")
+	terraform_profile.Register("v23", "terraform")
 
 	profilescmdline.RegisterManagementCommands(commandLineDriver, "v23", jiri.ProfilesDBDir, jiri.ProfilesRootDir)
 	tool.InitializeRunFlags(&commandLineDriver.Flags)
