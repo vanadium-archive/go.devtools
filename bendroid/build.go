@@ -63,7 +63,7 @@ func (t *testrun) build() error {
 		"build",
 		"-buildmode", "c-shared",
 		"-tags", *tags,
-		"-o", filepath.Join(t.MainDir, "src", "main", "jniLibs", "armeabi-v7a", "lib"+t.MainPkg+".so"),
+		"-o", filepath.Join(t.MainDir, "src", "main", "jniLibs", t.AndroidABI(), "lib"+t.MainPkg+".so"),
 		path.Join(importPath, t.MainPkg),
 	}
 	gobin := "go"
@@ -299,4 +299,15 @@ func (t *testrun) execBuildCommand(env map[string]string, bin string, args ...st
 		return err
 	}
 	return nil
+}
+
+// AndroidABI returns the ABI to use corresponding to GOARCH.
+// See http://developer.android.com/ndk/guides/abis.html
+func (t *testrun) AndroidABI() string {
+	switch t.Env.Vars["GOARCH"] {
+	case "arm64":
+		return "arm64-v8a"
+	default:
+		return "armeabi-v7a"
+	}
 }

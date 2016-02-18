@@ -78,7 +78,7 @@ android {
 
     sourceSets {
         main {
-            jniLibs.srcDir 'src/main/jniLibs/armeabi-v7a'
+            jniLibs.srcDir 'src/main/jniLibs/{{.AndroidABI}}'
         }
     }
     signingConfigs {
