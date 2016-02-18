@@ -182,7 +182,25 @@ func (infoWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func lineLog(f *os.File, priority C.int) {
+// Because TestMain's typically call os.Exit, we don't get to control
+// cleanup.  This causes a problem because we are processing os.Stderr/out
+// data in a background goroutine (see lineLog) and forwarding it to
+// the android log.  Sometimes the Exit happens before we've printed
+// the final output.  To deal with this we add a special test and benchmark
+// that is run last and simply ensures that all tests have printed their output.
+// We implement this by sending these special strings through the output, when
+// they arrive we know all real tests/benchmarks have printed.
+const testSentinel = "BENDROIDTESTSENTINEL"
+const benchmarkSentinel = "BENDROIDBENCHMARKSENTINEL"
+
+var (
+	stdErrTestFlush = make(chan struct{})
+	stdOutTestFlush = make(chan struct{})
+	stdErrBenchmarkFlush = make(chan struct{})
+	stdOutBenchmarkFlush = make(chan struct{})
+)
+
+func lineLog(f *os.File, priority C.int, testFlush, benchmarkFlush chan struct{}) {
 	const logSize = 1024 // matches android/log.h.
 	r := bufio.NewReaderSize(f, logSize)
 	for {
@@ -191,11 +209,21 @@ func lineLog(f *os.File, priority C.int) {
 		if err != nil {
 			str += " " + err.Error()
 		}
-		cstr := C.CString(str)
-		C.__android_log_write(priority, ctag, cstr)
-		C.free(unsafe.Pointer(cstr))
-		if err != nil {
-			break
+		switch {
+		case str == testSentinel:
+			close(testFlush)
+		case str == benchmarkSentinel:
+			close(benchmarkFlush)
+		case strings.Contains(str, "BendroidSentinel"):
+			// Do nothing here.  This is output pertaining to the fake Sentinel Test/Benchmark.
+			// We don't want to print this output.
+		default:
+			cstr := C.CString(str)
+			C.__android_log_write(priority, ctag, cstr)
+			C.free(unsafe.Pointer(cstr))
+			if err != nil {
+				break
+			}
 		}
 	}
 }
@@ -210,26 +238,47 @@ func init() {
 		panic(err)
 	}
 	os.Stderr = w
-	go lineLog(r, C.ANDROID_LOG_ERROR)
+	go lineLog(r, C.ANDROID_LOG_ERROR, stdErrTestFlush, stdErrBenchmarkFlush)
 
 	r, w, err = os.Pipe()
 	if err != nil {
 		panic(err)
 	}
 	os.Stdout = w
-	go lineLog(r, C.ANDROID_LOG_INFO)
+	go lineLog(r, C.ANDROID_LOG_INFO, stdOutTestFlush, stdOutBenchmarkFlush)
 }
 
 var tests = []testing.InternalTest{ {{range .Tests}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},{{end}}
+	{"TestBendroidSentinel", func(t *testing.T){
+		fmt.Fprintf(os.Stderr, "\n%s\n", testSentinel)
+		fmt.Fprintf(os.Stdout, "\n%s\n", testSentinel)
+		<-stdErrTestFlush
+		<-stdOutTestFlush
+		t.Skip("TestBendroidSentinel")
+	}},
 }
 var benchmarks = []testing.InternalBenchmark{ {{range .Benchmarks}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},{{end}}
+	{"BenchmarkBendroidSentinel", func(b *testing.B){
+		fmt.Fprintf(os.Stderr, "\n%s\n", benchmarkSentinel)
+		fmt.Fprintf(os.Stdout, "\n%s\n", benchmarkSentinel)
+		<-stdErrBenchmarkFlush
+		<-stdOutBenchmarkFlush
+		b.Skip("BenchmarkBendroidSentinel")
+	}},
 }
 var examples = []testing.InternalExample{ {{range .Examples}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},{{end}}
 }
 var testMain func(m *testing.M) = {{if .TestMainPackage}}{{.TestMainPackage}}.TestMain{{else}}nil{{end}}
+
+func matchString(pattern string, s string) (matched bool, err error) {
+	if s == "BenchmarkTestSentinel" || s == "BenchmarkBendroidSentinel" {
+		return true, nil
+	}
+	return regexp.MatchString(pattern, s)
+}
 
 //export Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun
 func Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun(jenv *C.JNIEnv, jVClass C.jclass, jCacheDir C.jstring) {
@@ -245,7 +294,7 @@ func Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun(jenv *C.JNIEnv, jV
 	os.Args = append(os.Args, "{{.}}"){{end}}
 
 	describeDevice()
-	m := testing.MainStart(regexp.MatchString, tests, benchmarks, examples)
+	m := testing.MainStart(matchString, tests, benchmarks, examples)
 	if testMain == nil {
 		os.Exit(m.Run())
 	} else {
