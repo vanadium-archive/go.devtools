@@ -163,7 +163,6 @@
     <project name="release.projects.croupier">
       <test>vanadium-copyright</test>
       <test>vanadium-croupier-unit</test>
-      <test>vanadium-croupier-unit-go</test>
     </project>
     <project name="release.projects.media-sharing">
       <test>go</test>
