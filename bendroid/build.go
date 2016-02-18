@@ -22,7 +22,8 @@ import (
 
 var errNoTests = fmt.Errorf("There were no tests.")
 
-func (t *testrun) build() error {
+func (t *testrun) buildso() error {
+	defer t.cleanAllButMain()
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, t.BuildPkg.Dir, nil, parser.ParseComments)
 	if err != nil {
@@ -70,9 +71,10 @@ func (t *testrun) build() error {
 	if goroot, ok := t.Env.Vars["GOROOT"]; ok {
 		gobin = filepath.Join(goroot, "bin", "go")
 	}
-	if err := t.execBuildCommand(t.Env.Vars, gobin, args...); err != nil {
-		return err
-	}
+	return t.execBuildCommand(t.Env.Vars, gobin, args...)
+}
+
+func (t *testrun) buildapk() error {
 	// Generate a gradle wrapper to ensure we have a recent version to build our APK.
 	if err := t.execBuildCommand(nil, "gradle", "-b", "build.gradle.tmp", "wrapper"); err != nil {
 		return err
