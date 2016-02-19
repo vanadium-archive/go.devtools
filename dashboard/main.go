@@ -93,7 +93,7 @@ func runDashboard(env *cmdline.Env, args []string) error {
 		helper(jirix, w, r)
 	}
 	health := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
+		w.Write([]byte("OK"))
 	}
 	staticHandler := http.FileServer(http.Dir(staticDirFlag))
 	http.Handle("/static/", http.StripPrefix("/static/", staticHandler))
