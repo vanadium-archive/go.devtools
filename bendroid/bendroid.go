@@ -144,14 +144,23 @@ func bendroid(env *cmdline.Env, args []string) error {
 			}
 		}
 	}()
+	buildsoErrs := make([]error, len(packages))
 	for i, p := range packages {
 		if runs[i], err = newTestrun(env, p, pkgFlags); err != nil {
 			return err
 		}
-		runs[i].buildso()
+		buildsoErrs[i] = runs[i].buildso()
+	}
+	buildapk := func(idx int) error {
+		if err := buildsoErrs[idx]; err != nil {
+			return err
+		}
+		return runs[idx].buildapk()
 	}
 	if *compileOnly {
-		return runs[0].buildapk()
+		err := buildapk(0)
+		io.Copy(env.Stderr, bytes.NewBuffer(runs[0].buildErr))
+		return err
 	}
 
 	done := make(chan error)
@@ -168,7 +177,7 @@ func bendroid(env *cmdline.Env, args []string) error {
 		for idx := range runs {
 			buildSema <- struct{}{}
 			go func(idx int) {
-				buildReady[idx] <- runs[idx].buildapk()
+				buildReady[idx] <- buildapk(idx)
 				<-buildSema
 			}(idx)
 		}
