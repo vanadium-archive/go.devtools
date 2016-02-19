@@ -104,14 +104,14 @@ func (m *Manager) installTerraform(jirix *jiri.X, target profiles.Target) error 
 	if err != nil {
 		return err
 	}
-	defer jirix.NewSeq().RemoveAll(tmpDir).Done()
+	defer jirix.NewSeq().RemoveAll(tmpDir)
 
 	installFn := func() error {
 		url := fmt.Sprintf("https://releases.hashicorp.com/terraform/%s/terraform_%s_%s_%s.zip", m.version, m.version, target.OS(), target.Arch())
 		zipFile := filepath.Join(tmpDir, "terraform.zip")
 		return jirix.NewSeq().
-			Call(func() error { return profilesutil.Fetch(jirix, zipFile, url) }, "fetch terraform").
-			Call(func() error { return profilesutil.Unzip(jirix, zipFile, m.installDir.Abs(jirix)) }, "unzip terraform").
+			Call(func() error { return profilesutil.Fetch(jirix, zipFile, url) }, "fetch %s", url).
+			Call(func() error { return profilesutil.Unzip(jirix, zipFile, m.installDir.Abs(jirix)) }, "unzip %s", zipFile).
 			Done()
 	}
 	return profilesutil.AtomicAction(jirix, installFn, m.installDir.Abs(jirix), "Install Terraform")
