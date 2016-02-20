@@ -78,7 +78,7 @@ var (
 )
 
 func init() {
-	cmdResult.Flags.StringVar(&dashboardHostFlag, "dashboard-host", "https://dashboard.staging.v.io", "The host of the dashboard server.")
+	cmdResult.Flags.StringVar(&dashboardHostFlag, "dashboard-host", "https://dashboard.v.io", "The host of the dashboard server.")
 	cmdResult.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdResult.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdResult.Flags.IntVar(&jenkinsBuildNumberFlag, "build-number", -1, "The number of the Jenkins build.")
