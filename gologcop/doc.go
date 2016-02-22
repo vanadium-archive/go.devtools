@@ -34,8 +34,6 @@ The gologcop flags are:
    Use color to format output.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -progress=false
    Print verbose progress information.
  -use-v23-context=true
@@ -72,8 +70,6 @@ The gologcop check flags are:
    Use color to format output.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -progress=false
    Print verbose progress information.
  -use-v23-context=true
@@ -110,8 +106,6 @@ The gologcop inject flags are:
    Use color to format output.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -progress=false
    Print verbose progress information.
  -use-v23-context=true
@@ -145,8 +139,6 @@ The gologcop remove flags are:
    Use color to format output.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -progress=false
    Print verbose progress information.
  -use-v23-context=true

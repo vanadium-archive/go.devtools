@@ -43,8 +43,6 @@ The jiri additional help topics are:
 The jiri flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -70,8 +68,6 @@ The jiri cl commands are:
 The jiri cl flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -95,8 +91,6 @@ The jiri cl cleanup flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -142,8 +136,6 @@ The jiri cl mail flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -164,8 +156,6 @@ Usage:
 The jiri cl new flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -193,8 +183,6 @@ The jiri cl sync flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -264,8 +252,6 @@ The jiri import flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -288,8 +274,6 @@ The jiri profile commands are:
 The jiri profile flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -339,8 +323,6 @@ The jiri profile list flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile env - Display profile environment variables
 
@@ -376,8 +358,6 @@ The jiri profile env flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile install - Install the given profiles
 
@@ -402,8 +382,6 @@ The jiri profile install flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -430,8 +408,6 @@ The jiri profile uninstall flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile update - Install the latest default version of the given profiles
 
@@ -452,8 +428,6 @@ The jiri profile update flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile cleanup - Cleanup the locally installed profiles
 
@@ -483,8 +457,6 @@ The jiri profile cleanup flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile available - List the available profiles
 
@@ -499,8 +471,6 @@ The jiri profile available flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri project - Manage the jiri projects
 
@@ -518,8 +488,6 @@ The jiri project commands are:
 The jiri project flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -539,8 +507,6 @@ The jiri project clean flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -560,8 +526,6 @@ The jiri project list flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -585,8 +549,6 @@ The jiri project shell-prompt flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -607,8 +569,6 @@ The jiri project poll flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -627,8 +587,6 @@ Usage:
 The jiri rebuild flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -652,8 +610,6 @@ The jiri snapshot flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -675,8 +631,6 @@ The jiri snapshot checkout flags are:
    Use color to format output.
  -dir=
    Directory where snapshot are stored.  Defaults to $JIRI_ROOT/.snapshot.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -722,8 +676,6 @@ The jiri snapshot create flags are:
    Use color to format output.
  -dir=
    Directory where snapshot are stored.  Defaults to $JIRI_ROOT/.snapshot.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -743,8 +695,6 @@ The jiri snapshot list flags are:
    Use color to format output.
  -dir=
    Directory where snapshot are stored.  Defaults to $JIRI_ROOT/.snapshot.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -771,8 +721,6 @@ The jiri update flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -816,8 +764,6 @@ The jiri upgrade flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -843,8 +789,6 @@ Usage:
 The jiri which flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -898,8 +842,6 @@ The jiri api flags are:
    Name of the project manifest.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -937,8 +879,6 @@ The jiri api check flags are:
    Name of the project manifest.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -972,8 +912,6 @@ The jiri api fix flags are:
    Name of the project manifest.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1009,8 +947,6 @@ The jiri copyright flags are:
    Use color to format output.
  -manifest=
    Name of the project manifest.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1028,8 +964,6 @@ The jiri copyright check flags are:
    Use color to format output.
  -manifest=
    Name of the project manifest.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1047,8 +981,6 @@ The jiri copyright fix flags are:
    Use color to format output.
  -manifest=
    Name of the project manifest.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1097,8 +1029,6 @@ The jiri dockergo flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1129,8 +1059,6 @@ The jiri go flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1159,8 +1087,6 @@ The jiri goext flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1191,8 +1117,6 @@ The jiri goext distclean flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1219,8 +1143,6 @@ The jiri oncall commands are:
 The jiri oncall flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1234,8 +1156,6 @@ Usage:
 The jiri oncall list flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1322,8 +1242,6 @@ The jiri profile-v23 commands are:
 The jiri profile-v23 flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1356,8 +1274,6 @@ The jiri profile-v23 install flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1388,8 +1304,6 @@ The jiri profile-v23 uninstall flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile-v23 update - Install the latest default version of the given
 profiles
@@ -1411,8 +1325,6 @@ The jiri profile-v23 update flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile-v23 cleanup - Cleanup the locally installed profiles
 
@@ -1442,8 +1354,6 @@ The jiri profile-v23 cleanup flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri profile-v23 available - List the available profiles
 
@@ -1458,8 +1368,6 @@ The jiri profile-v23 available flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri run - Run an executable using the specified profile and target's
 environment
@@ -1479,8 +1387,6 @@ The jiri run flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1511,8 +1417,6 @@ The jiri test flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1543,8 +1447,6 @@ The jiri test project flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1598,8 +1500,6 @@ The jiri test run flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1625,8 +1525,6 @@ The jiri test list flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -n=false
-   Show what commands will run but do not execute them.
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
@@ -1723,8 +1621,6 @@ The jiri v23-profile commands are:
 The jiri v23-profile flags are:
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1757,8 +1653,6 @@ The jiri v23-profile install flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -1789,8 +1683,6 @@ The jiri v23-profile uninstall flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile update - Install the latest default version of the given
 profiles
@@ -1812,8 +1704,6 @@ The jiri v23-profile update flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile cleanup - Cleanup the locally installed profiles
 
@@ -1843,8 +1733,6 @@ The jiri v23-profile cleanup flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile available - List the available profiles
 
@@ -1859,8 +1747,6 @@ The jiri v23-profile available flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile list - List available or installed profiles
 
@@ -1908,8 +1794,6 @@ The jiri v23-profile list flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri v23-profile env - Display profile environment variables
 
@@ -1945,8 +1829,6 @@ The jiri v23-profile env flags are:
 
  -color=true
    Use color to format output.
- -n=false
-   Show what commands will run but do not execute them.
 
 Jiri filesystem - Description of jiri file system layout
 

@@ -29,8 +29,6 @@ The jiri copyright flags are:
    Use color to format output.
  -manifest=
    Name of the project manifest.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -54,8 +52,6 @@ The jiri copyright check flags are:
    Use color to format output.
  -manifest=
    Name of the project manifest.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
@@ -73,8 +69,6 @@ The jiri copyright fix flags are:
    Use color to format output.
  -manifest=
    Name of the project manifest.
- -n=false
-   Show what commands will run but do not execute them.
  -v=false
    Print verbose output.
 
