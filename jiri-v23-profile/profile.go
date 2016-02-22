@@ -51,8 +51,7 @@ func main() {
 	syncbase_profile.Register("", "syncbase")
 	terraform_profile.Register("", "terraform")
 
-	// Using an empty installer preserves the old behaviour, pre-v5 defaults.
-	profilescmdline.RegisterManagementCommands(commandLineDriver, "", DefaultDBFilename, "profiles")
+	profilescmdline.RegisterManagementCommands(commandLineDriver, false, "", DefaultDBFilename, "profiles")
 	profilescmdline.RegisterReaderCommands(commandLineDriver, DefaultDBFilename)
 	tool.InitializeRunFlags(&commandLineDriver.Flags)
 	cmdline.Main(commandLineDriver)

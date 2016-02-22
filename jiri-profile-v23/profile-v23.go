@@ -48,7 +48,7 @@ func main() {
 	syncbase_profile.Register("v23", "syncbase")
 	terraform_profile.Register("v23", "terraform")
 
-	profilescmdline.RegisterManagementCommands(commandLineDriver, "v23", jiri.ProfilesDBDir, jiri.ProfilesRootDir)
+	profilescmdline.RegisterManagementCommands(commandLineDriver, true, "v23", jiri.ProfilesDBDir, jiri.ProfilesRootDir)
 	tool.InitializeRunFlags(&commandLineDriver.Flags)
 	cmdline.Main(commandLineDriver)
 }
