@@ -839,7 +839,7 @@ func processRemoteTestResults(jirix *jiri.X) error {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	remoteResultsPath := fmt.Sprintf("%s/presubmit/%d", gsPrefix, jenkinsBuildNumberFlag)
+	remoteResultsPath := gsPrefix + fmt.Sprintf("presubmit/%d", jenkinsBuildNumberFlag)
 	tarFile := "results.tar.gz"
 	return s.
 		MkdirAll(tmp, 0755).
