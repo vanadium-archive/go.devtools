@@ -253,7 +253,8 @@ func runResult(jirix *jiri.X, args []string) (e error) {
 		}
 	}
 
-	return nil
+	// Process result files.
+	return processRemoteTestResults(jirix)
 }
 
 // getPostSubmitBuildData returns a map from job names to the data of the
@@ -827,4 +828,23 @@ func submitPresubmitCLs(jirix *jiri.X, refs []string) error {
 	}
 
 	return nil
+}
+
+// processRemoteTestResults copies result files to a local tmp dir, compress
+// them, and upload the tar file.
+func processRemoteTestResults(jirix *jiri.X) error {
+	s := jirix.NewSeq()
+	tmp, err := s.TempDir("", "")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	remoteResultsPath := fmt.Sprintf("%s/presubmit/%d", gsPrefix, jenkinsBuildNumberFlag)
+	tarFile := "results.tar.gz"
+	return s.
+		MkdirAll(tmp, 0755).
+		Chdir(tmp).
+		Run("gsutil", "-m", "cp", "-r", remoteResultsPath, ".").
+		Run("tar", "-zcf", tarFile, fmt.Sprintf("%d", jenkinsBuildNumberFlag)).
+		Last("gsutil", "cp", tarFile, remoteResultsPath)
 }
