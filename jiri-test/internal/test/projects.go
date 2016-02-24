@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultProjectTestTimeout = 10 * time.Minute
+	defaultProjectTestTimeout = 30 * time.Minute
 )
 
 func runMakefileTestWithNacl(jirix *jiri.X, testName, testDir, target string, env map[string]string, profiles []string, timeout time.Duration) (_ *test.Result, e error) {
