@@ -33,6 +33,7 @@ The jiri external commands are:
    profile-v23  Manage v23 profiles
    run          Run an executable using the specified profile and target's
                 environment
+   swift        Compile the Swift framework
    test         Manage vanadium tests
    v23-profile  Manage profiles
 
@@ -1395,6 +1396,76 @@ The jiri run flags are:
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
    specifies a profile target in the following form: <arch>-<os>[@<version>]
+ -v=false
+   Print verbose output.
+
+Jiri swift - Compile the Swift framework
+
+Manages the build pipeline for the Swift framework, from CGO bindings to
+fattening the binaries.
+
+Usage:
+   jiri swift [flags] <command>
+
+The jiri swift commands are:
+   build       Builds and installs the cgo wrapper, as well as the Swift
+               framework
+   clean       Removes generated cgo binaries and headers
+
+The jiri swift flags are:
+ -color=true
+   Use color to format output.
+ -v=false
+   Print verbose output.
+
+Jiri swift build
+
+The complete build pipeline from creating the CGO library, manipulating the
+headers for Swift,
+	and building the Swift framework using Xcode.
+
+Usage:
+   jiri swift build [flags] [stage ...] (build-cgo, build-framework)
+
+[stage ...] are the pipelines stage to run and any arguments to pass to that
+stage. If left empty defaults
+	to building all stages.
+
+	Available stages:
+		build-cgo: Builds and installs the cgo library
+		build-framework: Builds the Swift Framework using Xcode
+
+The jiri swift build flags are:
+ -build-dir-cgo=
+   The directory for all generated artifacts during the cgo building phase.
+   Defaults to a temp dir.
+ -build-mode=c-archive
+   The build mode for cgo, either c-archive or c-shared. Defaults to c-archive.
+ -out-dir-swift=
+   The directory for the generated Swift framework.
+ -release-mode=false
+   If set xcode is built in release mode. Defaults to false, which is debug
+   mode.
+ -target=amd64
+   The architecture you wish to build for (arm, arm64, amd64), or 'all'.
+   Defaults to amd64.
+
+ -color=true
+   Use color to format output.
+ -v=false
+   Print verbose output.
+
+Jiri swift clean - Removes generated cgo binaries and headers
+
+Removes generated cgo binaries and headers that fall under
+$JIRI_ROOT/release/swift/lib/v23/x
+
+Usage:
+   jiri swift clean [flags]
+
+The jiri swift clean flags are:
+ -color=true
+   Use color to format output.
  -v=false
    Print verbose output.
 
