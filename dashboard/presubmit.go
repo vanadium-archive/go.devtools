@@ -293,8 +293,12 @@ func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request)
 	}
 	// Try downloading the tar file first.
 	tarFile := "results.tar.gz"
-	if _, err := cache.StoreGoogleStorageFile(jirix, presubmitDir, resultsBucketFlag+"/v0/presubmit", filepath.Join(n, tarFile)); err == nil {
-		if err := s.Chdir(presubmitDir).Last("tar", "-zxf", tarFile); err != nil {
+	if _, err := cache.StoreGoogleStorageFile(jirix, presubmitDir, resultsBucketFlag+"/v0/presubmit/"+n, tarFile); err == nil {
+		if err := s.
+			Chdir(presubmitDir).
+			Run("tar", "-zxf", tarFile).
+			Run("bash", "-c", fmt.Sprintf("mv %s/* .", n)).
+			RemoveAll(n).RemoveAll(tarFile).Done(); err != nil {
 			return err
 		}
 	} else {
