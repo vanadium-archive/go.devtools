@@ -17,7 +17,7 @@ import (
 var (
 	errFailedRun      = fmt.Errorf("test failed.")
 	fail              = []byte("FAIL")
-	pass              = []byte("FAIL")
+	pass              = []byte("PASS")
 	bendroidPidPrefix = []byte("BENDROIDPID=")
 	logPrefix         = []byte("/Bendroid: ")
 	newline           = []byte("\n")
@@ -107,7 +107,9 @@ func (t *testrun) run() (time.Duration, error) {
 		}
 	}
 	if !passOrFail {
-		err = scanner.Err()
+		if err = scanner.Err(); err == nil {
+			err = errFailedRun
+		}
 	}
 	if err != nil && stdout != t.Env.Stdout {
 		// If there was a test failure, then dump stderr/stdout if

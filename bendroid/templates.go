@@ -190,17 +190,14 @@ func (infoWriter) Write(p []byte) (n int, err error) {
 // that is run last and simply ensures that all tests have printed their output.
 // We implement this by sending these special strings through the output, when
 // they arrive we know all real tests/benchmarks have printed.
-const testSentinel = "BENDROIDTESTSENTINEL"
-const benchmarkSentinel = "BENDROIDBENCHMARKSENTINEL"
+const sentinel = "BENDROIDSENTINEL"
 
 var (
-	stdErrTestFlush = make(chan struct{})
-	stdOutTestFlush = make(chan struct{})
-	stdErrBenchmarkFlush = make(chan struct{})
-	stdOutBenchmarkFlush = make(chan struct{})
+	stdErrFlush = make(chan struct{})
+	stdOutFlush = make(chan struct{})
 )
 
-func lineLog(f *os.File, priority C.int, testFlush, benchmarkFlush chan struct{}) {
+func lineLog(f *os.File, priority C.int, flush chan struct{}) {
 	const logSize = 1024 // matches android/log.h.
 	r := bufio.NewReaderSize(f, logSize)
 	for {
@@ -210,11 +207,9 @@ func lineLog(f *os.File, priority C.int, testFlush, benchmarkFlush chan struct{}
 			str += " " + err.Error()
 		}
 		switch {
-		case str == testSentinel:
-			close(testFlush)
-		case str == benchmarkSentinel:
-			close(benchmarkFlush)
-		case strings.Contains(str, "BendroidSentinel"):
+		case str == sentinel:
+			close(flush)
+		case strings.Contains(str, sentinel):
 			// Do nothing here.  This is output pertaining to the fake Sentinel Test/Benchmark.
 			// We don't want to print this output.
 		default:
@@ -238,47 +233,33 @@ func init() {
 		panic(err)
 	}
 	os.Stderr = w
-	go lineLog(r, C.ANDROID_LOG_ERROR, stdErrTestFlush, stdErrBenchmarkFlush)
+	go lineLog(r, C.ANDROID_LOG_ERROR, stdErrFlush)
 
 	r, w, err = os.Pipe()
 	if err != nil {
 		panic(err)
 	}
 	os.Stdout = w
-	go lineLog(r, C.ANDROID_LOG_INFO, stdOutTestFlush, stdOutBenchmarkFlush)
+	go lineLog(r, C.ANDROID_LOG_INFO, stdOutFlush)
 }
 
 var tests = []testing.InternalTest{ {{range .Tests}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},{{end}}
-	{"TestBendroidSentinel", func(t *testing.T){
-		fmt.Fprintf(os.Stderr, "\n%s\n", testSentinel)
-		fmt.Fprintf(os.Stdout, "\n%s\n", testSentinel)
-		<-stdErrTestFlush
-		<-stdOutTestFlush
-		t.Skip("TestBendroidSentinel")
-	}},
 }
 var benchmarks = []testing.InternalBenchmark{ {{range .Benchmarks}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},{{end}}
-	{"BenchmarkBendroidSentinel", func(b *testing.B){
-		fmt.Fprintf(os.Stderr, "\n%s\n", benchmarkSentinel)
-		fmt.Fprintf(os.Stdout, "\n%s\n", benchmarkSentinel)
-		<-stdErrBenchmarkFlush
-		<-stdOutBenchmarkFlush
-		b.Skip("BenchmarkBendroidSentinel")
+	{sentinel, func(b *testing.B){
+		fmt.Fprintf(os.Stderr, "\n%s\n", sentinel)
+		fmt.Fprintf(os.Stdout, "\n%s\n", sentinel)
+		<-stdErrFlush
+		<-stdOutFlush
+		b.Skip(sentinel)
 	}},
 }
 var examples = []testing.InternalExample{ {{range .Examples}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},{{end}}
 }
 var testMain func(m *testing.M) = {{if .TestMainPackage}}{{.TestMainPackage}}.TestMain{{else}}nil{{end}}
-
-func matchString(pattern string, s string) (matched bool, err error) {
-	if s == "BenchmarkTestSentinel" || s == "BenchmarkBendroidSentinel" {
-		return true, nil
-	}
-	return regexp.MatchString(pattern, s)
-}
 
 //export Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun
 func Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun(jenv *C.JNIEnv, jVClass C.jclass, jCacheDir C.jstring) {
@@ -293,8 +274,27 @@ func Java_io_v_x_devtools_bendroid_BendroidActivity_nativeRun(jenv *C.JNIEnv, jV
 	{{range .Flags}}
 	os.Args = append(os.Args, "{{.}}"){{end}}
 
+	foundVal := ""
+	for i, val := range os.Args {
+		if !strings.HasPrefix(strings.TrimLeft(val, "-"), "test.bench") {
+			continue
+		}
+		if parts := strings.SplitN(val, "=", 2); len(parts) == 2 {
+			foundVal = parts[1]
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+		} else {
+			foundVal = os.Args[i+1]
+			os.Args = append(os.Args[:i], os.Args[i+2:]...)
+		}
+		break
+	}
+	if foundVal != "" {
+		foundVal += "|"
+	}
+	os.Args = append(os.Args, "-test.bench=" + foundVal + "^" + sentinel + "$")
+
 	describeDevice()
-	m := testing.MainStart(matchString, tests, benchmarks, examples)
+	m := testing.MainStart(regexp.MatchString, tests, benchmarks, examples)
 	if testMain == nil {
 		os.Exit(m.Run())
 	} else {
