@@ -296,6 +296,7 @@ func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request)
 	if _, err := cache.StoreGoogleStorageFile(jirix, presubmitDir, resultsBucketFlag+"/v0/presubmit/"+n, tarFile); err == nil {
 		if err := s.
 			Chdir(presubmitDir).
+			RemoveAll("darwin").RemoveAll("linux").
 			Run("tar", "-zxf", tarFile).
 			Run("bash", "-c", fmt.Sprintf("mv %s/* .", n)).
 			RemoveAll(n).RemoveAll(tarFile).Done(); err != nil {
