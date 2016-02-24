@@ -324,7 +324,19 @@ func createClient(ctx *tool.Context) (*http.Client, error) {
 		return conf.Client(oauth2.NoContext), nil
 	}
 
-	return google.DefaultClient(oauth2.NoContext, storage.CloudPlatformScope)
+	var defaultClient *http.Client
+	createDefaultClientFn := func() error {
+		var err error
+		defaultClient, err = google.DefaultClient(oauth2.NoContext, storage.CloudPlatformScope)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := retry.Function(ctx, createDefaultClientFn); err != nil {
+		return nil, fmt.Errorf("failed to create default client")
+	}
+	return defaultClient, nil
 }
 
 func downloadBinary(ctx *tool.Context, client *http.Client, binaryPath string, errChan chan<- error, downloadingChan chan struct{}) {
