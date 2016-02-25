@@ -110,6 +110,8 @@ The presubmit test flags are:
    The number of the Jenkins build.
  -manifest=
    Name of the project manifest.
+ -num-test-workers=<runtime.NumCPU()>
+   Set the number of test workers to use when running sub-tests.
  -projects=
    The base names of the remote projects containing the CLs pointed by the refs,
    separated by ':'.

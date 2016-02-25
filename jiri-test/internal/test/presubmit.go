@@ -63,7 +63,7 @@ func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 
 // vanadiumPresubmitTest runs presubmit tests for a given project specified
 // in TEST environment variable.
-func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumPresubmitTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	if err := requireEnv([]string{"BUILD_NUMBER", "REFS", "PROJECTS", "TEST", "WORKSPACE"}); err != nil {
 		return nil, err
 	}
@@ -79,6 +79,16 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 
 	s := jirix.NewSeq()
 
+	// Get number of test workers from opts.
+	numWorkers := 1
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case NumWorkersOpt:
+			numWorkers = int(typedOpt)
+			break
+		}
+	}
+
 	// Use the "presubmit test" command to run the presubmit test.
 	args := []string{}
 	if jirix.Verbose() {
@@ -90,6 +100,7 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Re
 		"test",
 		"-build-number", os.Getenv("BUILD_NUMBER"),
 		"-manifest", "tools",
+		"-num-test-workers", fmt.Sprintf("%d", numWorkers),
 		"-projects", os.Getenv("PROJECTS"),
 		"-refs", os.Getenv("REFS"),
 		"-test", name,
