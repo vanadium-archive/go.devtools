@@ -45,6 +45,7 @@ const (
 )
 
 var (
+	numWorkersFlag       int
 	reviewTargetRefsFlag string
 	testFlag             string
 	testPartRE           = regexp.MustCompile(`(.*)-part(\d)$`)
@@ -57,6 +58,8 @@ var (
 
 func init() {
 	cmdTest.Flags.IntVar(&jenkinsBuildNumberFlag, "build-number", -1, "The number of the Jenkins build.")
+	cmdTest.Flags.IntVar(&numWorkersFlag, "num-test-workers", runtime.NumCPU(), "Set the number of test workers to use when running sub-tests.")
+	cmdTest.Flags.Lookup("num-test-workers").DefValue = "<runtime.NumCPU()>"
 	cmdTest.Flags.StringVar(&projectsFlag, "projects", "", "The base names of the remote projects containing the CLs pointed by the refs, separated by ':'.")
 	cmdTest.Flags.StringVar(&reviewTargetRefsFlag, "refs", "", "The review references separated by ':'.")
 	cmdTest.Flags.StringVar(&testFlag, "test", "", "The name of a single test to run.")
@@ -230,6 +233,7 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 	jiriArgs := []string{
 		"run",
 		"-output-dir", outputDir,
+		"-num-test-workers", fmt.Sprintf("%d", numWorkersFlag),
 	}
 	if testMode {
 		jiriArgs = append(jiriArgs,
