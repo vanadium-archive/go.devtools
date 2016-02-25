@@ -46,9 +46,8 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 		xspec{"amd64", "android"}: to_android,
 		xspec{"arm", "ios"}:       darwin_to_ios,
 		xspec{"arm64", "ios"}:     darwin_to_ios,
-		// Both 386 and amd64 are for the iOS simulator
-		xspec{"386", "ios"}:   darwin_to_ios,
-		xspec{"amd64", "ios"}: darwin_to_ios,
+		xspec{"386", "ios"}:       darwin_to_ios, // iOS simulator
+		xspec{"amd64", "ios"}:     darwin_to_ios, // iOS simulator
 	},
 	xspec{"amd64", "linux"}: {
 		xspec{"amd64", "fnl"}:     to_fnl,
@@ -434,10 +433,13 @@ func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles
 		return "", nil, nil
 	}
 
-	// As of Go 1.5.1 the linker fails for darwin/32-bit
+	// As of Go 1.5.1 the linker fails for darwin/32-bit, and is unable to generate PIC code for 32-bit arm
 	if target.Arch() == "386" {
 		return "", nil, fmt.Errorf("32-bit iOS simulator is not supported by go yet with c-archive. " +
 			"See https://github.com/golang/go/issues/12683")
+	} else if target.Arch() == "arm" {
+		return "", nil, fmt.Errorf("32-bit ARM is not supported by go yet as it does not generate PIC code. " +
+			"See https://github.com/golang/go/issues/12681")
 	}
 
 	vars := []string{
@@ -459,6 +461,11 @@ func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles
 	} else if target.Arch() == "arm64" {
 		vars = append(vars, "GOARM=arm64")
 	}
+
+	// Add patch for text-relocation errors on arm64
+	// Submitted to golang, currently marked for 1.7: https://go-review.googlesource.com/#/c/19206/
+	patchPath := filepath.Join(jirix.Root, "release/go/src/v.io/x/devtools/jiri-v23-profile/go/macho_linker.patch")
+	m.spec.patchFiles = append(m.spec.patchFiles, patchPath)
 
 	return "", vars, nil
 }
