@@ -27,7 +27,7 @@ The jiri test flags are:
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles database directory or file.
+   the path, relative to JIRI_ROOT, that contains the profiles database.
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
@@ -63,7 +63,7 @@ The jiri test project flags are:
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles database directory or file.
+   the path, relative to JIRI_ROOT, that contains the profiles database.
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
@@ -116,7 +116,7 @@ The jiri test run flags are:
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles database directory or file.
+   the path, relative to JIRI_ROOT, that contains the profiles database.
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
@@ -141,7 +141,7 @@ The jiri test list flags are:
  -profiles=base,jiri
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_v23_profiles
-   specify the profiles database directory or file.
+   the path, relative to JIRI_ROOT, that contains the profiles database.
  -skip-profiles=false
    if set, no profiles will be used
  -target=<runtime.GOARCH>-<runtime.GOOS>
