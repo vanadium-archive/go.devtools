@@ -833,13 +833,21 @@ func submitPresubmitCLs(jirix *jiri.X, refs []string) error {
 // processRemoteTestResults copies result files to a local tmp dir, compress
 // them, and upload the tar file.
 func processRemoteTestResults(jirix *jiri.X) error {
+	// Check the existence of the remote results dir.
+	// If it doesn't exist, it means the test phase failed (e.g. merge conflict).
+	// We don't fail the "result" phase in those cases.
 	s := jirix.NewSeq()
+	remoteResultsPath := gsPrefix + fmt.Sprintf("presubmit/%d", jenkinsBuildNumberFlag)
+	if err := s.Last("gsutil", "stat", remoteResultsPath); err != nil {
+		fmt.Fprintf(jirix.Stderr(), "Results not exist: %s", remoteResultsPath)
+		return nil
+	}
+
 	tmp, err := s.TempDir("", "")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	remoteResultsPath := gsPrefix + fmt.Sprintf("presubmit/%d", jenkinsBuildNumberFlag)
 	tarFile := "results.tar.gz"
 	return s.
 		MkdirAll(tmp, 0755).
