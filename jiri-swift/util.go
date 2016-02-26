@@ -63,7 +63,7 @@ func pathExists(path string) bool {
 }
 
 func newShell() *gosh.Shell {
-	newSh := gosh.NewShell(gosh.Opts{})
+	newSh := gosh.NewShell(nil)
 	// Remove any inherited JIRI env flags as they'll conflict potentially with jiri calls for our given
 	// target down the line.
 	goEnvs := []string{
