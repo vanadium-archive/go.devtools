@@ -65,7 +65,7 @@ func installProfiles() {
 	}
 }
 
-func initForTest(t *testing.T) (*jiri.X, func()) {
+func initForTest(t *testing.T) *jiri.X {
 	resetVars()
 
 	// Capture JIRI_ROOT using a relative path.  We need the real JIRI_ROOT as
@@ -80,30 +80,11 @@ func initForTest(t *testing.T) (*jiri.X, func()) {
 		t.Fatal("Real JIRI_ROOT was not properly set: ", root)
 	}
 
-	// Set TMPDIR to something unique, so the iOS builds do not clobber any
-	// other builds running concurrently.
-	oldTempDir := os.Getenv("TMPDIR")
-	tempDir, err := ioutil.TempDir("", "jiri-swift-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Setenv("TMPDIR", tempDir); err != nil {
-		t.Fatal(err)
-	}
-	cleanup := func() {
-		if err := os.Setenv("TMPDIR", oldTempDir); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.RemoveAll(tempDir); err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	verboseFlag := true
 	jirix := &jiri.X{Context: tool.NewContext(tool.ContextOpts{Verbose: &verboseFlag}), Root: root}
 	// Clean before testing
 	runClean(jirix, []string{})
-	return jirix, cleanup
+	return jirix
 }
 
 func TestParseBuildFlags(t *testing.T) {
@@ -147,8 +128,7 @@ func TestParseBuildFlags(t *testing.T) {
 }
 
 func TestParseBuildArgs(t *testing.T) {
-	jirix, cleanup := initForTest(t)
-	defer cleanup()
+	jirix := initForTest(t)
 	// Default case -- no args
 	if err := parseBuildArgs(jirix, []string{}); err != nil {
 		t.Error(err)
@@ -188,8 +168,7 @@ func TestParseBuildArgs(t *testing.T) {
 }
 
 func TestCgoBuildForSimulator64(t *testing.T) {
-	jirix, cleanup := initForTest(t)
-	defer cleanup()
+	jirix := initForTest(t)
 	if err := testCgoBuildForArch(jirix, targetArchAmd64, buildModeArchive); err != nil {
 		t.Error(err)
 	}
@@ -199,8 +178,7 @@ func TestCgoBuildForSimulator64(t *testing.T) {
 }
 
 func TestCgoBuildForArm(t *testing.T) {
-	jirix, cleanup := initForTest(t)
-	defer cleanup()
+	jirix := initForTest(t)
 	// Expect error for ARM currently as of Go 1.5
 	if err := testCgoBuildForArch(jirix, targetArchArm, buildModeArchive); err == nil {
 		t.Error("Expected error for building unsupported 32-bit arm")
@@ -208,16 +186,14 @@ func TestCgoBuildForArm(t *testing.T) {
 }
 
 func TestCgoBuildForArm64(t *testing.T) {
-	jirix, cleanup := initForTest(t)
-	defer cleanup()
+	jirix := initForTest(t)
 	if err := testCgoBuildForArch(jirix, targetArchArm64, buildModeArchive); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCgoBuildForAll(t *testing.T) {
-	jirix, cleanup := initForTest(t)
-	defer cleanup()
+	jirix := initForTest(t)
 	if err := testCgoBuildForArch(jirix, targetArchAll, buildModeArchive); err != nil {
 		t.Error(err)
 	}
@@ -355,9 +331,7 @@ func verifyCgoGeneratedHeader(jirix *jiri.X) error {
 }
 
 func TestUniversalFrameworkBuilds(t *testing.T) {
-	jirix, cleanup := initForTest(t)
-	defer cleanup()
-
+	jirix := initForTest(t)
 	flagTargetArch = targetArchAll
 	if err := parseBuildFlags(); err != nil {
 		t.Error(err)
