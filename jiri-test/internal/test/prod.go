@@ -51,7 +51,7 @@ func testSingleProdService(jirix *jiri.X, principalDir string, service prodServi
 	if principalDir != "" {
 		args = append(args, "--v23.credentials", principalDir)
 	}
-	args = append(args, "signature", "--show-reserved")
+	args = append(args, "signature", "-s", "--show-reserved")
 	if principalDir == "" {
 		args = append(args, "--insecure")
 	}
