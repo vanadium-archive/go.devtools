@@ -5,6 +5,7 @@
 package test
 
 import (
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -160,7 +161,18 @@ func vanadiumJSBrowserIntegration(jirix *jiri.X, testName string, _ ...Opt) (*te
 	env := map[string]string{}
 	setCommonJSEnv(env)
 	env["BROWSER_OUTPUT"] = xunit.ReportPath(testName)
-	return runJSTestWithNacl(jirix, testName, testDir, target, nil, env)
+	res, err := runJSTestWithNacl(jirix, testName, testDir, target, nil, env)
+	// TODO(nlacasse): This test is occasionally timing out on Jenkins with no
+	// output after prova launches.  In the event of a timeout, the following
+	// lines will print chrome's log, which will hopefully give us some useful
+	// info.  Remove this line once the timeout has been fixed.
+	// See https://github.com/vanadium/issues/issues/1182
+	if res.Status == test.TimedOut {
+		if err := jirix.NewSeq().Last("cat", filepath.Join(jirix.Root, "release", "javascript", "core", "tmp", "chrome.log")); err != nil {
+			fmt.Printf("error catting chrome.log: %v\n", err)
+		}
+	}
+	return res, err
 }
 
 // vanadiumJSNodeIntegration runs the vanadium javascript integration test in NodeJS environment using wspr.
