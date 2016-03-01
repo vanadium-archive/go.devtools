@@ -500,7 +500,11 @@ func rebuildDeveloperTools(jirix *jiri.X, tools project.Tools, projects project.
 	path := os.Getenv("PATH")
 	path = strings.Replace(path, oldBinDir, tmpBinDir, -1)
 	path = strings.Replace(path, jirix.BinDir(), tmpBinDir, -1)
-	return map[string]string{"PATH": path}, nil
+	env := map[string]string{
+		"PATH":               path,
+		jiri.PreservePathEnv: "true",
+	}
+	return env, nil
 }
 
 // processTestPartSuffix extracts the test name without part suffix as well
