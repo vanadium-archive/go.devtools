@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"regexp"
 	"sort"
@@ -24,6 +23,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/x/devtools/internal/buildinfo"
+	"v.io/x/lib/lookpath"
 	"v.io/x/lib/metadata"
 	"v.io/x/lib/set"
 )
@@ -70,7 +70,7 @@ func PrepareGo(jirix *jiri.X, env map[string]string, args []string, extraLDFlags
 // getPlatform identifies the target platform by querying the go tool
 // for the values of the GOARCH and GOOS environment variables.
 func getPlatform(jirix *jiri.X, env map[string]string) (string, error) {
-	goBin, err := runutil.LookPath("go", env)
+	goBin, err := lookpath.Look(env, "go")
 	if err != nil {
 		return "", err
 	}
@@ -172,7 +172,7 @@ func generateVDL(jirix *jiri.X, env map[string]string, cmd string, args []string
 	// -ignore_unknown:  Silently ignore unknown package paths.
 	vdlArgs := []string{"-ignore_unknown", "generate", "-lang=go"}
 	vdlArgs = append(vdlArgs, goDeps...)
-	vdlBin, err := exec.LookPath("vdl")
+	vdlBin, err := lookpath.Look(env, "vdl")
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func computeGoDeps(jirix *jiri.X, env map[string]string, pkgs []string, tags str
 	if len(pkgs) == 0 {
 		pkgs = []string{"."}
 	}
-	goBin, err := runutil.LookPath("go", env)
+	goBin, err := lookpath.Look(env, "go")
 	if err != nil {
 		return nil, err
 	}

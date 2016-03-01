@@ -20,6 +20,7 @@ import (
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/golib"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/lookpath"
 )
 
 // cmdGo represents the "jiri go" command.
@@ -84,7 +85,7 @@ func runGo(jirix *jiri.X, args []string) error {
 		return err
 	}
 	// Run the go tool.
-	goBin, err := runutil.LookPath("go", envMap)
+	goBin, err := lookpath.Look(envMap, "go")
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ import (
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/golib"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/lookpath"
 )
 
 var cmd = &cmdline.Command{
@@ -107,8 +108,8 @@ func runGo(jirix *jiri.X, args []string) error {
 	if _, exists := envMap["GOARCH"]; !exists {
 		envMap["GOARCH"] = runtime.GOARCH
 	}
-	if _, err := runutil.LookPath(dockerBin, envMap); err != nil {
-		return fmt.Errorf("%v not found in path: %v", dockerBin, err)
+	if _, err := lookpath.Look(envMap, dockerBin); err != nil {
+		return err
 	}
 	img, err := image(envMap)
 	if err != nil {
