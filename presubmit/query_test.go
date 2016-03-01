@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/jiri"
 	"v.io/jiri/gerrit"
-	"v.io/jiri/jiri"
 	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 )
 
 type cgoHeader struct {

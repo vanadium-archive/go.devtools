@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	gomail "gopkg.in/gomail.v1"
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/lib/cmdline"

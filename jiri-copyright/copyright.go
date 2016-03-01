@@ -22,9 +22,9 @@ import (
 	"regexp"
 	"strings"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
 	"v.io/jiri/gitutil"
-	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"

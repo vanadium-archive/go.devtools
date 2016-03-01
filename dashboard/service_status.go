@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/x/devtools/internal/cache"
 )
 

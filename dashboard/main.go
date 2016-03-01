@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 )

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/gosh"

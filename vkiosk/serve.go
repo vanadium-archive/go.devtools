@@ -15,7 +15,7 @@ import (
 	"strings"
 	"text/template"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/x/lib/cmdline"
 )
 

@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/profiles/profilescmdline"
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"

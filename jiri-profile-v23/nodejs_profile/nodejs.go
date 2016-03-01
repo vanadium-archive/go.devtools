@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesutil"

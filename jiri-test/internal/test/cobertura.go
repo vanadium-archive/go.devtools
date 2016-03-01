@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/util"

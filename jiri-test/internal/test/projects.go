@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )

@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
-	"v.io/jiri/jiri"
 	"v.io/jiri/retry"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
