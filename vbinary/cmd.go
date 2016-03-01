@@ -174,13 +174,13 @@ func runDownload(env *cmdline.Env, args []string) error {
 	if len(outputDirFlag) == 0 {
 		outputDirFlag = fmt.Sprintf("./v23_%s_%s_%s", osFlag, archFlag, timestamp)
 	}
-	if err := s.MkdirAll(outputDirFlag, 0755).Done(); err != nil {
-		return err
-	}
 
 	numBinaries := len(binaries)
 	downloadBinaries := func() error {
 		downloadFn := func() error {
+			if err := ctx.NewSeq().MkdirAll(outputDirFlag, 0755).Done(); err != nil {
+				return err
+			}
 			errChan := make(chan error, numBinaries)
 			downloadingChan := make(chan struct{}, maxParallelDownloads)
 			for _, name := range binaries {
@@ -190,7 +190,7 @@ func runDownload(env *cmdline.Env, args []string) error {
 			gotError := false
 			for i := 0; i < numBinaries; i++ {
 				if err := <-errChan; err != nil {
-					fmt.Fprintf(ctx.Stderr(), "failed to download binary: %v", err)
+					fmt.Fprintf(ctx.Stderr(), "failed to download binary: %v\n", err)
 					gotError = true
 				}
 			}
