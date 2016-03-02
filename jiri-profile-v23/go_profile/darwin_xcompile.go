@@ -310,10 +310,6 @@ func rewriteSysroot(jirix *jiri.X, sysroot string) error {
 
 func rewriteLinks(jirix *jiri.X, pathname, target, sysroot string) error {
 	newTarget := filepath.Join(sysroot, target)
-	if jirix.DryRun() {
-		fmt.Fprintf(jirix.Stdout(), "rewrite: %s -> %q to %q\n", pathname, target, newTarget)
-		return nil
-	}
 	os.Remove(pathname)
 	if err := os.Symlink(newTarget, pathname); err != nil {
 		return fmt.Errorf("Symlink: %q -> %q: %s\n", pathname, newTarget, err)
