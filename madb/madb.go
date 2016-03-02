@@ -9,30 +9,55 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/gosh"
+	"v.io/x/lib/textutil"
 )
 
 var (
 	allDevicesFlag   bool
 	allEmulatorsFlag bool
 	devicesFlag      string
+
+	clearCacheFlag bool
+	moduleFlag     string
+	variantFlag    string
+
+	wd string // working directory
 )
 
 func init() {
 	cmdMadb.Flags.BoolVar(&allDevicesFlag, "d", false, `Restrict the command to only run on real devices.`)
 	cmdMadb.Flags.BoolVar(&allEmulatorsFlag, "e", false, `Restrict the command to only run on emulators.`)
 	cmdMadb.Flags.StringVar(&devicesFlag, "n", "", `Comma-separated device serials, qualifiers, or nicknames (set by 'madb name').  Command will be run only on specified devices.`)
+
+	// Store the current working directory.
+	var err error
+	wd, err = os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+}
+
+// initializes flags related to extracting and caching project ids.
+func initializeIDCacheFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&clearCacheFlag, "clear-cache", false, `Clear the cache and re-extract the application ID and the main activity name.  Only takes effect when no arguments are provided.`)
+	flags.StringVar(&moduleFlag, "module", "", `Specify which application module to use, when the current directory is the top level Gradle project containing multiple sub-modules.  When not specified, the first available application module is used.  Only takes effect when no arguments are provided.`)
+	flags.StringVar(&variantFlag, "variant", "", `Specify which build variant to use.  When not specified, the first available build variant is used.  Only takes effect when no arguments are provided.`)
 }
 
 var cmdMadb = &cmdline.Command{
-	Children: []*cmdline.Command{cmdMadbExec, cmdMadbStart, cmdMadbName},
+	Children: []*cmdline.Command{cmdMadbExec, cmdMadbStart, cmdMadbStop, cmdMadbUninstall, cmdMadbName},
 	Name:     "madb",
 	Short:    "Multi-device Android Debug Bridge",
 	Long: `
@@ -156,7 +181,12 @@ func parseDevicesOutput(output string, nsm map[string]string) ([]device, error) 
 // Gets all the devices specified by the device specifier flags.
 // Intended to be used by most of the madb sub-commands except for 'madb name'.
 func getSpecifiedDevices() ([]device, error) {
-	allDevices, err := getDevices(getDefaultNameFilePath())
+	nicknameFile, err := getDefaultNameFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	allDevices, err := getDevices(nicknameFile)
 	if err != nil {
 		return nil, err
 	}
@@ -223,10 +253,30 @@ func shouldIncludeDevice(d device) bool {
 	return false
 }
 
-type subCommandFunc func(env *cmdline.Env, args []string, d device) error
+// Returns the config dir located at "~/.madb"
+func getConfigDir() (string, error) {
+	home := os.Getenv("HOME")
+	if home == "" {
+		return "", fmt.Errorf("Could not find the HOME directory.")
+	}
+
+	configDir := filepath.Join(home, ".madb")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", err
+	}
+
+	return configDir, nil
+}
 
 type subCommandRunner struct {
-	subCmd subCommandFunc
+	// init is an optional function that does some initial work that should only
+	// be performed once, before directing the command to all the devices.
+	// The returned string slice becomes the new set of arguments passed into
+	// the sub command.
+	init func(env *cmdline.Env, args []string) ([]string, error)
+	// subCmd defines the behavior of the sub command which will run on all the
+	// devices in parallel.
+	subCmd func(env *cmdline.Env, args []string, d device) error
 }
 
 var _ cmdline.Runner = (*subCommandRunner)(nil)
@@ -242,6 +292,16 @@ func (r subCommandRunner) Run(env *cmdline.Env, args []string) error {
 		return err
 	}
 
+	// Run the init function when provided.
+	if r.init != nil {
+		newArgs, err := r.init(env, args)
+		if err != nil {
+			return err
+		}
+
+		args = newArgs
+	}
+
 	wg := sync.WaitGroup{}
 
 	var errs []error
@@ -253,9 +313,8 @@ func (r subCommandRunner) Run(env *cmdline.Env, args []string) error {
 
 		wg.Add(1)
 		go func() {
-			// Remember the first error returned by the sub command.
-			if e := r.subCmd(env, args, deviceCopy); err == nil && e != nil {
-				errs = append(errs, e)
+			if err := r.subCmd(env, args, deviceCopy); err != nil {
+				errs = append(errs, err)
 				errDevices = append(errDevices, deviceCopy)
 			}
 			wg.Done()
@@ -275,4 +334,210 @@ func (r subCommandRunner) Run(env *cmdline.Env, args []string) error {
 	}
 
 	return nil
+}
+
+func runGoshCommandForDevice(cmd *gosh.Cmd, d device) error {
+	stdout := textutil.PrefixLineWriter(os.Stdout, "["+d.displayName()+"]\t")
+	stderr := textutil.PrefixLineWriter(os.Stderr, "["+d.displayName()+"]\t")
+	cmd.AddStdoutWriter(stdout)
+	cmd.AddStderrWriter(stderr)
+	cmd.Run()
+	stdout.Flush()
+	stderr.Flush()
+
+	return cmd.Shell().Err
+}
+
+func initMadbCommand(env *cmdline.Env, args []string, flutterPassthrough bool, activityNameRequired bool) ([]string, error) {
+	var numRequiredArgs int
+	var requiredArgsStr string
+
+	if activityNameRequired {
+		numRequiredArgs = 2
+		requiredArgsStr = "two arguments"
+	} else {
+		numRequiredArgs = 1
+		requiredArgsStr = "one argument"
+	}
+
+	// Pass the arguments through if all the required arguments are provided, or if it is a flutter project.
+	if len(args) == numRequiredArgs || (flutterPassthrough && isFlutterProject(wd)) {
+		return args, nil
+	}
+
+	if len(args) != 0 {
+		return nil, fmt.Errorf("You mush provide either zero arguments or exactly %v.", requiredArgsStr)
+	}
+
+	// Try to extract the application ID and the main activity name from the Gradle scripts.
+	if isGradleProject(wd) {
+		cacheFile, err := getDefaultCacheFilePath()
+		if err != nil {
+			return nil, err
+		}
+
+		key := variantKey{wd, moduleFlag, variantFlag}
+		ids, err := getProjectIds(extractIdsFromGradle, key, clearCacheFlag, cacheFile)
+		if err != nil {
+			return nil, err
+		}
+
+		args = []string{ids.AppID, ids.Activity}[:numRequiredArgs]
+	}
+
+	return args, nil
+}
+
+type idExtractorFunc func(variantKey) (projectIds, error)
+
+// Returns the project ids for the given build variant.  It returns the cached values when the
+// variant is found in the cache file, unless the clearCache argument is true.  Otherwise, it calls
+// extractIdsFromGradle to extract those ids by running Gradle scripts.
+func getProjectIds(extractor idExtractorFunc, key variantKey, clearCache bool, cacheFile string) (projectIds, error) {
+	if clearCache {
+		clearIDCacheEntry(key, cacheFile)
+	} else {
+		// See if the current configuration appears in the cache.
+		cache, err := getIDCache(cacheFile)
+		if err != nil {
+			return projectIds{}, err
+		}
+
+		if ids, ok := cache[key]; ok {
+			fmt.Println("NOTE: Cached IDs are being used.  Use '-clear-cache' flag to clear the cache and extract the IDs from Gradle scripts again.")
+			return ids, nil
+		}
+	}
+
+	fmt.Println("Running Gradle to extract the application ID and the main activity name...")
+	ids, err := extractor(key)
+	if err != nil {
+		return projectIds{}, err
+	}
+
+	// Write these ids to the cache.
+	if err := writeIDCacheEntry(key, ids, cacheFile); err != nil {
+		return projectIds{}, fmt.Errorf("Could not write ids to the cache file: %v", err)
+	}
+
+	return ids, nil
+}
+
+func isFlutterProject(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "flutter.yaml"))
+	return err == nil
+}
+
+func isGradleProject(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "build.gradle"))
+	return err == nil
+}
+
+// Looks for the Gradle wrapper script file ("gradlew"), starting from the current directory.
+func findGradleWrapper(dir string) (string, error) {
+	curDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		wrapperPath := filepath.Join(curDir, "gradlew")
+
+		// Return the path of the gradle wrapper script if it is found.
+		_, err := os.Stat(wrapperPath)
+		if err == nil {
+			// Found Gradle wrapper. Return the absolute path.
+			return wrapperPath, nil
+		} else if !os.IsNotExist(err) {
+			// This is an unexpected error and should be returned.
+			return "", err
+		}
+
+		// Search again in the parent directory.
+		parentDir := path.Dir(curDir)
+		if curDir == parentDir || parentDir == "." {
+			break
+		}
+
+		curDir = parentDir
+	}
+
+	return "", fmt.Errorf("Could not find the Gradle wrapper in dir %q or its parent directories.", dir)
+}
+
+// TODO(youngseokyoon): find a better way to distribute the gradle script.
+func findGradleInitScript() (string, error) {
+	jiriRoot := os.Getenv("JIRI_ROOT")
+	if jiriRoot == "" {
+		return "", fmt.Errorf("JIRI_ROOT environment variable is not set")
+	}
+
+	initScript := filepath.Join(jiriRoot, "release", "go", "src", "v.io", "x", "devtools", "madb", "madb_init.gradle")
+	if _, err := os.Stat(initScript); err != nil {
+		return "", err
+	}
+
+	return initScript, nil
+}
+
+func extractIdsFromGradle(key variantKey) (ids projectIds, err error) {
+	sh := gosh.NewShell(nil)
+	defer sh.Cleanup()
+
+	// Continue on error instead of panicking and check the sh.Err value afterwards.
+	// Gradle build will finish with exit code other than 0, when it fails.
+	// In such cases, we want to show users meaningful error messages instead of stacktraces.
+	sh.PropagateChildOutput = true
+	sh.ContinueOnError = true
+
+	wrapper, err := findGradleWrapper(key.Dir)
+	if err != nil {
+		return
+	}
+
+	initScript, err := findGradleInitScript()
+	if err != nil {
+		err = fmt.Errorf("Could not find the madb_init.gradle script: %v", err)
+		return
+	}
+
+	// Create a temporary file in which Gradle can write the results.
+	outputFile := sh.MakeTempFile()
+
+	// Run the gradle wrapper to extract the application ID and the main activity name from the build scripts.
+	cmdArgs := []string{"--daemon", "-q", "-I", initScript, "-PmadbOutputFile=" + outputFile.Name()}
+
+	// Specify the project directory. If the module name is explicitly set, combine it with the base directory.
+	cmdArgs = append(cmdArgs, "-p", filepath.Join(key.Dir, key.Module))
+
+	// Specify the variant
+	if key.Variant != "" {
+		cmdArgs = append(cmdArgs, "-PmadbVariant="+key.Variant)
+	}
+
+	// Specify the tasks
+	cmdArgs = append(cmdArgs, "madbExtractApplicationId", "madbExtractMainActivity")
+
+	cmd := sh.Cmd(wrapper, cmdArgs...)
+	cmd.Run()
+
+	if err = sh.Err; err != nil {
+		return
+	}
+
+	// Read what is written in the temporary file.
+	var bytes []byte
+	bytes, err = ioutil.ReadFile(outputFile.Name())
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(string(bytes[:]), "\n")
+	if len(lines) != 3 {
+		err = fmt.Errorf("Could not extract the application ID and the main activity name.")
+		return
+	}
+
+	ids = projectIds{lines[0], lines[1]}
+	return
 }

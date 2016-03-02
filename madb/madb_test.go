@@ -5,9 +5,22 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
+
+func tempFilename(t *testing.T) string {
+	f, err := ioutil.TempFile("", "madb_test")
+	if err != nil {
+		t.Fatalf("could not open a temp file: %v", err)
+	}
+	f.Close()
+
+	return f.Name()
+}
 
 func TestParseDevicesOutput(t *testing.T) {
 	var output string
@@ -162,20 +175,18 @@ func TestGetSpecifiedDevices(t *testing.T) {
 		devices      string
 	}
 
-	type testCase struct {
+	testCases := []struct {
 		flags deviceFlags
 		want  []device
-	}
-
-	testCases := []testCase{
-		testCase{deviceFlags{false, false, ""}, allDevices},                        // Nothing is specified
-		testCase{deviceFlags{true, true, ""}, allDevices},                          // Both -d and -e are specified
-		testCase{deviceFlags{true, false, ""}, []device{d1, d2, d3}},               // Only -d is specified
-		testCase{deviceFlags{false, true, ""}, []device{e1, e2}},                   // Only -e is specified
-		testCase{deviceFlags{false, false, "device:bullhead"}, []device{d1, d3}},   // Device qualifier
-		testCase{deviceFlags{false, false, "ARMv7,SecondPhone"}, []device{e1, d3}}, // Nicknames
-		testCase{deviceFlags{true, false, "ARMv7"}, []device{d1, d2, e1, d3}},      // Combinations
-		testCase{deviceFlags{false, true, "model:Nexus_9"}, []device{d2, e1, e2}},  // Combinations
+	}{
+		{deviceFlags{false, false, ""}, allDevices},                        // Nothing is specified
+		{deviceFlags{true, true, ""}, allDevices},                          // Both -d and -e are specified
+		{deviceFlags{true, false, ""}, []device{d1, d2, d3}},               // Only -d is specified
+		{deviceFlags{false, true, ""}, []device{e1, e2}},                   // Only -e is specified
+		{deviceFlags{false, false, "device:bullhead"}, []device{d1, d3}},   // Device qualifier
+		{deviceFlags{false, false, "ARMv7,SecondPhone"}, []device{e1, d3}}, // Nicknames
+		{deviceFlags{true, false, "ARMv7"}, []device{d1, d2, e1, d3}},      // Combinations
+		{deviceFlags{false, true, "model:Nexus_9"}, []device{d2, e1, e2}},  // Combinations
 	}
 
 	for i, testCase := range testCases {
@@ -186,5 +197,147 @@ func TestGetSpecifiedDevices(t *testing.T) {
 		if got := filterSpecifiedDevices(allDevices); !reflect.DeepEqual(got, testCase.want) {
 			t.Fatalf("unmatched results for testCases[%v]: got %v, want %v", i, got, testCase.want)
 		}
+	}
+}
+
+func TestIsFlutterProject(t *testing.T) {
+	testCases := []struct {
+		projectDir string
+		want       bool
+	}{
+		{"testMultiPlatform", false},
+		{"testMultiPlatform/android", false},
+		{"testMultiPlatform/android/app", false},
+		{"testMultiPlatform/flutter", true},
+	}
+
+	for i, testCase := range testCases {
+		dir := filepath.Join("testdata", "projects", testCase.projectDir)
+		if got := isFlutterProject(dir); got != testCase.want {
+			t.Fatalf("unmatched results for testCases[%v]: got %v, want %v", i, got, testCase.want)
+		}
+	}
+}
+
+func TestIsGradleProject(t *testing.T) {
+	testCases := []struct {
+		projectDir string
+		want       bool
+	}{
+		{"testMultiPlatform", false},
+		{"testMultiPlatform/android", true},
+		{"testMultiPlatform/android/app", true},
+		{"testMultiPlatform/flutter", false},
+	}
+
+	for i, testCase := range testCases {
+		dir := filepath.Join("testdata", "projects", testCase.projectDir)
+		if got := isGradleProject(dir); got != testCase.want {
+			t.Fatalf("unmatched results for testCases[%v]: got %v, want %v", i, got, testCase.want)
+		}
+	}
+}
+
+func TestExtractIdsFromGradle(t *testing.T) {
+	testCases := []struct {
+		key  variantKey
+		want projectIds
+	}{
+		{
+			variantKey{"testMultiPlatform/android", "", ""},
+			projectIds{"io.v.testProjectId", "io.v.testProjectPackage.LauncherActivity"},
+		},
+		{
+			variantKey{"testMultiPlatform/android", "app", "debug"},
+			projectIds{"io.v.testProjectId", "io.v.testProjectPackage.LauncherActivity"},
+		},
+		{
+			variantKey{"testMultiPlatform/android/app", "", ""},
+			projectIds{"io.v.testProjectId", "io.v.testProjectPackage.LauncherActivity"},
+		},
+		{
+			variantKey{"testAndroidMultiFlavor", "", ""},
+			projectIds{"io.v.testProjectId.lite", "io.v.testProjectPackage.LauncherActivity"},
+		},
+		{
+			variantKey{"testAndroidMultiFlavor", "app", "liteDebug"},
+			projectIds{"io.v.testProjectId.lite.debug", "io.v.testProjectPackage.LauncherActivity"},
+		},
+		{
+			variantKey{"testAndroidMultiFlavor/app", "", "proRelease"},
+			projectIds{"io.v.testProjectId.pro", "io.v.testProjectPackage.LauncherActivity"},
+		},
+	}
+
+	for i, testCase := range testCases {
+		testCase.key.Dir = filepath.Join("testdata", "projects", testCase.key.Dir)
+		got, err := extractIdsFromGradle(testCase.key)
+		if err != nil {
+			t.Fatalf("error occurred while extracting ids for testCases[%v]: %v", i, err)
+		}
+
+		if !reflect.DeepEqual(got, testCase.want) {
+			t.Fatalf("unmatched results for testCases[%v]: got %v, want %v", i, got, testCase.want)
+		}
+	}
+}
+
+func TestGetProjectIds(t *testing.T) {
+	cacheFile := tempFilename(t)
+	defer os.Remove(cacheFile)
+
+	called := false
+
+	// See if it runs the extractor for the first time.
+	extractor := func(key variantKey) (projectIds, error) {
+		called = true
+		return projectIds{"testAppID", "Activity"}, nil
+	}
+
+	want := projectIds{"testAppID", "Activity"}
+	got, err := getProjectIds(extractor, variantKey{"testDir", "mod", "var"}, false, cacheFile)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if !called {
+		t.Fatalf("extractor was not called when expected to be called.")
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unmatched results: got %v, want %v", got, want)
+	}
+
+	// The second run should not invoke the extractor.
+	called = false
+	got, err = getProjectIds(extractor, variantKey{"testDir", "mod", "var"}, false, cacheFile)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if called {
+		t.Fatalf("extracted was called when not expected.")
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unmatched results: got %v, want %v", got, want)
+	}
+
+	// Run with clear cache flag.
+	called = false
+	got, err = getProjectIds(extractor, variantKey{"testDir", "mod", "var"}, true, cacheFile)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if !called {
+		t.Fatalf("extractor was not called when expected to be called.")
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unmatched results: got %v, want %v", got, want)
 	}
 }

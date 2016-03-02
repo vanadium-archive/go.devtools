@@ -18,6 +18,8 @@ The madb commands are:
    exec        Run the provided adb command on all devices and emulators
                concurrently
    start       Launch your app on all devices
+   stop        Stop your app on all devices
+   uninstall   Uninstall your app from all devices
    name        Manage device nicknames
    help        Display help for commands or topics
 
@@ -69,7 +71,7 @@ Madb start - Launch your app on all devices
 Launches your app on all devices.
 
 Usage:
-   madb start [flags] <application_id> <activity_name>
+   madb start [flags] [<application_id> <activity_name>]
 
 <application_id> is usually the package name where the activities are defined.
 (See:
@@ -80,7 +82,127 @@ the package name of the activity is different from the application ID, the
 activity name must be a fully-qualified name (e.g.,
 com.yourcompany.yourapp.MainActivity).
 
+If either <application_id> or <activity_name> is provided, the other must be
+provided as well.
+
+If no arguments are specified, madb automatically determines which app to
+launch, based on the build scripts found in the current working directory.
+
+1) If the working directory contains a Flutter project (i.e., has
+"flutter.yaml"), this command will run "flutter start
+--android-device-id=<device serial>" for all the specified devices.
+
+2) If the working directory contains a Gradle Android project (i.e., has
+"build.gradle"), this command will run a small Gradle script to extract the
+application ID and the main activity name. In this case, the extracted IDs are
+cached, so that "madb start" can be repeated without even running the Gradle
+script again.  The IDs can be re-extracted by clearing the cache by providing
+"-clear-cache" flag.
+
 The madb start flags are:
+ -clear-cache=false
+   Clear the cache and re-extract the application ID and the main activity name.
+   Only takes effect when no arguments are provided.
+ -force-stop=true
+   Force stop the target app before starting the activity.
+ -module=
+   Specify which application module to use, when the current directory is the
+   top level Gradle project containing multiple sub-modules.  When not
+   specified, the first available application module is used.  Only takes effect
+   when no arguments are provided.
+ -variant=
+   Specify which build variant to use.  When not specified, the first available
+   build variant is used.  Only takes effect when no arguments are provided.
+
+ -d=false
+   Restrict the command to only run on real devices.
+ -e=false
+   Restrict the command to only run on emulators.
+ -n=
+   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
+   name').  Command will be run only on specified devices.
+
+Madb stop - Stop your app on all devices
+
+Stops your app on all devices.
+
+Usage:
+   madb stop [flags] [<application_id>]
+
+<application_id> is usually the package name where the activities are defined.
+(See:
+http://tools.android.com/tech-docs/new-build-system/applicationid-vs-packagename)
+
+If the application ID is not specified, madb automatically determines which app
+to stop, based on the build scripts found in the current working directory.
+
+1) If the working directory contains a Flutter project (i.e., has
+"flutter.yaml"), this command will run "flutter stop --android-device-id=<device
+serial>" for all the specified devices.
+
+2) If the working directory contains a Gradle Android project (i.e., has
+"build.gradle"), run a small Gradle script to extract the application ID.  In
+this case, the extracted ID is cached, so that "madb stop" can be repeated
+without even running the Gradle script again. The ID can be re-extracted by
+clearing the cache by providing "-clear-cache" flag.
+
+The madb stop flags are:
+ -clear-cache=false
+   Clear the cache and re-extract the application ID and the main activity name.
+   Only takes effect when no arguments are provided.
+ -module=
+   Specify which application module to use, when the current directory is the
+   top level Gradle project containing multiple sub-modules.  When not
+   specified, the first available application module is used.  Only takes effect
+   when no arguments are provided.
+ -variant=
+   Specify which build variant to use.  When not specified, the first available
+   build variant is used.  Only takes effect when no arguments are provided.
+
+ -d=false
+   Restrict the command to only run on real devices.
+ -e=false
+   Restrict the command to only run on emulators.
+ -n=
+   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
+   name').  Command will be run only on specified devices.
+
+Madb uninstall - Uninstall your app from all devices
+
+Uninstall your app from all devices.
+
+Usage:
+   madb uninstall [flags] [<application_id>]
+
+<application_id> is usually the package name where the activities are defined.
+(See:
+http://tools.android.com/tech-docs/new-build-system/applicationid-vs-packagename)
+
+If the application_id is not specified, madb automatically determines which app
+to uninstall, based on the build scripts found in the current working directory.
+
+If the working directory contains a Gradle Android project (i.e., has
+"build.gradle"), run a small Gradle script to extract the application ID.  In
+this case, the extracted ID is cached, so that "madb uninstall" can be repeated
+without even running the Gradle script again.  The ID can be re-extracted by
+clearing the cache by providing "-clear-cache" flag.
+
+The madb uninstall flags are:
+ -clear-cache=false
+   Clear the cache and re-extract the application ID and the main activity name.
+   Only takes effect when no arguments are provided.
+ -keep-data=false
+   Keep the application data and cache directories.  Equivalent to '-k' flag in
+   'adb uninstall' command.
+ -module=
+   Specify which application module to use, when the current directory is the
+   top level Gradle project containing multiple sub-modules.  When not
+   specified, the first available application module is used.  Only takes effect
+   when no arguments are provided.
+ -variant=
+   Specify which build variant to use.  When not specified, the first available
+   build variant is used.  Only takes effect when no arguments are provided.
+
  -d=false
    Restrict the command to only run on real devices.
  -e=false
@@ -93,9 +215,6 @@ Madb name - Manage device nicknames
 
 Manages device nicknames, which are meant to be more human-friendly compared to
 the device serials provided by adb tool.
-
-NOTE: Device specifier flags (-d, -e, -n) are ignored in all 'madb name'
-commands.
 
 Usage:
    madb name [flags] <command>
