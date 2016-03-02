@@ -286,13 +286,15 @@ Usage:
    jiri profile list [flags] [<profiles>]
 
 <profiles> is a list of profiles to list, defaulting to all profiles if none are
-specifically requested.
+specifically requested. List can also be used to test for the presence of a
+specific target for the requested profiles. If the target is not installed, it
+will exit with an error.
 
 The jiri profile list flags are:
  -env=
    specify an environment variable in the form: <var>=[<val>],...
  -info=
-   The following fields for use with --profile-info are available:
+   The following fields for use with -info are available:
    	SchemaVersion - the version of the profiles implementation.
    	DBPath - the path for the profiles database.
    	Target.InstallationDir - the installation directory of the requested profile.
@@ -1830,13 +1832,15 @@ Usage:
    jiri v23-profile list [flags] [<profiles>]
 
 <profiles> is a list of profiles to list, defaulting to all profiles if none are
-specifically requested.
+specifically requested. List can also be used to test for the presence of a
+specific target for the requested profiles. If the target is not installed, it
+will exit with an error.
 
 The jiri v23-profile list flags are:
  -env=
    specify an environment variable in the form: <var>=[<val>],...
  -info=
-   The following fields for use with --profile-info are available:
+   The following fields for use with -info are available:
    	SchemaVersion - the version of the profiles implementation.
    	DBPath - the path for the profiles database.
    	Target.InstallationDir - the installation directory of the requested profile.
