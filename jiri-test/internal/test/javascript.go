@@ -167,7 +167,7 @@ func vanadiumJSBrowserIntegration(jirix *jiri.X, testName string, _ ...Opt) (*te
 	// lines will print chrome's log, which will hopefully give us some useful
 	// info.  Remove this line once the timeout has been fixed.
 	// See https://github.com/vanadium/issues/issues/1182
-	if res.Status == test.TimedOut {
+	if res != nil && res.Status == test.TimedOut {
 		if err := jirix.NewSeq().Last("cat", filepath.Join(jirix.Root, "release", "javascript", "core", "tmp", "chrome.log")); err != nil {
 			fmt.Printf("error catting chrome.log: %v\n", err)
 		}
