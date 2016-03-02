@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
-	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/x/devtools/internal/test"

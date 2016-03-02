@@ -21,8 +21,8 @@ import (
 	"strings"
 	"unicode"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
-	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/goutil"
 )
 

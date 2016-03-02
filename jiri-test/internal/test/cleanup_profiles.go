@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 )
 
 var cleanupOnce sync.Once

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/tool"
 )
 

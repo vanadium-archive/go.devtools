@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/profiles/profilescmdline"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 )
 
 func runBuildFramework(jirix *jiri.X) error {

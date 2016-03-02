@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
 	"v.io/jiri/gitutil"
-	"v.io/jiri/jiri"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"

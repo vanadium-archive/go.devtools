@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/runutil"
 	"v.io/x/lib/cmdline"
 )

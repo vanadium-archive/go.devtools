@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
-	"v.io/jiri/jiri"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
 )

@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"v.io/jiri"
 	"v.io/jiri/collect"
-	"v.io/jiri/jiri"
 	"v.io/jiri/runutil"
 	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"

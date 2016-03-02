@@ -5,7 +5,7 @@
 package test
 
 import (
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/x/devtools/internal/test"
 )
 

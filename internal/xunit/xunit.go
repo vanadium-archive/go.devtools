@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 	"v.io/jiri/util"
 )
 

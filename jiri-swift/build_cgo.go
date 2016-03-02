@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/template"
 
-	"v.io/jiri/jiri"
+	"v.io/jiri"
 )
 
 const singleHeaderTmpl = `/* Created by jiri-swift - DO NOT EDIT. */
