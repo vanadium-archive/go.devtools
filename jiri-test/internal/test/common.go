@@ -167,10 +167,8 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 	if err != nil {
 		return nil, err
 	}
-	if !jirix.DryRun() {
-		if err := s.Chdir(workDir).Done(); err != nil {
-			return nil, fmt.Errorf("Chdir(%s): %v", workDir, err)
-		}
+	if err := s.Chdir(workDir).Done(); err != nil {
+		return nil, fmt.Errorf("Chdir(%s): %v", workDir, err)
 	}
 
 	// Remove all stale Go object files and binaries.
