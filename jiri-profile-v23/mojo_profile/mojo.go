@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -230,7 +231,32 @@ func Register(installer, profile string) {
 				sdkVersion:                  "39488b961eb9dca8c6ca4a2cc0d693dd13db29e3",
 				androidPlatformToolsVersion: "2219198",
 			},
-		}, "7"),
+			"8": &versionSpec{
+				serviceNames: []string{
+					"authenticating_url_loader_interceptor.mojo",
+					"compositor_service.mojo",
+					"dart_content_handler.mojo",
+					"debugger.mojo",
+					"files.mojo",
+					"input_manager_service.mojo",
+					"launcher.mojo",
+					"view_manager_service.mojo",
+					"tracing.mojo",
+				},
+				serviceNamesAndroid: []string{
+					"shortcut.mojo",
+				},
+				serviceNamesLinux: []string{
+					"authentication.mojo",
+				},
+				buildVersionAndroid:         "92b330f6dedb4d880eb66e384a28b1a4de2f6ba2",
+				buildVersionLinux:           "92b330f6dedb4d880eb66e384a28b1a4de2f6ba2",
+				devtoolsVersion:             "6a6098eb787ea88af5ef8e2978074ad57ce6ebeb",
+				networkServiceVersion:       "0a814ed5512598e595c0ae7975a09d90a7a54e90",
+				sdkVersion:                  "465117ff5f34a8ef48b6a94d57f081e3c8e77ca5",
+				androidPlatformToolsVersion: "2219198",
+			},
+		}, "8"),
 	}
 	profilesmanager.Register(m)
 }
@@ -419,14 +445,15 @@ func (m *Manager) installMojoDevtools(jirix *jiri.X, outDir string) error {
 func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 	fn := func() error {
 		seq := jirix.NewSeq()
+		srcDir := filepath.Join(outDir, "src")
 		// TODO(nlacasse): At some point Mojo needs to change the structure of
 		// their repo so that go packages occur with correct paths. Until then
 		// we'll clone into src/mojo/public so that go import paths work.
-		repoDst := filepath.Join(outDir, "src", "mojo", "public")
+		publicDir := filepath.Join(srcDir, "mojo", "public")
 		seq.
-			MkdirAll(repoDst, profilesutil.DefaultDirPerm).
-			Pushd(repoDst).
-			Call(func() error { return gitutil.New(jirix.NewSeq()).CloneRecursive(mojoSdkRemote, repoDst) }, "git clone --recursive %s", mojoSdkRemote).
+			MkdirAll(publicDir, profilesutil.DefaultDirPerm).
+			Pushd(publicDir).
+			Call(func() error { return gitutil.New(jirix.NewSeq()).CloneRecursive(mojoSdkRemote, publicDir) }, "git clone --recursive %s", mojoSdkRemote).
 			Call(func() error { return gitutil.New(jirix.NewSeq()).Reset(m.spec.sdkVersion) }, "git reset --hard %s", m.spec.sdkVersion).
 			Popd()
 
@@ -448,51 +475,56 @@ func (m *Manager) installMojoSdk(jirix *jiri.X, outDir string) error {
 			Popd()
 
 		servicesSrc := filepath.Join(tmpMojoCheckout, "mojo", "services")
-		servicesDst := filepath.Join(outDir, "src", "mojo", "services")
-		seq.Rename(servicesSrc, servicesDst)
+		servicesDir := filepath.Join(srcDir, "mojo", "services")
+		seq.Rename(servicesSrc, servicesDir)
 
-		// Find all .mojom files.
-		var mojomFilesBuffer bytes.Buffer
-		if err := jirix.NewSeq().Capture(&mojomFilesBuffer, nil).Last("find", outDir, "-name", "*.mojom"); err != nil {
-			return err
+		// Generate mojom bindings.
+		seq.Pushd(srcDir)
+
+		// Fetch the mojom compiler.
+		bindingsDir := filepath.Join(publicDir, "tools", "bindings")
+		compilerDir := filepath.Join(bindingsDir, "mojom_tool", "bin")
+		compilerName := "mojom"
+		if _, err := os.Stat(compilerDir); os.IsNotExist(err) {
+			// For an old versions < 8.
+			compilerDir = filepath.Join(bindingsDir, "mojom_parser", "bin")
+			compilerName = "mojom_parser"
 		}
-		mojomFiles := strings.Split(mojomFilesBuffer.String(), "\n")
-
-		// Generate the mojom.go files from all mojom files.
-		seq.Pushd(filepath.Join(outDir, "src"))
-		// Fetch the mojom compiler
-		compilerDir := filepath.Join(outDir, "src", "mojo", "public", "tools", "bindings", "mojom_parser", "bin")
-
 		fetchCompiler := func(arch string) error {
-			hash, err := ioutil.ReadFile(filepath.Join(compilerDir, arch, "mojom_parser.sha1"))
+			hash, err := ioutil.ReadFile(filepath.Join(compilerDir, arch, compilerName+".sha1"))
 			if err != nil {
 				return err
 			}
 			binary := mojoCompilerUrl(arch, string(hash))
-			return profilesutil.Fetch(jirix, filepath.Join(compilerDir, arch, "mojom_parser"), binary)
+			return profilesutil.Fetch(jirix, filepath.Join(compilerDir, arch, compilerName), binary)
 		}
 		seq.
 			Call(func() error { return fetchCompiler("linux64") }, "fetch linux64 mojom compiler").
-			Chmod(filepath.Join(compilerDir, "linux64", "mojom_parser"), 0755).
+			Chmod(filepath.Join(compilerDir, "linux64", compilerName), 0755).
 			Call(func() error { return fetchCompiler("mac64") }, "fetch mac64 mojom compiler").
-			Chmod(filepath.Join(compilerDir, "mac64", "mojom_parser"), 0755)
-		genMojomTool := filepath.Join(outDir, "src", "mojo", "public", "tools", "bindings", "mojom_bindings_generator.py")
+			Chmod(filepath.Join(compilerDir, "mac64", compilerName), 0755)
+
+		// Find all .mojom files excluding ones for testing.
+		var mojomFilesBuffer bytes.Buffer
+		if err := jirix.NewSeq().Capture(&mojomFilesBuffer, nil).Last("find", srcDir, "-name", "*.mojom"); err != nil {
+			return err
+		}
+		mojomFiles := strings.Split(strings.TrimSpace(mojomFilesBuffer.String()), "\n")
+
+		genDir := filepath.Join(outDir, "gen")
+		genMojomTool := filepath.Join(bindingsDir, "mojom_bindings_generator.py")
 		for _, mojomFile := range mojomFiles {
-			trimmedFile := strings.TrimSpace(mojomFile)
-			if trimmedFile == "" {
-				continue
-			}
 			seq.Run(genMojomTool,
 				"--use_bundled_pylibs",
-				"-g", "go",
-				"-o", filepath.Join("..", "gen"),
-				"-I", ".",
-				"-I", servicesDst,
 				"--generate-type-info",
-				trimmedFile)
+				"--no-gen-imports",
+				"-d", ".",
+				"-I", servicesDir,
+				"-g", "go,java",
+				"-o", genDir,
+				mojomFile)
 		}
 		seq.Popd()
-
 		return seq.Done()
 	}
 
