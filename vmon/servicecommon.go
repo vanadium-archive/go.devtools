@@ -10,7 +10,7 @@ import (
 	"math"
 	"strings"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
 
 	"v.io/jiri/tool"
 	"v.io/v23"
@@ -180,7 +180,7 @@ func resolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceN
 	defer cancel()
 
 	ns := v23.GetNamespace(v23ctx)
-	entry, err := ns.Resolve(v23ctx, serviceMountedName)
+	entry, err := ns.ShallowResolve(v23ctx, serviceMountedName)
 	if err != nil {
 		return nil, err
 	}
