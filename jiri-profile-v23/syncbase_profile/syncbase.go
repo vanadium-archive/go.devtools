@@ -34,7 +34,8 @@ func Register(installer, profile string) {
 		qualifiedName:    profiles.QualifiedProfileName(installer, profile),
 		versionInfo: profiles.NewVersionInfo(profile, map[string]interface{}{
 			"1": "1",
-		}, "1"),
+			"2": "2",
+		}, "2"),
 	}
 	profilesmanager.Register(m)
 }
@@ -166,6 +167,20 @@ func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
 		return fmt.Errorf("%q is not supported", runtime.GOOS)
 	}
 	return profilesutil.InstallPackages(jirix, pkgs)
+}
+
+// initXCC sets the environment variables in 'env' for use with cross-compilers.
+func (m *Manager) initXCC(env map[string]string, pdb *profiles.DB, target profiles.Target) error {
+	target.SetVersion("")
+	goProfile := pdb.LookupProfileTarget(m.profileInstaller, "go", target)
+	if goProfile == nil {
+		return fmt.Errorf("go profile is not installed for %s", target)
+	}
+	goEnv := envvar.VarsFromSlice(goProfile.Env.Vars)
+	// TODO(ashankar): Change the go profile installation so it sets CC and CXX appropriately.
+	env["CC"] = goEnv.Get("CC_FOR_TARGET")
+	env["CXX"] = goEnv.Get("CXX_FOR_TARGET")
+	return nil
 }
 
 func (m *Manager) initClangEnv(jirix *jiri.X, pdb *profiles.DB, target profiles.Target) (map[string]string, error) {
@@ -319,6 +334,25 @@ func initIOSEnv(jirix *jiri.X, target profiles.Target) (map[string]string, error
 
 // installSyncbaseCommon installs the syncbase profile.
 func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) (e error) {
+	if target.Arch() != runtime.GOARCH && target.Arch() != "386" && runtime.GOOS != "darwin" {
+		// In this special circumstance, old installations of version
+		// "1" had a bug - the code was built for the host
+		// architecture.  So, uninstall the buggy, unusable V1 in this
+		// case.
+		if target.Version() != "1" {
+			// Check if V1 is installed and if so uninstall it.
+			v1 := target
+			v1.SetVersion("1")
+			if gotV1 := pdb.LookupProfileTarget(m.profileInstaller, m.profileName, v1); gotV1 != nil {
+				if jirix.Verbose() {
+					fmt.Fprintf(jirix.Stdout(), "Uninstalling bad %v target : %v", m.profileName, gotV1.String())
+				}
+				if err := m.Uninstall(jirix, pdb, root, *gotV1); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	// Build and install Snappy.
 	installSnappyFn := func() error {
 		s := jirix.NewSeq()
@@ -389,6 +423,13 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 		case target.Arch() == "386":
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
+		case target.Arch() != runtime.GOARCH:
+			if err := m.initXCC(env, pdb, target); err != nil {
+				return err
+			}
+			args = append(args,
+				"--host="+target.Arch(),
+				"--target="+target.Arch())
 		}
 		if jirix.Verbose() {
 			fmt.Fprintf(jirix.Stdout(), "Environment: %s\n", strings.Join(envvar.MapToSlice(env), " "))
@@ -470,6 +511,10 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 		case target.Arch() == "386":
 			env["CC"] = "gcc -m32"
 			env["CXX"] = "g++ -m32"
+		case target.Arch() != runtime.GOARCH:
+			if err := m.initXCC(env, pdb, target); err != nil {
+				return err
+			}
 		}
 		if jirix.Verbose() {
 			fmt.Fprintf(jirix.Stdout(), "Environment: %s\n", strings.Join(envvar.MapToSlice(env), " "))
