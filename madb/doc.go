@@ -30,8 +30,10 @@ The madb flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 The global flags are:
  -metadata=<just specify -metadata to activate>
@@ -78,8 +80,10 @@ The madb clear-data flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb exec - Run the provided adb command on all devices and emulators concurrently
 
@@ -106,8 +110,10 @@ The madb exec flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb name - Manage device nicknames
 
@@ -132,8 +138,10 @@ The madb name flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb name set
 
@@ -174,8 +182,10 @@ The madb name set flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb name unset
 
@@ -194,8 +204,10 @@ The madb name unset flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb name list
 
@@ -210,8 +222,10 @@ The madb name list flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb name clear-all
 
@@ -226,8 +240,10 @@ The madb name clear-all flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb start - Launch your app on all devices
 
@@ -282,8 +298,10 @@ The madb start flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb stop - Stop your app on all devices
 
@@ -327,8 +345,10 @@ The madb stop flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb uninstall - Uninstall your app from all devices
 
@@ -371,8 +391,10 @@ The madb uninstall flags are:
  -e=false
    Restrict the command to only run on emulators.
  -n=
-   Comma-separated device serials, qualifiers, or nicknames (set by 'madb
-   name').  Command will be run only on specified devices.
+   Comma-separated device serials, qualifiers, device indices (e.g., '@1',
+   '@2'), or nicknames (set by 'madb name').  A device index is specified by an
+   '@' sign followed by the index of the device in the output of 'adb devices'
+   command, starting from 1.  Command will be run only on specified devices.
 
 Madb help - Display help for commands or topics
 
