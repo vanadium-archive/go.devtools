@@ -20,7 +20,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"v.io/jiri"
 	"v.io/jiri/collect"
@@ -421,7 +423,8 @@ func loadAssets(jirix *jiri.X, dir string) (*copyrightAssets, error) {
 	if err != nil {
 		return nil, err
 	}
-	result.Copyright = string(bytes)
+	currentYear := strconv.Itoa(time.Now().Year())
+	result.Copyright = strings.Replace(string(bytes), "[YEAR]", currentYear, 1)
 	return &result, nil
 }
 
