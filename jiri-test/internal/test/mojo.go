@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	defaultMojoTestTimeout            = 10 * time.Minute
-	defaultMojoIntegrationTestTimeout = 30 * time.Minute
+	defaultMojoTestTimeout = 10 * time.Minute
 )
 
 // vanadiumMojoSyncbaseTest runs the tests for the Vanadium Mojo Syncbase
@@ -33,5 +32,5 @@ func vanadiumMojoV23ProxyUnitTest(jirix *jiri.X, testName string, _ ...Opt) (*te
 // vanadiumMojoV23ProxyIntegrationTest runs the integration tests for the vanadium <-> mojo "v23proxy"
 func vanadiumMojoV23ProxyIntegrationTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	testDir := filepath.Join(jirix.Root, "release", "mojo", "v23proxy")
-	return runMakefileTest(jirix, testName, testDir, "test-integration", nil, []string{"base", "mojo", "dart"}, defaultMojoIntegrationTestTimeout)
+	return runMakefileTest(jirix, testName, testDir, "test-integration", nil, []string{"base", "mojo", "dart"}, defaultMojoTestTimeout)
 }
