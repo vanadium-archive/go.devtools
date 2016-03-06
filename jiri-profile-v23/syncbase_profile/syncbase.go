@@ -306,12 +306,14 @@ func initIOSEnv(jirix *jiri.X, target profiles.Target) (map[string]string, error
 	iosFlags := fmt.Sprintf("-m%v-version-min=%v -isysroot %v", minVersionEnvFlag, deploymentTarget, sysroot)
 	env := map[string]string{
 		"IPHONEOS_DEPLOYMENT_TARGET": deploymentTarget,
-		"TARGET":                     "arm-apple-darwin", // this is true for 32 and 64-bits
 		"CFLAGS":                     fmt.Sprintf("%v -arch %v", iosFlags, iosArch),
 		"CXXFLAGS":                   fmt.Sprintf("%v -arch %v", iosFlags, iosArch),
 		"LDFLAGS":                    iosFlags,
 		"CC":                         clangPath,
 		"CXX":                        clangxxPath,
+	}
+	if sdkName == "iphoneos" {
+		env["TARGET"] = "arm-apple-darwin" // this is true for 32 and 64-bits
 	}
 
 	return env, nil
@@ -366,7 +368,9 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 				return err
 			}
 			env = envvar.MergeMaps(env, clangEnv)
-			args = append(args, "--host="+clangEnv["TARGET"])
+			if target, ok := clangEnv["TARGET"]; ok {
+				args = append(args, "--host="+target)
+			}
 		case target.OS() == "fnl" && target.Arch() == "amd64" && runtime.GOOS == "linux":
 			fnlRoot := os.Getenv("FNL_JIRI_ROOT")
 			if len(fnlRoot) == 0 {
