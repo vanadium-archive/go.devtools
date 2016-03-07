@@ -9,8 +9,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 
 	"v.io/jiri"
@@ -56,12 +54,7 @@ var cmdPoll = &cmdline.Command{
 }
 
 func runPoll(jirix *jiri.X, _ []string) error {
-	// Get projects with new changes from the second latest snapshots.
-	snapshotFileBytes, err := ioutil.ReadFile(jirix.UpdateHistorySecondLatestLink())
-	if err != nil {
-		return fmt.Errorf("ReadFile() failed: %v", err)
-	}
-	projects, err := getChangedProjectsFromSnapshot(jirix, snapshotFileBytes)
+	projects, err := getChangedProjectsFromSnapshot(jirix, jirix.UpdateHistorySecondLatestLink())
 	if err != nil {
 		return err
 	}
@@ -87,24 +80,22 @@ func runPoll(jirix *jiri.X, _ []string) error {
 	return nil
 }
 
-// getChangedProjectsFromSnapshot returns a slice of projects that
-// have changes by comparing the revisions in the given snapshot with
-// master branches.
-func getChangedProjectsFromSnapshot(jirix *jiri.X, snapshotContent []byte) ([]string, error) {
-	// Parse snapshot.
-	snapshot, err := project.ManifestFromBytes(snapshotContent)
+// getChangedProjectsFromSnapshot returns a slice of projects that have changes
+// by comparing the revisions in the given snapshot with master branches.
+func getChangedProjectsFromSnapshot(jirix *jiri.X, snapshotFile string) ([]string, error) {
+	projects, _, err := project.LoadSnapshotFile(jirix, snapshotFile)
 	if err != nil {
-		return nil, fmt.Errorf("ManifestFromBytes failed: %v\n%s", err, snapshotContent)
+		return nil, err
 	}
 
 	// Use "git log" to detect changes for each project.
 	//
 	// TODO(jingjin, jsimsa): Add support for non-git projects.
 	changedProjects := []string{}
-	for _, project := range snapshot.Projects {
+	for _, project := range projects {
 		switch project.Protocol {
 		case "git":
-			git := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(filepath.Join(jirix.Root, project.Path)))
+			git := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(project.Path))
 			commits, err := git.Log("master", project.Revision, "")
 			if err != nil {
 				return nil, err
