@@ -32,6 +32,9 @@ var skipPackages = map[string]bool{
 	"v.io/x/ref/runtime/internal/vtrace": true,
 }
 
+const vtracePackage = "\"v.io/v23/vtrace\""
+const contextPackage = "v.io/v23/context"
+
 func main() {
 	cmdline.Main(cmdTracify)
 }
@@ -112,7 +115,7 @@ type decl struct {
 func processFile(fset *token.FileSet, fname string, f *ast.File) error {
 	vtraceName := ""
 	for _, i := range f.Imports {
-		if i.Path.Value == "\"v.io/v23/vtrace\"" {
+		if i.Path.Value == vtracePackage {
 			if i.Name == nil {
 				vtraceName = "vtrace"
 			} else {
@@ -143,7 +146,7 @@ func processFile(fset *token.FileSet, fname string, f *ast.File) error {
 			return err
 		}
 		if vtraceName == "" {
-			if err := inj.inject(fset.Position(f.Name.End()), "\nimport \"v.io/v23/vtrace\"\n"); err != nil {
+			if err := inj.inject(fset.Position(f.Name.End()), fmt.Sprintf("\nimport %s\n", vtracePackage)); err != nil {
 				return err
 			}
 			vtraceName = "vtrace"
@@ -199,7 +202,7 @@ func addTransitive(packages map[string]*build.Package, pkg *build.Package, alsoT
 	packages[pkg.ImportPath] = nil
 	foundCtx := false
 	for _, dep := range pkg.Imports {
-		if dep == "v.io/v23/context" {
+		if dep == contextPackage {
 			foundCtx = true
 			break
 		}
@@ -231,8 +234,16 @@ func addTransitive(packages map[string]*build.Package, pkg *build.Package, alsoT
 	return nil
 }
 
-// checkParams returns true if the given function type has argument types matching
-// the strings in args.
+// checkParams returns true if the given function type has at least the given arg types.
+// For example if args is ["*context.T", "int", "int"]
+// Then checkParams would return true for:
+// -  func foo(ctx *context.T, a int, b int)
+// -  func foo(ctx *context.T, a, b int)
+// -  func foo(ctx *context.T, a, b int, c string)
+// but not:
+// -  func foo(a string, ctx *context.T, a, b int)
+// -  func foo(ctx *context.T, c string, a, b int)
+// -  func foo(ctx *context.T, a int)
 func checkParams(fset *token.FileSet, ftype *ast.FuncType, args []string) (bool, []string) {
 	i := 0
 	names := []string{}
@@ -289,7 +300,7 @@ func translateTypes(fset *token.FileSet, imports []*ast.ImportSpec, types []stri
 	return out
 }
 
-// This changes the package name of a type to the mapped name.
+// changePackage changes the package name of a type to the mapped name.
 // For example if you pass in the expr corresponding to "*testing.T" but
 // the file has declared:
 //   import t "testing"

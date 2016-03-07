@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"go/format"
 	"go/token"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,7 @@ import (
 	"text/template"
 )
 
-// injectors allow you to rewrite a file adding content at points specified in the source files
+// injectors allow you to rewrite a file, adding content at points specified in the source file's
 // address space.
 type injector struct {
 	read  int
@@ -48,11 +49,10 @@ func (i *injector) format() error {
 	if _, err := io.Copy(&i.w, i.r); err != nil {
 		return err
 	}
-	//out, err := format.Source(i.w.Bytes())
-	//if err != nil {
-	//	return err
-	//}
-	out := i.w.Bytes()
+	out, err := format.Source(i.w.Bytes())
+	if err != nil {
+		return err
+	}
 	f, err := os.Create(i.fname)
 	if err != nil {
 		return err
