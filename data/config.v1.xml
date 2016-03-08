@@ -39,11 +39,7 @@
     <workspace>infrastructure/go</workspace>
     <workspace>release/go</workspace>
     <workspace>release/javascript/core/go</workspace>
-    <workspace>release/projects/browser/go</workspace>
-    <workspace>release/projects/chat/clients/shell/go</workspace>
-    <workspace>release/projects/media-sharing/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
-    <workspace>release/projects/pipe2browser/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
     <workspace>third_party/go</workspace>
@@ -115,8 +111,6 @@
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
-      <test>vanadium-js-syncbase-browser</test>
-      <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="release.java">
       <test>java</test>
@@ -126,11 +120,6 @@
       <test>javascript</test>
       <test>projects</test>
       <test>vanadium-copyright</test>
-    </project>
-    <project name="release.js.syncbase">
-      <test>vanadium-copyright</test>
-      <test>vanadium-js-syncbase-browser</test>
-      <test>vanadium-js-syncbase-node</test>
     </project>
     <project name="release.mojo.discovery">
       <test>vanadium-copyright</test>
@@ -151,26 +140,9 @@
       <test>vanadium-copyright</test>
       <test>vanadium-baku-test</test>
     </project>
-    <project name="release.projects.browser">
-      <test>vanadium-browser-test</test>
-      <test>vanadium-copyright</test>
-    </project>
-    <project name="release.projects.chat">
-      <test>vanadium-chat-shell-test</test>
-      <test>vanadium-chat-web-test</test>
-      <test>vanadium-copyright</test>
-    </project>
     <project name="release.projects.croupier">
       <test>vanadium-copyright</test>
       <test>vanadium-croupier-unit</test>
-    </project>
-    <project name="release.projects.media-sharing">
-      <test>go</test>
-      <test>vanadium-copyright</test>
-    </project>
-    <project name="release.projects.pipe2browser">
-      <test>vanadium-copyright</test>
-      <test>vanadium-pipe2browser-test</test>
     </project>
     <project name="release.projects.playground">
       <test>vanadium-copyright</test>
@@ -211,28 +183,14 @@
     <test name="third_party-go-test">
       <dependency>third_party-go-build</dependency>
     </test>
-    <test name="vanadium-browser-test">
-      <dependency>vanadium-go-build</dependency>
-      <dependency>vanadium-js-browser-integration</dependency>
-      <dependency>vanadium-js-node-integration</dependency>
-    </test>
     <test name="vanadium-playground-test">
       <dependency>vanadium-go-build</dependency>
-      <dependency>vanadium-js-node-integration</dependency>
     </test>
     <test name="vanadium-go-race">
       <dependency>vanadium-go-test</dependency>
     </test>
     <test name="vanadium-go-test">
       <dependency>vanadium-go-build</dependency>
-    </test>
-    <test name="vanadium-js-browser-integration">
-      <dependency>vanadium-go-build</dependency>
-      <dependency>vanadium-js-unit</dependency>
-    </test>
-    <test name="vanadium-js-node-integration">
-      <dependency>vanadium-go-build</dependency>
-      <dependency>vanadium-js-unit</dependency>
     </test>
     <test name="vanadium-integration-test">
       <dependency>vanadium-go-build</dependency>
@@ -268,13 +226,6 @@
       <test>vanadium-java-test</test>
     </group>
     <group name="javascript">
-      <test>vanadium-js-browser-integration</test>
-      <test>vanadium-js-build-extension</test>
-      <test>vanadium-js-doc</test>
-      <test>vanadium-js-doc-syncbase</test>
-      <test>vanadium-js-node-integration</test>
-      <test>vanadium-js-syncbase-browser</test>
-      <test>vanadium-js-syncbase-node</test>
       <test>vanadium-js-unit</test>
       <test>vanadium-js-vdl</test>
       <test>vanadium-js-vdl-audit</test>
@@ -287,9 +238,6 @@
     </group>
     <group name="projects">
       <test>vanadium-browser-test</test>
-      <test>vanadium-chat-shell-test</test>
-      <test>vanadium-chat-web-test</test>
-      <test>vanadium-pipe2browser-test</test>
       <test>vanadium-playground-test</test>
     </group>
     <group name="third_party-go">
@@ -316,11 +264,7 @@
   <vdlWorkspaces>
     <workspace>release/go</workspace>
     <workspace>release/javascript/core/go</workspace>
-    <workspace>release/projects/browser/go</workspace>
-    <workspace>release/projects/chat/clients/shell/go</workspace>
-    <workspace>release/projects/media-sharing/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
-    <workspace>release/projects/pipe2browser/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
   </vdlWorkspaces>
