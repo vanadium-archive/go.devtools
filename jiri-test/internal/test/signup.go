@@ -27,7 +27,7 @@ func vanadiumSignupProxyNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 }
 
 func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -92,7 +92,7 @@ func vanadiumSignupProxyHelper(jirix *jiri.X, schema, testName string) (_ *test.
 }
 
 func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -179,7 +179,7 @@ func vanadiumSignupWelcomeStepOneNew(jirix *jiri.X, testName string, _ ...Opt) (
 }
 
 func vanadiumSignupWelcomeStepTwoNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -205,7 +205,7 @@ func vanadiumSignupGithubNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 }
 
 func vanadiumSignupGithubHelper(jirix *jiri.X, schema, testName string) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -242,7 +242,7 @@ func vanadiumSignupDiscussNew(jirix *jiri.X, testName string, _ ...Opt) (_ *test
 }
 
 func vanadiumSignupGroupHelper(jirix *jiri.X, schema, testName string, discussOnly bool) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

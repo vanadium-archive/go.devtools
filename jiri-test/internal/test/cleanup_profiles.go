@@ -44,7 +44,7 @@ func cleanupProfilesImpl(jirix *jiri.X) error {
 	s := jirix.NewSeq()
 	for _, args := range cmds {
 		var out bytes.Buffer
-		clargs := append([]string{"v23-profile"}, strings.Split(args, " ")...)
+		clargs := append([]string{"profile"}, strings.Split(args, " ")...)
 		err := s.Capture(&out, &out).Last("jiri", clargs...)
 		fmt.Fprintf(jirix.Stdout(), "jiri %v: %v [[\n", strings.Join(clargs, " "), err)
 		fmt.Fprintf(jirix.Stdout(), "%s]]\n", out.String())
@@ -56,7 +56,7 @@ func displayProfiles(jirix *jiri.X, msg string) {
 	var out bytes.Buffer
 	s := jirix.NewSeq()
 	fmt.Fprintf(jirix.Stdout(), "%s: installed profiles:\n", msg)
-	err := s.Capture(&out, &out).Last("jiri", "v23-profile", "list", "--v")
+	err := s.Capture(&out, &out).Last("jiri", "profile", "list", "--v")
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), " %v\n", err)
 		return
@@ -64,7 +64,7 @@ func displayProfiles(jirix *jiri.X, msg string) {
 	fmt.Fprintf(jirix.Stdout(), "\n%s\n", out.String())
 	out.Reset()
 	fmt.Fprintf(jirix.Stdout(), "recreate profiles with:\n")
-	err = s.Capture(&out, &out).Last("jiri", "v23-profile", "list", "--info", "Target.Command")
+	err = s.Capture(&out, &out).Last("jiri", "profile", "list", "--info", "Target.Command")
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), " %v\n", err)
 		return

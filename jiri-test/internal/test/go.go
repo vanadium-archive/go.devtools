@@ -1159,7 +1159,7 @@ func getNumWorkersOpt(opts []Opt) numWorkersOpt {
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1193,7 +1193,7 @@ func thirdPartyGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Res
 // thirdPartyGoTest runs Go tests for the third-party projects.
 func thirdPartyGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1215,7 +1215,7 @@ func thirdPartyGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resu
 // thirdPartyGoRace runs Go data-race tests for third-party projects.
 func thirdPartyGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1322,7 +1322,7 @@ to update the corresponding .api files and commit the changes.
 // vanadiumGoBench runs Go benchmarks for vanadium projects.
 func vanadiumGoBench(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1342,7 +1342,7 @@ func vanadiumGoBench(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resul
 // vanadiumGoBuild runs Go build for the vanadium projects.
 func vanadiumGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1371,7 +1371,7 @@ func vanadiumGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Resul
 // vanadiumGoCoverage runs Go coverage tests for vanadium projects.
 func vanadiumGoCoverage(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1388,7 +1388,7 @@ func vanadiumGoCoverage(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 // vanadiumGoDepcop runs Go dependency checks for vanadium projects.
 func vanadiumGoDepcop(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "init")
 	}
@@ -1422,7 +1422,7 @@ func vanadiumGoDepcop(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 // vanadiumGoFormat runs Go format check for vanadium projects.
 func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "init")
 	}
@@ -1459,7 +1459,7 @@ type goGenerateDiff struct {
 // up-to-date.
 func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1575,7 +1575,7 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 // vanadiumGoRace runs Go data-race tests for vanadium projects.
 func vanadiumGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1680,7 +1680,7 @@ func getPkgsFromSpec(jirix *jiri.X, opts []Opt, pkgSpec string) ([]string, error
 // vanadiumGoVet runs go vet checks for vanadium projects.
 func vanadiumGoVet(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "init")
 	}
@@ -1708,7 +1708,7 @@ func vanadiumGoVet(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 // vanadiumGoTest runs Go tests for vanadium projects.
 func vanadiumGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1731,7 +1731,7 @@ func vanadiumIntegrationTest(jirix *jiri.X, testName string, opts ...Opt) (_ *te
 	// We need a shorter root/tmp dir to keep the length of unix domain socket
 	// path under limit (108 for linux and 104 for darwin).
 	shorterRootDir := filepath.Join(os.Getenv("HOME"), "tmp", "vit")
-	cleanup, err := initTest(jirix, testName, []string{"base"}, rootDirOpt(shorterRootDir))
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"}, rootDirOpt(shorterRootDir))
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -1856,7 +1856,7 @@ func vanadiumRegressionTest(jirix *jiri.X, testName string, opts ...Opt) (_ *tes
 	fmt.Fprintf(jirix.Stdout(), "Using config:\n%s\n", string(configBytes))
 
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

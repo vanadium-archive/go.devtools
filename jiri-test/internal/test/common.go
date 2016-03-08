@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	// The name of the v23-profile database file to use. It is intended
+	// The name of the profile database file to use. It is intended
 	// to be set via a command line flag.
 	ProfilesDBFilename = jiri.DefaultProfilesDBPath()
 
@@ -140,7 +140,7 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 	}
 
 	// Install profiles.
-	args := []string{"-v", "v23-profile", "install"}
+	args := []string{"-v", "profile-v23", "install"}
 	for _, profile := range profileNames {
 		clargs := append(args, insertTarget(profile)...)
 		fmt.Fprintf(jirix.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
@@ -151,9 +151,9 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 	}
 
 	// Update profiles.
-	args = []string{"v23-profile", "update"}
+	args = []string{"profile", "update"}
 
-	if err := s.Last("jiri", args...); err != nil {
+	if err := s.Capture(os.Stdout, os.Stderr).Last("jiri", args...); err != nil {
 		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
 	}
 	fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(args, " "))

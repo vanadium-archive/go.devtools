@@ -18,7 +18,7 @@ import (
 // vanadiumGoBinaries uploads Vanadium binaries to Google Storage.
 func vanadiumGoBinaries(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

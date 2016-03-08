@@ -21,13 +21,13 @@ const (
 // Runs the specified make target in the 'website' repo as a test.
 func commonVanadiumWebsite(jirix *jiri.X, testName, makeTarget string, timeout time.Duration, extraDeps []string) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, append([]string{"base", "nodejs"}, extraDeps...))
+	cleanup, err := initTest(jirix, testName, append([]string{"v23:base", "v23:nodejs"}, extraDeps...))
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	cleanup2, err := initTestForTarget(jirix, testName, []string{"nacl"}, "amd64p32-nacl")
+	cleanup2, err := initTestForTarget(jirix, testName, []string{"v23:nacl"}, "amd64p32-nacl")
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

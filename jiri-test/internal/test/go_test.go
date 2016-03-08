@@ -543,7 +543,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	jirix := newJiriXWithRealRoot(t)
 	testName, pkgName := "test-go-test", "v.io/x/devtools/jiri-test/internal/test/testdata/"+subPkg
 
-	cleanupTest, err := initTestImpl(jirix, false, false, testName, []string{"base"}, "")
+	cleanupTest, err := initTestImpl(jirix, false, false, testName, []string{"v23:base"}, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

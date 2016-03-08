@@ -24,7 +24,7 @@ const (
 // runJSTest is a harness for executing javascript tests.
 func runJSTest(jirix *jiri.X, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *test.Result, e error) {
 	// Initialize the test.
-	deps := []string{"base", "nodejs"}
+	deps := []string{"v23:base", "v23:nodejs"}
 	cleanup, err := initTest(jirix, testName, deps)
 	if err != nil {
 		return nil, newInternalError(err, "Init")
@@ -63,7 +63,7 @@ func runJSTest(jirix *jiri.X, testName, testDir, target string, cleanFn func() e
 }
 
 func runJSTestWithNacl(jirix *jiri.X, testName, testDir, target string, cleanFn func() error, env map[string]string) (_ *test.Result, e error) {
-	if err := installExtraDeps(jirix, testName, []string{"nacl"}, "amd64p32-nacl"); err != nil {
+	if err := installExtraDeps(jirix, testName, []string{"v23:nacl"}, "amd64p32-nacl"); err != nil {
 		return nil, err
 	}
 	return runJSTest(jirix, testName, testDir, target, cleanFn, env)
@@ -125,7 +125,7 @@ func vanadiumJSDocSyncbaseDeploy(jirix *jiri.X, testName string, _ ...Opt) (*tes
 
 func jsDocDeployHelper(jirix *jiri.X, testName, projectName string) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"nodejs"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:nodejs"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

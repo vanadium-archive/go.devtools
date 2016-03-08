@@ -56,7 +56,7 @@ func vanadiumCreateInstanceTest(jirix *jiri.X, testName string, opts ...Opt) (_ 
 		return nil, newInternalError(fmt.Errorf("script not defined in %s environment variable", scriptEnvVar), "Env")
 	}
 
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

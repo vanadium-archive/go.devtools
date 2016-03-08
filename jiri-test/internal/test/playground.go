@@ -25,7 +25,7 @@ func vanadiumPlaygroundTest(jirix *jiri.X, testName string, _ ...Opt) (_ *test.R
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTest(jirix, testName, []string{"base", "nodejs"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base", "v23:nodejs"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

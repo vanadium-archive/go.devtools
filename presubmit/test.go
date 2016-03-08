@@ -40,8 +40,8 @@ const (
 	// Timeout value for jiri-test command.
 	jiriTestTimeout = time.Minute * 55
 
-	// Timeout value for "jiri v23-profile" command.
-	jiriV23ProfileTimeout = time.Minute * 5
+	// Timeout value for "jiri profile" command.
+	jiriProfileTimeout = time.Minute * 5
 )
 
 var (
@@ -310,7 +310,8 @@ func runTest(jirix *jiri.X, args []string) (e error) {
 }
 
 // profileFilesModified checks any of the given CLs modified files under the
-// "jiri-v23-profile/" directory in the "release.go.x.devtools" project.
+// "jiri-v23-profile/" or "jiri-profile-v23/" directories in the
+// "release.go.x.devtools" project.
 func profileFilesModified(jirix *jiri.X, cls []cl) (bool, error) {
 	gUrl, err := gerritBaseUrl()
 	if err != nil {
@@ -330,6 +331,9 @@ func profileFilesModified(jirix *jiri.X, cls []cl) (bool, error) {
 					if strings.HasPrefix(filename, "jiri-v23-profile/") {
 						return true, nil
 					}
+					if strings.HasPrefix(filename, "jiri-profile-v23/") {
+						return true, nil
+					}
 				}
 			}
 		}
@@ -339,8 +343,8 @@ func profileFilesModified(jirix *jiri.X, cls []cl) (bool, error) {
 
 func cleanupProfiles(jirix *jiri.X, env map[string]string, cls []cl) error {
 	fmt.Fprintf(jirix.Stdout(), "### Cleanning up profiles ###")
-	return jirix.NewSeq().Env(env).Timeout(jiriV23ProfileTimeout).
-		Last("jiri", "v23-profile", "cleanup", "--rm-all")
+	return jirix.NewSeq().Env(env).Timeout(jiriProfileTimeout).
+		Last("jiri", "profile", "cleanup", "--rm-all")
 }
 
 // persistTestData uploads test data to Google Storage.

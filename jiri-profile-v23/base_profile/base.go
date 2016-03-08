@@ -115,7 +115,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	base.Set("GOOS", os)
 	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), base, profileEnvs...)
 	target.Env.Vars = base.ToSlice()
-	pdb.InstallProfile(m.profileInstaller, m.profileName, root.Symbolic())
+	pdb.InstallProfile(m.profileInstaller, m.profileName, string(root))
 	return pdb.AddProfileTarget(m.profileInstaller, m.profileName, target)
 }
 

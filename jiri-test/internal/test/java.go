@@ -18,7 +18,7 @@ import (
 // runJavaTest includes common run logic for Java tests.
 func runJavaTest(jirix *jiri.X, testName string, cwd []string, tasks []string) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, []string{"java"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:java"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

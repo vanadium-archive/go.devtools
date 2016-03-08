@@ -79,7 +79,7 @@ func vanadiumProdServicesTest(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	// Initialize the test.
 	// Need the new-stype base profile since many web tests will build
 	// go apps that need it.
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

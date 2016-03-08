@@ -17,7 +17,7 @@ import (
 // runMakefileTest is a helper for running tests through make commands.
 func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[string]string, profiles []string, timeout time.Duration) (_ *test.Result, e error) {
 	// Install base profile first, before any test-specific profiles.
-	profiles = append([]string{"base"}, profiles...)
+	profiles = append([]string{"v23:base"}, profiles...)
 
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, profiles)
