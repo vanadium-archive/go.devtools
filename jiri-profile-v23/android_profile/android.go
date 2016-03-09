@@ -14,7 +14,6 @@ import (
 
 	"v.io/jiri"
 	"v.io/jiri/collect"
-	"v.io/jiri/gitutil"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
@@ -25,7 +24,6 @@ import (
 
 const (
 	ndkDownloadBaseURL   = "https://dl.google.com/android/ndk"
-	goMobileRepoURL      = "https://go.googlesource.com/mobile"
 	platformToolsBaseURL = "http://tools.android.com/download"
 )
 
@@ -35,7 +33,6 @@ type versionSpec struct {
 	ndkExtract           func(seq runutil.Sequence, src, dst string) runutil.Sequence
 	ndkAPILevel          int
 	platformToolsVersion map[string]string
-	goMobileVersion      string
 }
 
 func ndkArch(goArch string) (string, error) {
@@ -85,7 +82,12 @@ func Register(installer, profile string) {
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    21,
 			},
-			"6": &versionSpec{
+			"7": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     selfExtract,
+				ndkAPILevel:    21,
+			},
+			"8": &versionSpec{
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    21,
@@ -93,14 +95,8 @@ func Register(installer, profile string) {
 					"darwin": "sdk-repo-darwin-platform-tools-2219242",
 					"linux":  "sdk-repo-linux-platform-tools-2219198",
 				},
-				goMobileVersion: "022ca032424e9f2ed95a351bdeb4e6186a17208f",
 			},
-			"7": &versionSpec{
-				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
-				ndkExtract:     selfExtract,
-				ndkAPILevel:    21,
-			},
-		}, "7"),
+		}, "8"),
 	}
 	profilesmanager.Register(m)
 }
@@ -113,7 +109,6 @@ type Manager struct {
 	androidRoot      jiri.RelPath
 	ndkRoot          jiri.RelPath
 	platformRoot     jiri.RelPath
-	goMobileRoot     jiri.RelPath
 	versionInfo      *profiles.VersionInfo
 	spec             versionSpec
 }
@@ -166,7 +161,6 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	}
 	m.ndkRoot = m.androidRoot.Join("ndk-toolchain", fmt.Sprintf("%s-%d", archName, m.spec.ndkAPILevel))
 	m.platformRoot = m.androidRoot.Join("platform-tools", m.spec.platformToolsVersion[runtime.GOOS])
-	m.goMobileRoot = m.androidRoot.Join("gomobile", m.spec.goMobileVersion)
 	return nil
 }
 
@@ -189,16 +183,6 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 		return err
 	}
 	if target, err = m.installAndroidPlatformTools(jirix, target); err != nil {
-		return err
-	}
-	if target, err = m.installGoMobile(jirix, pdb, root, target, baseEnv); err != nil {
-		return err
-	}
-	// We have our own NDK which we use to build c libraries for syncbase etc.  We want to use
-	// the same one when running tests via gomobile.  However gomobile installs its own.
-	// Incompatibilities between the two NDKs lead to hard to explain error messages.
-	// Here we just replace the NDK gomobile installed with our own.
-	if err = m.swapGoMobileNDK(jirix, target); err != nil {
 		return err
 	}
 
@@ -303,7 +287,7 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, target profiles.Tar
 	defer jirix.NewSeq().RemoveAll(tmpDir)
 
 	outDir := m.platformRoot.Abs(jirix)
-	target.Env.Set("ANDROID_PLATFORM_TOOLS=" + m.platformRoot.Symbolic())
+	target.Env.Set("PATH=" + m.platformRoot.Symbolic())
 	fn := func() error {
 		androidPlatformToolsZipFile := filepath.Join(tmpDir, "platform-tools.zip")
 		return jirix.NewSeq().
@@ -319,75 +303,4 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, target profiles.Tar
 			Done()
 	}
 	return target, profilesutil.AtomicAction(jirix, fn, outDir, "Install Android Platform Tools")
-}
-
-// installGoMobile installs the gomobile command.
-func (m *Manager) installGoMobile(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target, baseEnv []string) (profiles.Target, error) {
-	if m.spec.goMobileVersion == "" {
-		return target, nil
-	}
-	tmpDir, err := jirix.NewSeq().TempDir("", "")
-	if err != nil {
-		return target, err
-	}
-	defer jirix.NewSeq().RemoveAll(tmpDir)
-
-	env := envvar.VarsFromMap(jirix.Env())
-	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, baseEnv)
-
-	env.Set("GOPATH", tmpDir)
-	existingPath := envvar.SplitTokens(env.Get("PATH"), ":")
-	goBin := filepath.Join(env.Get("GOROOT"), "bin")
-	env.Set("PATH", envvar.JoinTokens(append([]string{goBin}, existingPath...), ":"))
-	jiri.ExpandEnv(jirix, env)
-
-	gobin := filepath.Join(env.Get("GOROOT"), "bin", "go")
-	outDir := m.goMobileRoot.Abs(jirix)
-	fmt.Fprintln(jirix.Stdout(), "ANDROIDPATH=", env.Get("PATH"))
-	target.Env.Set("GOMOBILE_BIN=" + m.goMobileRoot.Join("bin", "gomobile").Symbolic())
-	target.Env.Set("HOSTGOROOT=" + env.Get("GOROOT"))
-	target.Env.Set("GOPATH=" + m.goMobileRoot.Symbolic())
-
-	fn := func() error {
-		reporoot := filepath.Join(tmpDir, "src", "golang.org", "x", "mobile")
-		err := jirix.NewSeq().
-			MkdirAll(reporoot, profilesutil.DefaultDirPerm).
-			Chdir(reporoot).Done()
-		if err != nil {
-			return err
-		}
-
-		seq := jirix.NewSeq()
-		git := gitutil.New(seq)
-		if err := git.Clone(goMobileRepoURL, reporoot); err != nil {
-			return err
-		}
-		if err := git.Reset(m.spec.goMobileVersion); err != nil {
-			return err
-		}
-		if err := seq.Done(); err != nil {
-			return err
-		}
-		return jirix.NewSeq().
-			SetEnv(env.ToMap()).
-			Run(gobin, "install", "golang.org/x/mobile/cmd/gomobile").
-			SetEnv(env.ToMap()).
-			Run(filepath.Join(tmpDir, "bin", "gomobile"), "init").
-			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
-			Rename(tmpDir, outDir).
-			Done()
-	}
-	return target, profilesutil.AtomicAction(jirix, fn, outDir, "Install Gomobile")
-}
-
-func (m *Manager) swapGoMobileNDK(jirix *jiri.X, target profiles.Target) error {
-	if m.spec.goMobileVersion == "" {
-		return nil
-	}
-	theirs := m.goMobileRoot.Join("pkg", "gomobile", "android-ndk-r10e", target.Arch()).Abs(jirix)
-	ours := m.ndkRoot.Abs(jirix)
-	return jirix.NewSeq().
-		RemoveAll(theirs).
-		Symlink(ours, theirs).
-		Done()
 }
