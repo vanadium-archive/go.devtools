@@ -234,7 +234,9 @@
     <group name="mojo">
       <test>vanadium-mojo-syncbase-test</test>
       <test>vanadium-mojo-v23proxy-unit-test</test>
+      <!-- NOTE(caprita): this is flaky.  See v.io/i/1226
       <test>vanadium-mojo-v23proxy-integration-test</test>
+      -->
     </group>
     <group name="projects">
       <test>vanadium-browser-test</test>
