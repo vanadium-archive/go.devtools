@@ -359,7 +359,7 @@ func (u *updater) outputCmd(args []string) {
 
 // vanadiumReleaseCandidate updates binaries of staging cloud services and run tests for them.
 func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
