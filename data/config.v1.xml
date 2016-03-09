@@ -239,7 +239,6 @@
       -->
     </group>
     <group name="projects">
-      <test>vanadium-browser-test</test>
       <test>vanadium-playground-test</test>
     </group>
     <group name="third_party-go">
