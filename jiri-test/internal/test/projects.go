@@ -86,8 +86,7 @@ func vanadiumCroupierTestUnitGo(jirix *jiri.X, testName string, _ ...Opt) (*test
 
 // vanadiumReaderTest runs the tests for the reader example application.
 func vanadiumReaderTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
-	testDir := filepath.Join(jirix.Root, "release", "projects", "reader")
-	return runMakefileTest(jirix, testName, testDir, "test", nil, []string{"v23:nodejs"}, defaultProjectTestTimeout)
+	return runJavaTest(jirix, testName, []string{"release", "projects", "reader", "android"}, []string{"clean", "test"})
 }
 
 // vanadiumTravelTest runs the tests for the travel example application.
