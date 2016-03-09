@@ -67,6 +67,11 @@ var (
 	}
 )
 
+type step struct {
+	msg string
+	fn  func() error
+}
+
 type updater struct {
 	jirix               *jiri.X
 	hostname            string
@@ -142,8 +147,9 @@ func (u *updater) downloadReleaseBinaries(binDir string) error {
 
 // checkReleaseCandidateStatus checks whether the "latest" file in
 // gs://vanadium-release was updated today. If so, it means that the staging
-// services have been updated successfully today.
-func (u *updater) checkReleaseCandidateStatus() error {
+// services have been updated successfully today, and it will return the
+// content of the file.
+func (u *updater) checkReleaseCandidateStatus() (string, error) {
 	s := u.jirix.NewSeq()
 	args := []string{
 		"cat",
@@ -152,17 +158,17 @@ func (u *updater) checkReleaseCandidateStatus() error {
 	var out bytes.Buffer
 	stdout := io.MultiWriter(u.jirix.Stdout(), &out)
 	if err := s.Capture(stdout, nil).Last("gsutil", args...); err != nil {
-		return err
+		return "", err
 	}
 	t, err := time.Parse(rcTimeFormat, out.String())
 	if err != nil {
-		return fmt.Errorf("Parse(%s, %s) failed: %v", rcTimeFormat, out.String(), err)
+		return "", fmt.Errorf("Parse(%s, %s) failed: %v", rcTimeFormat, out.String(), err)
 	}
 	now := time.Now()
 	if t.Year() != now.Year() || t.Month() != now.Month() || t.Day() != now.Day() {
-		return fmt.Errorf("Release candidate (%v) not done for today", t)
+		return "", fmt.Errorf("Release candidate (%v) not done for today", t)
 	}
-	return nil
+	return out.String(), nil
 }
 
 // publishBinaries publishes binaries from the given location.
@@ -365,25 +371,15 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	type step struct {
-		msg string
-		fn  func() error
-	}
+	// Extract release candidate timestamp from env var.
 	u := newUpdater(jirix, hostNameStaging)
-	rcTimestamp := ""
+	rcTimestamp, err := u.extractRCTimestamp()
+	if err != nil {
+		return nil, newInternalError(err, "Extract release candidate timestamp")
+	}
+	fmt.Fprintf(u.jirix.Stdout(), "Timestamp: %s\n", rcTimestamp)
+
 	steps := []step{
-		step{
-			msg: "Extract release candidate timestamp",
-			fn: func() error {
-				var err error
-				rcTimestamp, err = u.extractRCTimestamp()
-				if err != nil {
-					return err
-				}
-				fmt.Fprintf(u.jirix.Stdout(), "Timestamp: %s\n", rcTimestamp)
-				return nil
-			},
-		},
 		step{
 			msg: "Prepare binaries",
 			fn: func() error {
@@ -393,44 +389,50 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 				return u.uploadVanadiumBinaries(rcTimestamp)
 			},
 		},
-		step{
-			// The binaries will be published from $JIRI_ROOT/release/go/bin.
-			msg: "Publish binaries",
-			fn:  func() error { return u.publishBinaries("") },
-		},
-		step{
-			msg: "Update installations",
-			fn:  u.updateInstallations,
-		},
-		step{
-			msg: "Update mounttable",
-			fn:  u.updateMounttable,
-		},
-		step{
-			msg: "Update non-mounttable apps",
-			fn:  u.updateNonMounttableInstances,
-		},
-		step{
-			msg: "Check manifest timestamps of all apps",
-			fn:  func() error { return u.checkManifestTimestamps("devmgr/apps/*/*/*", rcTimestamp, 8) },
-		},
-		step{
-			msg: "Update device manager",
-			fn:  u.updateDeviceManager,
-		},
-		step{
-			msg: "Check manifest timestamps of device manager",
-			fn:  func() error { return u.checkManifestTimestamps("devmgr/__debug", rcTimestamp, 1) },
-		},
-		step{
-			msg: "Health check",
-			fn:  u.checkServices,
-		},
+	}
+	steps = append(steps, genCommonSteps(u, "", rcTimestamp)...)
+	steps = append(steps,
 		step{
 			msg: "Update the 'latest' file",
 			fn:  func() error { return u.updateLatestFile(rcTimestamp) },
+		})
+	for _, step := range steps {
+		if result, err := invoker(jirix, step.msg, step.fn); result != nil || err != nil {
+			return result, err
+		}
+	}
+	return &test.Result{Status: test.Passed}, nil
+}
+
+// vanadiumReleaseProduction updates binaries of production cloud services and runs tests for them.
+func vanadiumReleaseProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
+	cleanup, err := initTest(jirix, testName, []string{"base"})
+	if err != nil {
+		return nil, newInternalError(err, "Init")
+	}
+	defer collect.Error(func() error { return cleanup() }, &e)
+
+	u := newUpdater(jirix, hostNameProduction)
+	// Temp dir to hold release binaries.
+	binDir, err := u.jirix.NewSeq().TempDir("", "")
+	if err != nil {
+		return nil, newInternalError(err, "TempDir")
+	}
+	defer u.jirix.NewSeq().RemoveAll(binDir)
+
+	// Make sure we got a release candidate today.
+	rcTimestamp, err := u.checkReleaseCandidateStatus()
+	if err != nil {
+		return nil, newInternalError(err, "Check release candidate")
+	}
+
+	steps := []step{
+		step{
+			msg: "Download release binaries",
+			fn:  func() error { return u.downloadReleaseBinaries(binDir) },
 		},
 	}
+	steps = append(steps, genCommonSteps(u, binDir, rcTimestamp)...)
 	for _, step := range steps {
 		if result, err := invoker(jirix, step.msg, step.fn); result != nil || err != nil {
 			return result, err
@@ -535,4 +537,41 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	}
 
 	return &test.Result{Status: test.Passed}, nil
+}
+
+func genCommonSteps(u *updater, binDir, rcTimestamp string) []step {
+	return []step{
+		step{
+			msg: "Publish binaries",
+			fn:  func() error { return u.publishBinaries(binDir) },
+		},
+		step{
+			msg: "Update installations",
+			fn:  u.updateInstallations,
+		},
+		step{
+			msg: "Update mounttable",
+			fn:  u.updateMounttable,
+		},
+		step{
+			msg: "Update non-mounttable apps",
+			fn:  u.updateNonMounttableInstances,
+		},
+		step{
+			msg: "Check manifest timestamps of all apps",
+			fn:  func() error { return u.checkManifestTimestamps("devmgr/apps/*/*/*", rcTimestamp, 8) },
+		},
+		step{
+			msg: "Update device manager",
+			fn:  u.updateDeviceManager,
+		},
+		step{
+			msg: "Check manifest timestamps of device manager",
+			fn:  func() error { return u.checkManifestTimestamps("devmgr/__debug", rcTimestamp, 1) },
+		},
+		step{
+			msg: "Health check",
+			fn:  u.checkServices,
+		},
+	}
 }
