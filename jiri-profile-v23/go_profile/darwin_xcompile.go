@@ -202,8 +202,8 @@ func useLLVM(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles.Targe
 	}
 
 	vars := []string{
-		"CC_FOR_TARGET=" + filepath.Join(ci.ClangBin, "go-"+targetABI+"-clang"),
-		"CXX_FOR_TARGET=" + filepath.Join(ci.ClangBin, "go-"+targetABI+"-clang++"),
+		"CC=" + filepath.Join(ci.ClangBin, "go-"+targetABI+"-clang"),
+		"CXX=" + filepath.Join(ci.ClangBin, "go-"+targetABI+"-clang++"),
 		"CLANG_BIN=" + filepath.Join(ci.ClangBin),
 		"BINUTILS_BIN=" + filepath.Join(ci.BinutilsBin, "bin"),
 		"CLANG=" + filepath.Join(ci.ClangBin, "go-"+targetABI+"-clang"),
