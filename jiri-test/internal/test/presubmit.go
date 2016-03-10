@@ -33,7 +33,7 @@ func requireEnv(names []string) error {
 // which to run presubmit tests.
 func vanadiumPresubmitPoll(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
-	cleanup, err := initTestImpl(jirix, false, false, testName, nil, "")
+	cleanup, err := initTestImpl(jirix, false, false, false, testName, nil, "")
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
@@ -69,7 +69,7 @@ func vanadiumPresubmitTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test
 	}
 
 	// Initialize the test.
-	cleanup, err := initTestImpl(jirix, false, false, testName, nil, "")
+	cleanup, err := initTestImpl(jirix, false, false, false, testName, nil, "")
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}

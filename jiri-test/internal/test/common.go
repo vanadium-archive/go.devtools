@@ -81,16 +81,16 @@ func regTestBinDirPath() string {
 
 // initTest carries out the initial actions for the given test.
 func initTest(jirix *jiri.X, testName string, profileNames []string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(jirix, false, true, testName, profileNames, "", opts...)
+	return initTestImpl(jirix, false, true, true, testName, profileNames, "", opts...)
 }
 
 // initTestForTarget carries out the initial actions for the given test using
 // a specific profile Target..
 func initTestForTarget(jirix *jiri.X, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
-	return initTestImpl(jirix, false, true, testName, profileNames, target, opts...)
+	return initTestImpl(jirix, false, true, true, testName, profileNames, target, opts...)
 }
 
-func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
+func initTestImpl(jirix *jiri.X, needCleanup, updateProfiles, printProfiles bool, testName string, profileNames []string, target string, opts ...initTestOpt) (func() error, error) {
 	// Output the hostname.
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -126,37 +126,38 @@ func initTestImpl(jirix *jiri.X, needCleanup, printProfiles bool, testName strin
 		return nil, err
 	}
 
-	if needCleanup {
-		if err := cleanupProfiles(jirix); err != nil {
-			return nil, newInternalError(err, "Init")
+	if updateProfiles {
+		insertTarget := func(profile string) []string {
+			if len(target) > 0 {
+				return []string{"--target=" + target, profile}
+			}
+			return []string{profile}
 		}
-	}
-
-	insertTarget := func(profile string) []string {
-		if len(target) > 0 {
-			return []string{"--target=" + target, profile}
+		if needCleanup {
+			if err := cleanupProfiles(jirix); err != nil {
+				return nil, newInternalError(err, "Init")
+			}
 		}
-		return []string{profile}
-	}
-
-	// Install profiles.
-	args := []string{"-v", "profile-v23", "install"}
-	for _, profile := range profileNames {
-		clargs := append(args, insertTarget(profile)...)
-		fmt.Fprintf(jirix.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
-		if err := s.Last("jiri", clargs...); err != nil {
-			return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
+		// Install profiles.
+		args := []string{"-v", "profile-v23", "install"}
+		for _, profile := range profileNames {
+			clargs := append(args, insertTarget(profile)...)
+			fmt.Fprintf(jirix.Stdout(), "Running: jiri %s\n", strings.Join(clargs, " "))
+			if err := s.Last("jiri", clargs...); err != nil {
+				return nil, fmt.Errorf("jiri %v: %v", strings.Join(clargs, " "), err)
+			}
+			fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(clargs, " "))
 		}
-		fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(clargs, " "))
+
+		// Update profiles.
+		args = []string{"profile", "update"}
+
+		if err := s.Capture(os.Stdout, os.Stderr).Last("jiri", args...); err != nil {
+			return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
+		}
+		fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
 	}
 
-	// Update profiles.
-	args = []string{"profile", "update"}
-
-	if err := s.Capture(os.Stdout, os.Stderr).Last("jiri", args...); err != nil {
-		return nil, fmt.Errorf("jiri %v: %v", strings.Join(args, " "), err)
-	}
-	fmt.Fprintf(jirix.Stdout(), "jiri %v: success\n", strings.Join(args, " "))
 	if printProfiles {
 		displayProfiles(jirix, "initTest:")
 	}

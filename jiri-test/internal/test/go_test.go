@@ -383,7 +383,7 @@ func TestGoBuild(t *testing.T) {
 	defer cleanupFake()
 
 	testName := "test-go-build"
-	cleanupTest, err := initTestImpl(fake.X, false, false, testName, nil, "")
+	cleanupTest, err := initTestImpl(fake.X, false, false, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -439,7 +439,7 @@ func TestGoBuild(t *testing.T) {
 func TestGoCoverage(t *testing.T) {
 	jirix := newJiriXWithRealRoot(t)
 	testName, pkgName := "test-go-coverage", "v.io/x/devtools/jiri-test/internal/test/testdata/foo"
-	cleanupTest, err := initTestImpl(jirix, false, false, testName, nil, "")
+	cleanupTest, err := initTestImpl(jirix, false, false, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -543,7 +543,7 @@ func runGoTest(t *testing.T, suffix string, exclusions []exclusion, expectedTest
 	jirix := newJiriXWithRealRoot(t)
 	testName, pkgName := "test-go-test", "v.io/x/devtools/jiri-test/internal/test/testdata/"+subPkg
 
-	cleanupTest, err := initTestImpl(jirix, false, false, testName, []string{"v23:base"}, "")
+	cleanupTest, err := initTestImpl(jirix, false, false, false, testName, nil, "")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
