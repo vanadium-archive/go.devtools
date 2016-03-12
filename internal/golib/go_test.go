@@ -43,7 +43,7 @@ func TestGoVDLGeneration(t *testing.T) {
 	const perm = os.ModePerm
 	goFile := filepath.Join(pkgdir, "doc.go")
 	inFile := filepath.Join(pkgdir, "test.vdl")
-	outFile := inFile + ".go"
+	outFile := filepath.Join(pkgdir, "testpkg.vdl.go")
 	if err := s.MkdirAll(pkgdir, perm).
 		WriteFile(goFile, []byte("package testpkg\n"), perm).
 		WriteFile(inFile, []byte("package testpkg\n"), perm).Done(); err != nil {
