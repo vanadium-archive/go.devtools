@@ -129,7 +129,7 @@ func (g *goRelease) install(jirix *jiri.X, dir string) error {
 		s = s.Run("tar", "-C", tmpDir, "-xzf", local)
 	}
 	if err := s.Remove(local).
-		MkdirAll(dir, profilesutil.DefaultDirPerm).
+		MkdirAll(filepath.Dir(dir), profilesutil.DefaultDirPerm).
 		Rename(filepath.Join(tmpDir, "go"), dir).
 		Done(); err != nil {
 		return err
