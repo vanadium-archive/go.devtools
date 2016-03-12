@@ -46,7 +46,7 @@ var (
 )
 
 func init() {
-	profilescmdline.RegisterReaderFlags(&cmdGo.Flags, &readerFlags, jiri.DefaultProfilesDBPath())
+	profilescmdline.RegisterReaderFlags(&cmdGo.Flags, &readerFlags, jiri.ProfilesDBDir)
 	flag.BoolVar(&systemGoFlag, "system-go", false, "use the version of go found in $PATH rather than that built by the go profile")
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")

@@ -27,7 +27,7 @@ var (
 
 func init() {
 	tool.InitializeRunFlags(&cmdRun.Flags)
-	profilescmdline.RegisterReaderFlags(&cmdRun.Flags, &readerFlags, jiri.DefaultProfilesDBPath())
+	profilescmdline.RegisterReaderFlags(&cmdRun.Flags, &readerFlags, jiri.ProfilesDBDir)
 	flag.BoolVar(&envFlag, "print-run-env", false, "print detailed info on environment variables and the command line used")
 }
 
