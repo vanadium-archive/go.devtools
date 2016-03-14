@@ -406,7 +406,7 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 
 // vanadiumReleaseProduction updates binaries of production cloud services and runs tests for them.
 func vanadiumReleaseProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	cleanup, err := initTest(jirix, testName, []string{"base"})
+	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
