@@ -7,7 +7,6 @@ package test
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -43,6 +42,14 @@ const (
 var (
 	defaultReleaseTestTimeout = time.Minute * 5
 	manifestRE                = regexp.MustCompile(`^devmgr/.*<manifest snapshotpath="manifest/(.*)">`)
+
+	toolsPackages = []string{
+		"v.io/x/ref/services/agent/gcreds/",
+		"v.io/x/ref/services/agent/vbecome/",
+		"v.io/x/ref/services/debug/debug/",
+		"v.io/x/ref/services/device/device/",
+		"v.io/x/devtools/vbinary/",
+	}
 
 	serviceBinaries = []string{
 		"applicationd",
@@ -85,16 +92,16 @@ func newUpdater(jirix *jiri.X, hostname string) *updater {
 	}
 }
 
-// buildVanadiumBinaries builds all vanadium binaries.
-func (u *updater) buildVanadiumBinaries() error {
+// buildBinaries builds binaries for the given package pattern.
+func (u *updater) buildBinaries(pkgs ...string) error {
 	s := u.jirix.NewSeq()
 	args := []string{
 		"jiri",
 		"go",
 		"install",
 		"-tags=leveldb",
-		"v.io/...",
 	}
+	args = append(args, pkgs...)
 	u.outputCmd(args)
 	return s.Last(args[0], args[1:]...)
 }
@@ -138,11 +145,13 @@ func (u *updater) uploadVanadiumBinaries(rcTimestamp string) error {
 func (u *updater) downloadReleaseBinaries(binDir string) error {
 	s := u.jirix.NewSeq()
 	args := []string{
+		u.bin("vbinary"),
 		"--release",
 		"download",
 		"--output-dir=" + binDir,
 	}
-	return s.Last(u.bin("vbinary"), args...)
+	u.outputCmd(args)
+	return s.Last(args[0], args[1:]...)
 }
 
 // checkReleaseCandidateStatus checks whether the "latest" file in
@@ -153,11 +162,10 @@ func (u *updater) checkReleaseCandidateStatus() (string, error) {
 	s := u.jirix.NewSeq()
 	args := []string{
 		"cat",
-		fmt.Sprintf("%s/latest"),
+		fmt.Sprintf("%s/latest", bucket),
 	}
 	var out bytes.Buffer
-	stdout := io.MultiWriter(u.jirix.Stdout(), &out)
-	if err := s.Capture(stdout, nil).Last("gsutil", args...); err != nil {
+	if err := s.Capture(&out, nil).Last("gsutil", args...); err != nil {
 		return "", err
 	}
 	t, err := time.Parse(rcTimeFormat, out.String())
@@ -168,6 +176,7 @@ func (u *updater) checkReleaseCandidateStatus() (string, error) {
 	if t.Year() != now.Year() || t.Month() != now.Month() || t.Day() != now.Day() {
 		return "", fmt.Errorf("Release candidate (%v) not done for today", t)
 	}
+	fmt.Fprintf(u.jirix.Stdout(), "Snapshot timestamp: %s\n", out.String())
 	return out.String(), nil
 }
 
@@ -383,7 +392,7 @@ func vanadiumReleaseCandidate(jirix *jiri.X, testName string, opts ...Opt) (_ *t
 		step{
 			msg: "Prepare binaries",
 			fn: func() error {
-				if err := u.buildVanadiumBinaries(); err != nil {
+				if err := u.buildBinaries("v.io/..."); err != nil {
 					return err
 				}
 				return u.uploadVanadiumBinaries(rcTimestamp)
@@ -421,12 +430,19 @@ func vanadiumReleaseProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *
 	defer u.jirix.NewSeq().RemoveAll(binDir)
 
 	// Make sure we got a release candidate today.
-	rcTimestamp, err := u.checkReleaseCandidateStatus()
-	if err != nil {
-		return nil, newInternalError(err, "Check release candidate")
+	rcTimestamp := ""
+	if result, err := invoker(jirix, "Check release candidate status", func() error {
+		rcTimestamp, err = u.checkReleaseCandidateStatus()
+		return err
+	}); result != nil || err != nil {
+		return result, err
 	}
 
 	steps := []step{
+		step{
+			msg: "Prepare tools",
+			fn:  func() error { return u.buildBinaries(toolsPackages...) },
+		},
 		step{
 			msg: "Download release binaries",
 			fn:  func() error { return u.downloadReleaseBinaries(binDir) },
