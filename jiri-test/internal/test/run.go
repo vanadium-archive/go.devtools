@@ -138,6 +138,8 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"vanadium-release-candidate":              vanadiumReleaseCandidate,
 	"vanadium-release-candidate-snapshot":     vanadiumReleaseCandidateSnapshot,
 	"vanadium-release-production":             vanadiumReleaseProduction,
+	"vanadium-release-kube-staging":           vanadiumReleaseKubeStaging,
+	"vanadium-release-kube-production":        vanadiumReleaseKubeProduction,
 	"vanadium-signup-github":                  vanadiumSignupGithub,
 	"vanadium-signup-github-new":              vanadiumSignupGithubNew,
 	"vanadium-signup-group":                   vanadiumSignupGroup,
