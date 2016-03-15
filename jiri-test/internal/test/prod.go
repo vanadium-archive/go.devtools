@@ -219,7 +219,7 @@ func setupPrincipal(jirix *jiri.X, tmpdir, pubkey string, blessingNames []string
 	s := jirix.NewSeq()
 	dir := filepath.Join(tmpdir, "credentials")
 	bin := filepath.Join(jirix.Root, "release", "go", "bin", "principal")
-	if err := s.Timeout(test.DefaultTimeout).Last(bin, "create", dir, "prod-services-tester"); err != nil {
+	if err := s.Timeout(test.DefaultTimeout).Last(bin, "create", "-with-passphrase=false", dir, "prod-services-tester"); err != nil {
 		fmt.Fprintf(jirix.Stderr(), "principal create failed: %v\n", err)
 		return "", err
 	}
