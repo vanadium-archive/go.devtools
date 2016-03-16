@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"v.io/jiri"
 	"v.io/jiri/collect"
@@ -19,7 +20,13 @@ func vanadiumReleaseKubeStaging(jirix *jiri.X, testName string, opts ...Opt) (_ 
 	if manifestPath == "" {
 		return nil, fmt.Errorf("SNAPSHOT_MANIFEST environment variable not set")
 	}
-	return vanadiumReleaseKubeCommon(jirix, testName, "staging", filepath.Base(manifestPath))
+	// Remove all separators to make the version string look cleaner.
+	version := filepath.Base(manifestPath)
+	for _, s := range []string{"-", ".", ":"} {
+		version = strings.Replace(version, s, "", -1)
+	}
+	version = "manifest-" + version
+	return vanadiumReleaseKubeCommon(jirix, testName, "staging", version)
 }
 
 func vanadiumReleaseKubeProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
@@ -45,7 +52,7 @@ func vanadiumReleaseKubeCommon(jirix *jiri.X, testName, updateType, version stri
 	if version != "" {
 		args = append(args, fmt.Sprintf("-tag=%s", version))
 	}
-	if err := s.Last(vprodupdaterBin, args...); err != nil {
+	if err := s.Capture(jirix.Stdout(), jirix.Stderr()).Last(vprodupdaterBin, args...); err != nil {
 		return nil, newInternalError(err, "Run vprodupdater")
 	}
 	return &test.Result{Status: test.Passed}, nil
