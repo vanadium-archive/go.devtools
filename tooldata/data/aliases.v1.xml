@@ -1,0 +1,70 @@
+<?xml version="1.0" ?>
+<aliases>
+  <email>
+    <canonical>aghassemi@google.com</canonical>
+    <alias>aghassemi@aghassemi-macbookpro.roam.corp.google.com</alias>
+  </email>
+  <email>
+    <canonical>sadovsky@google.com</canonical>
+    <alias>asadovsky@gmail.com</alias>
+  </email>
+  <email>
+    <canonical>nevenag@google.com</canonical>
+    <alias>nevena.golubovic@gmail.com</alias>
+  </email>
+  <email>
+    <canonical>jregan@google.com</canonical>
+    <alias>git-jregan.google.com</alias>
+  </email>
+  <email>
+    <canonical>rjkroege@google.com</canonical>
+    <alias>rjkroege@chromium.org</alias>
+  </email>
+  <email>
+    <canonical>sjr@google.com</canonical>
+    <alias>sjr@jdns.org</alias>
+  </email>
+  <name>
+    <canonical>Ali Ghassemi</canonical>
+    <alias>aghassemi</alias>
+  </name>
+  <name>
+    <canonical>Ankur Taly</canonical>
+    <alias>Ankur</alias>
+  </name>
+  <name>
+    <canonical>Benjamin Prosnitz</canonical>
+    <alias>Benj Prosnitz</alias>
+  </name>
+  <name>
+    <canonical>Dave Presotto</canonical>
+    <alias>David Why Use Two When One Will Do Presotto</alias>
+    <alias>David Presotto</alias>
+  </name>
+  <name>
+    <canonical>Gautham Thambidorai</canonical>
+    <alias>Gautham</alias>
+    <alias>gauthamt</alias>
+  </name>
+  <name>
+    <canonical>Elizabeth Churchill</canonical>
+    <alias>xeeliz</alias>
+  </name>
+  <name>
+    <canonical>Ellen Isaacs</canonical>
+    <alias>lnizix</alias>
+  </name>
+  <name>
+    <canonical>Jeffrey Regan</canonical>
+    <alias>jregan</alias>
+  </name>
+  <name>
+    <canonical>Nicolas LaCasse</canonical>
+    <alias>Nicolas Lacasse</alias>
+  </name>
+  <name>
+    <canonical>William Leler</canonical>
+    <alias>Wm Leler</alias>
+    <alias>wmleler</alias>
+  </name>
+</aliases>
