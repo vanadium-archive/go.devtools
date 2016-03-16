@@ -12,6 +12,7 @@ Usage:
    jiri test [flags] <command>
 
 The jiri test commands are:
+   poll        Poll existing jiri projects
    project     Run tests for a vanadium project
    run         Run vanadium tests
    list        List vanadium tests
@@ -40,6 +41,38 @@ The global flags are:
    Displays metadata for the program and exits.
  -time=false
    Dump timing information to stderr before exiting the program.
+
+Jiri test poll - Poll existing jiri projects
+
+Poll jiri projects that can affect the outcome of the given tests and report
+whether any new changes in these projects exist. If no tests are specified, all
+projects are polled by default.
+
+Usage:
+   jiri test poll [flags] <test ...>
+
+<test ...> is a list of tests that determine what projects to poll.
+
+The jiri test poll flags are:
+ -manifest=
+   Name of the project manifest.
+
+ -color=true
+   Use color to format output.
+ -env=
+   specify an environment variable in the form: <var>=[<val>],...
+ -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
+   specify policies for merging environment variables
+ -profiles=v23:base,jiri
+   a comma separated list of profiles to use
+ -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
+   the path, relative to JIRI_ROOT, that contains the profiles database.
+ -skip-profiles=false
+   if set, no profiles will be used
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
+ -v=false
+   Print verbose output.
 
 Jiri test project - Run tests for a vanadium project
 

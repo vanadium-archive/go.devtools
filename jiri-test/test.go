@@ -8,16 +8,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
 
 	"v.io/jiri"
 	"v.io/jiri/profiles/profilescmdline"
+	"v.io/jiri/project"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	jiriTest "v.io/x/devtools/jiri-test/internal/test"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 )
 
 var (
@@ -48,6 +52,7 @@ func init() {
 	cmdTestRun.Flags.StringVar(&mockTestFilePaths, "mock-file-paths", "", "Colon-separated file paths to read when testing presubmit test. This flag is only used when running presubmit end-to-end test.")
 	cmdTestRun.Flags.StringVar(&mockTestFileContents, "mock-file-contents", "", "Colon-separated file contents to check when testing presubmit test. This flag is only used when running presubmit end-to-end test.")
 	tool.InitializeRunFlags(&cmdTest.Flags)
+	tool.InitializeProjectFlags(&cmdProjectPoll.Flags)
 	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, jiri.ProfilesDBDir)
 }
 
@@ -56,7 +61,7 @@ var cmdTest = &cmdline.Command{
 	Name:     "test",
 	Short:    "Manage vanadium tests",
 	Long:     "Manage vanadium tests.",
-	Children: []*cmdline.Command{cmdTestProject, cmdTestRun, cmdTestList},
+	Children: []*cmdline.Command{cmdProjectPoll, cmdTestProject, cmdTestRun, cmdTestList},
 }
 
 // cmdTestProject represents the "jiri test project" command.
@@ -117,6 +122,68 @@ func runTestRun(jirix *jiri.X, args []string) error {
 		if result.Status != test.Passed {
 			return cmdline.ErrExitCode(test.FailedExitCode)
 		}
+	}
+	return nil
+}
+
+// cmdProjectPoll represents the "jiri project poll" command.
+var cmdProjectPoll = &cmdline.Command{
+	Runner: jiri.RunnerFunc(runProjectPoll),
+	Name:   "poll",
+	Short:  "Poll existing jiri projects",
+	Long: `
+Poll jiri projects that can affect the outcome of the given tests
+and report whether any new changes in these projects exist. If no
+tests are specified, all projects are polled by default.
+`,
+	ArgsName: "<test ...>",
+	ArgsLong: "<test ...> is a list of tests that determine what projects to poll.",
+}
+
+// runProjectPoll generates a description of changes that exist
+// remotely but do not exist locally.
+func runProjectPoll(jirix *jiri.X, args []string) error {
+	projectSet := map[string]struct{}{}
+	if len(args) > 0 {
+		config, err := tooldata.LoadConfig(jirix)
+		if err != nil {
+			return err
+		}
+		// Compute a map from tests to projects that can change the
+		// outcome of the test.
+		testProjects := map[string][]string{}
+		for _, project := range config.Projects() {
+			for _, test := range config.ProjectTests([]string{project}) {
+				testProjects[test] = append(testProjects[test], project)
+			}
+		}
+		for _, arg := range args {
+			projects, ok := testProjects[arg]
+			if !ok {
+				return fmt.Errorf("failed to find any projects for test %q", arg)
+			}
+			set.String.Union(projectSet, set.String.FromSlice(projects))
+		}
+	}
+	update, err := project.PollProjects(jirix, projectSet)
+	if err != nil {
+		return err
+	}
+
+	// Remove projects with empty changes.
+	for project := range update {
+		if changes := update[project]; len(changes) == 0 {
+			delete(update, project)
+		}
+	}
+
+	// Print update if it is not empty.
+	if len(update) > 0 {
+		bytes, err := json.MarshalIndent(update, "", "  ")
+		if err != nil {
+			return fmt.Errorf("MarshalIndent() failed: %v", err)
+		}
+		fmt.Fprintf(jirix.Stdout(), "%s\n", bytes)
 	}
 	return nil
 }

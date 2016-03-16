@@ -1,0 +1,45 @@
+pkg tooldata, func ConfigFilePath(*jiri.X) (string, error)
+pkg tooldata, func DataDirPath(*jiri.X, string) (string, error)
+pkg tooldata, func LoadConfig(*jiri.X) (*Config, error)
+pkg tooldata, func LoadOncallRotation(*jiri.X) (*OncallRotation, error)
+pkg tooldata, func NewConfig(...ConfigOpt) *Config
+pkg tooldata, func Oncall(*jiri.X, time.Time) (*OncallShift, error)
+pkg tooldata, func OncallRotationPath(*jiri.X) (string, error)
+pkg tooldata, func SaveConfig(*jiri.X, *Config) error
+pkg tooldata, func ThirdPartyBinPath(*jiri.X, string) (string, error)
+pkg tooldata, method (Config) APICheckProjects() map[string]struct{}
+pkg tooldata, method (Config) CopyrightCheckProjects() map[string]struct{}
+pkg tooldata, method (Config) GoPath(*jiri.X) string
+pkg tooldata, method (Config) GoWorkspaces() []string
+pkg tooldata, method (Config) GroupTests([]string) []string
+pkg tooldata, method (Config) JenkinsMatrixJobs() map[string]JenkinsMatrixJobInfo
+pkg tooldata, method (Config) ProjectTests([]string) []string
+pkg tooldata, method (Config) Projects() []string
+pkg tooldata, method (Config) TestDependencies(string) []string
+pkg tooldata, method (Config) TestParts(string) []string
+pkg tooldata, method (Config) VDLPath(*jiri.X) string
+pkg tooldata, method (Config) VDLWorkspaces() []string
+pkg tooldata, type APICheckProjectsOpt map[string]struct{}
+pkg tooldata, type Config struct
+pkg tooldata, type ConfigOpt interface, unexported methods
+pkg tooldata, type CopyrightCheckProjectsOpt map[string]struct{}
+pkg tooldata, type GoWorkspacesOpt []string
+pkg tooldata, type JenkinsMatrixJobInfo struct
+pkg tooldata, type JenkinsMatrixJobInfo struct, HasArch bool
+pkg tooldata, type JenkinsMatrixJobInfo struct, HasOS bool
+pkg tooldata, type JenkinsMatrixJobInfo struct, HasParts bool
+pkg tooldata, type JenkinsMatrixJobInfo struct, Name string
+pkg tooldata, type JenkinsMatrixJobInfo struct, ShowOS bool
+pkg tooldata, type JenkinsMatrixJobsOpt map[string]JenkinsMatrixJobInfo
+pkg tooldata, type OncallRotation struct
+pkg tooldata, type OncallRotation struct, Shifts []OncallShift
+pkg tooldata, type OncallRotation struct, XMLName xml.Name
+pkg tooldata, type OncallShift struct
+pkg tooldata, type OncallShift struct, Date string
+pkg tooldata, type OncallShift struct, Primary string
+pkg tooldata, type OncallShift struct, Secondary string
+pkg tooldata, type ProjectTestsOpt map[string][]string
+pkg tooldata, type TestDependenciesOpt map[string][]string
+pkg tooldata, type TestGroupsOpt map[string][]string
+pkg tooldata, type TestPartsOpt map[string][]string
+pkg tooldata, type VDLWorkspacesOpt []string
