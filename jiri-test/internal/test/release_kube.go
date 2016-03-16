@@ -15,11 +15,11 @@ import (
 )
 
 func vanadiumReleaseKubeStaging(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	version := os.Getenv("SNAPSHOT_MANIFEST")
-	if version == "" {
+	manifestPath := os.Getenv("SNAPSHOT_MANIFEST")
+	if manifestPath == "" {
 		return nil, fmt.Errorf("SNAPSHOT_MANIFEST environment variable not set")
 	}
-	return vanadiumReleaseKubeCommon(jirix, testName, "staging", version)
+	return vanadiumReleaseKubeCommon(jirix, testName, "staging", filepath.Base(manifestPath))
 }
 
 func vanadiumReleaseKubeProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
