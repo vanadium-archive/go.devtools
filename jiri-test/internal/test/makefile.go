@@ -16,6 +16,11 @@ import (
 
 // runMakefileTest is a helper for running tests through make commands.
 func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[string]string, profiles []string, timeout time.Duration) (_ *test.Result, e error) {
+	return runMakefileTestWithExtraDeps(jirix, testName, testDir, target, env, profiles, nil, timeout)
+}
+
+// runMakefileTestWithExtraDeps is a helper for running tests through make commands with extra dependencies.
+func runMakefileTestWithExtraDeps(jirix *jiri.X, testName, testDir, target string, env map[string]string, profiles []string, initExtraDeps func() (func() error, error), timeout time.Duration) (_ *test.Result, e error) {
 	// Install base profile first, before any test-specific profiles.
 	profiles = append([]string{"v23:base"}, profiles...)
 
@@ -25,6 +30,13 @@ func runMakefileTest(jirix *jiri.X, testName, testDir, target string, env map[st
 		return nil, newInternalError(err, "Init")
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
+	if initExtraDeps != nil {
+		cleanup, err := initExtraDeps()
+		if err != nil {
+			return nil, newInternalError(err, "InitExtraDeps")
+		}
+		defer collect.Error(func() error { return cleanup() }, &e)
+	}
 
 	s := jirix.NewSeq()
 
