@@ -35,6 +35,7 @@ const (
 	mounttableWaitRetryPeriod = 10 * time.Second
 	propertiesFile            = ".release_candidate_properties"
 	rcTimeFormat              = "2006-01-02.15:04"
+	snapshotTimestampEnvVar   = "SNAPSHOT_TIMESTAMP"
 	snapshotName              = "rc"
 	testsEnvVar               = "TESTS"
 )
@@ -429,11 +430,21 @@ func vanadiumReleaseProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *
 	}
 	defer u.jirix.NewSeq().RemoveAll(binDir)
 
-	// Make sure we got a release candidate today.
+	// Try to get the snapshot timestamp from SNAPSHOT_TIMESTAMP environment variable.
+	// If it is empty, get the timestamp from the gs://vanadium-release/latest file.
 	rcTimestamp := ""
-	if result, err := invoker(jirix, "Check release candidate status", func() error {
-		rcTimestamp, err = u.checkReleaseCandidateStatus()
-		return err
+	if result, err := invoker(jirix, "Get release candidate snapshot timestamp", func() error {
+		s := u.jirix.NewSeq()
+		if rcTimestamp = os.Getenv(snapshotTimestampEnvVar); rcTimestamp == "" {
+			args := []string{"cat", fmt.Sprintf("%s/latest", bucket)}
+			var out bytes.Buffer
+			if err := s.Capture(&out, nil).Last("gsutil", args...); err != nil {
+				return err
+			}
+			rcTimestamp = out.String()
+		}
+		fmt.Fprintf(jirix.Stdout(), "Timestamp: %s\n", rcTimestamp)
+		return nil
 	}); result != nil || err != nil {
 		return result, err
 	}

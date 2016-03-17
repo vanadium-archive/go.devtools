@@ -16,21 +16,20 @@ import (
 )
 
 func vanadiumReleaseKubeStaging(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	manifestPath := os.Getenv("SNAPSHOT_MANIFEST")
+	manifestPath := os.Getenv(manifestEnvVar)
 	if manifestPath == "" {
-		return nil, fmt.Errorf("SNAPSHOT_MANIFEST environment variable not set")
+		return nil, fmt.Errorf("%s environment variable not set", manifestEnvVar)
 	}
-	// Remove all separators to make the version string look cleaner.
-	version := filepath.Base(manifestPath)
-	for _, s := range []string{"-", ".", ":"} {
-		version = strings.Replace(version, s, "", -1)
-	}
-	version = "manifest-" + version
+	version := cleanupVersionString(filepath.Base(manifestPath))
 	return vanadiumReleaseKubeCommon(jirix, testName, "staging", version)
 }
 
 func vanadiumReleaseKubeProduction(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
-	return vanadiumReleaseKubeCommon(jirix, testName, "production", "")
+	version := ""
+	if snapshotTimestamp := os.Getenv(snapshotTimestampEnvVar); snapshotTimestamp != "" {
+		version = cleanupVersionString(snapshotTimestamp)
+	}
+	return vanadiumReleaseKubeCommon(jirix, testName, "production", version)
 }
 
 func vanadiumReleaseKubeCommon(jirix *jiri.X, testName, updateType, version string) (_ *test.Result, e error) {
@@ -48,12 +47,18 @@ func vanadiumReleaseKubeCommon(jirix *jiri.X, testName, updateType, version stri
 	vprodupdaterBin := filepath.Join(jirix.Root, "infrastructure", "go", "bin", "vprodupdater")
 	args := []string{
 		fmt.Sprintf("-type=%s", updateType),
-	}
-	if version != "" {
-		args = append(args, fmt.Sprintf("-tag=%s", version))
+		fmt.Sprintf("-tag=%s", version),
 	}
 	if err := s.Capture(jirix.Stdout(), jirix.Stderr()).Last(vprodupdaterBin, args...); err != nil {
 		return nil, newInternalError(err, "Run vprodupdater")
 	}
 	return &test.Result{Status: test.Passed}, nil
+}
+
+func cleanupVersionString(version string) string {
+	// Remove all separators to make the version string look cleaner.
+	for _, s := range []string{"-", ".", ":"} {
+		version = strings.Replace(version, s, "", -1)
+	}
+	return "manifest-" + version
 }
