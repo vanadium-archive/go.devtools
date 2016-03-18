@@ -559,8 +559,8 @@ func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles
 
 	vars := []string{
 		"CGO_ENABLED=1",
-		"CC_FOR_TARGET=" + filepath.Join(jirix.Root, "release/swift/clang/clangwrap.sh"),
-		"CXX_FOR_TARGET=" + filepath.Join(jirix.Root, "release/swift/clang/clangwrap++.sh"),
+		"CC_FOR_TARGET=" + filepath.Join(jirix.Root, "release", "swift", "clang", "clangwrap.sh"),
+		"CXX_FOR_TARGET=" + filepath.Join(jirix.Root, "release", "swift", "clang", "clangwrap++.sh"),
 		"GOOS=darwin",
 		"GOHOSTARCH=amd64",
 		"GOHOSTOS=darwin",
@@ -579,7 +579,7 @@ func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles
 
 	// Add patch for text-relocation errors on arm64
 	// Submitted to golang, currently marked for 1.7: https://go-review.googlesource.com/#/c/19206/
-	patchPath := filepath.Join(jirix.Root, "release/go/src/v.io/x/devtools/jiri-v23-profile/go/macho_linker.patch")
+	patchPath := filepath.Join(jirix.Root, "release", "go", "src", "v.io", "x", "devtools", "jiri-profile-v23", "go_profile", "macho_linker.patch")
 	m.spec.patchFiles = append(m.spec.patchFiles, patchPath)
 	return "", vars, nil
 }
