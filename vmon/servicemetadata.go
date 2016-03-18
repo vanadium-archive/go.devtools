@@ -32,7 +32,6 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 		snApplications,
 		snBinaries,
 		snIdentity,
-		snGroups,
 		snRole,
 		snProxy,
 	}

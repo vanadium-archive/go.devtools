@@ -35,7 +35,6 @@ const (
 	snBinaryDischarger = "binary discharger"
 	snRole             = "role service"
 	snProxy            = "proxy service"
-	snGroups           = "groups service"
 
 	hostnameStatSuffix = "__debug/stats/system/hostname"
 	zoneStatSuffix     = "__debug/stats/system/gce/zone"
@@ -53,7 +52,6 @@ var serviceMountedNames = map[string]string{
 	snBinaryDischarger: "identity/dev.v.io:u/discharger",
 	snRole:             "identity/role",
 	snProxy:            "proxy-mon",
-	snGroups:           "groups",
 }
 
 type aggregator struct {

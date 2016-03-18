@@ -43,7 +43,6 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 		snIdentity,
 		snRole,
 		snProxy,
-		snGroups,
 	}
 
 	hasError := false

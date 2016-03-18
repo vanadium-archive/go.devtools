@@ -56,7 +56,6 @@ var (
 		"applicationd",
 		"binaryd",
 		"deviced",
-		"groupsd",
 		"identityd",
 		"mounttabled",
 		"xproxyd",
@@ -67,7 +66,6 @@ var (
 	nonMounttableApps = []string{
 		"devmgr/apps/applicationd",
 		"devmgr/apps/binaryd",
-		"devmgr/apps/groupsd",
 		"devmgr/apps/identityd",
 		"devmgr/apps/roled",
 		"devmgr/apps/xproxyd",
@@ -100,7 +98,6 @@ func (u *updater) buildBinaries(pkgs ...string) error {
 		"jiri",
 		"go",
 		"install",
-		"-tags=leveldb",
 	}
 	args = append(args, pkgs...)
 	u.outputCmd(args)
@@ -586,7 +583,7 @@ func genCommonSteps(u *updater, binDir, rcTimestamp string) []step {
 		},
 		step{
 			msg: "Check manifest timestamps of all apps",
-			fn:  func() error { return u.checkManifestTimestamps("devmgr/apps/*/*/*", rcTimestamp, 8) },
+			fn:  func() error { return u.checkManifestTimestamps("devmgr/apps/*/*/*", rcTimestamp, 7) },
 		},
 		step{
 			msg: "Update device manager",

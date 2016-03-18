@@ -38,7 +38,6 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 		snBinaries,
 		snApplications,
 		snIdentity,
-		snGroups,
 		snRole,
 		snProxy,
 	}

@@ -43,7 +43,6 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 		snBinaryDischarger,
 		snRole,
 		snProxy,
-		snGroups,
 	}
 
 	hasError := false
