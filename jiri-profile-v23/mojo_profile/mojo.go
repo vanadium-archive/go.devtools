@@ -421,8 +421,8 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, outDir string) erro
 		androidPlatformToolsZipFile := filepath.Join(tmpDir, "platform-tools.zip")
 		return jirix.NewSeq().
 			Call(func() error {
-			return profilesutil.Fetch(jirix, androidPlatformToolsZipFile, androidPlatformToolsUrl(m.spec.androidPlatformToolsVersion))
-		}, "fetch android platform tools").
+				return profilesutil.Fetch(jirix, androidPlatformToolsZipFile, androidPlatformToolsUrl(m.spec.androidPlatformToolsVersion))
+			}, "fetch android platform tools").
 			Call(func() error { return profilesutil.Unzip(jirix, androidPlatformToolsZipFile, tmpDir) }, "unzip android platform tools").
 			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
 			Rename(filepath.Join(tmpDir, "platform-tools"), outDir).
@@ -617,8 +617,8 @@ func (m *Manager) installMojoSystemThunks(jirix *jiri.X, outDir string) error {
 		outFile := filepath.Join(outDir, "libsystem_thunks.a")
 		return jirix.NewSeq().MkdirAll(outDir, profilesutil.DefaultDirPerm).
 			Call(func() error {
-			return profilesutil.Fetch(jirix, outFile, mojoSystemThunksUrl(m.platform, m.buildVersion))
-		}, "fetch mojo system thunks").Done()
+				return profilesutil.Fetch(jirix, outFile, mojoSystemThunksUrl(m.platform, m.buildVersion))
+			}, "fetch mojo system thunks").Done()
 	}
 	return profilesutil.AtomicAction(jirix, fn, outDir, "Download Mojo system thunks")
 }

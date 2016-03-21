@@ -43,7 +43,11 @@ func Register(installer, profile string) {
 					{"go", "1.5.2.1:56093743"},
 					{"syncbase", ""}},
 				},
-			}, "1"),
+				"5": &versionSpec{[]struct{ name, version string }{
+					{"go", "1.6"},
+					{"syncbase", ""}},
+				},
+			}, "5"),
 	}
 	profilesmanager.Register(m)
 }
@@ -113,7 +117,13 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 		os = "darwin"
 	}
 	base.Set("GOOS", os)
-	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), base, profileEnvs...)
+	// Slight modifications to ProfileMergePolicies: Want the values from
+	// the "go" profile we depend on to prevail.
+	mp := profilesreader.ProfileMergePolicies()
+	mp["GOROOT"] = profilesreader.UseLast
+	mp["GOROOT_BOOTSTRAP"] = profilesreader.IgnoreBaseUseLast
+	mp["CGO_ENABLED"] = profilesreader.IgnoreBaseUseLast
+	profilesreader.MergeEnv(mp, base, profileEnvs...)
 	target.Env.Vars = base.ToSlice()
 	pdb.InstallProfile(m.profileInstaller, m.profileName, string(root))
 	return pdb.AddProfileTarget(m.profileInstaller, m.profileName, target)

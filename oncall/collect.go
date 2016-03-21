@@ -453,9 +453,9 @@ func collectCloudServicesBuildInfo(ctx *tool.Context, zones map[string]*zoneData
 		Capture(&stdoutBuf, &stderrBuf).
 		Timeout(debugCommandTimeout).
 		Last(debug,
-		"--timeout", debugRPCTimeout.String(),
-		"--v23.namespace.root", namespaceRoot,
-		"--v23.credentials", credentialsFlag, "stats", "read", fmt.Sprintf("%s/build.[TPUM]*", buildInfoEndpointPrefix)); err != nil {
+			"--timeout", debugRPCTimeout.String(),
+			"--v23.namespace.root", namespaceRoot,
+			"--v23.credentials", credentialsFlag, "stats", "read", fmt.Sprintf("%s/build.[TPUM]*", buildInfoEndpointPrefix)); err != nil {
 		return fmt.Errorf("debug command failed: %v\nSTDERR:\n%s\nSTDOUT:\n%s\nEND\n", err, stderrBuf.String(), stdoutBuf.String())
 	}
 

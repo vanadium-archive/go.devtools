@@ -21,7 +21,6 @@ import (
 	"v.io/jiri/gitutil"
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
-	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/profiles/profilesutil"
 	"v.io/jiri/project"
 	"v.io/x/lib/envvar"
@@ -156,7 +155,7 @@ func Register(installer, profile string) {
 				"560937434d5f2857bb69e0a6881a38201a197a8d", nil},
 			"1.6": &versionSpec{
 				"e805bf39458915365924228dc53969ce04e32813", nil},
-		}, "1.5.1"), // TODO(ashankar): Change to 1.6 once all code has been updated to pass tests with it
+		}, "1.6"),
 	}
 	profilesmanager.Register(m)
 }
@@ -255,6 +254,8 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 	if release := newGoRelease(target.Version()); release != nil &&
 		len(m.spec.patchFiles) == 0 &&
 		!env.Contains("GO_FLAGS") {
+		// Not using a bootstrapped Go, delete any references from env.
+		env.Delete("GOROOT_BOOTSTRAP")
 		goInstDir = m.goRoot.Join("shared").Join(target.Version())
 		fn := func() error { return release.install(jirix, goInstDir.Abs(jirix)) }
 		if err := profilesutil.AtomicAction(jirix, fn, goInstDir.Abs(jirix), "Install a release version of the Go toolchain"); err != nil {
@@ -289,9 +290,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 			return err
 		}
 	}
-	// Merge our target environment and GOROOT
-	goEnv := []string{"GOROOT=" + goInstDir.Symbolic()}
-	profilesreader.MergeEnv(profilesreader.ProfileMergePolicies(), env, goEnv)
+	env.Set("GOROOT", goInstDir.Symbolic())
 	target.Env.Vars = env.ToSlice()
 	target.InstallationDir = string(goInstDir)
 
@@ -563,6 +562,12 @@ func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles
 		"CC_FOR_TARGET=" + filepath.Join(jirix.Root, "release/swift/clang/clangwrap.sh"),
 		"CXX_FOR_TARGET=" + filepath.Join(jirix.Root, "release/swift/clang/clangwrap++.sh"),
 		"GOOS=darwin",
+		"GOHOSTARCH=amd64",
+		"GOHOSTOS=darwin",
+		// We need to explicitly pass the ios build tag to the make.bash script for go so that it won't compile
+		// crypto code that's meant for the mac. It'll work on the device because those files have a build tag
+		// of !arm64, but the simulator will fail because those specific APIs don't exist on iOS.
+		"GO_FLAGS=-tags ios",
 	}
 
 	// 32-bit arm is always armv7 in Apple-land
@@ -576,14 +581,6 @@ func darwin_to_ios(jirix *jiri.X, m *Manager, root jiri.RelPath, target profiles
 	// Submitted to golang, currently marked for 1.7: https://go-review.googlesource.com/#/c/19206/
 	patchPath := filepath.Join(jirix.Root, "release/go/src/v.io/x/devtools/jiri-v23-profile/go/macho_linker.patch")
 	m.spec.patchFiles = append(m.spec.patchFiles, patchPath)
-	// Additional to influence make.bash used when building our own toolchain
-	vars = append(vars,
-		"GOHOSTARCH=amd64",
-		"GOHOSTOS=darwin",
-		// We need to explicitly pass the ios build tag to the make.bash script for go so that it won't compile
-		// crypto code that's meant for the mac. It'll work on the device because those files have a build tag
-		// of !arm64, but the simulator will fail because those specific APIs don't exist on iOS.
-		"GO_FLAGS=-tags ios")
 	return "", vars, nil
 }
 

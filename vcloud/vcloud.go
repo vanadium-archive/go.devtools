@@ -309,11 +309,11 @@ func (n nodeInfo) RunCommand(ctx *tool.Context, user string, cmdline []string) r
 	var stdouterr bytes.Buffer
 	err := ctx.NewSeq().Read(nil).Capture(&stdouterr, &stdouterr).
 		Last("gcloud", "compute", "ssh",
-		addUser(user, n.Name),
-		"--project", *flagProject,
-		"--zone", n.Zone,
-		"--command", quoteForCommand(cmdline),
-	)
+			addUser(user, n.Name),
+			"--project", *flagProject,
+			"--zone", n.Zone,
+			"--command", quoteForCommand(cmdline),
+		)
 	return runResult{node: n, out: stdouterr.String(), err: err}
 }
 

@@ -33,6 +33,7 @@ type versionSpec struct {
 	ndkExtract           func(seq runutil.Sequence, src, dst string) runutil.Sequence
 	ndkAPILevel          int
 	platformToolsVersion map[string]string
+	baseVersion          string // Version of the base profile that this requires
 }
 
 func ndkArch(goArch string) (string, error) {
@@ -71,21 +72,25 @@ func Register(installer, profile string) {
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r9d-%s-%s.tar.bz2", ndkDownloadBaseURL, runtime.GOOS, arch),
 				ndkExtract:     tarExtract,
 				ndkAPILevel:    9,
+				baseVersion:    "4",
 			},
 			"4": &versionSpec{
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    16,
+				baseVersion:    "4",
 			},
 			"5": &versionSpec{
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    21,
+				baseVersion:    "4",
 			},
 			"7": &versionSpec{
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
 				ndkExtract:     selfExtract,
 				ndkAPILevel:    21,
+				baseVersion:    "4",
 			},
 			"8": &versionSpec{
 				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
@@ -95,8 +100,19 @@ func Register(installer, profile string) {
 					"darwin": "sdk-repo-darwin-platform-tools-2219242",
 					"linux":  "sdk-repo-linux-platform-tools-2219198",
 				},
+				baseVersion: "4",
 			},
-		}, "8"),
+			"9": &versionSpec{
+				ndkDownloadURL: fmt.Sprintf("%s/android-ndk-r10e-%s-%s.bin", ndkDownloadBaseURL, runtime.GOOS, arch),
+				ndkExtract:     selfExtract,
+				ndkAPILevel:    21,
+				platformToolsVersion: map[string]string{
+					"darwin": "sdk-repo-darwin-platform-tools-2219242",
+					"linux":  "sdk-repo-linux-platform-tools-2219198",
+				},
+				baseVersion: "5",
+			},
+		}, "9"),
 	}
 	profilesmanager.Register(m)
 }
@@ -213,13 +229,10 @@ func (m *Manager) installBase(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath
 	// So this is a good way to copy the arch/opsys and we just have to set
 	// the version.
 	baseTarget, err := profiles.NewTarget(target.String(), env)
+	baseTarget.SetVersion(m.spec.baseVersion)
 	if err != nil {
 		return nil, err
 	}
-	// We are setting version 4 to ensure that we get a newer version of Go that
-	// works on android.  It's not clear why the default version of the go
-	// profile is for an old version of go.
-	baseTarget.SetVersion("4")
 	if err := profilesmanager.EnsureProfileTargetIsInstalled(jirix, pdb, m.profileInstaller, "base", root, baseTarget); err != nil {
 		return nil, err
 	}
@@ -292,12 +305,12 @@ func (m *Manager) installAndroidPlatformTools(jirix *jiri.X, target profiles.Tar
 		androidPlatformToolsZipFile := filepath.Join(tmpDir, "platform-tools.zip")
 		return jirix.NewSeq().
 			Call(func() error {
-			url := platformToolsBaseURL + "/" + suffix + ".zip"
-			return profilesutil.Fetch(jirix, androidPlatformToolsZipFile, url)
-		}, "fetch android platform tools").
+				url := platformToolsBaseURL + "/" + suffix + ".zip"
+				return profilesutil.Fetch(jirix, androidPlatformToolsZipFile, url)
+			}, "fetch android platform tools").
 			Call(func() error {
-			return profilesutil.Unzip(jirix, androidPlatformToolsZipFile, tmpDir)
-		}, "unzip android platform tools").
+				return profilesutil.Unzip(jirix, androidPlatformToolsZipFile, tmpDir)
+			}, "unzip android platform tools").
 			MkdirAll(filepath.Dir(outDir), profilesutil.DefaultDirPerm).
 			Rename(filepath.Join(tmpDir, "platform-tools"), outDir).
 			Done()
