@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -359,8 +360,8 @@ func (m *Manager) installCommon(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPa
 	installSnappyFn := func() error {
 		s := jirix.NewSeq()
 		snappySrcDir := m.snappySrcDir.Abs(jirix)
-		// ignore errors from make distclean.
-		s.Pushd(snappySrcDir).Last("make", "distclean")
+		// Ignore errors from make distclean.
+		s.Pushd(snappySrcDir).Capture(ioutil.Discard, ioutil.Discard).Last("make", "distclean")
 		if err := s.Pushd(snappySrcDir).
 			Last("autoreconf", "--install", "--force", "--verbose"); err != nil {
 			return err
