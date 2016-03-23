@@ -41,6 +41,9 @@ var (
 	maxParallelDownloads int
 
 	waitTimeBetweenAttempts = 3 * time.Minute
+
+	createClientAttempts                = 5
+	waitTimeBetweenCreateClientAttempts = 1 * time.Minute
 )
 
 const (
@@ -333,7 +336,7 @@ func createClient(ctx *tool.Context) (*http.Client, error) {
 		}
 		return nil
 	}
-	if err := retry.Function(ctx, createDefaultClientFn); err != nil {
+	if err := retry.Function(ctx, createDefaultClientFn, retry.AttemptsOpt(createClientAttempts), retry.IntervalOpt(waitTimeBetweenAttempts)); err != nil {
 		return nil, fmt.Errorf("failed to create default client")
 	}
 	return defaultClient, nil
