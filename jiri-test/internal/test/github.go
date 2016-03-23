@@ -281,5 +281,5 @@ func pull(jirix *jiri.X, mirror Mirror, projects string) error {
 func push(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
 	opts := gitutil.RootDirOpt(dirname)
-	return gitutil.New(jirix.NewSeq(), opts).Push(mirror.github, "master")
+	return gitutil.New(jirix.NewSeq(), opts).Push(mirror.github, "master", gitutil.ForceOpt(true))
 }
