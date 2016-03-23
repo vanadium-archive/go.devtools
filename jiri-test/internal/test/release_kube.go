@@ -46,7 +46,7 @@ func vanadiumReleaseKubeCommon(jirix *jiri.X, testName, updateType, version stri
 	}
 	vprodupdaterBin := filepath.Join(jirix.Root, "infrastructure", "go", "bin", "vprodupdater")
 	args := []string{
-		"update",
+		"update-all",
 		fmt.Sprintf("-type=%s", updateType),
 		fmt.Sprintf("-tag=%s", version),
 	}
