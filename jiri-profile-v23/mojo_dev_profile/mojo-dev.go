@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// package mojo_dev_profile implements the mojo_dev profile.
-// Users must pass the "--mojo-dev.dir" flag when installing the profile,
+// package mojo_dev_profile implements the mojodev profile.
+// Users must pass the "--mojodev.dir" flag when installing the profile,
 // pointing it to a checkout of the mojo repo.  It is the user's responsibility
 // to sync and build the mojo checkout.
 package mojo_dev_profile
@@ -57,7 +57,7 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 }
 
 func (m Manager) Info() string {
-	return `Sets up a mojo compilation environment based on a mojo checkout specified in the --mojo-dev.dir flag.`
+	return `Sets up a mojo compilation environment based on a mojo checkout specified in the --mojodev.dir flag.`
 }
 
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
@@ -99,7 +99,7 @@ func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, ta
 		})
 	}
 
-	pdb.InstallProfile(m.profileInstaller, m.profileName, "mojo-dev") // Needed to confirm installation, but nothing will be inside.
+	pdb.InstallProfile(m.profileInstaller, m.profileName, "mojodev") // Needed to confirm installation, but nothing will be inside.
 	return pdb.AddProfileTarget(m.profileInstaller, m.profileName, target)
 }
 
