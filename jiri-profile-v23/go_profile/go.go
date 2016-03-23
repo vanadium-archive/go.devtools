@@ -336,7 +336,7 @@ func installGo14(jirix *jiri.X, go14Dir string, env *envvar.Vars) error {
 		}
 		defer jirix.NewSeq().RemoveAll(tmpDir)
 
-		name := "go1.4.2.src.tar.gz"
+		name := "go1.4.3.src.tar.gz"
 		remote, local := "https://storage.googleapis.com/golang/"+name, filepath.Join(tmpDir, name)
 		parentDir := filepath.Dir(go14Dir)
 		goSrcDir := filepath.Join(go14Dir, "src")
