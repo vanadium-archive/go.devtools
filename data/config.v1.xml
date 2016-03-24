@@ -222,12 +222,9 @@
       <test>vanadium-java-test</test>
     </group>
     <group name="javascript">
-      <!-- TODO(mattr): Re-enable once these test are fixed.
-           See: https://github.com/vanadium/build/issues/41
       <test>vanadium-js-unit</test>
       <test>vanadium-js-vdl</test>
       <test>vanadium-js-vom</test>
-      -->
       <test>vanadium-js-vdl-audit</test>
     </group>
     <group name="mojo">
