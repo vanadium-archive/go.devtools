@@ -336,7 +336,7 @@ func createClient(ctx *tool.Context) (*http.Client, error) {
 		}
 		return nil
 	}
-	if err := retry.Function(ctx, createDefaultClientFn, retry.AttemptsOpt(createClientAttempts), retry.IntervalOpt(waitTimeBetweenAttempts)); err != nil {
+	if err := retry.Function(ctx, createDefaultClientFn, retry.AttemptsOpt(createClientAttempts), retry.IntervalOpt(waitTimeBetweenCreateClientAttempts)); err != nil {
 		return nil, fmt.Errorf("failed to create default client")
 	}
 	return defaultClient, nil
