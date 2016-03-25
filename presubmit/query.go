@@ -32,6 +32,11 @@ const (
 var (
 	queryStringFlag string
 	logFilePathFlag string
+
+	emailWhitelist = []string{
+		"aaron@azinman.com",
+		"aaron@empiric.al",
+	}
 )
 
 func init() {
@@ -456,9 +461,7 @@ func (s *clsSender) processCLList(jirix *jiri.X, curCLList clList) *clListInfo {
 			skipPresubmitTest = true
 		}
 
-		if !strings.HasSuffix(curCL.OwnerEmail(), "@google.com") {
-			hasNonGoogleOwner = true
-		}
+		hasNonGoogleOwner = !checkEmailAddress(curCL.OwnerEmail())
 
 		projects = append(projects, curCL.Project)
 		refs = append(refs, curCL.Reference())
@@ -684,4 +687,18 @@ func addPresubmitTestBuild(jirix *jiri.X, cls clList, tests []string) error {
 		return err
 	}
 	return nil
+}
+
+// checkEmailAddress checks whether the given email address is from Google or
+// is whitelisted.
+func checkEmailAddress(email string) bool {
+	fromGoogle := strings.HasSuffix(email, "@google.com")
+	whiteListed := false
+	for _, we := range emailWhitelist {
+		if we == strings.ToLower(email) {
+			whiteListed = true
+			break
+		}
+	}
+	return fromGoogle || whiteListed
 }
