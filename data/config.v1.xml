@@ -148,7 +148,9 @@
     </project>
     <project name="release.projects.reader">
       <test>vanadium-copyright</test>
-      <test>vanadium-reader-test</test>
+      <!-- TODO(sadovsky,nlacasse): Re-enable this test once the syncbase API change is done.
+        <test>vanadium-reader-test</test>
+      -->
     </project>
     <project name="release.projects.sensorlog">
       <test>go</test>
@@ -229,7 +231,9 @@
     </group>
     <group name="mojo">
       <test>vanadium-mojo-discovery-test</test>
-      <test>vanadium-mojo-syncbase-test</test>
+      <!-- TODO(sadovsky,nlacasse): Re-enable this test once the syncbase API change is done.
+        <test>vanadium-mojo-syncbase-test</test>
+      -->
       <test>vanadium-mojo-v23proxy-unit-test</test>
       <!-- NOTE(caprita): this is flaky.  See v.io/i/1226
       <test>vanadium-mojo-v23proxy-integration-test</test>
