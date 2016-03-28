@@ -38,7 +38,6 @@
   <goWorkspaces>
     <workspace>infrastructure/go</workspace>
     <workspace>release/go</workspace>
-    <workspace>release/javascript/core/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
@@ -64,7 +63,6 @@
     <project name="release.go.jiri">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
@@ -72,7 +70,6 @@
     <project name="release.go.v23">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
@@ -81,7 +78,6 @@
     <project name="release.go.x.devtools">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>third_party-go</test>
@@ -95,7 +91,6 @@
     <project name="release.go.x.lib">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
@@ -104,7 +99,6 @@
     <project name="release.go.x.ref">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
@@ -165,7 +159,6 @@
     </project>
     <project name="third_party">
       <test>go</test>
-      <test>javascript</test>
       <test>projects</test>
       <test>third_party-go</test>
     </project>
@@ -265,7 +258,6 @@
   </testParts>
   <vdlWorkspaces>
     <workspace>release/go</workspace>
-    <workspace>release/javascript/core/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
