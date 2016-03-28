@@ -150,6 +150,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"vanadium-signup-welcome-1-new":           vanadiumSignupWelcomeStepOneNew,
 	"vanadium-signup-welcome-2-new":           vanadiumSignupWelcomeStepTwoNew,
 	"vanadium-travel-test":                    vanadiumTravelTest,
+	"vanadium-website-deploy":                 vanadiumWebsiteDeploy,
 	"vanadium-website-site":                   vanadiumWebsiteSite,
 	"vanadium-website-tutorials-core":         vanadiumWebsiteTutorialsCore,
 	"vanadium-website-tutorials-external":     vanadiumWebsiteTutorialsExternal,

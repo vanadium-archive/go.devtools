@@ -27,12 +27,6 @@ func commonVanadiumWebsite(jirix *jiri.X, testName, makeTarget string, timeout t
 	}
 	defer collect.Error(func() error { return cleanup() }, &e)
 
-	cleanup2, err := initTestForTarget(jirix, testName, []string{"v23:nacl"}, "amd64p32-nacl")
-	if err != nil {
-		return nil, newInternalError(err, "Init")
-	}
-	defer collect.Error(func() error { return cleanup2() }, &e)
-
 	s := jirix.NewSeq()
 	if err := s.Chdir(filepath.Join(jirix.Root, "website")).
 		Run("make", "clean").
@@ -48,6 +42,10 @@ func commonVanadiumWebsite(jirix *jiri.X, testName, makeTarget string, timeout t
 	}
 
 	return &test.Result{Status: test.Passed}, nil
+}
+
+func vanadiumWebsiteDeploy(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return commonVanadiumWebsite(jirix, testName, "deploy", defaultWebsiteTestTimeout, nil)
 }
 
 func vanadiumWebsiteSite(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
