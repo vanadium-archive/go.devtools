@@ -135,16 +135,6 @@ func testAllProdServices(jirix *jiri.X, principalDir, namespaceRoot string) []*x
 			regexp:     regexp.MustCompile(`MountTable[[:space:]]+interface`),
 		},
 		prodService{
-			name:       "application repository",
-			objectName: namespaceRoot + "/applications",
-			regexp:     regexp.MustCompile(`Application[[:space:]]+interface`),
-		},
-		prodService{
-			name:       "binary repository",
-			objectName: namespaceRoot + "/binaries",
-			regexp:     regexp.MustCompile(`Binary[[:space:]]+interface`),
-		},
-		prodService{
 			name:       "macaroon service",
 			objectName: namespaceRoot + "/identity/dev.v.io:u/macaroon",
 			regexp:     regexp.MustCompile(`MacaroonBlesser[[:space:]]+interface`),
