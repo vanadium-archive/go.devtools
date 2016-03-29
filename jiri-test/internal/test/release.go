@@ -18,8 +18,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/retry"
 	"v.io/jiri/runutil"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/devtools/tooldata"
 )
 
 const (
@@ -536,7 +536,7 @@ func vanadiumReleaseCandidateSnapshot(jirix *jiri.X, testName string, opts ...Op
 	relativePath := strings.TrimPrefix(target, manifestDir+string(filepath.Separator))
 
 	// Get all the tests to run.
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return nil, newInternalError(err, "LoadConfig")
 	}

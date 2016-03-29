@@ -38,7 +38,6 @@
   <goWorkspaces>
     <workspace>infrastructure/go</workspace>
     <workspace>release/go</workspace>
-    <workspace>release/javascript/core/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
@@ -48,9 +47,7 @@
     <job arch="false" OS="true" parts="false" showOS="true">third_party-go-build</job>
     <job arch="false" OS="true" parts="false" showOS="true">third_party-go-test</job>
     <job arch="false" OS="true" parts="true"  showOS="false">third_party-go-race</job>
-    <!-- TODO(spetrovic): this is flaky due to profile issues.  Re-enable after fixing.
     <job arch="false" OS="true" parts="false" showOS="true">vanadium-android-build</job>
-    -->
     <job arch="false" OS="true" parts="false" showOS="false">vanadium-bootstrap</job>
     <job arch="true"  OS="true" parts="false" showOS="true">vanadium-go-build</job>
     <job arch="true"  OS="true" parts="false" showOS="true">vanadium-go-test</job>
@@ -66,7 +63,6 @@
     <project name="release.go.jiri">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
       <test>vanadium-copyright</test>
@@ -74,7 +70,6 @@
     <project name="release.go.v23">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
@@ -83,7 +78,6 @@
     <project name="release.go.x.devtools">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>third_party-go</test>
@@ -97,7 +91,6 @@
     <project name="release.go.x.lib">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
@@ -106,7 +99,6 @@
     <project name="release.go.x.ref">
       <test>go</test>
       <test>java</test>
-      <test>javascript</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
@@ -150,7 +142,9 @@
     </project>
     <project name="release.projects.reader">
       <test>vanadium-copyright</test>
-      <test>vanadium-reader-test</test>
+      <!-- TODO(sadovsky,nlacasse): Re-enable this test once the syncbase API change is done.
+        <test>vanadium-reader-test</test>
+      -->
     </project>
     <project name="release.projects.sensorlog">
       <test>go</test>
@@ -165,7 +159,6 @@
     </project>
     <project name="third_party">
       <test>go</test>
-      <test>javascript</test>
       <test>projects</test>
       <test>third_party-go</test>
     </project>
@@ -220,20 +213,20 @@
     <group name="java">
       <test>baku-android-build</test>
       <test>baku-java-test</test>
-      <!-- TODO(spetrovic): this is flaky due to profile issues.  Re-enable after fixing.
       <test>vanadium-android-build</test>
-      -->
       <test>vanadium-java-test</test>
     </group>
     <group name="javascript">
       <test>vanadium-js-unit</test>
       <test>vanadium-js-vdl</test>
-      <test>vanadium-js-vdl-audit</test>
       <test>vanadium-js-vom</test>
+      <test>vanadium-js-vdl-audit</test>
     </group>
     <group name="mojo">
       <test>vanadium-mojo-discovery-test</test>
-      <test>vanadium-mojo-syncbase-test</test>
+      <!-- TODO(sadovsky,nlacasse): Re-enable this test once the syncbase API change is done.
+        <test>vanadium-mojo-syncbase-test</test>
+      -->
       <test>vanadium-mojo-v23proxy-unit-test</test>
       <!-- NOTE(caprita): this is flaky.  See v.io/i/1226
       <test>vanadium-mojo-v23proxy-integration-test</test>
@@ -265,7 +258,6 @@
   </testParts>
   <vdlWorkspaces>
     <workspace>release/go</workspace>
-    <workspace>release/javascript/core/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>

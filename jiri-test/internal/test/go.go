@@ -36,10 +36,10 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/goutil"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/devtools/vbinary/exitcode"
 	"v.io/x/lib/host"
 	"v.io/x/lib/set"
@@ -480,11 +480,17 @@ var (
 func goListPackagesAndFuncs(jirix *jiri.X, opts []Opt, pkgs []string, matcher funcMatcher) ([]string, map[string][]string, error) {
 	fmt.Fprintf(jirix.Stdout(), "listing test packages and functions ... ")
 
+	config, err := tooldata.LoadConfig(jirix)
+	if err != nil {
+		return nil, nil, err
+	}
 	rd, err := profilesreader.NewReader(jirix, profilesreader.UseProfiles, ProfilesDBFilename)
 	if err != nil {
 		return nil, nil, err
 	}
-	rd.MergeEnvFromProfiles(profilesreader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+
+	rd.MergeEnvFromProfiles(profilesreader.JiriMergePolicies(), profiles.NativeTarget())
+	profilesreader.MergeEnv(profilesreader.JiriMergePolicies(), rd.Vars, []string{config.GoPath(jirix), config.VDLPath(jirix)})
 	pkgList, err := goutil.List(jirix, goListOpts(opts), pkgs...)
 	if err != nil {
 		fmt.Fprintf(jirix.Stdout(), "failed\n%s\n", err.Error())
@@ -1607,7 +1613,7 @@ func vanadiumGoRace(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result
 //   in the first N-1 parts.
 func identifyPackagesToTest(jirix *jiri.X, testName string, opts []Opt, allPkgs []string) (pkgsOpt, error) {
 	// Read config file to get the part.
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}

@@ -22,9 +22,9 @@ import (
 	"v.io/jiri"
 	"v.io/jiri/jenkins"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/set"
 )
@@ -121,7 +121,7 @@ type axisValuesInfo struct {
 //
 // If the main job is not a multi-configuration job, the spec will be:
 // <jobName>/<suffix>.
-func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) string {
+func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string, matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo) string {
 	axis, ok := matrixJobsConf[jobName]
 
 	// Not a multi-configuration job.
@@ -146,7 +146,7 @@ func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string, matr
 
 // genSubJobLabel returns a descriptive label for given Jenkins job's sub-job.
 // For more info, please see comments of the subJobSpec method above.
-func genSubJobLabel(jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) string {
+func genSubJobLabel(jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo) string {
 	axis, ok := matrixJobsConf[jobName]
 
 	// Not a multi-configuration job.
@@ -205,7 +205,7 @@ func (ri testResultInfo) key() string {
 // collect all those files and store them in the above directory structure.
 func runResult(jirix *jiri.X, args []string) (e error) {
 	// Load Jenkins matrix jobs config.
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func runResult(jirix *jiri.X, args []string) (e error) {
 // getPostSubmitBuildData returns a map from job names to the data of the
 // corresponding postsubmit builds that ran before the recorded test result
 // timestamps.
-func getPostSubmitBuildData(jirix *jiri.X, testResults []testResultInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (map[string]*postSubmitBuildData, error) {
+func getPostSubmitBuildData(jirix *jiri.X, testResults []testResultInfo, matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo) (map[string]*postSubmitBuildData, error) {
 	jenkinsObj, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err
@@ -311,7 +311,7 @@ outer:
 
 type testReporter struct {
 	// matrixJobsConf stores configs for Jenkins matrix jobs.
-	matrixJobsConf map[string]util.JenkinsMatrixJobInfo
+	matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo
 	// testResults stores presubmit results to report.
 	testResults []testResultInfo
 	// postSubmitResults stores postsubmit results (indexed by test names) used to
@@ -419,7 +419,7 @@ func (r *testReporter) reportPresubmitFailure(jirix *jiri.X) bool {
 
 // reportOncall reports current vanadium oncall.
 func (r *testReporter) reportOncall(jirix *jiri.X) {
-	shift, err := util.Oncall(jirix, time.Now())
+	shift, err := tooldata.Oncall(jirix, time.Now())
 	if err != nil {
 		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	} else {
@@ -543,7 +543,7 @@ func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *test
 
 // lastCompletedBuildStatus gets the status of the last completed
 // build for a given Jenkins job.
-func lastCompletedBuildStatus(jirix *jiri.X, jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]util.JenkinsMatrixJobInfo) (*jenkins.BuildInfo, error) {
+func lastCompletedBuildStatus(jirix *jiri.X, jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo) (*jenkins.BuildInfo, error) {
 	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return nil, err

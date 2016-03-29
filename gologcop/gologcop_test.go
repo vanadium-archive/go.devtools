@@ -24,6 +24,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/tool"
+	"v.io/x/devtools/tooldata"
 )
 
 const (
@@ -62,6 +63,7 @@ var skipProfiles = []string{"-skip-profiles"}
 func TestRemove(t *testing.T) {
 	fake, cleanup := jiritest.NewFakeJiriRoot(t)
 	defer cleanup()
+
 	var stdout bytes.Buffer
 	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &stdout})
 	if _, err := configureDefaultBuildConfig(fake.X, []string{"testpackage"}); err != nil {
@@ -175,6 +177,7 @@ func TestInjectCommandLine(t *testing.T) {
 func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 	fake, cleanup := jiritest.NewFakeJiriRoot(t)
 	defer cleanup()
+
 	if _, err := configureDefaultBuildConfig(fake.X, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}
@@ -216,6 +219,9 @@ func testInject(t *testing.T, iface, prefix string, testPackageCount int) {
 }
 
 func configureDefaultBuildConfig(jirix *jiri.X, tags []string) (cleanup func(), err error) {
+	if err := tooldata.SaveConfig(jirix, tooldata.NewConfig()); err != nil {
+		return nil, err
+	}
 	rd, err := profilesreader.NewReader(jirix, profilesreader.SkipProfiles, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain the Vanadium environment: %v", err)
@@ -236,6 +242,7 @@ func configureDefaultBuildConfig(jirix *jiri.X, tags []string) (cleanup func(), 
 func doTest(t *testing.T, packages []string) (*token.FileSet, map[funcDeclRef]error) {
 	fake, cleanup := jiritest.NewFakeJiriRoot(t)
 	defer cleanup()
+
 	if _, err := configureDefaultBuildConfig(fake.X, []string{"testpackage"}); err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,45 @@
+pkg data, func ConfigFilePath(*jiri.X) (string, error)
+pkg data, func DataDirPath(*jiri.X, string) (string, error)
+pkg data, func LoadConfig(*jiri.X) (*Config, error)
+pkg data, func LoadOncallRotation(*jiri.X) (*OncallRotation, error)
+pkg data, func NewConfig(...ConfigOpt) *Config
+pkg data, func Oncall(*jiri.X, time.Time) (*OncallShift, error)
+pkg data, func OncallRotationPath(*jiri.X) (string, error)
+pkg data, func SaveConfig(*jiri.X, *Config) error
+pkg data, func ThirdPartyBinPath(*jiri.X, string) (string, error)
+pkg data, method (Config) APICheckProjects() map[string]struct{}
+pkg data, method (Config) CopyrightCheckProjects() map[string]struct{}
+pkg data, method (Config) GoPath(*jiri.X) string
+pkg data, method (Config) GoWorkspaces() []string
+pkg data, method (Config) GroupTests([]string) []string
+pkg data, method (Config) JenkinsMatrixJobs() map[string]JenkinsMatrixJobInfo
+pkg data, method (Config) ProjectTests([]string) []string
+pkg data, method (Config) Projects() []string
+pkg data, method (Config) TestDependencies(string) []string
+pkg data, method (Config) TestParts(string) []string
+pkg data, method (Config) VDLPath(*jiri.X) string
+pkg data, method (Config) VDLWorkspaces() []string
+pkg data, type APICheckProjectsOpt map[string]struct{}
+pkg data, type Config struct
+pkg data, type ConfigOpt interface, unexported methods
+pkg data, type CopyrightCheckProjectsOpt map[string]struct{}
+pkg data, type GoWorkspacesOpt []string
+pkg data, type JenkinsMatrixJobInfo struct
+pkg data, type JenkinsMatrixJobInfo struct, HasArch bool
+pkg data, type JenkinsMatrixJobInfo struct, HasOS bool
+pkg data, type JenkinsMatrixJobInfo struct, HasParts bool
+pkg data, type JenkinsMatrixJobInfo struct, Name string
+pkg data, type JenkinsMatrixJobInfo struct, ShowOS bool
+pkg data, type JenkinsMatrixJobsOpt map[string]JenkinsMatrixJobInfo
+pkg data, type OncallRotation struct
+pkg data, type OncallRotation struct, Shifts []OncallShift
+pkg data, type OncallRotation struct, XMLName xml.Name
+pkg data, type OncallShift struct
+pkg data, type OncallShift struct, Date string
+pkg data, type OncallShift struct, Primary string
+pkg data, type OncallShift struct, Secondary string
+pkg data, type ProjectTestsOpt map[string][]string
+pkg data, type TestDependenciesOpt map[string][]string
+pkg data, type TestGroupsOpt map[string][]string
+pkg data, type TestPartsOpt map[string][]string
+pkg data, type VDLWorkspacesOpt []string

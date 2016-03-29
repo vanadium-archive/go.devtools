@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"v.io/jiri/jiritest"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 )
 
 func TestJenkinsTestsToStart(t *testing.T) {
@@ -17,17 +17,17 @@ func TestJenkinsTestsToStart(t *testing.T) {
 	defer cleanup()
 
 	// Create a fake configuration file.
-	config := util.NewConfig(
-		util.ProjectTestsOpt(map[string][]string{
+	config := tooldata.NewConfig(
+		tooldata.ProjectTestsOpt(map[string][]string{
 			"release.go.core": []string{"go", "javascript"},
 			"release.js.core": []string{"javascript"},
 		}),
-		util.TestGroupsOpt(map[string][]string{
+		tooldata.TestGroupsOpt(map[string][]string{
 			"go":         []string{"vanadium-go-build", "vanadium-go-test", "vanadium-go-race"},
 			"javascript": []string{"vanadium-js-integration", "vanadium-js-unit"},
 		}),
 	)
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 

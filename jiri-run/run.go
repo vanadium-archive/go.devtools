@@ -17,6 +17,7 @@ import (
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 )
 
@@ -51,15 +52,24 @@ func runRun(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		return jirix.UsageErrorf("no command to run")
 	}
+	config, err := tooldata.LoadConfig(jirix)
+	if err != nil {
+		return err
+	}
 	rd, err := profilesreader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	profileNames := profilesreader.InitProfilesFromFlag(readerFlags.Profiles, profilesreader.DoNotAppendJiriProfile)
+	profileNames := strings.Split(readerFlags.Profiles, ",")
 	if err := rd.ValidateRequestedProfilesAndTarget(profileNames, readerFlags.Target); err != nil {
 		return err
 	}
 	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, readerFlags.Target, profileNames...)
+	mp := profilesreader.MergePolicies{
+		"GOPATH":  profilesreader.PrependPath,
+		"VDLPATH": profilesreader.PrependPath,
+	}
+	profilesreader.MergeEnv(mp, rd.Vars, []string{config.GoPath(jirix), config.VDLPath(jirix)})
 	if envFlag {
 		fmt.Fprintf(jirix.Stdout(), "Merged profiles: %v\n", profileNames)
 		fmt.Fprintf(jirix.Stdout(), "Merge policies: %v\n", readerFlags.MergePolicies)

@@ -29,7 +29,7 @@ func TestCopyright(t *testing.T) {
 	})
 
 	// Load assets.
-	assets, err := loadAssets(fake.X, filepath.Join("..", "data"))
+	assets, err := loadAssets(fake.X, filepath.Join("..", "tooldata", "data"))
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

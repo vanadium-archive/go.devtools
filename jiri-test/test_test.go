@@ -12,8 +12,8 @@ import (
 
 	"v.io/jiri/jiritest"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/jiri-test/internal/test"
+	"v.io/x/devtools/tooldata"
 )
 
 func TestTestProject(t *testing.T) {
@@ -28,8 +28,8 @@ func TestTestProject(t *testing.T) {
 	defer os.Setenv("WORKSPACE", oldWorkspace)
 
 	// Setup a fake config.
-	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{"https://test-project": []string{"ignore-this"}}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.ProjectTestsOpt(map[string][]string{"https://test-project": []string{"ignore-this"}}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 

@@ -21,7 +21,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 )
 
@@ -136,7 +136,7 @@ func runQuery(jirix *jiri.X, args []string) error {
 	}()
 
 	// Load Jenkins matrix jobs config.
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
@@ -478,7 +478,7 @@ func (s *clsSender) processCLList(jirix *jiri.X, curCLList clList) *clListInfo {
 }
 
 func (s *clsSender) getTestsToRun(jirix *jiri.X, projects []string) ([]string, error) {
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}

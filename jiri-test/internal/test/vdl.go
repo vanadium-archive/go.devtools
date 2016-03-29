@@ -16,6 +16,7 @@ import (
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/tooldata"
 )
 
 // vanadiumGoVDL checks that all VDL-based Go source files are
@@ -35,12 +36,18 @@ func vanadiumGoVDL(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e 
 		return nil, newInternalError(err, "Install VDL")
 	}
 
+	config, err := tooldata.LoadConfig(jirix)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check that "vdl audit --lang=go all" produces no output.
 	rd, err := profilesreader.NewReader(jirix, profilesreader.UseProfiles, ProfilesDBFilename)
 	if err != nil {
 		return nil, err
 	}
 	rd.MergeEnvFromProfiles(profilesreader.JiriMergePolicies(), profiles.NativeTarget(), "jiri")
+	profilesreader.MergeEnv(profilesreader.JiriMergePolicies(), rd.Vars, []string{config.GoPath(jirix), config.VDLPath(jirix)})
 	env := rd.ToMap()
 	env["VDLROOT"] = filepath.Join(jirix.Root, "release", "go", "src", "v.io", "v23", "vdlroot")
 	vdl := filepath.Join(jirix.Root, "release", "go", "bin", "vdl")

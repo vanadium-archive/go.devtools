@@ -13,7 +13,7 @@ import (
 
 	"v.io/jiri"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 )
 
@@ -42,7 +42,7 @@ var cmdOncallList = &cmdline.Command{
 }
 
 func runOncall(jirix *jiri.X, _ []string) error {
-	shift, err := util.Oncall(jirix, time.Now())
+	shift, err := tooldata.Oncall(jirix, time.Now())
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func runOncall(jirix *jiri.X, _ []string) error {
 }
 
 func runOncallList(jirix *jiri.X, _ []string) error {
-	rotation, err := util.LoadOncallRotation(jirix)
+	rotation, err := tooldata.LoadOncallRotation(jirix)
 	if err != nil {
 		return err
 	}

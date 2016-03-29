@@ -29,7 +29,7 @@ The jiri api flags are:
    Name of the project manifest.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -profiles=v23:base,jiri
+ -profiles=v23:base
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
    the path, relative to JIRI_ROOT, that contains the profiles database.
@@ -72,7 +72,7 @@ The jiri api check flags are:
    Name of the project manifest.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -profiles=v23:base,jiri
+ -profiles=v23:base
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
    the path, relative to JIRI_ROOT, that contains the profiles database.
@@ -105,7 +105,7 @@ The jiri api fix flags are:
    Name of the project manifest.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -profiles=v23:base,jiri
+ -profiles=v23:base
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
    the path, relative to JIRI_ROOT, that contains the profiles database.

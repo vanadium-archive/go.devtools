@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 )
 
 // DefaultTimeout identifies the maximum time each test is allowed to
@@ -61,7 +60,7 @@ func (s Status) String() string {
 func Pass(ctx *tool.Context, format string, a ...interface{}) {
 	strOK := "ok"
 	if ctx.Color() {
-		strOK = util.ColorString("ok", util.Green)
+		strOK = ColorString("ok", Green)
 	}
 	fmt.Fprintf(ctx.Stdout(), "%s   ", strOK)
 	fmt.Fprintf(ctx.Stdout(), format, a...)
@@ -70,7 +69,7 @@ func Pass(ctx *tool.Context, format string, a ...interface{}) {
 func Fail(ctx *tool.Context, format string, a ...interface{}) {
 	strFail := "fail"
 	if ctx.Color() {
-		strFail = util.ColorString("fail", util.Red)
+		strFail = ColorString("fail", Red)
 	}
 	fmt.Fprintf(ctx.Stderr(), "%s ", strFail)
 	fmt.Fprintf(ctx.Stderr(), format, a...)
@@ -79,7 +78,7 @@ func Fail(ctx *tool.Context, format string, a ...interface{}) {
 func Warn(ctx *tool.Context, format string, a ...interface{}) {
 	strWarn := "warn"
 	if ctx.Color() {
-		strWarn = util.ColorString("warn", util.Yellow)
+		strWarn = ColorString("warn", Yellow)
 	}
 	fmt.Fprintf(ctx.Stderr(), "%s ", strWarn)
 	fmt.Fprintf(ctx.Stderr(), format, a...)

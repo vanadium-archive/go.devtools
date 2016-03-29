@@ -15,8 +15,8 @@ import (
 	"v.io/jiri/gitutil"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 )
 
@@ -112,7 +112,7 @@ func getChangedProjectsFromSnapshot(jirix *jiri.X, snapshotFile string) ([]strin
 // started based on the given projects.
 func jenkinsTestsToStart(jirix *jiri.X, projects []string) ([]string, error) {
 	// Parse tools config to get project-tests map.
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}

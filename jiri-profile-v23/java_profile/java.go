@@ -176,7 +176,7 @@ func (m *Manager) install(jirix *jiri.X, target profiles.Target) (string, error)
 		jirix.NewSeq().Last("xdg-open", dlURL)
 		return "", fmt.Errorf("Please follow the instructions in the browser to install JDK, then set JAVA_HOME and re-run the profile installation command")
 	default:
-		return "", fmt.Errorf("OS %q is not supported", target.OS)
+		return "", fmt.Errorf("OS %q is not supported", target.OS())
 	}
 }
 

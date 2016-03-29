@@ -17,7 +17,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 )
 
 func writeFileOrDie(t *testing.T, jirix *jiri.X, path, contents string) {
@@ -89,8 +89,8 @@ func TestPublicAPICheckError(t *testing.T) {
 	fake, cleanup := setupAPITest(t)
 	defer cleanup()
 
-	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
@@ -129,8 +129,8 @@ func testFunction() {
 func TestPublicAPICheckOk(t *testing.T) {
 	fake, cleanup := setupAPITest(t)
 	defer cleanup()
-	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
@@ -169,8 +169,8 @@ func TestFunction() {
 func TestPublicAPIMissingAPIFile(t *testing.T) {
 	fake, cleanup := setupAPITest(t)
 	defer cleanup()
-	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
@@ -206,8 +206,8 @@ func TestFunction() {
 func TestPublicAPIMissingAPIFileNoPublicAPI(t *testing.T) {
 	fake, cleanup := setupAPITest(t)
 	defer cleanup()
-	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
@@ -242,8 +242,8 @@ func testFunction() {
 func TestPublicAPIMissingAPIFileNotRequired(t *testing.T) {
 	fake, cleanup := setupAPITest(t)
 	defer cleanup()
-	config := util.NewConfig(util.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.APICheckProjectsOpt(map[string]struct{}{"test": struct{}{}}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"
@@ -281,7 +281,7 @@ func TestFunction() {
 func TestPublicAPIUpdate(t *testing.T) {
 	fake, cleanup := setupAPITest(t)
 	defer cleanup()
-	if err := util.SaveConfig(fake.X, util.NewConfig()); err != nil {
+	if err := tooldata.SaveConfig(fake.X, tooldata.NewConfig()); err != nil {
 		t.Fatalf("%v", err)
 	}
 	branch := "my-branch"

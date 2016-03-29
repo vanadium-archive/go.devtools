@@ -19,6 +19,7 @@ import (
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/golib"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/lookpath"
 )
@@ -57,15 +58,24 @@ func runGo(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		return jirix.UsageErrorf("not enough arguments")
 	}
+	config, err := tooldata.LoadConfig(jirix)
+	if err != nil {
+		return err
+	}
 	rd, err := profilesreader.NewReader(jirix, readerFlags.ProfilesMode, readerFlags.DBFilename)
 	if err != nil {
 		return err
 	}
-	profileNames := profilesreader.InitProfilesFromFlag(readerFlags.Profiles, profilesreader.AppendJiriProfile)
+	profileNames := strings.Split(readerFlags.Profiles, ",")
 	if err := rd.ValidateRequestedProfilesAndTarget(profileNames, readerFlags.Target); err != nil {
 		return err
 	}
 	rd.MergeEnvFromProfiles(readerFlags.MergePolicies, readerFlags.Target, profileNames...)
+	mp := profilesreader.MergePolicies{
+		"GOPATH":  profilesreader.PrependPath,
+		"VDLPATH": profilesreader.PrependPath,
+	}
+	profilesreader.MergeEnv(mp, rd.Vars, []string{config.GoPath(jirix), config.VDLPath(jirix)})
 	if !systemGoFlag {
 		if len(rd.Get("GOROOT")) > 0 {
 			rd.PrependToPATH(filepath.Join(rd.Get("GOROOT"), "bin"))
@@ -83,6 +93,11 @@ func runGo(jirix *jiri.X, args []string) error {
 	}
 	if args, err = golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix); err != nil {
 		return err
+	}
+	// Don't run go env if PrepareGo stripped off the environment
+	// variables that the go tool doesn't understand - e.g. VDLPATH.
+	if len(args) == 1 && args[0] == "env" {
+		return nil
 	}
 	// Run the go tool.
 	goBin, err := lookpath.Look(envMap, "go")

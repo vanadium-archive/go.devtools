@@ -22,7 +22,7 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesutil"
-	"v.io/jiri/project"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/envvar"
 )
 
@@ -466,7 +466,7 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 		if err := s.Chdir(tmpDir).Last(bin, targetABI); err != nil {
 			return err
 		}
-		dataPath, err := project.DataDirPath(jirix, "")
+		dataPath, err := tooldata.DataDirPath(jirix, "")
 		if err != nil {
 			return err
 		}

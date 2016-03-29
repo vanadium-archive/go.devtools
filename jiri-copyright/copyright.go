@@ -30,7 +30,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 )
 
@@ -162,7 +162,7 @@ func runCopyrightFix(jirix *jiri.X, args []string) error {
 
 // copyrightHelper implements the logic of "jiri copyright {check,fix}".
 func copyrightHelper(jirix *jiri.X, args []string, fix bool) error {
-	dataDir, err := project.DataDirPath(jirix, "jiri")
+	dataDir, err := tooldata.DataDirPath(jirix, "jiri")
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func copyrightHelper(jirix *jiri.X, args []string, fix bool) error {
 	if err != nil {
 		return err
 	}
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}

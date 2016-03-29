@@ -15,7 +15,7 @@ import (
 	"v.io/jiri/jiritest"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 )
 
 func TestMultiPartCLSet(t *testing.T) {
@@ -227,15 +227,15 @@ func TestSendCLListsToPresubmitTest(t *testing.T) {
 	defer cleanup()
 
 	// Create a fake configuration file.
-	config := util.NewConfig(
-		util.ProjectTestsOpt(map[string][]string{
+	config := tooldata.NewConfig(
+		tooldata.ProjectTestsOpt(map[string][]string{
 			"release.go.core": []string{"go", "javascript"},
 		}),
-		util.ProjectTestsOpt(map[string][]string{
+		tooldata.ProjectTestsOpt(map[string][]string{
 			"release.js.core": []string{"javascript"},
 		}),
 	)
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -331,18 +331,18 @@ func TestGetTestsToRun(t *testing.T) {
 	defer cleanup()
 
 	// Create a fake configuration file.
-	config := util.NewConfig(
-		util.ProjectTestsOpt(map[string][]string{
+	config := tooldata.NewConfig(
+		tooldata.ProjectTestsOpt(map[string][]string{
 			"release.go.core": []string{"go", "javascript"},
 		}),
-		util.TestGroupsOpt(map[string][]string{
+		tooldata.TestGroupsOpt(map[string][]string{
 			"go": []string{"vanadium-go-build", "vanadium-go-test", "vanadium-go-race"},
 		}),
-		util.TestPartsOpt(map[string][]string{
+		tooldata.TestPartsOpt(map[string][]string{
 			"vanadium-go-race": []string{"v.io/x/ref/services/device/...", "v.io/x/ref/runtime/..."},
 		}),
 	)
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatalf("%v", err)
 	}
 

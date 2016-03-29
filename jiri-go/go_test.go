@@ -16,8 +16,8 @@ import (
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/project"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/buildinfo"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/metadata"
 )
 
@@ -57,8 +57,8 @@ func TestGoVanadiumEnvironment(t *testing.T) {
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	config := util.NewConfig(util.GoWorkspacesOpt([]string{"test"}))
-	if err := util.SaveConfig(fake.X, config); err != nil {
+	config := tooldata.NewConfig(tooldata.GoWorkspacesOpt([]string{"test"}))
+	if err := tooldata.SaveConfig(fake.X, config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -78,6 +78,9 @@ func TestGoBuildWithMetaData(t *testing.T) {
 	defer cleanup()
 	jirix := fake.X
 	start := time.Now().UTC()
+	if err := tooldata.SaveConfig(jirix, tooldata.NewConfig()); err != nil {
+		t.Fatal(err)
+	}
 	s := jirix.NewSeq()
 	// Set up a temp directory.
 	dir, err := s.TempDir("", "v23_metadata_test")

@@ -26,7 +26,7 @@ import (
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
+	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/envvar"
 )
@@ -314,7 +314,7 @@ func printChangeSummary(out io.Writer, change packageChange, detailedOutput bool
 }
 
 func doAPICheck(jirix *jiri.X, args []string, detailedOutput bool) error {
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ var cmdAPIUpdate = &cmdline.Command{
 }
 
 func runAPIFix(jirix *jiri.X, args []string) error {
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return err
 	}

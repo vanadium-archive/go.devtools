@@ -22,9 +22,9 @@ import (
 	"v.io/jiri/profiles/profilesreader"
 	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/tooldata"
 )
 
 const (
@@ -237,7 +237,7 @@ func RunProjectTests(jirix *jiri.X, env map[string]string, projects []string, op
 	testCtx := newTestContext(jirix, env)
 
 	// Parse tests and dependencies from config file.
-	config, err := util.LoadConfig(jirix)
+	config, err := tooldata.LoadConfig(jirix)
 	if err != nil {
 		return nil, err
 	}
@@ -528,7 +528,7 @@ func generateXUnitReportForError(jirix *jiri.X, testName string, err error, outp
 
 // createTestDepGraph creates a test dependency graph given a map of
 // dependencies and a list of tests.
-func createTestDepGraph(config *util.Config, tests []string) (testDepGraph, error) {
+func createTestDepGraph(config *tooldata.Config, tests []string) (testDepGraph, error) {
 	// For the given list of tests, build a map from the test name
 	// to its testInfo object using the dependency data extracted
 	// from the given dependency config data "dep".

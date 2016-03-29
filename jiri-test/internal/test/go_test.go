@@ -21,6 +21,7 @@ import (
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/tooldata"
 )
 
 // failuresMatch checks whether the given test failures match. The Message
@@ -381,6 +382,10 @@ var skipProfiles = jiriGoOpt([]string{"-skip-profiles"})
 func TestGoBuild(t *testing.T) {
 	fake, cleanupFake := jiritest.NewFakeJiriRoot(t)
 	defer cleanupFake()
+
+	if err := tooldata.SaveConfig(fake.X, tooldata.NewConfig()); err != nil {
+		t.Fatal(err)
+	}
 
 	testName := "test-go-build"
 	cleanupTest, err := initTestImpl(fake.X, false, false, false, testName, nil, "")

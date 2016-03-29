@@ -13,13 +13,13 @@ import (
 	"testing"
 
 	"v.io/jiri/jiritest"
-	"v.io/jiri/util"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/devtools/internal/xunit"
+	"v.io/x/devtools/tooldata"
 )
 
 func TestProjectTests(t *testing.T) {
-	config := util.NewConfig(util.ProjectTestsOpt(map[string][]string{
+	config := tooldata.NewConfig(tooldata.ProjectTestsOpt(map[string][]string{
 		"vanadium": []string{"vanadium-go-build", "vanadium-go-test"},
 		"default":  []string{"tools-go-build", "tools-go-test"},
 	}))
@@ -209,7 +209,7 @@ func parseXUnitFile(fileName string) (*xunit.TestSuites, error) {
 
 func TestCreateDepGraph(t *testing.T) {
 	type testCase struct {
-		config        *util.Config
+		config        *tooldata.Config
 		tests         []string
 		expectedTests testDepGraph
 		expectDepLoop bool
@@ -217,7 +217,7 @@ func TestCreateDepGraph(t *testing.T) {
 	testCases := []testCase{
 		// A single test without any dependencies.
 		testCase{
-			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{}})),
+			config: tooldata.NewConfig(tooldata.TestDependenciesOpt(map[string][]string{"A": []string{}})),
 			tests:  []string{"A"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
@@ -228,7 +228,7 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> B
 		testCase{
-			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{"B"}})),
+			config: tooldata.NewConfig(tooldata.TestDependenciesOpt(map[string][]string{"A": []string{"B"}})),
 			tests:  []string{"A", "B"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
@@ -243,7 +243,7 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> {B, C, D}
 		testCase{
-			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{"B", "C", "D"}})),
+			config: tooldata.NewConfig(tooldata.TestDependenciesOpt(map[string][]string{"A": []string{"B", "C", "D"}})),
 			tests:  []string{"A", "B", "C", "D"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
@@ -266,7 +266,7 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// Same as above, but "dep" has no data.
 		testCase{
-			config: util.NewConfig(),
+			config: tooldata.NewConfig(),
 			tests:  []string{"A", "B", "C", "D"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
@@ -289,7 +289,7 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> {B, C, D}, but A is the only given test to resolve dependency for.
 		testCase{
-			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{"A": []string{"B", "C", "D"}})),
+			config: tooldata.NewConfig(tooldata.TestDependenciesOpt(map[string][]string{"A": []string{"B", "C", "D"}})),
 			tests:  []string{"A"},
 			expectedTests: testDepGraph{
 				"A": &testNode{
@@ -300,7 +300,7 @@ func TestCreateDepGraph(t *testing.T) {
 		},
 		// A -> {B, C, D} -> E
 		testCase{
-			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{
+			config: tooldata.NewConfig(tooldata.TestDependenciesOpt(map[string][]string{
 				"A": []string{"B", "C", "D"},
 				"B": []string{"E"},
 				"C": []string{"E"},
@@ -334,7 +334,7 @@ func TestCreateDepGraph(t *testing.T) {
 		// A -> B
 		// B -> C, C -> B
 		testCase{
-			config: util.NewConfig(util.TestDependenciesOpt(map[string][]string{
+			config: tooldata.NewConfig(tooldata.TestDependenciesOpt(map[string][]string{
 				"A": []string{"B"},
 				"B": []string{"C"},
 				"C": []string{"B"},
