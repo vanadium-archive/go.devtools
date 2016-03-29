@@ -36,8 +36,6 @@ type latencyData struct {
 func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
-		snApplications,
-		snBinaries,
 		snMacaroon,
 		snGoogleIdentity,
 		snBinaryDischarger,

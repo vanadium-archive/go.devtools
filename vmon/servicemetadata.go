@@ -29,8 +29,6 @@ type metadataData struct {
 func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
 		snMounttable,
-		snApplications,
-		snBinaries,
 		snIdentity,
 		snRole,
 		snProxy,

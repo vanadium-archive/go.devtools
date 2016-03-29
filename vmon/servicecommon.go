@@ -27,8 +27,6 @@ import (
 // Human-readable service names.
 const (
 	snMounttable       = "mounttable"
-	snApplications     = "application repository"
-	snBinaries         = "binary repository"
 	snIdentity         = "identity service"
 	snMacaroon         = "macaroon service"
 	snGoogleIdentity   = "google identity service"
@@ -44,8 +42,6 @@ const (
 // relative mounted names in the global mounttable.
 var serviceMountedNames = map[string]string{
 	snMounttable:       "",
-	snApplications:     "applications",
-	snBinaries:         "binaries",
 	snIdentity:         "identity/dev.v.io:u",
 	snMacaroon:         "identity/dev.v.io:u/macaroon",
 	snGoogleIdentity:   "identity/dev.v.io:u/google",
