@@ -109,7 +109,6 @@
       <test>vanadium-copyright</test>
     </project>
     <project name="release.js.core">
-      <test>javascript</test>
       <test>projects</test>
       <test>vanadium-copyright</test>
     </project>
@@ -215,12 +214,6 @@
       <test>baku-java-test</test>
       <test>vanadium-android-build</test>
       <test>vanadium-java-test</test>
-    </group>
-    <group name="javascript">
-      <test>vanadium-js-unit</test>
-      <test>vanadium-js-vdl</test>
-      <test>vanadium-js-vom</test>
-      <test>vanadium-js-vdl-audit</test>
     </group>
     <group name="mojo">
       <test>vanadium-mojo-discovery-test</test>
