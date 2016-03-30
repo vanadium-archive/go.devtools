@@ -37,7 +37,6 @@ func runBuildFramework(jirix *jiri.X) error {
 
 func buildUniversalFramework(jirix *jiri.X, xcodeTarget string) error {
 	fatBinaryPath := filepath.Join(flagOutDirSwift, frameworkName, frameworkBinaryName)
-
 	didCopyFramework := false
 	for _, targetArch := range targetArchs {
 		buildDir, err := buildSingleFramework(jirix, xcodeTarget, targetArch)
