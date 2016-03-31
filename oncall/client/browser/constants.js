@@ -109,12 +109,9 @@ var metricKeys = {
 var cloudServiceMetrics = [
   createMetric('MOUNTTABLE', 'CloudServiceLatency', metricKeys.latency[0],
       false, false, 'V REQUEST LATENCY'),
-  createMetric('APP REPO', 'CloudServiceLatency', metricKeys.latency[1]),
-  createMetric('BIN REPO', 'CloudServiceLatency', metricKeys.latency[2]),
   createMetric('DISCHARGER', 'CloudServiceLatency', metricKeys.latency[3]),
   createMetric('IDENTITY', 'CloudServiceLatency', metricKeys.latency[4]),
   createMetric('MACAROON', 'CloudServiceLatency', metricKeys.latency[5]),
-  createMetric('GROUPS', 'CloudServiceLatency', metricKeys.latency[6]),
   createMetric('ROLES', 'CloudServiceLatency', metricKeys.latency[7]),
   createMetric('PROXY', 'CloudServiceLatency', metricKeys.latency[8], true),
   createMetric('MOUNTED SERVERS', 'CloudServiceStats', metricKeys.stats[0],
