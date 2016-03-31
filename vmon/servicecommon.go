@@ -138,13 +138,13 @@ func getStat(v23ctx *context.T, ctx *tool.Context, me naming.MountEntry, pattern
 			me.Name = naming.Join(mountEntryName, v.Value.Name)
 			value, err := stats.StatsClient("").Value(v23ctx, options.Preresolved{&me})
 			if err != nil {
-				fmt.Fprintf(ctx.Stderr(), "Failed to get stat: %v\n%v\n", v.Value.Name, err)
+				fmt.Fprintf(ctx.Stderr(), "Failed to get stat (pattern: %q, entry: %#v): %v\n%v\n", pattern, me, v.Value.Name, err)
 				hasErrors = true
 				continue
 			}
 			var convertedValue interface{}
 			if err := vdl.Convert(&convertedValue, value); err != nil {
-				fmt.Fprintf(ctx.Stderr(), "Failed to convert value for %v: %v\n", v.Value.Name, err)
+				fmt.Fprintf(ctx.Stderr(), "Failed to convert value for %v (pattern: %q, entry: %#v): %v\n", pattern, me, v.Value.Name, err)
 				hasErrors = true
 				continue
 			}
@@ -157,7 +157,7 @@ func getStat(v23ctx *context.T, ctx *tool.Context, me naming.MountEntry, pattern
 		}
 	}
 	if hasErrors || len(ret) == 0 {
-		return nil, fmt.Errorf("failed to get stat")
+		return nil, fmt.Errorf("failed to get stat (pattern: %q, entry: %#v)", pattern, me)
 	}
 	if err := call.Finish(); err != nil {
 		return nil, err
