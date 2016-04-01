@@ -90,6 +90,11 @@ var (
 			github:       "git@github.com:vanadium/js.syncbase.git",
 		},
 		Mirror{
+			name:         "madb",
+			googlesource: "https://vanadium.googlesource.com/release.projects.madb",
+			github:       "git@github.com:vanadium/madb.git",
+		},
+		Mirror{
 			name:         "manifest",
 			googlesource: "https://vanadium.googlesource.com/manifest",
 			github:       "git@github.com:vanadium/manifest.git",
