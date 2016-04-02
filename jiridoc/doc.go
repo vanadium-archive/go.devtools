@@ -1506,7 +1506,7 @@ The jiri swift build flags are:
 Jiri swift clean - Removes generated cgo binaries and headers
 
 Removes generated cgo binaries and headers that fall under
-$JIRI_ROOT/release/swift/lib/v23/x
+$JIRI_ROOT/release/swift/lib/VanadiumCore/x
 
 Usage:
    jiri swift clean [flags]

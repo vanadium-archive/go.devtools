@@ -44,8 +44,8 @@ const (
 	buildModeArchive = "c-archive"
 	buildModeShared  = "c-shared"
 
-	frameworkName       = "v23.framework"
-	frameworkBinaryName = "v23"
+	frameworkName       = "VanadiumCore.framework"
+	frameworkBinaryName = "VanadiumCore"
 
 	stageBuildCgo       = "build-cgo"
 	stageBuildFramework = "build-framework"
@@ -102,7 +102,7 @@ var cmdClean = &cmdline.Command{
 	Runner: jiri.RunnerFunc(runClean),
 	Name:   "clean",
 	Short:  "Removes generated cgo binaries and headers",
-	Long:   "Removes generated cgo binaries and headers that fall under $JIRI_ROOT/release/swift/lib/v23/x",
+	Long:   "Removes generated cgo binaries and headers that fall under $JIRI_ROOT/release/swift/lib/VanadiumCore/x",
 }
 
 func parseBuildFlags() error {

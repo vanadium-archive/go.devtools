@@ -18,7 +18,7 @@ func runBuildFramework(jirix *jiri.X) error {
 		// will fail otherwise.
 		return fmt.Errorf("Framework builds are always universal -- target must be all")
 	}
-	xcodeTarget := "v23"
+	xcodeTarget := frameworkBinaryName
 	sh.Pushd(filepath.Join(jirix.Root, "release/swift/lib"))
 	// Make sure target directory exists
 	sh.Cmd("mkdir", "-p", flagOutDirSwift).Run()
@@ -52,8 +52,8 @@ func buildUniversalFramework(jirix *jiri.X, xcodeTarget string) error {
 			continue
 		}
 		// Copy this architecture's swift modules
-		builtModulesPath := filepath.Join(builtFrameworkPath, "Modules/v23.swiftmodule")
-		targetModulesPath := filepath.Join(flagOutDirSwift, frameworkName, "Modules/v23.swiftmodule")
+		builtModulesPath := filepath.Join(builtFrameworkPath, "Modules", frameworkBinaryName+".swiftmodule")
+		targetModulesPath := filepath.Join(flagOutDirSwift, frameworkName, "Modules", frameworkBinaryName+".swiftmodule")
 		verbose(jirix, "Copying built modules from %v to %v\n", filepath.Join(builtModulesPath, "*"), targetModulesPath)
 		modules, err := filepath.Glob(filepath.Join(builtModulesPath, "*"))
 		if err != nil {

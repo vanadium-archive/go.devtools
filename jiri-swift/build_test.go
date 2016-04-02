@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 func installProfiles() {
 	targets := []string{"arm64-ios", "amd64-ios"}
 	for _, target := range targets {
-		sh.Cmd("jiri-v23-profile", "install", "-target="+target, "base").Run()
+		sh.Cmd("jiri", "profile", "install", "-target="+target, "v23:base").Run()
 	}
 }
 
@@ -337,7 +337,7 @@ func TestUniversalFrameworkBuilds(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	// Make sure v23 exports exist
+	// Make sure VanadiumCore exports exist
 	if err := runBuildCgo(jirix); err != nil {
 		t.Error(err)
 		return
