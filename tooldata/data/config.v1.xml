@@ -24,6 +24,7 @@
     <project>release.projects.browser</project>
     <project>release.projects.chat</project>
     <project>release.projects.croupier</project>
+    <project>release.projects.madb</project>
     <project>release.projects.media-sharing</project>
     <project>release.projects.physical-lock</project>
     <project>release.projects.pipe2browser</project>
@@ -38,6 +39,7 @@
   <goWorkspaces>
     <workspace>infrastructure/go</workspace>
     <workspace>release/go</workspace>
+    <workspace>release/projects/go</workspace>
     <workspace>release/projects/physical-lock/go</workspace>
     <workspace>release/projects/sensorlog/go</workspace>
     <workspace>roadmap/go</workspace>
@@ -134,6 +136,12 @@
     <project name="release.projects.croupier">
       <test>vanadium-copyright</test>
       <test>vanadium-croupier-unit</test>
+    </project>
+    <project name="release.projects.madb">
+      <test>madb-go-format</test>
+      <test>madb-go-generate</test>
+      <test>madb-go-test</test>
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.playground">
       <test>vanadium-copyright</test>

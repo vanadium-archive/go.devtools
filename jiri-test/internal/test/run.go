@@ -72,6 +72,9 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"ignore-this":                             testMock,
 	"baku-android-build":                      bakuAndroidBuild,
 	"baku-java-test":                          bakuJavaTest,
+	"madb-go-format":                          madbGoFormat,
+	"madb-go-generate":                        madbGoGenerate,
+	"madb-go-test":                            madbGoTest,
 	"test-presubmit-test":                     testPresubmitTest,
 	"third_party-go-build":                    thirdPartyGoBuild,
 	"third_party-go-test":                     thirdPartyGoTest,
@@ -219,6 +222,12 @@ func (PkgsOpt) Opt() {}
 type MergePoliciesOpt profilesreader.MergePolicies
 
 func (MergePoliciesOpt) Opt() {}
+
+// DefaultPkgsOpt is an option that specifies which default packages
+// should be used to validate the test packages against.
+type DefaultPkgsOpt []string
+
+func (DefaultPkgsOpt) Opt() {}
 
 // ListTests returns a list of all tests known by the test package.
 func ListTests() ([]string, error) {

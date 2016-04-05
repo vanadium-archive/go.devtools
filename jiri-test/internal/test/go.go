@@ -1162,6 +1162,17 @@ func getNumWorkersOpt(opts []Opt) numWorkersOpt {
 	return numWorkersOpt(runtime.NumCPU())
 }
 
+// getDefaultPkgsOpt gets the default packages from the given Opt slice
+func getDefaultPkgsOpt(opts []Opt) []string {
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case DefaultPkgsOpt:
+			return []string(v)
+		}
+	}
+	return []string{"v.io/..."}
+}
+
 // thirdPartyGoBuild runs Go build for third-party projects.
 func thirdPartyGoBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
@@ -1426,7 +1437,7 @@ func vanadiumGoDepcop(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 }
 
 // vanadiumGoFormat runs Go format check for vanadium projects.
-func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result, e error) {
+func vanadiumGoFormat(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	// Initialize the test.
 	cleanup, err := initTest(jirix, testName, []string{"v23:base"})
 	if err != nil {
@@ -1436,7 +1447,9 @@ func vanadiumGoFormat(jirix *jiri.X, testName string, _ ...Opt) (_ *test.Result,
 
 	// Run the gofmt tool.
 	var out bytes.Buffer
-	if err := jirix.NewSeq().Capture(&out, &out).Last("jiri", "go", "fmt", "v.io/..."); err != nil {
+	args := []string{"go", "fmt"}
+	args = append(args, getDefaultPkgsOpt(opts)...)
+	if err := jirix.NewSeq().Capture(&out, &out).Last("jiri", args...); err != nil {
 		return nil, fmt.Errorf("unexpected error while running go fmt: %v", err)
 	}
 	// If the output is non-empty, there are format errors.
@@ -1473,7 +1486,8 @@ func vanadiumGoGenerate(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Re
 
 	s := jirix.NewSeq()
 
-	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
+	defaultPkgs := getDefaultPkgsOpt(opts)
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, defaultPkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1721,7 +1735,8 @@ func vanadiumGoTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result
 	defer collect.Error(func() error { return cleanup() }, &e)
 
 	// Test the Vanadium Go packages.
-	pkgs, err := validateAgainstDefaultPackages(jirix, opts, []string{"v.io/..."})
+	defaultPkgs := getDefaultPkgsOpt(opts)
+	pkgs, err := validateAgainstDefaultPackages(jirix, opts, defaultPkgs)
 	if err != nil {
 		return nil, err
 	}
