@@ -93,6 +93,7 @@
     <project name="release.go.x.lib">
       <test>go</test>
       <test>java</test>
+      <test>madb-go-test</test>
       <test>mojo</test>
       <test>projects</test>
       <test>vanadium-bootstrap</test>
