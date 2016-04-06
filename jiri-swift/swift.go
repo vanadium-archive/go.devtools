@@ -47,8 +47,8 @@ const (
 	frameworkName       = "VanadiumCore.framework"
 	frameworkBinaryName = "VanadiumCore"
 
-	stageBuildCgo       = "build-cgo"
-	stageBuildFramework = "build-framework"
+	stageBuildCgo       = "cgo"
+	stageBuildFramework = "framework"
 
 	descBuildMode   = "The build mode for cgo, either c-archive or c-shared. Defaults to c-archive."
 	descBuildDirCgo = "The directory for all generated artifacts during the cgo building phase. Defaults to a temp dir."
@@ -87,14 +87,14 @@ var cmdBuild = &cmdline.Command{
 	Short:  "Builds and installs the cgo wrapper, as well as the Swift framework",
 	Long: `The complete build pipeline from creating the CGO library, manipulating the headers for Swift,
 	and building the Swift framework using Xcode.`,
-	ArgsName: "[stage ...] (build-cgo, build-framework)",
+	ArgsName: "[stage ...] (cgo, framework)",
 	ArgsLong: `
 	[stage ...] are the pipelines stage to run and any arguments to pass to that stage. If left empty defaults
 	to building all stages.
 
 	Available stages:
-		build-cgo: Builds and installs the cgo library
-		build-framework: Builds the Swift Framework using Xcode
+		cgo: Builds and installs the cgo library
+		framework: Builds the Swift Framework using Xcode
 	`,
 }
 

@@ -1473,15 +1473,15 @@ headers for Swift,
 	and building the Swift framework using Xcode.
 
 Usage:
-   jiri swift build [flags] [stage ...] (build-cgo, build-framework)
+   jiri swift build [flags] [stage ...] (cgo, framework)
 
 [stage ...] are the pipelines stage to run and any arguments to pass to that
 stage. If left empty defaults
 	to building all stages.
 
 	Available stages:
-		build-cgo: Builds and installs the cgo library
-		build-framework: Builds the Swift Framework using Xcode
+		cgo: Builds and installs the cgo library
+		framework: Builds the Swift Framework using Xcode
 
 The jiri swift build flags are:
  -build-dir-cgo=

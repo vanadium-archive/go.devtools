@@ -140,7 +140,7 @@ func TestParseBuildArgs(t *testing.T) {
 	}
 	// Cgo binary
 	resetVars()
-	if err := parseBuildArgs(jirix, []string{"build-cgo"}); err != nil {
+	if err := parseBuildArgs(jirix, []string{"cgo"}); err != nil {
 		t.Error(err)
 		return
 	}
@@ -150,7 +150,7 @@ func TestParseBuildArgs(t *testing.T) {
 	}
 	// Cgo binary + framework
 	resetVars()
-	if err := parseBuildArgs(jirix, []string{"build-cgo", "build-framework"}); err != nil {
+	if err := parseBuildArgs(jirix, []string{"cgo", "framework"}); err != nil {
 		t.Error(err)
 		return
 	}
@@ -161,7 +161,7 @@ func TestParseBuildArgs(t *testing.T) {
 	// Framework requires universal
 	resetVars()
 	flagTargetArch = targetArchAmd64
-	if err := parseBuildArgs(jirix, []string{"build-cgo", "build-framework"}); err == nil {
+	if err := parseBuildArgs(jirix, []string{"cgo", "framework"}); err == nil {
 		t.Error("Expected error building framework for 1 architecture")
 		return
 	}
