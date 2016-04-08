@@ -35,7 +35,6 @@ The jiri external commands are:
                 environment
    swift        Compile the Swift framework
    test         Manage vanadium tests
-   v23-profile  No description available
 
 The jiri additional help topics are:
    filesystem  Description of jiri file system layout
@@ -1695,8 +1694,6 @@ The jiri test list flags are:
    specifies a profile target in the following form: <arch>-<os>[@<version>]
  -v=false
    Print verbose output.
-
-Jiri v23-profile - No description available
 
 Jiri filesystem - Description of jiri file system layout
 
