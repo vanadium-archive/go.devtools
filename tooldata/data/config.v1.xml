@@ -19,26 +19,19 @@
     <project>release.go.x.lib</project>
     <project>release.go.x.ref</project>
     <project>release.java</project>
-    <project>release.js.core</project>
-    <project>release.js.syncbase</project>
     <project>release.mojo.discovery</project>
     <project>release.mojo.shared</project>
     <project>release.mojo.syncbase</project>
     <project>release.mojo.v23proxy</project>
     <project>release.projects.baku</project>
     <project>release.projects.browser</project>
-    <project>release.projects.chat</project>
     <project>release.projects.croupier</project>
     <project>release.projects.madb</project>
-    <project>release.projects.media-sharing</project>
     <project>release.projects.physical-lock</project>
-    <project>release.projects.pipe2browser</project>
     <project>release.projects.playground</project>
     <project>release.projects.reader</project>
     <project>release.projects.sensorlog</project>
     <project>release.projects.syncslides</project>
-    <project>release.projects.todos</project>
-    <project>release.projects.travel</project>
     <project>website</project>
   </copyrightCheckProjects>
   <goWorkspaces>
@@ -116,14 +109,6 @@
       <test>java</test>
       <test>vanadium-copyright</test>
     </project>
-    <project name="release.js.core">
-      <test>projects</test>
-      <test>vanadium-copyright</test>
-    </project>
-    <project name="release.js.syncbase">
-      <test>projects</test>
-      <test>vanadium-copyright</test>
-    </project>
     <project name="release.mojo.discovery">
       <test>vanadium-copyright</test>
     </project>
@@ -146,9 +131,6 @@
     <project name="release.projects.browser">
       <test>vanadium-copyright</test>
     </project>
-    <project name="release.projects.chat">
-      <test>vanadium-copyright</test>
-    </project>
     <project name="release.projects.croupier">
       <test>vanadium-copyright</test>
       <test>vanadium-croupier-unit</test>
@@ -159,13 +141,7 @@
       <test>madb-go-test</test>
       <test>vanadium-copyright</test>
     </project>
-    <project name="release.projects.media-sharing">
-      <test>vanadium-copyright</test>
-    </project>
     <project name="release.projects.physical-lock">
-      <test>vanadium-copyright</test>
-    </project>
-    <project name="release.projects.pipe2browser">
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.playground">
@@ -184,13 +160,6 @@
     </project>
     <project name="release.projects.syncslides">
       <test>vanadium-copyright</test>
-    </project>
-    <project name="release.projects.todos">
-      <test>vanadium-copyright</test>
-    </project>
-    <project name="release.projects.travel">
-      <test>vanadium-copyright</test>
-      <test>vanadium-travel-test</test>
     </project>
     <project name="third_party">
       <test>go</test>
