@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 )
 
 func TestCreateMetric(t *testing.T) {
@@ -29,16 +29,15 @@ func TestCreateMetric(t *testing.T) {
 			includeGCELabels: false,
 			extraLabels:      nil,
 			expectedMetric: &cloudmonitoring.MetricDescriptor{
-				Name:        fmt.Sprintf("%s/vanadium/test", customMetricPrefix),
+				Type:        fmt.Sprintf("%s/vanadium/test", customMetricPrefix),
 				Description: "this is a test",
-				TypeDescriptor: &cloudmonitoring.MetricDescriptorTypeDescriptor{
-					MetricType: "gauge",
-					ValueType:  "double",
-				},
-				Labels: []*cloudmonitoring.MetricDescriptorLabelDescriptor{
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/metric-name", customMetricPrefix),
+				MetricKind:  "gauge",
+				ValueType:   "double",
+				Labels: []*cloudmonitoring.LabelDescriptor{
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "metric_name",
 						Description: "The name of the metric.",
+						ValueType:   "string",
 					},
 				},
 			},
@@ -50,24 +49,25 @@ func TestCreateMetric(t *testing.T) {
 			includeGCELabels: true,
 			extraLabels:      nil,
 			expectedMetric: &cloudmonitoring.MetricDescriptor{
-				Name:        fmt.Sprintf("%s/vanadium/test2", customMetricPrefix),
+				Type:        fmt.Sprintf("%s/vanadium/test2", customMetricPrefix),
 				Description: "this is a test2",
-				TypeDescriptor: &cloudmonitoring.MetricDescriptorTypeDescriptor{
-					MetricType: "gauge",
-					ValueType:  "string",
-				},
-				Labels: []*cloudmonitoring.MetricDescriptorLabelDescriptor{
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/gce-instance", customMetricPrefix),
+				MetricKind:  "gauge",
+				ValueType:   "string",
+				Labels: []*cloudmonitoring.LabelDescriptor{
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "gce_instance",
 						Description: "The name of the GCE instance associated with this metric.",
+						ValueType:   "string",
 					},
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/gce-zone", customMetricPrefix),
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "gce_zone",
 						Description: "The zone of the GCE instance associated with this metric.",
+						ValueType:   "string",
 					},
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/metric-name", customMetricPrefix),
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "metric_name",
 						Description: "The name of the metric.",
+						ValueType:   "string",
 					},
 				},
 			},
@@ -84,28 +84,30 @@ func TestCreateMetric(t *testing.T) {
 				},
 			},
 			expectedMetric: &cloudmonitoring.MetricDescriptor{
-				Name:        fmt.Sprintf("%s/vanadium/test3", customMetricPrefix),
+				Type:        fmt.Sprintf("%s/vanadium/test3", customMetricPrefix),
 				Description: "this is a test3",
-				TypeDescriptor: &cloudmonitoring.MetricDescriptorTypeDescriptor{
-					MetricType: "gauge",
-					ValueType:  "double",
-				},
-				Labels: []*cloudmonitoring.MetricDescriptorLabelDescriptor{
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/gce-instance", customMetricPrefix),
+				MetricKind:  "gauge",
+				ValueType:   "double",
+				Labels: []*cloudmonitoring.LabelDescriptor{
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "gce_instance",
 						Description: "The name of the GCE instance associated with this metric.",
+						ValueType:   "string",
 					},
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/gce-zone", customMetricPrefix),
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "gce_zone",
 						Description: "The zone of the GCE instance associated with this metric.",
+						ValueType:   "string",
 					},
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/metric-name", customMetricPrefix),
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "metric_name",
 						Description: "The name of the metric.",
+						ValueType:   "string",
 					},
-					&cloudmonitoring.MetricDescriptorLabelDescriptor{
-						Key:         fmt.Sprintf("%s/extraLabel", customMetricPrefix),
+					&cloudmonitoring.LabelDescriptor{
+						Key:         "extraLabel",
 						Description: "this is an extra label",
+						ValueType:   "string",
 					},
 				},
 			},

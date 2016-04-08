@@ -23,7 +23,7 @@ var (
 	queryFilterFlag   string
 	projectFlag       string
 
-	defaultQueryFilter = "custom.cloudmonitoring.googleapis.com"
+	defaultQueryFilter = `metric.type=starts_with("custom.googleapis.com")`
 )
 
 func init() {

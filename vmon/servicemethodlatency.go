@@ -11,7 +11,7 @@ import (
 	"sort"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
@@ -41,8 +41,11 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 	}
 
 	hasError := false
-	mdLatPerMethod := monitoring.CustomMetricDescriptors["service-permethod-latency"]
-	now := time.Now().Format(time.RFC3339)
+	mdLatPerMethod, err := monitoring.GetMetric("service-permethod-latency", projectFlag)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
 		lats, err := checkSingleServicePerMethodLatency(v23ctx, ctx, serviceName)
 		if err != nil {
@@ -80,7 +83,11 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 
 		// Send aggregated data to GCM.
 		for method, agg := range aggByMethod {
-			if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-permethod-latency-agg"], agg, now, serviceName, method); err != nil {
+			mdAgg, err := monitoring.GetMetric("service-permethod-latency-agg", projectFlag)
+			if err != nil {
+				return err
+			}
+			if err := sendAggregatedDataToGCM(ctx, s, mdAgg, agg, now, serviceName, method); err != nil {
 				return err
 			}
 		}

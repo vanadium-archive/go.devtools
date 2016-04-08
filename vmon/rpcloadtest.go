@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
@@ -41,31 +41,17 @@ func checkRPCLoadTest(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.S
 		"latency": results.MsecPerRpc,
 		"qps":     results.Qps,
 	}
-	mdRpcLoadTest := monitoring.CustomMetricDescriptors["rpc-load-test"]
+	mdRpcLoadTest, err := monitoring.GetMetric("rpc-load-test", projectFlag)
+	if err != nil {
+		return err
+	}
 	fi, err := seq.Stat(resultFile)
 	if err != nil {
 		return err
 	}
-	timeStr := fi.ModTime().Format(time.RFC3339)
+	timeStr := fi.ModTime().UTC().Format(time.RFC3339)
 	for label, value := range items {
-		_, err = s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-			Timeseries: []*cloudmonitoring.TimeseriesPoint{
-				&cloudmonitoring.TimeseriesPoint{
-					Point: &cloudmonitoring.Point{
-						DoubleValue: value,
-						Start:       timeStr,
-						End:         timeStr,
-					},
-					TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-						Metric: mdRpcLoadTest.Name,
-						Labels: map[string]string{
-							mdRpcLoadTest.Labels[0].Key: label,
-						},
-					},
-				},
-			},
-		}).Do()
-		if err != nil {
+		if err := sendDataToGCM(s, mdRpcLoadTest, value, timeStr, "", ""); err != nil {
 			test.Fail(ctx, "%s: %f\n", label, value)
 			return fmt.Errorf("Timeseries Write failed: %v", err)
 		}

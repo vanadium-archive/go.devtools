@@ -10,7 +10,7 @@ import (
 	"math"
 	"strings"
 
-	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23"
@@ -273,22 +273,27 @@ func sendDataToGCM(s *cloudmonitoring.Service, md *cloudmonitoring.MetricDescrip
 	for i := range labels {
 		labelsMap[md.Labels[i].Key] = labels[i]
 	}
-	if _, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-		Timeseries: []*cloudmonitoring.TimeseriesPoint{
-			&cloudmonitoring.TimeseriesPoint{
-				Point: &cloudmonitoring.Point{
-					DoubleValue: value,
-					Start:       now,
-					End:         now,
-				},
-				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-					Metric: md.Name,
+	if _, err := s.Projects.TimeSeries.Create(fmt.Sprintf("projects/%s", projectFlag), &cloudmonitoring.CreateTimeSeriesRequest{
+		TimeSeries: []*cloudmonitoring.TimeSeries{
+			&cloudmonitoring.TimeSeries{
+				Metric: &cloudmonitoring.Metric{
+					Type:   md.Type,
 					Labels: labelsMap,
 				},
+				Points: []*cloudmonitoring.Point{
+					&cloudmonitoring.Point{
+						Value: &cloudmonitoring.TypedValue{
+							DoubleValue: value,
+						},
+						Interval: &cloudmonitoring.TimeInterval{
+							StartTime: now,
+							EndTime:   now,
+						},
+					},
+				},
 			},
-		},
-	}).Do(); err != nil {
-		return fmt.Errorf("Timeseries Write failed for metric %q with value %q: %v", md.Name, value, err)
+		}}).Do(); err != nil {
+		return fmt.Errorf("Timeseries Write failed for metric %q with value %f: %v", md.Name, value, err)
 	}
 	return nil
 }

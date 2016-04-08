@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 	"v.io/jiri/tool"
 	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
@@ -30,12 +30,15 @@ func checkJenkins(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Servi
 		return err
 	}
 	now := time.Now()
-	strNow := now.Format(time.RFC3339)
+	strNow := now.UTC().Format(time.RFC3339)
 	ageInHours := now.Sub(time.Unix(info.Timestamp/1000, 0)).Hours()
 	msg := fmt.Sprintf("vanadium-go-build age: %f hours.\n", ageInHours)
 
 	// Send data to GCM.
-	md := monitoring.CustomMetricDescriptors["jenkins"]
+	md, err := monitoring.GetMetric("jenkins", projectFlag)
+	if err != nil {
+		return err
+	}
 	if err := sendDataToGCM(s, md, float64(ageInHours), strNow, "", "", "vanadium-go-build age"); err != nil {
 		test.Fail(ctx, msg)
 		return err

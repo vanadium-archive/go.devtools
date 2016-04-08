@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"

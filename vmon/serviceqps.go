@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
@@ -44,9 +44,15 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 	}
 
 	hasError := false
-	mdPerMethodQPS := monitoring.CustomMetricDescriptors["service-qps-method"]
-	mdTotalQPS := monitoring.CustomMetricDescriptors["service-qps-total"]
-	now := time.Now().Format(time.RFC3339)
+	mdPerMethodQPS, err := monitoring.GetMetric("service-qps-method", projectFlag)
+	if err != nil {
+		return err
+	}
+	mdTotalQPS, err := monitoring.GetMetric("service-qps-total", projectFlag)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
 		qps, err := checkSingleServiceQPS(v23ctx, ctx, serviceName)
 		if err != nil {
@@ -94,11 +100,19 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 		}
 
 		// Send aggregated data to GCM.
-		if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-qps-total-agg"], agg, now, serviceName); err != nil {
+		mdTotalAgg, err := monitoring.GetMetric("service-qps-total-agg", projectFlag)
+		if err != nil {
+			return err
+		}
+		if err := sendAggregatedDataToGCM(ctx, s, mdTotalAgg, agg, now, serviceName); err != nil {
 			return err
 		}
 		for method, agg := range aggByMethod {
-			if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-qps-method-agg"], agg, now, serviceName, method); err != nil {
+			mdMethodAgg, err := monitoring.GetMetric("service-qps-method-agg", projectFlag)
+			if err != nil {
+				return err
+			}
+			if err := sendAggregatedDataToGCM(ctx, s, mdMethodAgg, agg, now, serviceName, method); err != nil {
 				return err
 			}
 		}

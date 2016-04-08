@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 )
 
 func TestCalcIncidents(t *testing.T) {
@@ -21,16 +21,28 @@ func TestCalcIncidents(t *testing.T) {
 		{
 			points: []*cloudmonitoring.Point{
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896102, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896102, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896101, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896101, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896100, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896100, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 			},
 			expectedIncidentData: []incidentData{},
@@ -39,20 +51,36 @@ func TestCalcIncidents(t *testing.T) {
 		{
 			points: []*cloudmonitoring.Point{
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896103, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896103, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 3000,
-					Start:       time.Unix(1429896102, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896102, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 3000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 3000,
-					Start:       time.Unix(1429896101, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896101, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 3000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896100, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896100, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 			},
 			expectedIncidentData: []incidentData{
@@ -67,24 +95,44 @@ func TestCalcIncidents(t *testing.T) {
 		{
 			points: []*cloudmonitoring.Point{
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896104, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896104, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 3000,
-					Start:       time.Unix(1429896103, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896103, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 3000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 3000,
-					Start:       time.Unix(1429896102, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896102, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 3000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 5000,
-					Start:       time.Unix(1429896101, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896101, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 5000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896100, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896100, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 			},
 			expectedIncidentData: []incidentData{
@@ -104,20 +152,36 @@ func TestCalcIncidents(t *testing.T) {
 		{
 			points: []*cloudmonitoring.Point{
 				&cloudmonitoring.Point{
-					DoubleValue: 3000,
-					Start:       time.Unix(1429896103, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896103, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 3000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 3000,
-					Start:       time.Unix(1429896102, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896102, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 3000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 1000,
-					Start:       time.Unix(1429896101, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896101, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 1000,
+					},
 				},
 				&cloudmonitoring.Point{
-					DoubleValue: 5000,
-					Start:       time.Unix(1429896100, 0).Format(time.RFC3339),
+					Interval: &cloudmonitoring.TimeInterval{
+						StartTime: time.Unix(1429896100, 0).Format(time.RFC3339),
+					},
+					Value: &cloudmonitoring.TypedValue{
+						DoubleValue: 5000,
+					},
 				},
 			},
 			expectedIncidentData: []incidentData{

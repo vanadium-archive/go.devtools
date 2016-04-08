@@ -6,10 +6,9 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
-	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
@@ -41,7 +40,7 @@ var cmdMetricDescriptorCreate = &cmdline.Command{
 	Short:    "Create the given metric descriptor in GCM",
 	Long:     "Create the given metric descriptor in GCM.",
 	ArgsName: "<names>",
-	ArgsLong: "<names> is a list of metric descriptor names to create. Available: " + strings.Join(knownMetricDescriptorNames(), ", "),
+	ArgsLong: "<names> is a list of metric descriptor names to create. Available: " + strings.Join(monitoring.GetSortedMetricNames(), ", "),
 }
 
 func runMetricDescriptorCreate(_ *context.T, env *cmdline.Env, args []string) error {
@@ -54,7 +53,11 @@ func runMetricDescriptorCreate(_ *context.T, env *cmdline.Env, args []string) er
 		return err
 	}
 	for _, arg := range args {
-		_, err := s.MetricDescriptors.Create(projectFlag, monitoring.CustomMetricDescriptors[arg]).Do()
+		md, err := monitoring.GetMetric(arg, projectFlag)
+		if err != nil {
+			return err
+		}
+		_, err = s.Projects.MetricDescriptors.Create(fmt.Sprintf("projects/%s", projectFlag), md).Do()
 		if err != nil {
 			return fmt.Errorf("Create failed: %v", err)
 		}
@@ -70,7 +73,7 @@ var cmdMetricDescriptorDelete = &cmdline.Command{
 	Short:    "Delete the given metric descriptor from GCM",
 	Long:     "Delete the given metric descriptor from GCM.",
 	ArgsName: "<names>",
-	ArgsLong: "<names> is a list of metric descriptor names to delete. Available: " + strings.Join(knownMetricDescriptorNames(), ", "),
+	ArgsLong: "<names> is a list of metric descriptor names to delete. Available: " + strings.Join(monitoring.GetSortedMetricNames(), ", "),
 }
 
 func runMetricDescriptorDelete(_ *context.T, env *cmdline.Env, args []string) error {
@@ -83,7 +86,11 @@ func runMetricDescriptorDelete(_ *context.T, env *cmdline.Env, args []string) er
 		return err
 	}
 	for _, arg := range args {
-		_, err := s.MetricDescriptors.Delete(projectFlag, monitoring.CustomMetricDescriptors[arg].Name).Do()
+		md, err := monitoring.GetMetric(arg, projectFlag)
+		if err != nil {
+			return err
+		}
+		_, err = s.Projects.MetricDescriptors.Delete(md.Name).Do()
 		if err != nil {
 			return fmt.Errorf("Delete failed: %v", err)
 		}
@@ -101,7 +108,7 @@ var cmdMetricDescriptorList = &cmdline.Command{
 }
 
 func runMetricDescriptorList(_ *context.T, env *cmdline.Env, _ []string) error {
-	for _, n := range knownMetricDescriptorNames() {
+	for _, n := range monitoring.GetSortedMetricNames() {
 		fmt.Fprintf(env.Stdout, "%s\n", n)
 	}
 	return nil
@@ -125,13 +132,13 @@ func runMetricDescriptorQuery(_ *context.T, env *cmdline.Env, _ []string) error 
 	nextPageToken := ""
 	descriptors := []*cloudmonitoring.MetricDescriptor{}
 	for {
-		resp, err := s.MetricDescriptors.List(projectFlag, &cloudmonitoring.ListMetricDescriptorsRequest{
-			Kind: "cloudmonitoring#listMetricDescriptorsRequest",
-		}).Query(queryFilterFlag).PageToken(nextPageToken).Do()
+		resp, err := s.Projects.MetricDescriptors.List(fmt.Sprintf("projects/%s", projectFlag)).
+			Filter(queryFilterFlag).
+			PageToken(nextPageToken).Do()
 		if err != nil {
 			return fmt.Errorf("Query failed: %v", err)
 		}
-		descriptors = append(descriptors, resp.Metrics...)
+		descriptors = append(descriptors, resp.MetricDescriptors...)
 		nextPageToken = resp.NextPageToken
 		if nextPageToken == "" {
 			break
@@ -140,10 +147,11 @@ func runMetricDescriptorQuery(_ *context.T, env *cmdline.Env, _ []string) error 
 
 	// Output results.
 	for _, metric := range descriptors {
-		fmt.Fprintf(env.Stdout, "%s\n", metric.Name)
+		fmt.Fprintf(env.Stdout, "%s\n", metric.Type)
+		fmt.Fprintf(env.Stdout, "- Name: %s\n", metric.Name)
 		fmt.Fprintf(env.Stdout, "- Description: %s\n", metric.Description)
-		fmt.Fprintf(env.Stdout, "- Metric Type: %s\n", metric.TypeDescriptor.MetricType)
-		fmt.Fprintf(env.Stdout, "- Value Type: %s\n", metric.TypeDescriptor.ValueType)
+		fmt.Fprintf(env.Stdout, "- Metric Type: %s\n", metric.MetricKind)
+		fmt.Fprintf(env.Stdout, "- Value Type: %s\n", metric.ValueType)
 		if len(metric.Labels) > 0 {
 			fmt.Fprintf(env.Stdout, "- Labels:\n")
 			for _, label := range metric.Labels {
@@ -157,19 +165,10 @@ func runMetricDescriptorQuery(_ *context.T, env *cmdline.Env, _ []string) error 
 	return nil
 }
 
-func knownMetricDescriptorNames() []string {
-	names := []string{}
-	for n := range monitoring.CustomMetricDescriptors {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	return names
-}
-
 func checkArgs(env *cmdline.Env, args []string) error {
 	for _, arg := range args {
-		if _, ok := monitoring.CustomMetricDescriptors[arg]; !ok {
-			return env.UsageErrorf("metric descriptor %v does not exist", arg)
+		if _, err := monitoring.GetMetric(arg, projectFlag); err != nil {
+			return err
 		}
 	}
 	if len(args) == 0 {

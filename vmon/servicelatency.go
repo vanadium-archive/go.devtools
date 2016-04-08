@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
@@ -44,8 +44,11 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 	}
 
 	hasError := false
-	mdLat := monitoring.CustomMetricDescriptors["service-latency"]
-	now := time.Now().Format(time.RFC3339)
+	mdLat, err := monitoring.GetMetric("service-latency", projectFlag)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
 		lats, err := checkSingleServiceLatency(v23ctx, ctx, serviceName)
 		if err != nil {
@@ -75,7 +78,11 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 		}
 
 		// Send aggregated data to GCM.
-		if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-latency-agg"], agg, now, serviceName); err != nil {
+		mdAgg, err := monitoring.GetMetric("service-latency-agg", projectFlag)
+		if err != nil {
+			return err
+		}
+		if err := sendAggregatedDataToGCM(ctx, s, mdAgg, agg, now, serviceName); err != nil {
 			return err
 		}
 	}

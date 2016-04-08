@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/collect"
 	"v.io/jiri/tool"
@@ -386,7 +386,7 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 	if err != nil {
 		return err
 	}
-	timeStr := time.Now().Format(time.RFC3339)
+	timeStr := time.Now().UTC().Format(time.RFC3339)
 	for _, instance := range instances {
 		msg := fmt.Sprintf("Send gce instance data for %s (%s)\n", instance.name, instance.zone)
 		for _, metricName := range gceMetricNames {
@@ -453,28 +453,11 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 
 // sendInstanceDataToGCM sends a single instance's stat to GCM.
 func sendInstanceDataToGCM(s *cloudmonitoring.Service, metricType, metricName, timeStr string, instance *gceInstanceData, value float64) error {
-	pt := cloudmonitoring.Point{
-		DoubleValue: value,
-		Start:       timeStr,
-		End:         timeStr,
-	}
-	md := monitoring.CustomMetricDescriptors[metricType]
-	_, err := s.Timeseries.Write(projectFlag, &cloudmonitoring.WriteTimeseriesRequest{
-		Timeseries: []*cloudmonitoring.TimeseriesPoint{
-			&cloudmonitoring.TimeseriesPoint{
-				Point: &pt,
-				TimeseriesDesc: &cloudmonitoring.TimeseriesDescriptor{
-					Metric: md.Name,
-					Labels: map[string]string{
-						md.Labels[0].Key: instance.name,
-						md.Labels[1].Key: instance.zone,
-						md.Labels[2].Key: metricName,
-					},
-				},
-			},
-		},
-	}).Do()
+	md, err := monitoring.GetMetric(metricType, projectFlag)
 	if err != nil {
+		return err
+	}
+	if err := sendDataToGCM(s, md, value, timeStr, "", "", metricName); err != nil {
 		return fmt.Errorf("failed to write timeseries: %v", err)
 	}
 	return nil

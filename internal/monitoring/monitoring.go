@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 )
 
 const (
-	customMetricPrefix = "custom.cloudmonitoring.googleapis.com"
+	customMetricPrefix = "custom.googleapis.com"
 )
 
 type ServiceLocation struct {
@@ -54,9 +55,9 @@ var aggLabelData = []labelData{
 	},
 }
 
-// CustomMetricDescriptors is a map from metric's short names to their
+// customMetricDescriptors is a map from metric's short names to their
 // MetricDescriptor definitions.
-var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
+var customMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 	// Custom metrics for recording check latency and its aggregation
 	// of vanadium production services.
 	"service-latency":     createMetric("service/latency", "The check latency (ms) of vanadium production services.", "double", true, nil),
@@ -66,13 +67,13 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 	// for a service.
 	"service-permethod-latency": createMetric("service/latency/method", "Service latency (ms) per method.", "double", true, []labelData{
 		labelData{
-			key:         "method-name",
+			key:         "method_name",
 			description: "The method name",
 		},
 	}),
 	"service-permethod-latency-agg": createMetric("service/latency/method-agg", "Aggregated service latency (ms) per method.", "double", false, []labelData{
 		labelData{
-			key:         "method-name",
+			key:         "method_name",
 			description: "The method name",
 		},
 		aggLabelData[0],
@@ -87,13 +88,13 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 	// of vanadium production services.
 	"service-metadata": createMetric("service/metadata", "Various metadata of vanadium production services.", "double", true, []labelData{
 		labelData{
-			key:         "metadata-name",
+			key:         "metadata_name",
 			description: "The metadata name",
 		},
 	}),
 	"service-metadata-agg": createMetric("service/metadata-agg", "Aggregated metadata of vanadium production services.", "double", false, []labelData{
 		labelData{
-			key:         "metadata-name",
+			key:         "metadata_name",
 			description: "The metadata name",
 		},
 		aggLabelData[0],
@@ -106,13 +107,13 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 	// Custom metric for recording per-method rpc qps for a service.
 	"service-qps-method": createMetric("service/qps/method", "Service QPS per method.", "double", true, []labelData{
 		labelData{
-			key:         "method-name",
+			key:         "method_name",
 			description: "The method name",
 		},
 	}),
 	"service-qps-method-agg": createMetric("service/qps/method-agg", "Aggregated service QPS per method.", "double", false, []labelData{
 		labelData{
-			key:         "method-name",
+			key:         "method_name",
 			description: "The method name",
 		},
 		aggLabelData[0],
@@ -132,38 +133,60 @@ var CustomMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
 }
 
 func createMetric(metricType, description, valueType string, includeGCELabels bool, extraLabels []labelData) *cloudmonitoring.MetricDescriptor {
-	labels := []*cloudmonitoring.MetricDescriptorLabelDescriptor{}
+	labels := []*cloudmonitoring.LabelDescriptor{}
 	if includeGCELabels {
-		labels = append(labels, &cloudmonitoring.MetricDescriptorLabelDescriptor{
-			Key:         fmt.Sprintf("%s/gce-instance", customMetricPrefix),
+		labels = append(labels, &cloudmonitoring.LabelDescriptor{
+			Key:         "gce_instance",
 			Description: "The name of the GCE instance associated with this metric.",
-		}, &cloudmonitoring.MetricDescriptorLabelDescriptor{
-			Key:         fmt.Sprintf("%s/gce-zone", customMetricPrefix),
+			ValueType:   "string",
+		}, &cloudmonitoring.LabelDescriptor{
+			Key:         "gce_zone",
 			Description: "The zone of the GCE instance associated with this metric.",
+			ValueType:   "string",
 		})
 	}
-	labels = append(labels, &cloudmonitoring.MetricDescriptorLabelDescriptor{
-		Key:         fmt.Sprintf("%s/metric-name", customMetricPrefix),
+	labels = append(labels, &cloudmonitoring.LabelDescriptor{
+		Key:         "metric_name",
 		Description: "The name of the metric.",
+		ValueType:   "string",
 	})
 	if extraLabels != nil {
 		for _, data := range extraLabels {
-			labels = append(labels, &cloudmonitoring.MetricDescriptorLabelDescriptor{
-				Key:         fmt.Sprintf("%s/%s", customMetricPrefix, data.key),
+			labels = append(labels, &cloudmonitoring.LabelDescriptor{
+				Key:         fmt.Sprintf("%s", data.key),
 				Description: data.description,
+				ValueType:   "string",
 			})
 		}
 	}
 
 	return &cloudmonitoring.MetricDescriptor{
-		Name:        fmt.Sprintf("%s/vanadium/%s", customMetricPrefix, metricType),
+		Type:        fmt.Sprintf("%s/vanadium/%s", customMetricPrefix, metricType),
 		Description: description,
-		TypeDescriptor: &cloudmonitoring.MetricDescriptorTypeDescriptor{
-			MetricType: "gauge",
-			ValueType:  valueType,
-		},
-		Labels: labels,
+		MetricKind:  "gauge",
+		ValueType:   valueType,
+		Labels:      labels,
 	}
+}
+
+// GetMetric gets the custom metric descriptor with the given name and project.
+func GetMetric(name, project string) (*cloudmonitoring.MetricDescriptor, error) {
+	md, ok := customMetricDescriptors[name]
+	if !ok {
+		return nil, fmt.Errorf("metric %q doesn't exist", name)
+	}
+	md.Name = fmt.Sprintf("projects/%s/metricDescriptors/%s", project, md.Type)
+	return md, nil
+}
+
+// GetSortedMetricNames gets the sorted metric names.
+func GetSortedMetricNames() []string {
+	names := []string{}
+	for n := range customMetricDescriptors {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func createClient(keyFilePath string) (*http.Client, error) {

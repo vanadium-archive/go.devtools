@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	cloudmonitoring "google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/x/devtools/internal/monitoring"
@@ -33,7 +33,7 @@ const (
 	metricNameLabelKey         = "custom.cloudmonitoring.googleapis.com/metric-name"
 	gceInstanceLabelKey        = "custom.cloudmonitoring.googleapis.com/gce-instance"
 	gceZoneLabelKey            = "custom.cloudmonitoring.googleapis.com/gce-zone"
-	historyDuration            = "1h"
+	historyDuration            = time.Hour
 	serviceStatusOK            = "serviceStatusOK"
 	serviceStatusWarning       = "serviceStatusWarning"
 	serviceStatusDown          = "serviceStatusDown"
@@ -244,19 +244,22 @@ func runCollect(env *cmdline.Env, _ []string) error {
 
 func collectServiceStatusData(ctx *tool.Context, s *cloudmonitoring.Service, now time.Time, buildInfo map[string]*buildInfoData) (*serviceStatusData, error) {
 	// Collect data for the last 8 days and aggregate data every 10 minutes.
-	resp, err := s.Timeseries.List(projectFlag, cloudServiceLatencyMetric, now.Format(time.RFC3339), &cloudmonitoring.ListTimeseriesRequest{
-		Kind: "cloudmonitoring#listTimeseriesRequest",
-	}).Window("10m").Timespan("8d").Aggregator("max").Do()
+	resp, err := s.Projects.TimeSeries.List(fmt.Sprintf("projects/%s", projectFlag)).
+		Filter(fmt.Sprintf("metric.type=%s", cloudServiceLatencyMetric)).
+		AggregationAlignmentPeriod(fmt.Sprintf("%ds", 10*60)).
+		AggregationPerSeriesAligner("ALIGN_MAX").
+		IntervalStartTime(now.AddDate(0, 0, -8).Format(time.RFC3339)).
+		IntervalEndTime(now.Format(time.RFC3339)).Do()
 	if err != nil {
 		return nil, fmt.Errorf("List failed: %v", err)
 	}
 
 	status := []statusData{}
-	for _, t := range resp.Timeseries {
-		serviceName := t.TimeseriesDesc.Labels[metricNameLabelKey]
+	for _, t := range resp.TimeSeries {
+		serviceName := t.Metric.Labels[metricNameLabelKey]
 		curStatusData := statusData{
 			Name:          serviceName,
-			CurrentStatus: statusForLatency(t.Points[0].DoubleValue), // t.Points[0] is the latest
+			CurrentStatus: statusForLatency(t.Points[0].Value.DoubleValue), // t.Points[0] is the latest
 		}
 		incidents, err := calcIncidents(t.Points)
 		if err != nil {
@@ -301,12 +304,12 @@ func calcIncidents(points []*cloudmonitoring.Point) ([]incidentData, error) {
 	// through them backwards.
 	for i := len(points) - 1; i >= 0; i-- {
 		point := points[i]
-		value := point.DoubleValue
+		value := point.Value.DoubleValue
 		curStatus := statusForLatency(value)
 		if curStatus != lastStatus {
-			pointTime, err := time.Parse(time.RFC3339, point.Start)
+			pointTime, err := time.Parse(time.RFC3339, point.Interval.StartTime)
 			if err != nil {
-				return nil, fmt.Errorf("time.Parse(%s) failed: %v", point.Start, err)
+				return nil, fmt.Errorf("time.Parse(%s) failed: %v", point.Interval.StartTime, err)
 			}
 
 			// Set the duration of the last incident.
@@ -328,7 +331,7 @@ func calcIncidents(points []*cloudmonitoring.Point) ([]incidentData, error) {
 	}
 	// Process the possible last incident.
 	if lastStatus != serviceStatusOK {
-		strLastPointTime := points[0].Start
+		strLastPointTime := points[0].Interval.StartTime
 		pointTime, err := time.Parse(time.RFC3339, strLastPointTime)
 		if err != nil {
 			return nil, fmt.Errorf("time.Parse(%q) failed: %v", strLastPointTime, err)
@@ -689,19 +692,20 @@ func newRangeData() *rangeData {
 // (metricData) organized in metricDataMap.
 func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string, now time.Time, metricNameSuffix string) (metricDataMap, error) {
 	// Query the given metric.
-	resp, err := s.Timeseries.List(projectFlag, metric, now.Format(time.RFC3339), &cloudmonitoring.ListTimeseriesRequest{
-		Kind: "cloudmonitoring#listTimeseriesRequest",
-	}).Timespan(historyDuration).Do()
+	resp, err := s.Projects.TimeSeries.List(fmt.Sprintf("projects/%s", projectFlag)).
+		Filter(fmt.Sprintf("metric.type=%s", metric)).
+		IntervalStartTime(now.Add(-historyDuration).Format(time.RFC3339)).
+		IntervalEndTime(now.Format(time.RFC3339)).Do()
 	if err != nil {
 		return nil, fmt.Errorf("List() failed: %v", err)
 	}
 
 	// Populate metric items and put them into a metricDataMap.
 	data := metricDataMap{}
-	for _, t := range resp.Timeseries {
-		zone := t.TimeseriesDesc.Labels[gceZoneLabelKey]
-		instance := t.TimeseriesDesc.Labels[gceInstanceLabelKey]
-		metricName := t.TimeseriesDesc.Labels[metricNameLabelKey]
+	for _, t := range resp.TimeSeries {
+		zone := t.Metric.Labels[gceZoneLabelKey]
+		instance := t.Metric.Labels[gceInstanceLabelKey]
+		metricName := t.Metric.Labels[metricNameLabelKey]
 		if metricNameSuffix != "" {
 			metricName = fmt.Sprintf("%s %s", metricName, metricNameSuffix)
 		}
@@ -724,7 +728,7 @@ func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string,
 				ZoneName:     zone,
 				InstanceName: instance,
 				Name:         metricName,
-				CurrentValue: t.Points[0].DoubleValue,
+				CurrentValue: t.Points[0].Value.DoubleValue,
 				MinTime:      math.MaxInt64,
 				MaxTime:      0,
 				MinValue:     math.MaxFloat64,
@@ -742,18 +746,18 @@ func getMetricData(ctx *tool.Context, s *cloudmonitoring.Service, metric string,
 		// latest and going back in time.
 		for i := numPoints - 1; i >= 0; i-- {
 			point := t.Points[i]
-			epochTime, err := time.Parse(time.RFC3339, point.Start)
+			epochTime, err := time.Parse(time.RFC3339, point.Interval.StartTime)
 			if err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 				continue
 			}
 			timestamp := epochTime.Unix()
 			timestamps = append(timestamps, timestamp)
-			values = append(values, point.DoubleValue)
+			values = append(values, point.Value.DoubleValue)
 			curMetricData.MinTime = int64(math.Min(float64(curMetricData.MinTime), float64(timestamp)))
 			curMetricData.MaxTime = int64(math.Max(float64(curMetricData.MaxTime), float64(timestamp)))
-			curMetricData.MinValue = math.Min(curMetricData.MinValue, point.DoubleValue)
-			curMetricData.MaxValue = math.Max(curMetricData.MaxValue, point.DoubleValue)
+			curMetricData.MinValue = math.Min(curMetricData.MinValue, point.Value.DoubleValue)
+			curMetricData.MaxValue = math.Max(curMetricData.MaxValue, point.Value.DoubleValue)
 		}
 		curMetricData.HistoryTimestamps = timestamps
 		curMetricData.HistoryValues = values

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
@@ -35,9 +35,12 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 	}
 
 	hasError := false
-	mdMetadata := monitoring.CustomMetricDescriptors["service-metadata"]
+	mdMetadata, err := monitoring.GetMetric("service-metadata", projectFlag)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
-	strNow := now.Format(time.RFC3339)
+	strNow := now.UTC().Format(time.RFC3339)
 	for _, serviceName := range serviceNames {
 		ms, err := checkSingleServiceMetadata(v23ctx, ctx, serviceName)
 		if err != nil {
@@ -70,7 +73,10 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 		}
 
 		// Send aggregated data to GCM.
-		mdMetadataAgg := monitoring.CustomMetricDescriptors["service-metadata-agg"]
+		mdMetadataAgg, err := monitoring.GetMetric("service-metadata-agg", projectFlag)
+		if err != nil {
+			return err
+		}
 		if err := sendAggregatedDataToGCM(ctx, s, mdMetadataAgg, aggBuildTime, strNow, serviceName, "build time"); err != nil {
 			return err
 		}

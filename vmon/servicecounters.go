@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/api/cloudmonitoring/v2beta2"
+	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
@@ -42,8 +42,11 @@ func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 	}
 
 	hasError := false
-	mdCounter := monitoring.CustomMetricDescriptors["service-counters"]
-	now := time.Now().Format(time.RFC3339)
+	mdCounter, err := monitoring.GetMetric("service-counters", projectFlag)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
 	for serviceName, serviceCounters := range counters {
 		for _, counter := range serviceCounters {
 			vs, err := checkSingleCounter(v23ctx, ctx, serviceName, counter)
@@ -69,7 +72,11 @@ func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 			}
 
 			// Send aggregated data to GCM.
-			if err := sendAggregatedDataToGCM(ctx, s, monitoring.CustomMetricDescriptors["service-counters-agg"], agg, now, counter.name); err != nil {
+			mdAgg, err := monitoring.GetMetric("service-counters-agg", projectFlag)
+			if err != nil {
+				return err
+			}
+			if err := sendAggregatedDataToGCM(ctx, s, mdAgg, agg, now, counter.name); err != nil {
 				return err
 			}
 		}

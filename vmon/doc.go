@@ -174,7 +174,7 @@ Usage:
    vmon md query [flags]
 
 The vmon md query flags are:
- -filter=custom.cloudmonitoring.googleapis.com
+ -filter=metric.type=starts_with("custom.googleapis.com")
    The filter used for query. Default to only query custom metrics.
 
  -color=true
