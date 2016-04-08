@@ -7,6 +7,11 @@
     <project>release.go.x.lib</project>
   </apiCheckProjects>
   <copyrightCheckProjects>
+    <!-- Each project listed under copyrightCheckProjects should have its own
+         separate project item under the top-level config, containing at least
+         vanadium-copyright as a test.  Otherwise, the copyright presubmit will
+         not run for the project.
+     -->
     <project>release.go.jiri</project>
     <project>release.go.v23</project>
     <project>release.go.x.devtools</project>
@@ -32,8 +37,8 @@
     <project>release.projects.reader</project>
     <project>release.projects.sensorlog</project>
     <project>release.projects.syncslides</project>
-    <project>release.projects.travel</project>
     <project>release.projects.todos</project>
+    <project>release.projects.travel</project>
     <project>website</project>
   </copyrightCheckProjects>
   <goWorkspaces>
@@ -115,6 +120,10 @@
       <test>projects</test>
       <test>vanadium-copyright</test>
     </project>
+    <project name="release.js.syncbase">
+      <test>projects</test>
+      <test>vanadium-copyright</test>
+    </project>
     <project name="release.mojo.discovery">
       <test>vanadium-copyright</test>
     </project>
@@ -134,6 +143,12 @@
       <test>vanadium-copyright</test>
       <test>vanadium-baku-test</test>
     </project>
+    <project name="release.projects.browser">
+      <test>vanadium-copyright</test>
+    </project>
+    <project name="release.projects.chat">
+      <test>vanadium-copyright</test>
+    </project>
     <project name="release.projects.croupier">
       <test>vanadium-copyright</test>
       <test>vanadium-croupier-unit</test>
@@ -142,6 +157,15 @@
       <test>madb-go-format</test>
       <test>madb-go-generate</test>
       <test>madb-go-test</test>
+      <test>vanadium-copyright</test>
+    </project>
+    <project name="release.projects.media-sharing">
+      <test>vanadium-copyright</test>
+    </project>
+    <project name="release.projects.physical-lock">
+      <test>vanadium-copyright</test>
+    </project>
+    <project name="release.projects.pipe2browser">
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.playground">
@@ -159,6 +183,9 @@
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.syncslides">
+      <test>vanadium-copyright</test>
+    </project>
+    <project name="release.projects.todos">
       <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.travel">
