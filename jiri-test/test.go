@@ -53,7 +53,7 @@ func init() {
 	cmdTestRun.Flags.StringVar(&mockTestFileContents, "mock-file-contents", "", "Colon-separated file contents to check when testing presubmit test. This flag is only used when running presubmit end-to-end test.")
 	tool.InitializeRunFlags(&cmdTest.Flags)
 	tool.InitializeProjectFlags(&cmdProjectPoll.Flags)
-	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, jiri.ProfilesDBDir)
+	profilescmdline.RegisterReaderFlags(&cmdTest.Flags, &readerFlags, "v23:base", jiri.ProfilesDBDir)
 }
 
 // cmdTest represents the "jiri test" command.

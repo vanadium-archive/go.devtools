@@ -295,7 +295,7 @@ The jiri profile list flags are:
    	Note: if no profiles are specified then the requested field will be displayed for all profiles.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -profiles=v23:base
+ -profiles=
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
    the path, relative to JIRI_ROOT, that contains the profiles database.
@@ -330,7 +330,7 @@ The jiri profile env flags are:
    specify an environment variable in the form: <var>=[<val>],...
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -profiles=v23:base
+ -profiles=
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
    the path, relative to JIRI_ROOT, that contains the profiles database.
@@ -788,7 +788,7 @@ The jiri runp flags are:
    -show-key-prefix or -collate-stdout.
  -merge-policies=+CCFLAGS,+CGO_CFLAGS,+CGO_CXXFLAGS,+CGO_LDFLAGS,+CXXFLAGS,GOARCH,GOOS,GOPATH:,^GOROOT*,+LDFLAGS,:PATH,VDLPATH:
    specify policies for merging environment variables
- -profiles=v23:base
+ -profiles=
    a comma separated list of profiles to use
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
    the path, relative to JIRI_ROOT, that contains the profiles database.

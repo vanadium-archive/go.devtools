@@ -76,7 +76,7 @@ const dockerBin = "docker"
 
 func init() {
 	tool.InitializeRunFlags(&cmd.Flags)
-	profilescmdline.RegisterReaderFlags(&cmd.Flags, &readerFlags, jiri.ProfilesDBDir)
+	profilescmdline.RegisterReaderFlags(&cmd.Flags, &readerFlags, "v23:base", jiri.ProfilesDBDir)
 	flag.StringVar(&imageFlag, "image", "", "Name of the docker image to use. If empty, the tool will automatically select an image based on the environment variables, possibly edited by the profile")
 	flag.StringVar(&extraLDFlags, "extra-ldflags", "", golib.ExtraLDFlagsFlagDescription)
 }
