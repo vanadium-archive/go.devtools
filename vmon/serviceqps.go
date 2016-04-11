@@ -37,10 +37,10 @@ type qpsData struct {
 // the results to GCM.
 func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
-		snMounttable,
-		snIdentity,
-		snRole,
-		snProxy,
+		monitoring.SNMounttable,
+		monitoring.SNIdentity,
+		monitoring.SNRole,
+		monitoring.SNProxy,
 	}
 
 	hasError := false
@@ -124,13 +124,13 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 }
 
 func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]qpsData, error) {
-	mountedName, err := getMountedName(serviceName)
+	mountedName, err := monitoring.GetServiceMountedName(namespaceRootFlag, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
+	groups, err := monitoring.ResolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 	for _, group := range groups {
 		perMethodQPS := map[string]float64{}
 		totalQPS := 0.0
-		qpsResults, err := getStat(v23ctx, ctx, group, qpsSuffix)
+		qpsResults, err := monitoring.GetStat(v23ctx, ctx, group, qpsSuffix)
 		if err != nil {
 			errors = append(errors, err)
 			continue
@@ -149,11 +149,11 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 		curPerMethodQPS := map[string]float64{}
 		curTotalQPS := 0.0
 		for _, r := range qpsResults {
-			data, ok := r.value.(stats.HistogramValue)
+			data, ok := r.Value.(stats.HistogramValue)
 			if !ok {
 				return nil, fmt.Errorf("invalid qps data: %v", r)
 			}
-			matches := qpsRE.FindStringSubmatch(r.name)
+			matches := qpsRE.FindStringSubmatch(r.Name)
 			if matches == nil {
 				continue
 			}
@@ -168,7 +168,7 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 			errors = append(errors, fmt.Errorf("failed to check qps for service %q", serviceName))
 			continue
 		}
-		location, err := getServiceLocation(v23ctx, ctx, group)
+		location, err := monitoring.GetServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			errors = append(errors, err)
 			continue

@@ -34,10 +34,10 @@ type perMethodLatencyData struct {
 // adds the results to GCM.
 func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
-		snMounttable,
-		snIdentity,
-		snRole,
-		snProxy,
+		monitoring.SNMounttable,
+		monitoring.SNIdentity,
+		monitoring.SNRole,
+		monitoring.SNProxy,
 	}
 
 	hasError := false
@@ -99,13 +99,13 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 }
 
 func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]perMethodLatencyData, error) {
-	mountedName, err := getMountedName(serviceName)
+	mountedName, err := monitoring.GetServiceMountedName(namespaceRootFlag, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
+	groups, err := monitoring.ResolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, se
 	for _, group := range groups {
 		latency := map[string]float64{}
 		// Run "debug stats read" for the corresponding object.
-		statsResult, err := getStat(v23ctx, ctx, group, statsSuffix)
+		statsResult, err := monitoring.GetStat(v23ctx, ctx, group, statsSuffix)
 		if err != nil {
 			errors = append(errors, err)
 			continue
@@ -124,11 +124,11 @@ func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, se
 		// Parse output.
 		latPerMethod := map[string]float64{}
 		for _, r := range statsResult {
-			data, ok := r.value.(stats.HistogramValue)
+			data, ok := r.Value.(stats.HistogramValue)
 			if !ok {
 				return nil, fmt.Errorf("invalid latency data: %v", r)
 			}
-			matches := latMethodRE.FindStringSubmatch(r.name)
+			matches := latMethodRE.FindStringSubmatch(r.Name)
 			if matches == nil {
 				continue
 			}
@@ -144,7 +144,7 @@ func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, se
 			errors = append(errors, fmt.Errorf("failed to check latency for service %q", serviceName))
 			continue
 		}
-		location, err := getServiceLocation(v23ctx, ctx, group)
+		location, err := monitoring.GetServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			errors = append(errors, err)
 			continue

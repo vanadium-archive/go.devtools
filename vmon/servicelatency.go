@@ -35,12 +35,12 @@ type latencyData struct {
 // checkServiceLatency checks all services and adds their check latency to GCM.
 func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
-		snMounttable,
-		snMacaroon,
-		snGoogleIdentity,
-		snBinaryDischarger,
-		snRole,
-		snProxy,
+		monitoring.SNMounttable,
+		monitoring.SNMacaroon,
+		monitoring.SNGoogleIdentity,
+		monitoring.SNBinaryDischarger,
+		monitoring.SNRole,
+		monitoring.SNProxy,
 	}
 
 	hasError := false
@@ -94,16 +94,16 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 
 func checkSingleServiceLatency(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]latencyData, error) {
 	// Get service's mounted name.
-	serviceMountedName, err := getMountedName(serviceName)
+	serviceMountedName, err := monitoring.GetServiceMountedName(namespaceRootFlag, serviceName)
 	if err != nil {
 		return nil, err
 	}
 	// For proxy, we send "signature" RPC to "proxy-mon/__debug" endpoint.
-	if serviceName == snProxy {
+	if serviceName == monitoring.SNProxy {
 		serviceMountedName = fmt.Sprintf("%s/__debug", serviceMountedName)
 	}
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, serviceMountedName)
+	groups, err := monitoring.ResolveAndProcessServiceName(v23ctx, ctx, serviceName, serviceMountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func checkSingleServiceLatency(v23ctx *context.T, ctx *tool.Context, serviceName
 		} else {
 			latency = time.Now().Sub(start)
 		}
-		location, err := getServiceLocation(v23ctx, ctx, group)
+		location, err := monitoring.GetServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			return nil, err
 		}

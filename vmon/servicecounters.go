@@ -29,7 +29,7 @@ type counterData struct {
 // checkServiceCounters checks all service counters and adds the results to GCM.
 func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	counters := map[string][]prodServiceCounter{
-		snMounttable: []prodServiceCounter{
+		monitoring.SNMounttable: []prodServiceCounter{
 			prodServiceCounter{
 				name:       "mounttable nodes",
 				statSuffix: "__debug/stats/mounttable/num-nodes",
@@ -88,13 +88,13 @@ func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 }
 
 func checkSingleCounter(v23ctx *context.T, ctx *tool.Context, serviceName string, counter prodServiceCounter) ([]counterData, error) {
-	mountedName, err := getMountedName(serviceName)
+	mountedName, err := monitoring.GetServiceMountedName(namespaceRootFlag, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
+	groups, err := monitoring.ResolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -103,17 +103,17 @@ func checkSingleCounter(v23ctx *context.T, ctx *tool.Context, serviceName string
 	counters := []counterData{}
 	errors := []error{}
 	for _, group := range groups {
-		counterResult, err := getStat(v23ctx, ctx, group, counter.statSuffix)
+		counterResult, err := monitoring.GetStat(v23ctx, ctx, group, counter.statSuffix)
 		if err != nil {
 			errors = append(errors, err)
 			continue
 		}
-		value, err := counterResult[0].getFloat64Value()
+		value, err := counterResult[0].GetFloat64Value()
 		if err != nil {
 			errors = append(errors, err)
 			continue
 		}
-		location, err := getServiceLocation(v23ctx, ctx, group)
+		location, err := monitoring.GetServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			errors = append(errors, err)
 			continue

@@ -12,7 +12,6 @@ Usage:
    oncall [flags] <command>
 
 The oncall commands are:
-   collect     Collect data for oncall dashboard
    serve       Serve oncall dashboard data from Google Storage
    help        Display help for commands or topics
 
@@ -27,29 +26,6 @@ The global flags are:
    Displays metadata for the program and exits.
  -time=false
    Dump timing information to stderr before exiting the program.
-
-Oncall collect - Collect data for oncall dashboard
-
-This subcommand collects data from Google Cloud Monitoring and stores the
-processed data to Google Storage.
-
-Usage:
-   oncall collect [flags]
-
-The oncall collect flags are:
- -bin-dir=
-   The path where all binaries are downloaded.
- -key=
-   The path to the service account's JSON credentials file.
- -project=
-   The GCM's corresponding GCE project ID.
- -v23.credentials=
-   The path to v23 credentials.
-
- -color=true
-   Use color to format output.
- -v=false
-   Print verbose output.
 
 Oncall serve - Serve oncall dashboard data from Google Storage
 

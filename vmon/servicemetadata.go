@@ -28,10 +28,10 @@ type metadataData struct {
 // checkServiceMetadata checks all service metadata and adds the results to GCM.
 func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service) error {
 	serviceNames := []string{
-		snMounttable,
-		snIdentity,
-		snRole,
-		snProxy,
+		monitoring.SNMounttable,
+		monitoring.SNIdentity,
+		monitoring.SNRole,
+		monitoring.SNProxy,
 	}
 
 	hasError := false
@@ -92,13 +92,13 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 }
 
 func checkSingleServiceMetadata(v23ctx *context.T, ctx *tool.Context, serviceName string) ([]metadataData, error) {
-	mountedName, err := getMountedName(serviceName)
+	mountedName, err := monitoring.GetServiceMountedName(namespaceRootFlag, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve name and group results by routing ids.
-	groups, err := resolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
+	groups, err := monitoring.ResolveAndProcessServiceName(v23ctx, ctx, serviceName, mountedName)
 	if err != nil {
 		return nil, err
 	}
@@ -108,18 +108,18 @@ func checkSingleServiceMetadata(v23ctx *context.T, ctx *tool.Context, serviceNam
 	errors := []error{}
 	for _, group := range groups {
 		// Query build time.
-		timeResult, err := getStat(v23ctx, ctx, group, buildTimeStatSuffix)
+		timeResult, err := monitoring.GetStat(v23ctx, ctx, group, buildTimeStatSuffix)
 		if err != nil {
 			errors = append(errors, err)
 			continue
 		}
-		strTime := timeResult[0].getStringValue()
+		strTime := timeResult[0].GetStringValue()
 		buildTime, err := time.Parse("2006-01-02T15:04:05Z", strTime)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("Parse(%v) failed: %v", strTime, err))
 			continue
 		}
-		location, err := getServiceLocation(v23ctx, ctx, group)
+		location, err := monitoring.GetServiceLocation(v23ctx, ctx, group)
 		if err != nil {
 			errors = append(errors, err)
 			continue

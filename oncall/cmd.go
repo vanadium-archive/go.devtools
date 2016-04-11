@@ -30,5 +30,5 @@ var cmdRoot = &cmdline.Command{
 	Name:     "oncall",
 	Short:    "Command oncall implements oncall specific utilities used by Vanadium team",
 	Long:     "Command oncall implements oncall specific utilities used by Vanadium team.",
-	Children: []*cmdline.Command{cmdCollect, cmdServe},
+	Children: []*cmdline.Command{cmdServe},
 }
