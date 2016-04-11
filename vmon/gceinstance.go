@@ -457,7 +457,7 @@ func sendInstanceDataToGCM(s *cloudmonitoring.Service, metricType, metricName, t
 	if err != nil {
 		return err
 	}
-	if err := sendDataToGCM(s, md, value, timeStr, "", "", metricName); err != nil {
+	if err := sendDataToGCM(s, md, value, timeStr, "", "", instance.name, instance.zone, metricName); err != nil {
 		return fmt.Errorf("failed to write timeseries: %v", err)
 	}
 	return nil
