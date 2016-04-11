@@ -51,7 +51,7 @@ func checkRPCLoadTest(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.S
 	}
 	timeStr := fi.ModTime().UTC().Format(time.RFC3339)
 	for label, value := range items {
-		if err := sendDataToGCM(s, mdRpcLoadTest, value, timeStr, "", ""); err != nil {
+		if err := sendDataToGCM(s, mdRpcLoadTest, value, timeStr, "", "", label); err != nil {
 			test.Fail(ctx, "%s: %f\n", label, value)
 			return fmt.Errorf("Timeseries Write failed: %v", err)
 		}
