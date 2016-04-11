@@ -137,12 +137,14 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 
 	// Get qps for each group.
 	qps := []qpsData{}
+	errors := []error{}
 	for _, group := range groups {
 		perMethodQPS := map[string]float64{}
 		totalQPS := 0.0
 		qpsResults, err := getStat(v23ctx, ctx, group, qpsSuffix)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		curPerMethodQPS := map[string]float64{}
 		curTotalQPS := 0.0
@@ -163,17 +165,23 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 		perMethodQPS = curPerMethodQPS
 		totalQPS = curTotalQPS
 		if len(perMethodQPS) == 0 {
-			return nil, fmt.Errorf("failed to check qps for service %q", serviceName)
+			errors = append(errors, fmt.Errorf("failed to check qps for service %q", serviceName))
+			continue
 		}
 		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		qps = append(qps, qpsData{
 			location:     location,
 			perMethodQPS: perMethodQPS,
 			totalQPS:     totalQPS,
 		})
+	}
+
+	if len(errors) == len(groups) {
+		return nil, fmt.Errorf("%v", errors)
 	}
 
 	return qps, nil

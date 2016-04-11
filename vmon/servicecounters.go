@@ -101,23 +101,30 @@ func checkSingleCounter(v23ctx *context.T, ctx *tool.Context, serviceName string
 
 	// Get counters for each group.
 	counters := []counterData{}
+	errors := []error{}
 	for _, group := range groups {
 		counterResult, err := getStat(v23ctx, ctx, group, counter.statSuffix)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		value, err := counterResult[0].getFloat64Value()
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		counters = append(counters, counterData{
 			location: location,
 			value:    value,
 		})
+	}
+	if len(errors) == len(groups) {
+		return counters, fmt.Errorf("%v", errors)
 	}
 
 	return counters, nil

@@ -112,12 +112,14 @@ func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, se
 
 	// Get per-method latency for each group.
 	latencies := []perMethodLatencyData{}
+	errors := []error{}
 	for _, group := range groups {
 		latency := map[string]float64{}
 		// Run "debug stats read" for the corresponding object.
 		statsResult, err := getStat(v23ctx, ctx, group, statsSuffix)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		// Parse output.
 		latPerMethod := map[string]float64{}
@@ -139,16 +141,21 @@ func checkSingleServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, se
 		}
 		latency = latPerMethod
 		if len(latency) == 0 {
-			return nil, fmt.Errorf("failed to check latency for service %q", serviceName)
+			errors = append(errors, fmt.Errorf("failed to check latency for service %q", serviceName))
+			continue
 		}
 		location, err := getServiceLocation(v23ctx, ctx, group)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		latencies = append(latencies, perMethodLatencyData{
 			location: location,
 			latency:  latency,
 		})
+	}
+	if len(errors) == len(groups) {
+		return nil, fmt.Errorf("%v", errors)
 	}
 
 	return latencies, nil
