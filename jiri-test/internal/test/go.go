@@ -1017,6 +1017,8 @@ func init() {
 		newExclusion("google.golang.org/appengine/internal", "TestDelayedLogFlushing", isCI()),
 		// This test relies on timing, which results in flakiness on GCE.
 		newExclusion("google.golang.org/cloud/bigtable", "TestClientIntegration", isCI()),
+		// This test relies on timing, which results in flakiness on GCE.
+		newExclusion("google.golang.org/cloud/pubsub", "TestKeepAliveStopsImmediatelyForNoAckIDs", isCI()),
 		// The crypto/ssh TestValidTerminalMode is flakey on Jenkins and
 		// sometimes fails when getting a pty.
 		newExclusion("golang.org/x/crypto/ssh/test", "TestValidTerminalMode", isCI()),
