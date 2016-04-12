@@ -110,6 +110,7 @@
       <test>vanadium-copyright</test>
     </project>
     <project name="release.mojo.discovery">
+      <test>mojo</test>
       <test>vanadium-copyright</test>
     </project>
     <project name="release.mojo.shared">
