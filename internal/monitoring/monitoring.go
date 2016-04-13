@@ -41,6 +41,7 @@ const (
 	SNBinaryDischarger = "binary discharger"
 	SNRole             = "role service"
 	SNProxy            = "proxy service"
+	SNBenchmark        = "benchmark service"
 
 	hostnameStatSuffix = "__debug/stats/system/hostname"
 	zoneStatSuffix     = "__debug/stats/system/gce/zone"
@@ -56,6 +57,7 @@ var serviceMountedNames = map[string]string{
 	SNBinaryDischarger: "identity/dev.v.io:u/discharger",
 	SNRole:             "identity/role",
 	SNProxy:            "proxy-mon",
+	SNBenchmark:        "benchmarks",
 }
 
 // StatValue stores the name and the value returned from the GetStat function.
