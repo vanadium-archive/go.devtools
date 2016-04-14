@@ -1006,9 +1006,13 @@ func init() {
 		//
 		// https://github.com/veyron/release-issues/issues/1494
 		newExclusion("v.io/x/ref/runtime/internal/rpc/stream/vc", "TestConcurrentFlows", isDarwin() && is386()),
-		// TODO(jingjin): re-enable this test when the following issue is resolved.
-		// https://github.com/vanadium/issues/issues/639
-		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", isDarwin()),
+		// // TODO(jingjin): re-enable this test when the following issue is resolved.
+		// // https://github.com/vanadium/issues/issues/639
+		// newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", isDarwin()),
+		// TODO(razvanm): re-enable the device manager tests and enable the above
+		// exclusion when https://v.io/i/1286 is fixed.
+		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerMultiUser", isCI()),
+		newExclusion("v.io/x/ref/services/device", "TestV23DeviceManagerSingleUser", isCI()),
 		// The fsnotify package tests are flaky on darwin. This begs the
 		// question of whether we should be relying on this library at
 		// all.
