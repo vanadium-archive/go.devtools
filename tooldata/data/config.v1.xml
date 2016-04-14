@@ -211,6 +211,7 @@
       <test>vanadium-go-vet</test>
       -->
       <test>vanadium-integration-test</test>
+      <test>vanadium-vkube-integration-test</test>
       <test>vanadium-regression-test</test>
       <test>vanadium-prod-services-test</test>
       <test>vanadium-website-tutorials-core</test>
