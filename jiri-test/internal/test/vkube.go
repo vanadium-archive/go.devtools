@@ -22,9 +22,6 @@ func vanadiumVkubeIntegrationTest(jirix *jiri.X, testName string, opts ...Opt) (
 		return nil, newInternalError(fmt.Errorf("project not defined in %s environment variable", projectEnvVar), "Env")
 	}
 	s := jirix.NewSeq()
-	if err := s.Last("gcloud", "projects", "describe", project); err != nil {
-		return nil, newInternalError(errors.New("this test requires gcloud"), err.Error())
-	}
 	if err := s.Last("kubectl", "cluster-info"); err != nil {
 		return nil, newInternalError(errors.New("this test requires kubectl"), err.Error())
 	}
