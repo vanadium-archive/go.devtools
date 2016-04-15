@@ -93,6 +93,7 @@ var (
 			name:         "madb",
 			googlesource: "https://vanadium.googlesource.com/release.projects.madb",
 			github:       "git@github.com:vanadium/madb.git",
+			followTags:   true,
 		},
 		Mirror{
 			name:         "manifest",
@@ -179,6 +180,7 @@ var (
 
 type Mirror struct {
 	name, googlesource, github string
+	followTags                 bool
 }
 
 // vanadiumGitHubMirror mirrors googlesource.com vanadium projects to
@@ -284,7 +286,7 @@ func reset(jirix *jiri.X, mirror Mirror, projects string) error {
 	git := gitutil.New(jirix.NewSeq(), rootOpt)
 
 	// Fetch master branch from origin.
-	if err := git.FetchRefspec("origin", "master"); err != nil {
+	if err := git.FetchRefspec("origin", "master", gitutil.TagsOpt(true)); err != nil {
 		return err
 	}
 
@@ -295,5 +297,5 @@ func reset(jirix *jiri.X, mirror Mirror, projects string) error {
 func push(jirix *jiri.X, mirror Mirror, projects string) error {
 	dirname := filepath.Join(projects, mirror.name)
 	opts := gitutil.RootDirOpt(dirname)
-	return gitutil.New(jirix.NewSeq(), opts).Push(mirror.github, "master", gitutil.ForceOpt(true))
+	return gitutil.New(jirix.NewSeq(), opts).Push(mirror.github, "master", gitutil.ForceOpt(true), gitutil.FollowTagsOpt(mirror.followTags))
 }
