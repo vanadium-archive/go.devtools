@@ -11,7 +11,7 @@ import (
 	"v.io/jiri/tool"
 	"v.io/x/lib/cmdline"
 
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (
