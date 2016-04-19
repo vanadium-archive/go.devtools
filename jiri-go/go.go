@@ -91,12 +91,14 @@ func runGo(jirix *jiri.X, args []string) error {
 	if readerFlags.Target.OS() == "fnl" {
 		installSuffix = "musl"
 	}
-	if args, err = golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix); err != nil {
+	newArgs, err := golib.PrepareGo(jirix, envMap, args, extraLDFlags, installSuffix)
+	if err != nil {
 		return err
 	}
 	// Don't run go env if PrepareGo stripped off the environment
-	// variables that the go tool doesn't understand - e.g. VDLPATH.
-	if len(args) == 1 && args[0] == "env" {
+	// variables that the go tool doesn't understand - e.g. VDLPATH,
+	// unless the original command was just 'go env'.
+	if len(newArgs) == 1 && newArgs[0] == "env" && !(len(args) == 1 && args[0] == "env") {
 		return nil
 	}
 	// Run the go tool.
@@ -105,9 +107,9 @@ func runGo(jirix *jiri.X, args []string) error {
 		return err
 	}
 	if envFlag {
-		fmt.Fprintf(jirix.Stdout(), "\n%v %s\n", goBin, strings.Join(args, " "))
+		fmt.Fprintf(jirix.Stdout(), "\n%v %s\n", goBin, strings.Join(newArgs, " "))
 	}
-	err = jirix.NewSeq().Env(envMap).Capture(jirix.Stdout(), jirix.Stderr()).Last(goBin, args...)
+	err = jirix.NewSeq().Env(envMap).Capture(jirix.Stdout(), jirix.Stderr()).Last(goBin, newArgs...)
 	return runutil.TranslateExitCode(err)
 }
 
