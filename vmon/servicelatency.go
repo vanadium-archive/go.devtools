@@ -111,6 +111,7 @@ func checkSingleServiceLatency(v23ctx *context.T, ctx *tool.Context, serviceName
 
 	// For each group, get the latency from the first available name.
 	latencies := []latencyData{}
+	errors := []error{}
 	for _, group := range groups {
 		latency := timeout
 		v23ctx, cancel := context.WithTimeout(v23ctx, timeout)
@@ -118,20 +119,24 @@ func checkSingleServiceLatency(v23ctx *context.T, ctx *tool.Context, serviceName
 		start := time.Now()
 		if _, err := reserved.Signature(v23ctx, "", options.Preresolved{&group}); err != nil {
 			if verror.ErrorID(err) != verror.ErrTimeout.ID {
-				// Fail immediately on non-timeout errors.
-				return nil, err
+				errors = append(errors, err)
+				continue
 			}
 		} else {
 			latency = time.Now().Sub(start)
 		}
 		location, err := monitoring.GetServiceLocation(v23ctx, ctx, group)
 		if err != nil {
-			return nil, err
+			errors = append(errors, err)
+			continue
 		}
 		latencies = append(latencies, latencyData{
 			location: location,
 			latency:  latency,
 		})
+	}
+	if len(errors) == len(groups) {
+		return latencies, fmt.Errorf("%v", errors)
 	}
 
 	return latencies, nil
