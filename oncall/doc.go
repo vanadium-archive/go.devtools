@@ -39,6 +39,8 @@ The oncall serve flags are:
    Listening address for the server.
  -cache=
    Directory to use for caching files.
+ -key=
+   The path to the service account's JSON credentials file.
  -static=
    Directory to use for serving static files.
 

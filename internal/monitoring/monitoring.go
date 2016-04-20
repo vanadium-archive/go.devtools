@@ -47,6 +47,12 @@ const (
 	zoneStatSuffix     = "__debug/stats/system/gce/zone"
 )
 
+// Human-readable metric names.
+const (
+	MNMounttableMountedServers = "mounttable mounted servers"
+	MNMounttableNodes          = "mounttable nodes"
+)
+
 // serviceMountedNames is a map from human-readable service names to their
 // relative mounted names in the global mounttable.
 var serviceMountedNames = map[string]string{

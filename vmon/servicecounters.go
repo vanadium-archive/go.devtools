@@ -31,11 +31,11 @@ func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 	counters := map[string][]prodServiceCounter{
 		monitoring.SNMounttable: []prodServiceCounter{
 			prodServiceCounter{
-				name:       "mounttable nodes",
+				name:       monitoring.MNMounttableNodes,
 				statSuffix: "__debug/stats/mounttable/num-nodes",
 			},
 			prodServiceCounter{
-				name:       "mounttable mounted servers",
+				name:       monitoring.MNMounttableMountedServers,
 				statSuffix: "__debug/stats/mounttable/num-mounted-servers",
 			},
 		},
