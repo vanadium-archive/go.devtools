@@ -89,6 +89,11 @@ func vanadiumReaderTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result,
 	return runJavaTest(jirix, testName, []string{"release", "projects", "reader", "android"}, []string{"clean", "test"})
 }
 
+// vanadiumTodosAndroidTest confirms that the build succeeds and its tests pass.
+func vanadiumTodosAndroidTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return runJavaTest(jirix, testName, []string{"release", "projects", "todos"}, []string{"clean", "build"})
+}
+
 // vanadiumTravelTest runs the tests for the travel example application.
 func vanadiumTravelTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	testDir := filepath.Join(jirix.Root, "release", "projects", "travel")

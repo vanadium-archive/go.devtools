@@ -162,6 +162,10 @@
     <project name="release.projects.syncslides">
       <test>vanadium-copyright</test>
     </project>
+    <project name="release.projects.todos">
+      <test>vanadium-copyright</test>
+      <test>vanadium-todos-android-test</test>
+    </project>
     <project name="third_party">
       <test>go</test>
       <test>projects</test>
