@@ -180,6 +180,19 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	return nil
 }
 
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	var pkgs []string
+	switch runtime.GOOS {
+	case "linux":
+		pkgs = []string{"ant", "autoconf", "bzip2", "default-jdk", "gawk", "lib32z1", "lib32stdc++6"}
+	case "darwin":
+		pkgs = []string{"ant", "autoconf", "gawk"}
+	default:
+		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+	return pkgs, nil
+}
+
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	var err error
 	var baseEnv []string
@@ -241,19 +254,6 @@ func (m *Manager) installBase(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath
 
 // installAndroidNDK installs the android NDK toolchain.
 func (m *Manager) installAndroidNDK(jirix *jiri.X, target profiles.Target) (e error) {
-	// Install dependencies.
-	var pkgs []string
-	switch runtime.GOOS {
-	case "linux":
-		pkgs = []string{"ant", "autoconf", "bzip2", "default-jdk", "gawk", "lib32z1", "lib32stdc++6"}
-	case "darwin":
-		pkgs = []string{"ant", "autoconf", "gawk"}
-	default:
-		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
-	}
-	if err := profilesutil.InstallPackages(jirix, pkgs); err != nil {
-		return err
-	}
 	// Download Android NDK.
 	installNdkFn := func() error {
 		s := jirix.NewSeq()

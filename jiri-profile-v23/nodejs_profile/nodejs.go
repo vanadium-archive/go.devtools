@@ -75,6 +75,19 @@ func (m *Manager) initForTarget(root jiri.RelPath, target profiles.Target) error
 	return nil
 }
 
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	switch target.OS() {
+	case "darwin":
+	case "linux":
+		if target.Version() == "0.10.24" {
+			return []string{"g++"}, nil
+		}
+	default:
+		return nil, fmt.Errorf("%q is not supported", target.OS)
+	}
+	return nil, nil
+}
+
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
@@ -166,15 +179,6 @@ func (m *Manager) installNodeBinaries(jirix *jiri.X, target profiles.Target, out
 }
 
 func (m *Manager) installNodeFromSource(jirix *jiri.X, target profiles.Target) error {
-	switch target.OS() {
-	case "darwin":
-	case "linux":
-		if err := profilesutil.InstallPackages(jirix, []string{"g++"}); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("%q is not supported", target.OS)
-	}
 	// Build and install NodeJS.
 	installNodeFn := func() error {
 		return jirix.NewSeq().Pushd(m.nodeSrcDir.Abs(jirix)).

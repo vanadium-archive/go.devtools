@@ -12,7 +12,6 @@ import (
 	"v.io/jiri/profiles"
 	"v.io/jiri/profiles/profilesmanager"
 	"v.io/jiri/profiles/profilesreader"
-	"v.io/jiri/profiles/profilesutil"
 	"v.io/x/lib/envvar"
 )
 
@@ -83,14 +82,15 @@ func (m Manager) VersionInfo() *profiles.VersionInfo {
 func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
-func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
-	// Install packages
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
 	if !target.CrossCompiling() && target.OS() == "linux" && (target.Version() == "1" || target.Version() == "2" || target.Version() == "3" || target.Version() == "4") {
 		// Version 5 onwards uses go 1.6+, where there is no need for "libssl-dev".
-		if err := profilesutil.InstallPackages(jirix, []string{"libssl-dev"}); err != nil {
-			return err
-		}
+		return []string{"libssl-dev"}, nil
 	}
+	return nil, nil
+}
+
+func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
 		return err
 	}

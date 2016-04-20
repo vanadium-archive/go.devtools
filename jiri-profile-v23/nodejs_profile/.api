@@ -1,6 +1,7 @@
 pkg nodejs_profile, func Register(string, string)
 pkg nodejs_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
 pkg nodejs_profile, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg nodejs_profile, method (*Manager) OSPackages(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) ([]string, error)
 pkg nodejs_profile, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
 pkg nodejs_profile, method (Manager) Info() string
 pkg nodejs_profile, method (Manager) Installer() string

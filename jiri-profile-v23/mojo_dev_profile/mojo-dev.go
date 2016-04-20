@@ -67,6 +67,10 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 	}
 }
 
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	return nil, nil
+}
+
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if mojoDir == "" {
 		return fmt.Errorf("flag %q must be set", mojoDirFlagName)

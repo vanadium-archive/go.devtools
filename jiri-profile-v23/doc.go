@@ -79,6 +79,8 @@ Usage:
 
 The jiri profile-v23 commands are:
    install     Install the given profiles
+   os-packages List the commands to install the OS packages required by the
+               given profiles
    uninstall   Uninstall the given profiles
    update      Install the latest default version of the given profiles
    cleanup     Cleanup the locally installed profiles
@@ -115,6 +117,42 @@ The jiri profile-v23 install flags are:
    sysroot image for cross compiling to the currently specified target
  -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
    a colon separated list of directories to use from the sysroot image
+ -mojodev.dir=
+   Path of mojo repo checkout.
+ -profiles-db=$JIRI_ROOT/.jiri_root/profile_db
+   the path, relative to JIRI_ROOT, that contains the profiles database.
+ -profiles-dir=.jiri_root/profiles
+   the directory, relative to JIRI_ROOT, that profiles are installed in
+ -target=<runtime.GOARCH>-<runtime.GOOS>
+   specifies a profile target in the following form: <arch>-<os>[@<version>]
+
+ -color=true
+   Use color to format output.
+ -v=false
+   Print verbose output.
+
+Jiri profile-v23 os-packages - List the commands to install the OS packages required by the given profiles
+
+List or optionally run the commands to install the OS packages required by the
+given profiles.
+
+Usage:
+   jiri profile-v23 os-packages [flags] <profiles>
+
+<profiles> is a list of profiles to list OS packages for.
+
+The jiri profile-v23 os-packages flags are:
+ -all=false
+   print commands to install all required OS packages, not just those that are
+   missing
+ -env=
+   specify an environment variable in the form: <var>=[<val>],...
+ -go.sysroot-image=
+   sysroot image for cross compiling to the currently specified target
+ -go.sysroot-image-dirs-to-use=/lib:/usr/lib:/usr/include
+   a colon separated list of directories to use from the sysroot image
+ -install=false
+   install the requested packages. This may need to be run as root.
  -mojodev.dir=
    Path of mojo repo checkout.
  -profiles-db=$JIRI_ROOT/.jiri_root/profile_db

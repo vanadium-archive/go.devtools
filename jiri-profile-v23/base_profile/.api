@@ -1,6 +1,7 @@
 pkg base_profile, func Register(string, string)
 pkg base_profile, method (*Manager) AddFlags(*flag.FlagSet, profiles.Action)
 pkg base_profile, method (*Manager) Install(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
+pkg base_profile, method (*Manager) OSPackages(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) ([]string, error)
 pkg base_profile, method (*Manager) Uninstall(*jiri.X, *profiles.DB, jiri.RelPath, profiles.Target) error
 pkg base_profile, method (Manager) Info() string
 pkg base_profile, method (Manager) Installer() string

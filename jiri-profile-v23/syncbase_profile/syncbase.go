@@ -122,11 +122,21 @@ func (m *Manager) syncbaseEnv(jirix *jiri.X, target profiles.Target) ([]string, 
 	return env.ToSlice(), nil
 }
 
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	switch runtime.GOOS {
+	case "darwin":
+		return []string{"autoconf", "automake", "libtool", "pkg-config"}, nil
+	case "linux":
+		return []string{"autoconf", "automake", "g++", "g++-multilib",
+			"gcc-multilib", "libtool", "pkg-config"}, nil
+	default:
+		return nil, fmt.Errorf("%q is not supported", runtime.GOOS)
+	}
+	return nil, nil
+}
+
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	m.initForTarget(jirix, root, target)
-	if err := m.installDependencies(jirix, target.Arch(), target.OS()); err != nil {
-		return err
-	}
 	if err := m.installCommon(jirix, pdb, root, target); err != nil {
 		return err
 	}
@@ -151,23 +161,6 @@ func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, 
 	}
 	pdb.RemoveProfileTarget(m.profileInstaller, m.profileName, target)
 	return nil
-}
-
-func (m *Manager) installDependencies(jirix *jiri.X, arch, OS string) error {
-	var pkgs []string
-	switch runtime.GOOS {
-	case "darwin":
-		pkgs = []string{
-			"autoconf", "automake", "libtool", "pkg-config",
-		}
-	case "linux":
-		pkgs = []string{
-			"autoconf", "automake", "g++", "g++-multilib", "gcc-multilib", "libtool", "pkg-config",
-		}
-	default:
-		return fmt.Errorf("%q is not supported", runtime.GOOS)
-	}
-	return profilesutil.InstallPackages(jirix, pkgs)
 }
 
 // initXCC sets the environment variables in 'env' for use with cross-compilers.

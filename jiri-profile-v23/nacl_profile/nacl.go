@@ -93,6 +93,17 @@ func (m *Manager) initForTarget(jirix *jiri.X, action string, root jiri.RelPath,
 	return nil
 }
 
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	switch runtime.GOOS {
+	case "darwin":
+	case "linux":
+		return []string{"g++", "libc6-i386", "zip"}, nil
+	default:
+		return nil, fmt.Errorf("%q is not supported", target.OS)
+	}
+	return nil, nil
+}
+
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(jirix, "installed", root, &target); err != nil {
 		return err
@@ -131,13 +142,6 @@ func (m *Manager) Uninstall(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, 
 
 // installNacl installs the nacl profile.
 func (m *Manager) installNacl(jirix *jiri.X, target profiles.Target, spec versionSpec) error {
-	switch runtime.GOOS {
-	case "darwin":
-	case "linux":
-		if err := profilesutil.InstallPackages(jirix, []string{"g++", "libc6-i386", "zip"}); err != nil {
-			return err
-		}
-	}
 	naclSrcDir := m.naclSrcDir.Abs(jirix)
 	naclInstDir := m.naclInstDir.Abs(jirix)
 	cloneGoPpapiFn := func() error {

@@ -59,6 +59,17 @@ var xcompilers = map[xspec]map[xspec]xbuilder{
 	},
 }
 
+var osPackages = map[xspec]map[xspec][]string{
+	xspec{"amd64", "darwin"}: {},
+	xspec{"amd64", "linux"}: {
+		xspec{"arm", "linux"}: []string{
+			"automake", "bison", "bzip2", "curl", "flex", "g++",
+			"gawk", "libexpat1-dev", "gettext", "gperf",
+			"libncurses5-dev", "libtool", "subversion", "texinfo",
+		},
+	},
+}
+
 type versionSpec struct {
 	gitRevision string
 	patchFiles  []string
@@ -92,6 +103,13 @@ func newGoRelease(version string) *goRelease {
 		return nil
 	}
 	return &goRelease{file, sha256}
+}
+
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	t := osPackages[xspec{"foo", "bar"}][xspec{"baz", "boo"}]
+	t = osPackages[xspec{runtime.GOARCH, runtime.GOOS}][xspec{"baz", "boo"}]
+	_ = t
+	return osPackages[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch(), target.OS()}], nil
 }
 
 func (g *goRelease) install(jirix *jiri.X, dir string) error {
@@ -428,14 +446,6 @@ func linux_to_linux(jirix *jiri.X, m *Manager, root jiri.RelPath, target profile
 			}
 		}
 		return "", nil, nil
-	}
-	// Install dependencies.
-	pkgs := []string{
-		"automake", "bison", "bzip2", "curl", "flex", "g++", "gawk", "libexpat1-dev",
-		"gettext", "gperf", "libncurses5-dev", "libtool", "subversion", "texinfo",
-	}
-	if err := profilesutil.InstallPackages(jirix, pkgs); err != nil {
-		return "", nil, err
 	}
 
 	// Build and install crosstool-ng.

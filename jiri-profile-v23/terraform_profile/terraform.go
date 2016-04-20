@@ -66,6 +66,10 @@ func (m *Manager) initForTarget(root jiri.RelPath, target profiles.Target) error
 	return nil
 }
 
+func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	return nil, nil
+}
+
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
 	if err := m.initForTarget(root, target); err != nil {
 		return err
