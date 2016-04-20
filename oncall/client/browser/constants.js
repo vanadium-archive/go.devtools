@@ -16,6 +16,27 @@ var zones = Object.freeze({
   ASIA_EAST1_C: 'asia-east1-c',
 });
 
+/** Constants for all the metric names in the raw data. */
+var metricNames = Object.freeze({
+  MN_BINARY_DISCHARGER: 'binary discharger',
+  MN_GOOGLE_IDEN: 'google identity service',
+  MN_IDENTITY: 'identity service',
+  MN_MACAROON: 'macaroon service',
+  MN_MOUNTTABLE: 'mounttable',
+  MN_PROXY: 'proxy service',
+  MN_ROLE: 'role service',
+  MN_MT_MOUNTED_SERVERS: 'mounttable mounted servers',
+  MN_MT_NODES: 'mounttable nodes'
+});
+
+/** Constants for all the keys in raw data. */
+var dataKeys = Object.freeze({
+  DK_SERVICE_LATENCY: 'ServiceLatency',
+  DK_SERVICE_COUNTERS: 'ServiceCounters',
+  DK_SERVICE_QPS: 'ServiceQPS',
+  DK_SERVICE_METADATA: 'ServiceMetadata'
+});
+
 /** A map from long name strings to their shorter forms. */
 var displayNames = Object.freeze({
   'active-connections': 'ACTIVE CONN',
@@ -35,10 +56,11 @@ var displayNames = Object.freeze({
   'groups service latency': 'GROUPS',
   'healthCheckLatency': 'HEALTH LAT',
   'identityd': 'IDEN',
+  'identity service': 'IDENTITY',
   'macaroon service': 'MACAROON',
   'macaroon service latency': 'MACAROON',
   'memory-usage': 'RAM%',
-  'mounttable': 'MTB',
+  'mounttable': 'MOUNTTABLE',
   'mounttabled': 'MTB',
   'mounttable latency': 'MTB',
   'mounttable mounted servers': 'MTB SERVERS',
@@ -197,6 +219,8 @@ function createMetric(label, dataKey, metricKey,
 
 module.exports = {
   zones: zones,
+  metricNames: metricNames,
+  dataKeys: dataKeys,
   orderedZones: [
     zones.US_CENTRAL1_C,
     zones.US_CENTRAL1_A,

@@ -7,11 +7,10 @@ var h = require('mercury').h;
 var request = require('superagent');
 var cookie = require('cookie');
 
-var AppStateMgr = require('./appstate-manager');
-var instanceViewComponent = require('./components/instance-view');
 var pageHeaderComponent = require('./components/page-header');
 var settingsPanelComponent = require('./components/settings');
-var summaryTableComponent = require('./components/summary-table');
+var statusTableComponent = require('./components/status-table');
+var metricActionsPanelComponent = require('./components/metric-actions-panel');
 
 /**
  * A variable to store the most update-to-date dashboard data.
@@ -20,9 +19,11 @@ var summaryTableComponent = require('./components/summary-table');
  */
 var curData;
 
-// Initializes the app state manager and sets appStateChanged function as the
-// callback for app state changes.
-AppStateMgr.init(appStateChanged);
+/**
+ * A variable to keep track of current metric data shown in the
+ * metric actions panel.
+ */
+var selectedMetricData;
 
 // Ask mercury to listen to mousemove/mouseout/mouseover events.
 hg.Delegator().listenTo('mousemove');
@@ -36,22 +37,25 @@ var cookies = cookie.parse(document.cookie);
 var state = hg.state({
   // The header panel at the top of the page.
   pageHeader: pageHeaderComponent({
-    collectionTimestamp: -1,
+    startTimestamp: -1,
+    endTimestamp: -1,
     oncallIds: ['_unknown', '_unknown'],
     loadingData: false,
     hasLoadingFailure: false
   }),
 
   components: hg.varhash({
-    // The summary table showing data on the "global" and "zone" level.
-    summaryTable: summaryTableComponent(null),
+    // The status table showing service status.
+    statusTable: statusTableComponent(null),
 
     // The view showing data on the "instance" level.
-    instanceView: instanceViewComponent(null),
+    // instanceView: instanceViewComponent(null),
   }),
 
   // Whether to show settings panel.
   showSettingsPanel: hg.value(false),
+
+  showMetricActionsPanel: hg.value(false),
 
   // Settings stored in cookies.
   settings: hg.varhash({
@@ -59,11 +63,23 @@ var state = hg.state({
   }),
 
   channels: {
+    mouseClickOnMetric: mouseClickOnMetric,
     changeTheme: changeTheme,
     clickOnSettingsGear: clickOnSettingsGear,
-    closeSettingsPanel: closeSettingsPanel
+    closeSettingsPanel: closeSettingsPanel,
+    closeMetricActionsPanel: closeMetricActionsPanel
   }
 });
+
+/** Callback for clicking on a metric. */
+function mouseClickOnMetric(state, data) {
+  selectedMetricData = data;
+  state.showMetricActionsPanel.set(true);
+}
+
+function closeMetricActionsPanel(state) {
+  state.showMetricActionsPanel.set(false);
+}
 
 /** Callback when user clicks on the settings gear. */
 function clickOnSettingsGear(state) {
@@ -88,21 +104,24 @@ var render = function(state) {
   var mainContent = [
     pageHeaderComponent.render(state.pageHeader),
   ];
-  if (state.components.summaryTable) {
+  if (state.components.statusTable) {
     mainContent.push(
-        h('div.main-container',
-          summaryTableComponent.render(state.components.summaryTable)));
+      h('div.main-container',
+          statusTableComponent.render(state, state.components.statusTable))
+    );
   }
-  if (state.components.instanceView) {
-    mainContent.push(
-        h('div.main-container',
-          instanceViewComponent.render(state.components.instanceView)));
-  }
-  mainContent.push(h('div.settings-gear', {
-    'ev-click': hg.send(state.channels.clickOnSettingsGear)
-  }));
+  mainContent.push(
+    h('div.settings-gear', {
+      'ev-click': hg.send(state.channels.clickOnSettingsGear)
+    })
+  );
   if (state.showSettingsPanel) {
     mainContent.push(hg.partial(settingsPanelComponent.render, state));
+  }
+
+  if (state.showMetricActionsPanel) {
+    mainContent.push(hg.partial(metricActionsPanelComponent.render, state,
+          selectedMetricData, curData));
   }
 
   var className = state.settings.darkTheme ? 'main.darkTheme' : 'main';
@@ -121,7 +140,7 @@ function loadData() {
       .accept('json')
       .timeout(30000)
       .end(function(err, res) {
-    if (!res.ok || err) {
+    if (!res || !res.ok || err) {
       state.pageHeader.hasLoadingFailure.set(true);
     } else {
       state.pageHeader.hasLoadingFailure.set(false);
@@ -137,58 +156,36 @@ function loadData() {
 function processData(newData) {
   // Update components.
   curData = newData;
-  updateComponents(AppStateMgr.getCurState());
+  updateComponents();
 
   // Update the data loading indicator.
   state.pageHeader.loadingData.set(false);
 }
 
 /**
- * Callback function for app state changes.
- * @param {Object} curAppState - App's current state object.
- */
-function appStateChanged(curAppState) {
-  if (!state) {
-    return;
-  }
-  updateComponents(curAppState);
-}
-
-/**
  * Updates all page components.
- * @param {Object} curAppState - App's current state object.
  */
-function updateComponents(curAppState) {
+function updateComponents() {
   // Update page header.
-  state.pageHeader.collectionTimestamp.set(curData.CollectionTimestamp);
-  state.pageHeader.oncallIds.set(curData.OncallIDs.split(','));
+  state.pageHeader.endTimestamp.set(curData.MaxTime);
+  state.pageHeader.oncallIds.set(curData.Oncalls);
 
-  // Update summary table when the current view level is NOT "instance".
-  var summaryTableData = null;
-  if (curAppState.level !== 'instance') {
-    summaryTableData = summaryTableComponent({
-      data: curData
-    });
-  }
-  state.components.put('summaryTable', summaryTableData);
-
-  // Update instance view when the current view level is "instance".
-  var instanceViewData = null;
-  if (curAppState.level === 'instance') {
-    var instance = curAppState.instanceLevelInstance;
-    instanceViewData = instanceViewComponent({
-      collectionTimestamp: curData.CollectionTimestamp,
-      data: curData.Zones[curAppState.instanceLevelZone].Instances[instance],
-      appState: curAppState
-    });
-  }
-  state.components.put('instanceView' ,instanceViewData);
+  // Update status table.
+  var statusTableData = statusTableComponent({
+    data: curData
+  });
+  state.components.put('statusTable', statusTableData);
 }
 
 // Add an event handler for closing settings panel when esc key is pressed.
 document.onkeydown = function(evt) {
-  if (evt.keyCode === 27 && state.showSettingsPanel()) {
-    state.showSettingsPanel.set(false);
+  if (evt.keyCode === 27) {
+    if (state.showSettingsPanel()) {
+      state.showSettingsPanel.set(false);
+    }
+    if (state.showMetricActionsPanel()) {
+      state.showMetricActionsPanel.set(false);
+    }
   }
 };
 

@@ -1,0 +1,59 @@
+/* Copyright 2015 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+div.metric-actions-container {
+  z-index: 999;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+div.metric-actions-container div.metric-actions-content {
+  background-color: white;
+  border: 1px black solid;
+  width: 440px;
+  padding: 12px;
+  padding-top: 16px;
+}
+
+div.metric-actions-container div.title {
+  font-weight: var(--font-weight-medium);
+  padding: 4px 0px 16px 0px;
+}
+
+div.metric-actions-container div.btn-close {
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #999;
+}
+
+div.metric-actions-container div.btn-close:hover {
+  color: #444;
+}
+
+div.metric-actions-container div.row {
+  display: flex;
+  flex-direction: row;
+}
+
+div.metric-actions-container div.space {
+  height: 14px;
+  width: 100%;
+}
+
+div.metric-actions-container div.item-label {
+  font-weight: var(--font-weight-medium);
+  width: 140px;
+  padding-right: 10px;
+}
+
+div.metric-actions-container div.item-link {
+  margin-left: 10px;
+}
+

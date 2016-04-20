@@ -6,12 +6,9 @@
 @import "./reset.css";
 @import "./typography.css";
 @import "./common.css";
-@import "./components/data-table.css";
 @import "./components/header.css";
-@import "./components/full-graph.css";
-@import "./components/instance-view.css";
 @import "./components/main.css";
-@import "./components/metrics-group.css";
+@import "./components/metric-actions-panel.css";
 @import "./components/metric-item.css";
+@import "./components/status-table.css";
 @import "./components/settings.css";
-@import "./components/summary-table.css";

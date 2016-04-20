@@ -29,6 +29,7 @@ div.header div.info.stale-data {
 }
 
 div.header div.dashboard-title {
+  width: 120px;
   padding-left: 10px;
   display: flex;
 }
@@ -54,21 +55,19 @@ div.header div.info.stale-data div#logo {
 div.header div.title-and-time {
   display: flex;
   flex-direction: column;
-  padding-top: 1px;
+  align-items: center;
 }
 
 div.header div.title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: var(--font-weight-medium);
-  line-height: 22px;
-  height: 22px;
+  padding-bottom: 4px;
 }
 
 div.header div.time {
   font-size: 10px;
   height: 12px;
   line-height: 12px;
-  padding-left: 1px;
 }
 
 div.header div.time.failure {
@@ -85,6 +84,8 @@ div.header div.time.loading {
 div.header div.pics {
   display: flex;
   padding-right: 5px;
+  width: 120px;
+  justify-content: flex-end;
 }
 
 div.header div.pics img {

@@ -17,7 +17,6 @@ var hg = require('mercury');
 var h = require('mercury').h;
 var dateformat = require('dateformat');
 
-var AppStateMgr = require('../../appstate-manager');
 var staleDataThresholdInSec = 900;
 
 module.exports = create;
@@ -26,8 +25,9 @@ module.exports.render = render;
 /** Constructor. */
 function create(data) {
   var state = hg.state({
-    // The timestamp when the current data was loaded from the backend server.
-    collectionTimestamp: hg.value(data.collectionTimestamp),
+    // The time period of the current data.
+    startTimestamp: hg.value(data.startTimestamp),
+    endTimestamp: hg.value(data.endTimestamp),
 
     // IDs of current oncalls.
     oncallIds: hg.array(data.oncallIds),
@@ -36,33 +36,10 @@ function create(data) {
     loadingData: hg.value(data.loadingData),
 
     // Whether there is any error loading data.
-    hasLoadingFailure: hg.value(data.hasLoadingFailure),
-
-    channels: {
-      clickNavItem: clickNavItem
-    }
+    hasLoadingFailure: hg.value(data.hasLoadingFailure)
   });
 
   return state;
-}
-
-/** Callback when a navigation item is clicked. */
-function clickNavItem(state, data) {
-  if (data.level ==='global') {
-    AppStateMgr.setAppState({
-      'level': data.level,
-      'zoneLevelZone': '',
-      'zoneLevelType': '',
-      'instanceLevelInstance': '',
-      'instanceLevelZone': ''
-    });
-  } else if (data.level === 'zone') {
-    AppStateMgr.setAppState({
-      'level': data.level,
-      'instanceLevelInstance': '',
-      'instanceLevelZone': ''
-    });
-  }
 }
 
 /** The main render function. */
@@ -82,13 +59,13 @@ function render(state) {
   var timeClass = '.time';
   var infoClass = '.info';
   var staleData = false;
-  if (state.collectionTimestamp >= 0) {
-    var date = new Date(state.collectionTimestamp * 1000);
+  if (state.endTimestamp >= 0) {
+    var date = new Date(state.endTimestamp * 1000);
     strTime = dateformat(date);
 
     // Check stale data.
     var curTs = Math.round(new Date().getTime() / 1000.0);
-    if (curTs - state.collectionTimestamp > staleDataThresholdInSec) {
+    if (curTs - state.endTimestamp > staleDataThresholdInSec) {
       infoClass += '.stale-data';
       staleData = true;
     }
@@ -107,49 +84,15 @@ function render(state) {
     timeClass += '.failure';
   }
 
-  // Current view level and navigation items.
-  var navTitle = '';
-  var navItems = [];
-  var level = AppStateMgr.getAppState('level');
-  var zoneLevelZone = AppStateMgr.getAppState('zoneLevelZone');
-  if (level === 'global') {
-    navTitle = 'Global Status';
-  } else if (level === 'zone') {
-    var zoneType = AppStateMgr.getAppState('zoneLevelType')
-        .startsWith('CloudService') ? 'Vanadium Services' : 'Nginx';
-    navTitle = zoneType + ' @ ' + zoneLevelZone;
-    navItems.push(h('div.navitems-container', [
-      h('div.navitem', {
-        'ev-click': hg.send(state.channels.clickNavItem, {level: 'global'})
-      }, 'GLOBAL ←')
-    ]));
-  } else if (level === 'instance') {
-    var instanceType = AppStateMgr.getAppState('instanceLevelInstance')
-        .startsWith('vanadium') ? 'Vanadium Services' : 'Nginx';
-    navTitle =
-        instanceType + ' @ ' + AppStateMgr.getAppState('instanceLevelInstance');
-    navItems.push(h('div.navitems-container', [
-      h('div.navitem', {
-        'ev-click': hg.send(state.channels.clickNavItem, {level: 'global'})
-      }, 'GLOBAL ←'),
-      h('div.navitem', {
-        'ev-click': hg.send(state.channels.clickNavItem,
-            {level: 'zone', zone: zoneLevelZone})
-      }, zoneLevelZone.toUpperCase() + ' ←')
-    ]));
-  }
-
-  navItems.push(h('div.navtitle', h('span', navTitle.toUpperCase())));
   return h('div.header', [
       h('div' + infoClass, [
         h('div.dashboard-title', [
           h('div#logo', ''),
-          h('div.title-and-time', [
-            h('div.title', 'Oncall Dashboard'),
-            h('div' + timeClass, strTime)
-          ])
         ]),
-        h('div.navtitle-container', navItems),
+        h('div.title-and-time', [
+          h('div.title', 'Vanadium Oncall Dashboard'),
+          h('div' + timeClass, strTime)
+        ]),
         h('div.pics', pics)
       ])
   ]);

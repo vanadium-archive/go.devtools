@@ -49,7 +49,6 @@
     rgba(255, 0, 0, 0.3) 20px
   );
   --white-transparent: rgba(255, 255, 255, 0.4);
-  --blueish-white: #EBECEC;
   --dark-background: #222;
   --dark-highlight: #333;
 
@@ -64,24 +63,18 @@
   --section-shadow: rgba(0, 0, 0, 0.30) 0px 0px 4px 0px;
 
   /* Heights */
+  --col-metric-height: 50px;
   --header-height: 60px;
   --zone-title-height: 40px;
   --full-graph-height: 240px;
   --graph-time-div-height: 20px;
-  --metric-item-height: 58px;
+  --metric-item-height: 50px;
   --metric-item-title-height: 16px;
   --metric-item-value-height: 16px;
-  --gce-instance-name-height: 30px;
   --sparkline-height: 24px;
-  --group-title-height: 20px;
-  --subsection-margin-top: 36px;
-  --summary-table-zone-row-height: 30px;
 
   /* Width */
+  --col-metric-width: 206px;
   --graph-number-div-width: 30px;
-  --metric-item-width: 20%;
-  --zone-header-width: 160px;
-  --summary-table-metric-names-col-width: 150px;
-  --zone-column-min-width: 130px;
-  --zone-column-max-width: 240px;
+  --metric-item-width: 200px;
 }

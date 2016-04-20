@@ -1,0 +1,154 @@
+/* Copyright 2016 The Vanadium Authors. All rights reserved. */
+/* Use of this source code is governed by a BSD-style */
+/* license that can be found in the LICENSE file. */
+
+div.status-table {
+  color: var(--dark-green-grey);
+  padding-top: 20px;
+  margin-right: 120px;
+}
+
+.darkTheme div.status-table {
+  color: var(--light-green-grey);
+}
+
+div.status-table .row {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 30px;
+}
+
+div.status-table .row-header {
+  width: 120px;
+  text-align: right;
+  padding-top: 15px;
+  padding-right: 10px;
+}
+
+div.status-table .col {
+  margin-left: 8px;
+}
+
+div.status-table .col-header {
+  font-size: 12px;
+  height: 21px;
+}
+
+div.status-table .col-metric {
+  position: relative;
+  padding: 6px 4px 6px 4px;
+  display: flex;
+  width: var(--col-metric-width);
+  height: var(--col-metric-height);
+  background: var(--cyan-800);
+  flex-direction: row;
+  cursor: pointer;
+}
+
+div.status-table .col-metric.err {
+  background-color: #ffbb55 !important;
+}
+
+div.status-table .col-metric.unhealthy {
+  background-color: #AA0000 !important;
+}
+
+div.status-table .col-metric.stale {
+  background-color: #ffbb55 !important;
+}
+
+.darkTheme div.status-table .col-metric {
+  background: DarkGreen;
+}
+
+div.status-table .col-metric .cur-value {
+  position: absolute;
+  left: 166px;
+  top: 6px;
+  color: white;
+  font-size: 14px;
+  height: 38px;
+  line-height: 38px;
+}
+
+div.status-table .col-metric div.cur-value.history {
+  color: #B2DADD !important;
+}
+
+.darkTheme div.status-table .col-metric div.cur-value.history {
+  color: #AAA !important;
+}
+
+div.status-table .col-metric.err .cur-value {
+  color: red !important;
+}
+
+div.status-table .col-metric div.sparkline {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 156px;
+  height: 40px;
+}
+
+div.status-table .col-metric svg {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 156px;
+  height: 40px;
+}
+
+div.status-table .col-metric svg.mouse-line {
+  position: absolute;
+  top: 0px;
+  left: 6px;
+  width: 156px;
+  height: 50px;
+}
+
+div.status-table .col-metric svg.content {
+}
+
+div.status-table .col-metric svg.content polyline {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: white;
+  stroke-width: 0.8;
+}
+
+div.status-table .col-metric svg.threshold path {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: white;
+  stroke-width: 0.8;
+}
+
+div.status-table .col-metric svg.mouse-line {
+  shape-rendering: crispedges;
+}
+
+div.status-table .col-metric svg.mouse-line polyline {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: #339CA5;
+  stroke-width: 1;
+}
+
+.darkTheme div.status-table .col-metric svg.mouse-line polyline {
+  stroke: #338333;
+}
+
+div.status-table .col-metric div.highlight-overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0px;
+  left: 0px;
+  background-color: white;
+  opacity: 0;
+}
+
+div.status-table .col-metric:hover div.highlight-overlay {
+  opacity: 0.1;
+}
