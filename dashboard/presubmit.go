@@ -287,36 +287,37 @@ func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request)
 	// The dir structure is:
 	// <root>/presubmit/<n>/<os>/<arch>/<job>/<part>/...
 	n := r.Form.Get("n")
-	presubmitDir := filepath.Join(root, "presubmit", n)
-	if err := s.MkdirAll(presubmitDir, os.FileMode(0700)).Done(); err != nil {
+	presubmitCacheDir := filepath.Join(root, "presubmit")
+	presubmitTars := filepath.Join(root, "presubmitTarFiles", n)
+	if err := s.MkdirAll(presubmitCacheDir, os.FileMode(0700)).
+		MkdirAll(presubmitTars, os.FileMode(0700)).Done(); err != nil {
 		return err
 	}
-	// Try downloading the tar file first.
-	tarFile := "results.tar.gz"
-	if _, err := cache.StoreGoogleStorageFile(jirix, presubmitDir, resultsBucketFlag+"/v0/presubmit/"+n, tarFile); err == nil {
-		if err := s.
-			Chdir(presubmitDir).
-			RemoveAll("darwin").RemoveAll("linux").
-			Run("tar", "-zxf", tarFile).
-			Run("bash", "-c", fmt.Sprintf("mv %s/* .", n)).
-			RemoveAll(n).RemoveAll(tarFile).Done(); err != nil {
-			return err
+	presubmitResultsDir := filepath.Join(presubmitCacheDir, n)
+
+	if _, err := s.Stat(presubmitResultsDir); err != nil {
+		// Try downloading the tar file first.
+		tarFile := "results.tar.gz"
+		if _, err := cache.StoreGoogleStorageFile(jirix, presubmitTars, resultsBucketFlag+"/v0/presubmit/"+n, tarFile); err == nil {
+			if err := s.
+				Chdir(presubmitTars).
+				Run("tar", "-zxf", tarFile, "-C", presubmitCacheDir).Done(); err != nil {
+				return err
+			}
+		} else {
+			_, err := cache.StoreGoogleStorageFile(jirix, presubmitCacheDir, resultsBucketFlag+"/v0/presubmit", n)
+			if err != nil {
+				return err
+			}
 		}
-	} else {
-		if err := s.RemoveAll(presubmitDir).Done(); err != nil {
-			return err
-		}
-		_, err := cache.StoreGoogleStorageFile(jirix, filepath.Join(root, "presubmit"), resultsBucketFlag+"/v0/presubmit", n)
-		if err != nil {
-			return err
-		}
+
 	}
 
 	params := extractParams(r)
 	switch {
 	case params.arch == "" || params.osName == "" || params.job == "":
 		// Generate the summary page.
-		data, err := params.generateSummaryData(jirix, n, presubmitDir)
+		data, err := params.generateSummaryData(jirix, n, presubmitResultsDir)
 		if err != nil {
 			return err
 		}
@@ -326,7 +327,7 @@ func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request)
 		return nil
 	case params.testSuite == "":
 		// Generate the job detail page.
-		path := filepath.Join(presubmitDir, params.osName, params.arch, params.job)
+		path := filepath.Join(presubmitResultsDir, params.osName, params.arch, params.job)
 		data, err := params.generateJobData(jirix, n, path)
 		if err != nil {
 			return err
@@ -336,7 +337,7 @@ func displayPresubmitPage(jirix *jiri.X, w http.ResponseWriter, r *http.Request)
 		}
 	case (params.testClass != "" || params.testSuite != "") && params.testCase != "":
 		// Generate the test detail page.
-		path := filepath.Join(presubmitDir, params.osName, params.arch, params.job, params.partIndex)
+		path := filepath.Join(presubmitResultsDir, params.osName, params.arch, params.job, params.partIndex)
 		data, err := params.generateTestData(jirix, n, path)
 		if err != nil {
 			return err

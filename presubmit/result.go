@@ -838,8 +838,8 @@ func processRemoteTestResults(jirix *jiri.X) error {
 	// We don't fail the "result" phase in those cases.
 	s := jirix.NewSeq()
 	remoteResultsPath := gsPrefix + fmt.Sprintf("presubmit/%d", jenkinsBuildNumberFlag)
-	if err := s.Last("gsutil", "stat", remoteResultsPath); err != nil {
-		fmt.Fprintf(jirix.Stderr(), "Results not exist: %s", remoteResultsPath)
+	if err := s.Last("gsutil", "ls", remoteResultsPath); err != nil {
+		fmt.Fprintf(jirix.Stderr(), "Results not exist: %s\n", remoteResultsPath)
 		return nil
 	}
 
