@@ -1832,12 +1832,12 @@ func defaultRegressionConfig() *regressionTestConfig {
 		Sets: []binSet{
 			{
 				Name:     "agent-only",
-				Binaries: []string{"agentd"},
+				Binaries: []string{"v23agentd"},
 			},
 			{
 				Name: "prod-services",
 				Binaries: []string{
-					"agentd",
+					"v23agentd",
 					"deviced",
 					"applicationd",
 					"binaryd",
