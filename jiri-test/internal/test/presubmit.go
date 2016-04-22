@@ -136,7 +136,7 @@ func vanadiumPresubmitResult(jirix *jiri.X, testName string, _ ...Opt) (_ *test.
 	}
 
 	// Initialize the test.
-	cleanup, err := initTest(jirix, testName, nil)
+	cleanup, err := initTestImpl(jirix, false, false, false, testName, nil, "")
 	if err != nil {
 		return nil, newInternalError(err, "Init")
 	}
