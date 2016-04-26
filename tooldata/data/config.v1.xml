@@ -151,9 +151,7 @@
     </project>
     <project name="release.projects.reader">
       <test>vanadium-copyright</test>
-      <!-- TODO(sadovsky,nlacasse): Re-enable this test once the syncbase API change is done.
-        <test>vanadium-reader-test</test>
-      -->
+      <test>vanadium-reader-test</test>
     </project>
     <project name="release.projects.sensorlog">
       <test>go</test>
