@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -124,13 +125,20 @@ type getMetricResult struct {
 	ServiceVersion    string
 }
 
+type getMetricResults []getMetricResult
+
+func (m getMetricResults) Len() int           { return len(m) }
+func (m getMetricResults) Less(i, j int) bool { return m[i].Instance < m[j].Instance }
+func (m getMetricResults) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+func (m getMetricResults) Sort()              { sort.Sort(m) }
+
 // Final result for getData endpoint.
 type getDataResult struct {
 	// These fields are indexed by metric names.
-	ServiceLatency  map[string][]getMetricResult
-	ServiceQPS      map[string][]getMetricResult
-	ServiceCounters map[string][]getMetricResult
-	ServiceMetadata map[string][]getMetricResult
+	ServiceLatency  map[string]getMetricResults
+	ServiceQPS      map[string]getMetricResults
+	ServiceCounters map[string]getMetricResults
+	ServiceMetadata map[string]getMetricResults
 
 	Instances map[string]string // instances -> external ids
 	Oncalls   []string
@@ -341,10 +349,10 @@ func dataHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Requ
 
 	// Process results.
 	result := getDataResult{
-		ServiceLatency:  map[string][]getMetricResult{},
-		ServiceQPS:      map[string][]getMetricResult{},
-		ServiceCounters: map[string][]getMetricResult{},
-		ServiceMetadata: map[string][]getMetricResult{},
+		ServiceLatency:  map[string]getMetricResults{},
+		ServiceQPS:      map[string]getMetricResults{},
+		ServiceCounters: map[string]getMetricResults{},
+		ServiceMetadata: map[string]getMetricResults{},
 	}
 	for i := 0; i < numTasks; i++ {
 		r := <-taskResults
@@ -360,6 +368,17 @@ func dataHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Requ
 			result.ServiceMetadata[n] = append(result.ServiceMetadata[n], r)
 		}
 	}
+	// Sort metrics by instance names.
+	fnSortMetrics := func(m map[string]getMetricResults) {
+		for n := range m {
+			m[n].Sort()
+		}
+	}
+	fnSortMetrics(result.ServiceLatency)
+	fnSortMetrics(result.ServiceQPS)
+	fnSortMetrics(result.ServiceCounters)
+	fnSortMetrics(result.ServiceMetadata)
+
 	result.MinTime = startTimestamp
 	result.MaxTime = endTimestamp
 	result.Instances = nodes
