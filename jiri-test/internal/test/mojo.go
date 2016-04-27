@@ -64,3 +64,9 @@ func vanadiumMojoV23ProxyIntegrationTest(jirix *jiri.X, testName string, _ ...Op
 	testDir := filepath.Join(jirix.Root, "release", "mojo", "v23proxy")
 	return runMakefileTest(jirix, testName, testDir, "test-integration", nil, []string{"v23:mojo", "v23:dart"}, defaultMojoTestTimeout)
 }
+
+// vanadiumMojoV23ProxyGoOnlyIntegrationTest runs the integration tests for the vanadium <-> mojo "v23proxy". This test does not test dart.
+func vanadiumMojoV23ProxyGoOnlyIntegrationTest(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	testDir := filepath.Join(jirix.Root, "release", "mojo", "v23proxy")
+	return runMakefileTest(jirix, testName, testDir, "test-integration-go-go", nil, []string{"v23:mojo"}, defaultMojoTestTimeout)
+}
