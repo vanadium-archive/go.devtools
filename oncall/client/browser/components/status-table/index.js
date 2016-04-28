@@ -195,7 +195,7 @@ function render(globalState, state) {
         var tsLen = metricData.HistoryTimestamps.length;
         if (tsLen > 0) {
           var lastTimestamp = metricData.HistoryTimestamps[tsLen - 1];
-          if (data.MaxTime - lastTimestamp > 300) {
+          if (data.MaxTime - lastTimestamp > 600) {
             extraColMetricClass = '.stale';
           }
         } else {
