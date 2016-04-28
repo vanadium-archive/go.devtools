@@ -107,12 +107,6 @@ var tableRows = [
         threshold: 2000
       },
       {
-        dataKey: Consts.dataKeys.DK_SERVICE_LATENCY,
-        label: 'LATENCY (GOOGLE IDENTITY)',
-        metricName: Consts.metricNames.MN_GOOGLE_IDEN,
-        threshold: 2000
-      },
-      {
         dataKey: Consts.dataKeys.DK_SERVICE_QPS,
         label: 'QPS',
         metricName: Consts.metricNames.MN_IDENTITY
