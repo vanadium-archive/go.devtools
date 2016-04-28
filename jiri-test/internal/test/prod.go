@@ -140,11 +140,6 @@ func testAllProdServices(jirix *jiri.X, principalDir, namespaceRoot string) []*x
 			regexp:     regexp.MustCompile(`MacaroonBlesser[[:space:]]+interface`),
 		},
 		prodService{
-			name:       "google identity service",
-			objectName: namespaceRoot + "/identity/dev.v.io:u/google",
-			regexp:     regexp.MustCompile(`OAuthBlesser[[:space:]]+interface`),
-		},
-		prodService{
 			objectName: namespaceRoot + "/identity/dev.v.io:u/discharger",
 			name:       "binary discharger",
 			regexp:     regexp.MustCompile(`Discharger[[:space:]]+interface`),

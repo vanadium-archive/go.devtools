@@ -37,7 +37,6 @@ const (
 	SNMounttable       = "mounttable"
 	SNIdentity         = "identity service"
 	SNMacaroon         = "macaroon service"
-	SNGoogleIdentity   = "google identity service"
 	SNBinaryDischarger = "binary discharger"
 	SNRole             = "role service"
 	SNProxy            = "proxy service"
@@ -59,7 +58,6 @@ var serviceMountedNames = map[string]string{
 	SNMounttable:       "",
 	SNIdentity:         "identity/dev.v.io:u",
 	SNMacaroon:         "identity/dev.v.io:u/macaroon",
-	SNGoogleIdentity:   "identity/dev.v.io:u/google",
 	SNBinaryDischarger: "identity/dev.v.io:u/discharger",
 	SNRole:             "identity/role",
 	SNProxy:            "proxy-mon",

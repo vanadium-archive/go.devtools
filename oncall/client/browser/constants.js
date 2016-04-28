@@ -19,7 +19,6 @@ var zones = Object.freeze({
 /** Constants for all the metric names in the raw data. */
 var metricNames = Object.freeze({
   MN_BINARY_DISCHARGER: 'binary discharger',
-  MN_GOOGLE_IDEN: 'google identity service',
   MN_IDENTITY: 'identity service',
   MN_MACAROON: 'macaroon service',
   MN_MOUNTTABLE: 'mounttable',
@@ -50,8 +49,6 @@ var displayNames = Object.freeze({
   'binaryd': 'BINS',
   'cpu-usage': 'CPU%',
   'disk-usage': 'DISK%',
-  'google identity service': 'IDEN',
-  'google identity service latency': 'IDEN',
   'groups service': 'GROUPS',
   'groups service latency': 'GROUPS',
   'healthCheckLatency': 'HEALTH LAT',

@@ -297,7 +297,7 @@ func dataHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Requ
 				})
 			// Latency.
 			if serviceName == monitoring.SNIdentity {
-				for _, n := range []string{monitoring.SNMacaroon, monitoring.SNGoogleIdentity, monitoring.SNBinaryDischarger} {
+				for _, n := range []string{monitoring.SNMacaroon, monitoring.SNBinaryDischarger} {
 					allTasks = append(allTasks,
 						getMetricTask{
 							resultType: resultTypeServiceLatency,

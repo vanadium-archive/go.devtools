@@ -37,7 +37,6 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 	serviceNames := []string{
 		monitoring.SNMounttable,
 		monitoring.SNMacaroon,
-		monitoring.SNGoogleIdentity,
 		monitoring.SNBinaryDischarger,
 		monitoring.SNRole,
 		monitoring.SNProxy,
