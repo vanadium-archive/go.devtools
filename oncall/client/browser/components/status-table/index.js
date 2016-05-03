@@ -117,6 +117,28 @@ var tableRows = [
         metricName: Consts.metricNames.MN_IDENTITY
       }
     ]
+  },
+  // Benchmarks.
+  {
+    rowHeader: Consts.metricNames.MN_BENCHMARKS,
+    columns: [
+      {
+        dataKey: Consts.dataKeys.DK_SERVICE_LATENCY,
+        label: 'LATENCY',
+        metricName: Consts.metricNames.MN_BENCHMARKS,
+        threshold: 2000
+      },
+      {
+        dataKey: Consts.dataKeys.DK_SERVICE_QPS,
+        label: 'QPS',
+        metricName: Consts.metricNames.MN_BENCHMARKS
+      },
+      {
+        dataKey: Consts.dataKeys.DK_SERVICE_METADATA,
+        label: 'BUILD AGE (h)',
+        metricName: Consts.metricNames.MN_BENCHMARKS
+      }
+    ]
   }
 ];
 

@@ -528,6 +528,8 @@ func getKubeData(jirix *jiri.X) (map[string][]*podSpec, map[string]string, error
 		switch pod.Metadata.Labels.Service {
 		case "auth":
 			retPods[monitoring.SNIdentity] = append(retPods[monitoring.SNIdentity], pod)
+		case "benchmarks":
+			retPods[monitoring.SNBenchmark] = append(retPods[monitoring.SNBenchmark], pod)
 		case "mounttable":
 			retPods[monitoring.SNMounttable] = append(retPods[monitoring.SNMounttable], pod)
 		case "proxy":

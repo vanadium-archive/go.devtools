@@ -19,6 +19,7 @@ var zones = Object.freeze({
 /** Constants for all the metric names in the raw data. */
 var metricNames = Object.freeze({
   MN_BINARY_DISCHARGER: 'binary discharger',
+  MN_BENCHMARKS: 'benchmark service',
   MN_IDENTITY: 'identity service',
   MN_MACAROON: 'macaroon service',
   MN_MOUNTTABLE: 'mounttable',
@@ -42,6 +43,7 @@ var displayNames = Object.freeze({
   'application repository': 'APPS',
   'application repository latency': 'APPS',
   'applicationd': 'APPS',
+  'benchmark service': 'BENCHMARK',
   'binary discharger': 'DISCHARGER',
   'binary discharger latency': 'DISCHARGER',
   'binary repository': 'BINS',
