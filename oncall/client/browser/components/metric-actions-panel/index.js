@@ -11,10 +11,15 @@ module.exports = {
   render: render
 };
 
-var DEFAULT_NAMESPACE_ID = '4b20e0dc-cacf-11e5-87ec-42010af0020b';
+var VANADIUM_PRODUCTION_NAMESPACE_ID = '4b20e0dc-cacf-11e5-87ec-42010af0020b';
+var AUTH_PRODUCTION_NAMESPACE_ID = '2b6d405a-b4a6-11e5-9776-42010af000a6';
 
 /** The main render function. */
 function render(state, selectedMetric, data) {
+  var namespaceId = VANADIUM_PRODUCTION_NAMESPACE_ID;
+  if (selectedMetric.metricData.Project === 'vanadium-auth-production') {
+    namespaceId = AUTH_PRODUCTION_NAMESPACE_ID;
+  }
   var panel = h('div.metric-actions-content', [
       h('div.row', [
         h('div.item-label', 'Service Name'),
@@ -53,7 +58,7 @@ function render(state, selectedMetric, data) {
         h('div.item-label', 'Pod Name'),
         h('div.item-value', h('a', {
           href: 'https://app.google.stackdriver.com/gke/pod/1009941:vanadium:' +
-              DEFAULT_NAMESPACE_ID + ':' + selectedMetric.metricData.PodUID,
+              namespaceId + ':' + selectedMetric.metricData.PodUID,
           target: '_blank'
         }, selectedMetric.metricData.Instance)),
       ]),
