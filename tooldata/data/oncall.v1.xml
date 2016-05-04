@@ -9,93 +9,113 @@
     <startDate>May 02, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>nlacasse</primary>
-    <secondary>suharshs</secondary>
+    <primary>aghassemi</primary>
+    <secondary>ashankar</secondary>
     <startDate>May 09, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>suharshs</primary>
-    <secondary>nlacasse</secondary>
+    <primary>alexfandrianto</primary>
+    <secondary>aghassemi</secondary>
     <startDate>May 16, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>rdaoud</primary>
-    <secondary>p</secondary>
+    <primary>ashankar</primary>
+    <secondary>alexfandrianto</secondary>
     <startDate>May 23, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>cnicolaou</primary>
+    <primary>bprosnitz</primary>
     <secondary>caprita</secondary>
     <startDate>May 30, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>ashankar</primary>
-    <secondary>mattr</secondary>
+    <primary>cierniak</primary>
+    <secondary>bprosnitz</secondary>
     <startDate>Jun 06, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>jhahn</primary>
-    <secondary>rdaoud</secondary>
-    <startDate>Jun 13, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>p</primary>
-    <secondary>aghassemi</secondary>
-    <startDate>Jun 20, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>afergan</primary>
-    <secondary>cierniak</secondary>
-    <startDate>Jun 27, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
     <primary>eobrain</primary>
-    <secondary>jyh</secondary>
-    <startDate>Jul 04, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>jasoncampbell</primary>
-    <secondary>rthellend</secondary>
-    <startDate>Jul 11, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>hpucha</primary>
-    <secondary>ivanpi</secondary>
-    <startDate>Jul 18, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>rthellend</primary>
-    <secondary>rosswang</secondary>
-    <startDate>Jul 25, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>sadovsky</primary>
-    <secondary>aghassemi</secondary>
-    <startDate>Aug 01, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>bprosnitz</primary>
-    <secondary>sadovsky</secondary>
-    <startDate>Aug 08, 2016 08:00:00 AM</startDate>
+    <secondary>cierniak</secondary>
+    <startDate>Jun 13, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
     <primary>fredq</primary>
     <secondary>eobrain</secondary>
+    <startDate>Jun 20, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>hpucha</primary>
+    <secondary>fredq</secondary>
+    <startDate>Jun 27, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>ivanpi</primary>
+    <secondary>hpucha</secondary>
+    <startDate>Jul 04, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>jhahn</primary>
+    <secondary>ivanpi</secondary>
+    <startDate>Jul 11, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>jingjin</primary>
+    <secondary>jhahn</secondary>
+    <startDate>Jul 18, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>jyh</primary>
+    <secondary>jingjin</secondary>
+    <startDate>Jul 25, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>m3b</primary>
+    <secondary>mattr</secondary>
+    <startDate>Aug 01, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>mattr</primary>
+    <secondary>m3b</secondary>
+    <startDate>Aug 08, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>nlacasse</primary>
+    <secondary>razvanm</secondary>
     <startDate>Aug 15, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>suharshs</primary>
-    <secondary>fredq</secondary>
+    <primary>razvanm</primary>
+    <secondary>nlacasse</secondary>
     <startDate>Aug 22, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>toddw</primary>
-    <secondary>youngseokyoon</secondary>
+    <primary>rdaoud</primary>
+    <secondary>rthellend</secondary>
     <startDate>Aug 29, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>youngseokyoon</primary>
-    <secondary>toddw</secondary>
+    <primary>caprita</primary>
+    <secondary>jyh</secondary>
     <startDate>Sep 05, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>rthellend</primary>
+    <secondary>rdaoud</secondary>
+    <startDate>Sep 12, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>sadovsky</primary>
+    <secondary>suharshs</secondary>
+    <startDate>Sep 19, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>suharshs</primary>
+    <secondary>toddw</secondary>
+    <startDate>Sep 26, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>toddw</primary>
+    <secondary>sadovsky</secondary>
+    <startDate>Oct 03, 2016 08:00:00 AM</startDate>
   </shift>
 </rotation>
