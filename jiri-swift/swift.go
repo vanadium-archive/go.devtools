@@ -46,6 +46,7 @@ const (
 
 	frameworkName       = "VanadiumCore.framework"
 	frameworkBinaryName = "VanadiumCore"
+	libraryBinaryName   = "v23"
 
 	stageBuildCgo       = "cgo"
 	stageBuildFramework = "framework"

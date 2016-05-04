@@ -77,11 +77,11 @@ func installCgoBinary(jirix *jiri.X, targetArch string) {
 	var destLibPath string
 	switch flagBuildMode {
 	case buildModeArchive:
-		a := fmt.Sprintf("v23_%v.a", targetArch)
+		a := fmt.Sprintf("%v_%v.a", libraryBinaryName, targetArch)
 		destLibPath = path.Join(swiftTargetDir, a)
 		sh.Cmd("mv", "main.a", destLibPath).Run()
 	case buildModeShared:
-		dylib := fmt.Sprintf("v23_%v.dylib", targetArch)
+		dylib := fmt.Sprintf("%v_%v.dylib", libraryBinaryName, targetArch)
 		destLibPath = path.Join(swiftTargetDir, dylib)
 		sh.Cmd("mv", "main", dylib).Run()
 		sh.Cmd("install_name_tool", "-id", "@loader_path/"+dylib, dylib).Run()

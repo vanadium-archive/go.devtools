@@ -250,7 +250,7 @@ func verifyCgoBuild(jirix *jiri.X) error {
 }
 
 func cgoBinaryPath(jirix *jiri.X, arch string, buildMode string) (string, error) {
-	binaryPath := path.Join(getSwiftTargetDir(jirix), fmt.Sprintf("%v_%v", frameworkBinaryName, arch))
+	binaryPath := path.Join(getSwiftTargetDir(jirix), fmt.Sprintf("%v_%v", libraryBinaryName, arch))
 	switch buildMode {
 	case buildModeArchive:
 		binaryPath = binaryPath + ".a"
@@ -326,6 +326,18 @@ func verifyCgoGeneratedHeader(jirix *jiri.X) error {
 	}
 	if strings.Count(cgoExports, "_check_for_64_bit_pointer_matching_GoInt") != 1 {
 		return fmt.Errorf("64-bit check should only occur once %v", cgoExportsPath)
+	}
+	s, e := strings.Index(cgoExports, "/* Start of preamble"), strings.Index(cgoExports, "/* End of preamble")
+	if s == -1 || e == -1 {
+		return fmt.Errorf("Missing preamble section")
+	}
+	for _, line := range strings.Split(cgoExports[s:e], "\n") {
+		switch {
+		case strings.TrimSpace(line) == "":
+			continue
+		case strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t"):
+			return fmt.Errorf("Looks like indented code in preamble")
+		}
 	}
 	return nil
 }

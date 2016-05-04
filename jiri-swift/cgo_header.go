@@ -27,6 +27,7 @@ type cgoHeader struct {
 const (
 	stateBase                 = "base"
 	stateInPreamble           = "inPreamble"
+	stateInPreambleDef        = "inPreambleDef"
 	stateInPrologue           = "inPrologue"
 	stateInPrologueIntSection = "inPrologueIntSection"
 	stateInCppGuardStart      = "inCppGuardStart"
@@ -68,6 +69,7 @@ func (hdr *cgoHeader) parseFromFile(jirix *jiri.X, path string) error {
 	handlers := map[string]func(string, *cgoHeader) (string, error){
 		stateBase:                 parseBase,
 		stateInPreamble:           parseInPreamble,
+		stateInPreambleDef:        parseInPreambleDef,
 		stateInPrologue:           parseInPrologue,
 		stateInPrologueIntSection: parseInPrologueIntSection,
 		stateInCppGuardStart:      parseInCppGuardStart,
@@ -114,11 +116,21 @@ func parseInPreamble(line string, hdr *cgoHeader) (nextState string, err error) 
 	case strings.Contains(line, "End of preamble"):
 		//	/* End of preamble from import "C" comments.  */
 		nextState = stateBase
+	case strings.HasSuffix(line, "{"):
+		// static int objcBOOL2int(BOOL b) {
+		nextState = stateInPreambleDef
 	case strings.HasPrefix(line, "#line"):
 		// #line 19 "/Users/zinman/vanadium/release/go/src/v.io/x/swift/impl/google/rt/swift.go"
 		// ignore
-	case strings.HasPrefix(line, "#import"):
+	case strings.HasPrefix(line, "#import") && strings.Contains(line, "types.h"):
 		// #import "../../../types.h"
+		// ignore
+	case strings.HasPrefix(line, "#import"):
+		// #import <CoreBluetooth/CoreBluetooth.h>
+		// #import "CBDriver.h"
+		hdr.sysIncludes = append(hdr.sysIncludes, line)
+	case strings.HasPrefix(line, "static") && strings.HasSuffix(line, ";"):
+		// static const size_t sizeofSwiftByteArray = sizeof(SwiftByteArray);
 		// ignore
 	case strings.HasPrefix(line, "#include"):
 		// #include <string.h> // memcpy
@@ -127,8 +139,18 @@ func parseInPreamble(line string, hdr *cgoHeader) (nextState string, err error) 
 		// // These sizes (including C struct memory alignment/padding) isn't available from Go, so we make that available via CGo.
 		// ignore
 	default:
-		// static const size_t sizeofSwiftByteArray = sizeof(SwiftByteArray);
+		// const size_t sizeofSwiftByteArray = sizeof(SwiftByteArray);
 		hdr.typedefs = append(hdr.typedefs, line)
+	}
+	return nextState, nil
+}
+
+func parseInPreambleDef(line string, hdr *cgoHeader) (nextState string, err error) {
+	nextState = stateInPreambleDef // Default is same state.
+	switch {
+	case line == "}":
+		// }
+		nextState = stateInPreamble
 	}
 	return nextState, nil
 }
@@ -173,7 +195,6 @@ func parseInCppGuardStart(line string, hdr *cgoHeader) (nextState string, err er
 		nextState = stateInExports
 	}
 	return nextState, nil
-
 }
 
 func parseInExports(line string, hdr *cgoHeader) (nextState string, err error) {
@@ -185,7 +206,6 @@ func parseInExports(line string, hdr *cgoHeader) (nextState string, err error) {
 		hdr.exportedFunctions = append(hdr.exportedFunctions, line)
 	}
 	return nextState, nil
-
 }
 
 func parseInCppGuardEnd(line string, hdr *cgoHeader) (nextState string, err error) {
@@ -209,7 +229,6 @@ func (hdrs cgoHeaders) includes() []string {
 	includes := hdrs.dedupedStrings(func(hdr *cgoHeader) []string {
 		return hdr.sysIncludes
 	})
-	sort.Strings(includes)
 	return includes
 }
 
