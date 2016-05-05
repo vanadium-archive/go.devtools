@@ -1060,6 +1060,10 @@ func init() {
 		// The gorp tests require a connection to a SQL database, configured
 		// through various environment variables.
 		newExclusion("github.com/go-gorp/gorp", ".*", true),
+		// Not working in kubernetes containers.
+		newExclusion("github.com/shirou/gopsutil/host", "TestUsers", isCI()),
+		// Not working well with go2xunit.
+		newExclusion("github.com/stretchr/testify", ".*", true),
 		// The check.v1 tests contain flakey benchmark tests which sometimes do
 		// not complete, and sometimes complete with unexpected times.
 		newExclusion("gopkg.in/check.v1", ".*", true),
