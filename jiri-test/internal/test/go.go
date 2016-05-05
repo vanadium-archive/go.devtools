@@ -1062,6 +1062,10 @@ func init() {
 		newExclusion("github.com/go-gorp/gorp", ".*", true),
 		// Not working in kubernetes containers.
 		newExclusion("github.com/shirou/gopsutil/host", "TestUsers", isCI()),
+		// The features used in the following tests are not implemented on darwin.
+		newExclusion("github.com/shirou/gopsutil/disk", "TestDisk_io_counters", isDarwin()),
+		newExclusion("github.com/shirou/gopsutil/net", "TestNetProtoCountersStatsAll|TestNetProtoCountersStats|TestNetFilterCounters", isDarwin()),
+		newExclusion("github.com/shirou/gopsutil/process", "Test_Process_memory_maps|Test_Process_Terminal|Test_Process_IOCounters|Test_Process_NumCtx|Test_Process_Exe|Test_Process_CreateTime|Test_OpenFiles", isDarwin()),
 		// Not working well with go2xunit.
 		newExclusion("github.com/stretchr/testify", ".*", true),
 		// The check.v1 tests contain flakey benchmark tests which sometimes do
