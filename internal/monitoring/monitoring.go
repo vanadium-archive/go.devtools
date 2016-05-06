@@ -293,11 +293,11 @@ func ResolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceN
 	} else {
 		for _, resolvedName := range resolvedNames {
 			serverName, relativeName := naming.SplitAddressName(resolvedName)
-			ep, err := v23.NewEndpoint(serverName)
+			ep, err := naming.ParseEndpoint(serverName)
 			if err != nil {
 				return nil, err
 			}
-			routingId := ep.RoutingID().String()
+			routingId := ep.RoutingID.String()
 			if _, ok := groups[routingId]; !ok {
 				groups[routingId] = naming.MountEntry{}
 			}
