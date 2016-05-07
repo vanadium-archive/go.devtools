@@ -28,7 +28,6 @@
     <project>release.projects.croupier</project>
     <project>release.projects.madb</project>
     <project>release.projects.physical-lock</project>
-    <project>release.projects.playground</project>
     <project>release.projects.reader</project>
     <project>release.projects.sensorlog</project>
     <project>release.projects.syncslides</project>
@@ -145,10 +144,6 @@
     <project name="release.projects.physical-lock">
       <test>vanadium-copyright</test>
     </project>
-    <project name="release.projects.playground">
-      <test>vanadium-copyright</test>
-      <test>vanadium-playground-test</test>
-    </project>
     <project name="release.projects.reader">
       <test>vanadium-copyright</test>
       <test>vanadium-reader-test</test>
@@ -182,9 +177,6 @@
     </test>
     <test name="third_party-go-test">
       <dependency>third_party-go-build</dependency>
-    </test>
-    <test name="vanadium-playground-test">
-      <dependency>vanadium-go-build</dependency>
     </test>
     <test name="vanadium-go-race">
       <dependency>vanadium-go-test</dependency>
@@ -236,7 +228,6 @@
       <test>vanadium-mojo-v23proxy-go-only-integration-test</test>
     </group>
     <group name="projects">
-      <test>vanadium-playground-test</test>
     </group>
     <group name="third_party-go">
       <test>third_party-go-build</test>
