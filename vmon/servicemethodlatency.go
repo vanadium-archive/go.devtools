@@ -39,6 +39,7 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 		monitoring.SNRole,
 		monitoring.SNProxy,
 		monitoring.SNBenchmark,
+		monitoring.SNAllocator,
 	}
 
 	hasError := false

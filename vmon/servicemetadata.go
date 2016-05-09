@@ -33,6 +33,7 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 		monitoring.SNRole,
 		monitoring.SNProxy,
 		monitoring.SNBenchmark,
+		monitoring.SNAllocator,
 	}
 
 	hasError := false

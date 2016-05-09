@@ -41,6 +41,7 @@ const (
 	SNRole             = "role service"
 	SNProxy            = "proxy service"
 	SNBenchmark        = "benchmark service"
+	SNAllocator        = "syncbase allocator"
 
 	hostnameStatSuffix = "__debug/stats/system/hostname"
 	zoneStatSuffix     = "__debug/stats/system/gce/zone"
@@ -62,6 +63,7 @@ var serviceMountedNames = map[string]string{
 	SNRole:             "identity/role",
 	SNProxy:            "proxy-mon",
 	SNBenchmark:        "benchmarks",
+	SNAllocator:        "syncbase-allocator",
 }
 
 // StatValue stores the name and the value returned from the GetStat function.
@@ -88,25 +90,6 @@ func (sv *StatValue) GetFloat64Value() (float64, error) {
 type ServiceLocation struct {
 	Instance string
 	Zone     string
-}
-
-var ServiceLocationMap = map[string]*ServiceLocation{
-	"/ns.dev.v.io:8101": &ServiceLocation{
-		Instance: "vanadium-cell-master",
-		Zone:     "us-central1-c",
-	},
-	"/ns.dev.v.io:8151": &ServiceLocation{
-		Instance: "vanadium-cell-master",
-		Zone:     "us-central1-c",
-	},
-	"/ns.dev.staging.v.io:8101": &ServiceLocation{
-		Instance: "vanadium-cell-master",
-		Zone:     "us-central1-c",
-	},
-	"/ns.dev.staging.v.io:8151": &ServiceLocation{
-		Instance: "vanadium-cell-master",
-		Zone:     "us-central1-c",
-	},
 }
 
 type labelData struct {
