@@ -47,7 +47,7 @@ func extractFromRegex(line string, regex string) string {
 }
 
 func getSwiftTargetDir(jirix *jiri.X) string {
-	return path.Join(jirix.Root, "release", "swift", "lib", frameworkBinaryName, "x")
+	return path.Join(jirix.Root, "release", "swift", selectedProject.directoryName, "Generated")
 }
 
 func findHeadersUnderPath(path string) []string {

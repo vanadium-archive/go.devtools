@@ -122,7 +122,12 @@ func parseInPreamble(line string, hdr *cgoHeader) (nextState string, err error) 
 	case strings.HasPrefix(line, "#line"):
 		// #line 19 "/Users/zinman/vanadium/release/go/src/v.io/x/swift/impl/google/rt/swift.go"
 		// ignore
+	case strings.HasPrefix(line, "#include") && strings.Contains(line, "lib.h"):
+		// SyncbaseCore's common import
+		// #import "lib.h"
+		// ignore
 	case strings.HasPrefix(line, "#import") && strings.Contains(line, "types.h"):
+		// VanadiumCore's common import
 		// #import "../../../types.h"
 		// ignore
 	case strings.HasPrefix(line, "#import"):

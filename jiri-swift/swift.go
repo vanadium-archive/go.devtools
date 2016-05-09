@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	"v.io/jiri"
 	"v.io/jiri/tool"
@@ -26,11 +27,56 @@ var (
 	flagBuildMode   string
 	flagBuildDirCgo string
 	flagOutDirSwift string
+	flagProject     string
 	flagReleaseMode bool
 	flagTargetArch  string
 
 	targetArchs []string
+
+	selectedProject *project
+	projects        = []project{
+		{
+			name:                       "VanadiumCore",
+			commonHeaderPath:           "release/go/src/v.io/x/swift/types.h",
+			description:                "Core bindings from Swift to Vanadium; incompatible with SyncbaseCore",
+			directoryName:              "VanadiumCore",
+			exportedHeadersPackageRoot: "v.io/x",
+			frameworkName:              "VanadiumCore.framework",
+			frameworkBinaryName:        "VanadiumCore",
+			libraryBinaryName:          "v23",
+			mainPackage:                "v.io/x/swift/main",
+			testCheckExportedSymbols:   []string{"swift_io_v_v23_V_nativeInitGlobal", "swift_io_v_v23_context_VContext_nativeWithCancel"},
+			testCheckSharedTypes:       []string{"SwiftByteArray", "SwiftByteArrayArray", "GoContextHandle"},
+		},
+		{
+			name:                       "SyncbaseCore",
+			commonHeaderPath:           "release/go/src/v.io/x/ref/services/syncbase/bridge/cgo/lib.h",
+			description:                "Core bindings from Swift to Syncbase; incompatible with VanadiumCore",
+			directoryName:              "SyncbaseCore",
+			exportedHeadersPackageRoot: "v.io/x",
+			frameworkName:              "SyncbaseCore.framework",
+			frameworkBinaryName:        "SyncbaseCore",
+			libraryBinaryName:          "sbcore",
+			mainPackage:                "v.io/x/ref/services/syncbase/bridge/cgo",
+			testCheckExportedSymbols:   []string{"v23_syncbase_Init", "v23_syncbase_DbLeaveSyncgroup", "v23_syncbase_RowDelete"},
+			testCheckSharedTypes:       []string{"v23_syncbase_String", "v23_syncbase_Bytes", "v23_syncbase_Strings", "v23_syncbase_VError"},
+		},
+	}
 )
+
+type project struct {
+	name                       string
+	commonHeaderPath           string
+	description                string
+	directoryName              string
+	exportedHeadersPackageRoot string
+	frameworkName              string
+	frameworkBinaryName        string
+	libraryBinaryName          string
+	mainPackage                string
+	testCheckExportedSymbols   []string
+	testCheckSharedTypes       []string
+}
 
 const (
 	// darwin/386 is not a supported configuration for Go 1.5.1
@@ -44,16 +90,13 @@ const (
 	buildModeArchive = "c-archive"
 	buildModeShared  = "c-shared"
 
-	frameworkName       = "VanadiumCore.framework"
-	frameworkBinaryName = "VanadiumCore"
-	libraryBinaryName   = "v23"
-
 	stageBuildCgo       = "cgo"
 	stageBuildFramework = "framework"
 
 	descBuildMode   = "The build mode for cgo, either c-archive or c-shared. Defaults to c-archive."
 	descBuildDirCgo = "The directory for all generated artifacts during the cgo building phase. Defaults to a temp dir."
 	descOutDirSwift = "The directory for the generated Swift framework."
+	descProject     = "Selects which project to build (VanadiumCore, SyncbaseCore). Must be set."
 	descReleaseMode = "If set xcode is built in release mode. Defaults to false, which is debug mode."
 	descTargetArch  = "The architecture you wish to build for (arm, arm64, amd64), or 'all'. Defaults to amd64."
 )
@@ -63,6 +106,7 @@ func init() {
 	cmdBuild.Flags.StringVar(&flagBuildMode, "build-mode", buildModeArchive, descBuildMode)
 	cmdBuild.Flags.StringVar(&flagBuildDirCgo, "build-dir-cgo", "", descBuildDirCgo)
 	cmdBuild.Flags.StringVar(&flagOutDirSwift, "out-dir-swift", "", descOutDirSwift)
+	cmdBuild.Flags.StringVar(&flagProject, "project", "", descProject)
 	cmdBuild.Flags.BoolVar(&flagReleaseMode, "release-mode", false, descReleaseMode)
 	cmdBuild.Flags.StringVar(&flagTargetArch, "target", targetArchAmd64, descTargetArch)
 }
@@ -77,25 +121,25 @@ func main() {
 // cmdRun represents the "jiri run" command.
 var cmdRoot = &cmdline.Command{
 	Name:     "swift",
-	Short:    "Compile the Swift framework",
-	Long:     "Manages the build pipeline for the Swift framework, from CGO bindings to fattening the binaries.",
+	Short:    "Compile Swift frameworks and apps",
+	Long:     "Manages the build pipeline for the Swift framework/app, from CGO bindings to fattening the binaries.",
 	Children: []*cmdline.Command{cmdBuild, cmdClean},
 }
 
 var cmdBuild = &cmdline.Command{
 	Runner: jiri.RunnerFunc(runBuild),
 	Name:   "build",
-	Short:  "Builds and installs the cgo wrapper, as well as the Swift framework",
+	Short:  "Builds and installs the cgo wrapper, as well as the Swift framework/app",
 	Long: `The complete build pipeline from creating the CGO library, manipulating the headers for Swift,
-	and building the Swift framework using Xcode.`,
+	and building the Swift framework/app using Xcode for the selected project.`,
 	ArgsName: "[stage ...] (cgo, framework)",
 	ArgsLong: `
 	[stage ...] are the pipelines stage to run and any arguments to pass to that stage. If left empty defaults
-	to building all stages.
+	to building all stages. Project must be set.
 
 	Available stages:
 		cgo: Builds and installs the cgo library
-		framework: Builds the Swift Framework using Xcode
+		framework: Builds a Swift framework using Xcode
 	`,
 }
 
@@ -103,7 +147,21 @@ var cmdClean = &cmdline.Command{
 	Runner: jiri.RunnerFunc(runClean),
 	Name:   "clean",
 	Short:  "Removes generated cgo binaries and headers",
-	Long:   "Removes generated cgo binaries and headers that fall under $JIRI_ROOT/release/swift/lib/VanadiumCore/x",
+	Long:   "Removes generated cgo binaries and headers that fall under $JIRI_ROOT/release/swift/$PROJECT/Generated",
+}
+
+func parseProjectFlag() error {
+	for _, p := range projects {
+		if strings.ToLower(flagProject) == strings.ToLower(p.name) {
+			selectedProject = &p
+			return nil
+		}
+	}
+	names := []string{}
+	for _, p := range projects {
+		names = append(names, p.name)
+	}
+	return fmt.Errorf("You must set a project -- one of the following (case-insensitive): %v", names)
 }
 
 func parseBuildFlags() error {
@@ -175,6 +233,9 @@ func parseBuildArgs(jirix *jiri.X, args []string) error {
 }
 
 func runClean(jirix *jiri.X, args []string) error {
+	if err := parseProjectFlag(); err != nil {
+		return err
+	}
 	swiftTargetDir := getSwiftTargetDir(jirix)
 	if pathExists(swiftTargetDir) {
 		sanityCheckDir(swiftTargetDir)
@@ -188,7 +249,9 @@ func runBuild(jirix *jiri.X, args []string) error {
 	if runtime.GOOS != "darwin" {
 		return fmt.Errorf("Only darwin is currently supported")
 	}
-
+	if err := parseProjectFlag(); err != nil {
+		return err
+	}
 	if err := parseBuildFlags(); err != nil {
 		return err
 	}

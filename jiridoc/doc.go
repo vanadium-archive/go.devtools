@@ -33,7 +33,7 @@ The jiri external commands are:
    profile-v23  Manage v23 profiles
    run          Run an executable using the specified profile and target's
                 environment
-   swift        Compile the Swift framework
+   swift        Compile Swift frameworks and apps
    test         Manage vanadium tests
 
 The jiri additional help topics are:
@@ -1525,9 +1525,9 @@ The jiri run flags are:
  -v=false
    Print verbose output.
 
-Jiri swift - Compile the Swift framework
+Jiri swift - Compile Swift frameworks and apps
 
-Manages the build pipeline for the Swift framework, from CGO bindings to
+Manages the build pipeline for the Swift framework/app, from CGO bindings to
 fattening the binaries.
 
 Usage:
@@ -1535,7 +1535,7 @@ Usage:
 
 The jiri swift commands are:
    build       Builds and installs the cgo wrapper, as well as the Swift
-               framework
+               framework/app
    clean       Removes generated cgo binaries and headers
 
 The jiri swift flags are:
@@ -1548,18 +1548,18 @@ Jiri swift build
 
 The complete build pipeline from creating the CGO library, manipulating the
 headers for Swift,
-	and building the Swift framework using Xcode.
+	and building the Swift framework/app using Xcode for the selected project.
 
 Usage:
    jiri swift build [flags] [stage ...] (cgo, framework)
 
 [stage ...] are the pipelines stage to run and any arguments to pass to that
 stage. If left empty defaults
-	to building all stages.
+	to building all stages. Project must be set.
 
 	Available stages:
 		cgo: Builds and installs the cgo library
-		framework: Builds the Swift Framework using Xcode
+		framework: Builds a Swift framework using Xcode
 
 The jiri swift build flags are:
  -build-dir-cgo=
@@ -1569,6 +1569,8 @@ The jiri swift build flags are:
    The build mode for cgo, either c-archive or c-shared. Defaults to c-archive.
  -out-dir-swift=
    The directory for the generated Swift framework.
+ -project=
+   Selects which project to build (VanadiumCore, SyncbaseCore). Must be set.
  -release-mode=false
    If set xcode is built in release mode. Defaults to false, which is debug
    mode.
@@ -1584,7 +1586,7 @@ The jiri swift build flags are:
 Jiri swift clean - Removes generated cgo binaries and headers
 
 Removes generated cgo binaries and headers that fall under
-$JIRI_ROOT/release/swift/lib/VanadiumCore/x
+$JIRI_ROOT/release/swift/$PROJECT/Generated
 
 Usage:
    jiri swift clean [flags]

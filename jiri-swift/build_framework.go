@@ -18,13 +18,13 @@ func runBuildFramework(jirix *jiri.X) error {
 		// will fail otherwise.
 		return fmt.Errorf("Framework builds are always universal -- target must be all")
 	}
-	xcodeTarget := frameworkBinaryName
-	sh.Pushd(filepath.Join(jirix.Root, "release/swift/lib"))
+	xcodeTarget := selectedProject.frameworkBinaryName
+	sh.Pushd(filepath.Join(jirix.Root, "release/swift", selectedProject.directoryName))
 	// Make sure target directory exists
 	sh.Cmd("mkdir", "-p", flagOutDirSwift).Run()
 	// Clear out the old framework
 	sanityCheckDir(flagOutDirSwift)
-	targetPath := filepath.Join(flagOutDirSwift, frameworkName)
+	targetPath := filepath.Join(flagOutDirSwift, selectedProject.frameworkName)
 	verbose(jirix, "Building framework at %v\n", targetPath)
 	if pathExists(targetPath) {
 		verbose(jirix, "Removing old framework at %v\n", targetPath)
@@ -36,14 +36,14 @@ func runBuildFramework(jirix *jiri.X) error {
 }
 
 func buildUniversalFramework(jirix *jiri.X, xcodeTarget string) error {
-	fatBinaryPath := filepath.Join(flagOutDirSwift, frameworkName, frameworkBinaryName)
+	fatBinaryPath := filepath.Join(flagOutDirSwift, selectedProject.frameworkName, selectedProject.frameworkBinaryName)
 	didCopyFramework := false
 	for _, targetArch := range targetArchs {
 		buildDir, err := buildSingleFramework(jirix, xcodeTarget, targetArch)
 		if err != nil {
 			return err
 		}
-		builtFrameworkPath := filepath.Join(buildDir, frameworkName)
+		builtFrameworkPath := filepath.Join(buildDir, selectedProject.frameworkName)
 		if !didCopyFramework {
 			verbose(jirix, "Copying framework from %v to %v\n", builtFrameworkPath, flagOutDirSwift)
 			sh.Cmd("cp", "-r", builtFrameworkPath, flagOutDirSwift).Run()
@@ -51,8 +51,8 @@ func buildUniversalFramework(jirix *jiri.X, xcodeTarget string) error {
 			continue
 		}
 		// Copy this architecture's swift modules
-		builtModulesPath := filepath.Join(builtFrameworkPath, "Modules", frameworkBinaryName+".swiftmodule")
-		targetModulesPath := filepath.Join(flagOutDirSwift, frameworkName, "Modules", frameworkBinaryName+".swiftmodule")
+		builtModulesPath := filepath.Join(builtFrameworkPath, "Modules", selectedProject.frameworkBinaryName+".swiftmodule")
+		targetModulesPath := filepath.Join(flagOutDirSwift, selectedProject.frameworkName, "Modules", selectedProject.frameworkBinaryName+".swiftmodule")
 		verbose(jirix, "Copying built modules from %v to %v\n", filepath.Join(builtModulesPath, "*"), targetModulesPath)
 		modules, err := filepath.Glob(filepath.Join(builtModulesPath, "*"))
 		if err != nil {
@@ -62,7 +62,7 @@ func buildUniversalFramework(jirix *jiri.X, xcodeTarget string) error {
 			sh.Cmd("cp", "-f", module, targetModulesPath).Run()
 		}
 		// Inject the architecture binary
-		sh.Cmd("lipo", fatBinaryPath, filepath.Join(builtFrameworkPath, frameworkBinaryName), "-create", "-output", fatBinaryPath).Run()
+		sh.Cmd("lipo", fatBinaryPath, filepath.Join(builtFrameworkPath, selectedProject.frameworkBinaryName), "-create", "-output", fatBinaryPath).Run()
 	}
 	return nil
 }

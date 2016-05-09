@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -51,6 +52,7 @@ func runBuildCgo(jirix *jiri.X) error {
 	sh.Pushd(flagBuildDirCgo)
 
 	for _, targetArch := range targetArchs {
+		cleanOldCompiledFiles(jirix, targetArch)
 		compileCgo(jirix, targetArch)
 		installCgoBinary(jirix, targetArch)
 	}
@@ -62,11 +64,46 @@ func runBuildCgo(jirix *jiri.X) error {
 	return generateSingleHeader(jirix, targetArchs[0])
 }
 
+func cleanOldCompiledFiles(jirix *jiri.X, targetArch string) {
+	d := filepath.Join(jirix.Root, "release/go/pkg", "darwin_"+targetArch, "v.io")
+	if !pathExists(d) {
+		verbose(jirix, "Previously built go binaries & headers directory doesn't exist, nothing to remove: %v\n", d)
+		return
+	}
+	sanityCheckDir(d)
+	verbose(jirix, "Removing compiled go files and headers in path %v\n", d)
+	if err := os.RemoveAll(d); err != nil {
+		panic(fmt.Sprint("Unable to remove old compiled files:", err))
+	}
+}
+
 func compileCgo(jirix *jiri.X, targetArch string) {
 	targetFlag := targetArch + "-ios"
-	verbose(jirix, "Building for target %v with build mode %v in dir %v\n", targetFlag, flagBuildMode, flagBuildDirCgo)
-	sh.Cmd("jiri", "go", "-target", targetFlag, "build", "-buildmode="+flagBuildMode, "-tags", "ios", "v.io/x/swift/main").Run()
-	sh.Cmd("jiri", "go", "-target", targetFlag, "install", "-buildmode="+flagBuildMode, "-tags", "ios", "v.io/x/swift/main").Run()
+	verbose(jirix, "Building for project %v target %v with build mode %v in dir %v\n", selectedProject.name, targetFlag, flagBuildMode, flagBuildDirCgo)
+	// Create the binary
+	bp := buildBinaryPath(targetArch)
+	verbose(jirix, "Running jiri go -target %v build -buildmode=%v -tags ios -o %v %v\n", targetFlag, flagBuildMode, bp, selectedProject.mainPackage)
+	sh.Cmd("jiri", "go", "-target", targetFlag, "build", "-buildmode="+flagBuildMode, "-tags", "ios", "-o", bp, selectedProject.mainPackage).Run()
+	// If the package is simple enough it'll also generate a header -- we'll use the installed
+	// headers instead (as its more universal), so we can delete this generated header now if
+	// it exists.
+	b := strings.TrimSuffix(bp, filepath.Ext(bp))
+	os.RemoveAll(b + ".h")
+	// Now make sure the headers are created/generated in our go/pkg directory for a later step.
+	verbose(jirix, "Running jiri go -target %v install -buildmode=%v -tags ios %v\n", targetFlag, flagBuildMode, selectedProject.mainPackage)
+	sh.Cmd("jiri", "go", "-target", targetFlag, "install", "-buildmode="+flagBuildMode, "-tags", "ios", selectedProject.mainPackage).Run()
+}
+
+func buildBinaryPath(targetArch string) string {
+	bn := path.Join(flagBuildDirCgo, selectedProject.libraryBinaryName+"_"+targetArch)
+	switch flagBuildMode {
+	case buildModeArchive:
+		return bn + ".a"
+	case buildModeShared:
+		return bn + ".dylib"
+	default:
+		panic("Unknown build mode")
+	}
 }
 
 func installCgoBinary(jirix *jiri.X, targetArch string) {
@@ -77,15 +114,14 @@ func installCgoBinary(jirix *jiri.X, targetArch string) {
 	var destLibPath string
 	switch flagBuildMode {
 	case buildModeArchive:
-		a := fmt.Sprintf("%v_%v.a", libraryBinaryName, targetArch)
+		a := fmt.Sprintf("%v_%v.a", selectedProject.libraryBinaryName, targetArch)
 		destLibPath = path.Join(swiftTargetDir, a)
-		sh.Cmd("mv", "main.a", destLibPath).Run()
+		sh.Cmd("mv", buildBinaryPath(targetArch), destLibPath).Run()
 	case buildModeShared:
-		dylib := fmt.Sprintf("%v_%v.dylib", libraryBinaryName, targetArch)
+		dylib := fmt.Sprintf("%v_%v.dylib", selectedProject.libraryBinaryName, targetArch)
 		destLibPath = path.Join(swiftTargetDir, dylib)
-		sh.Cmd("mv", "main", dylib).Run()
-		sh.Cmd("install_name_tool", "-id", "@loader_path/"+dylib, dylib).Run()
-		sh.Cmd("mv", dylib, destLibPath).Run()
+		sh.Cmd("mv", buildBinaryPath(targetArch), destLibPath).Run()
+		sh.Cmd("install_name_tool", "-id", "@loader_path/"+dylib, destLibPath).Run()
 	}
 	verbose(jirix, "Installed binary at %v\n", destLibPath)
 	verifyCgoBinaryArchOrPanic(destLibPath, targetArch)
@@ -94,13 +130,13 @@ func installCgoBinary(jirix *jiri.X, targetArch string) {
 func copyCommonHeaders(jirix *jiri.X) {
 	verbose(jirix, "Copying common shared headers between Swift and Go\n")
 	// Take types.h and make it into go_types.h
-	sh.Cmd("cp", path.Join(jirix.Root, "release/go/src/v.io/x/swift/types.h"), path.Join(getSwiftTargetDir(jirix), "go_types.h")).Run()
+	sh.Cmd("cp", path.Join(jirix.Root, selectedProject.commonHeaderPath), path.Join(getSwiftTargetDir(jirix), "go_types.h")).Run()
 }
 
 func generateSingleHeader(jirix *jiri.X, targetArch string) error {
 	verbose(jirix, "Generating header for Swift\n")
 	// Load and parse all the headers
-	generatedHeadersDir := fmt.Sprintf("%v/release/go/pkg/darwin_%v/v.io/x", jirix.Root, targetArch)
+	generatedHeadersDir := fmt.Sprintf("%v/release/go/pkg/darwin_%v/%v", jirix.Root, targetArch, selectedProject.exportedHeadersPackageRoot)
 	generatedHeadersPaths := findHeadersUnderPath(generatedHeadersDir)
 	hdrs := cgoHeaders{}
 	for _, file := range generatedHeadersPaths {

@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Manages the build pipeline for the Swift framework, from CGO bindings to
+Manages the build pipeline for the Swift framework/app, from CGO bindings to
 fattening the binaries.
 
 Usage:
@@ -14,7 +14,7 @@ Usage:
 
 The jiri swift commands are:
    build       Builds and installs the cgo wrapper, as well as the Swift
-               framework
+               framework/app
    clean       Removes generated cgo binaries and headers
    help        Display help for commands or topics
 
