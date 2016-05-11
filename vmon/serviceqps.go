@@ -14,6 +14,7 @@ import (
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
 	"v.io/x/ref/services/stats"
@@ -141,31 +142,11 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 	qps := []qpsData{}
 	errors := []error{}
 	for _, group := range groups {
-		perMethodQPS := map[string]float64{}
-		totalQPS := 0.0
-		qpsResults, err := monitoring.GetStat(v23ctx, ctx, group, qpsSuffix)
+		perMethodQPS, totalQPS, err := getQPS(v23ctx, ctx, &group)
 		if err != nil {
 			errors = append(errors, err)
 			continue
 		}
-		curPerMethodQPS := map[string]float64{}
-		curTotalQPS := 0.0
-		for _, r := range qpsResults {
-			data, ok := r.Value.(stats.HistogramValue)
-			if !ok {
-				return nil, fmt.Errorf("invalid qps data: %v", r)
-			}
-			matches := qpsRE.FindStringSubmatch(r.Name)
-			if matches == nil {
-				continue
-			}
-			method := matches[1]
-			qps := (float64)(data.Count) / 60.0
-			curPerMethodQPS[method] += qps
-			curTotalQPS += qps
-		}
-		perMethodQPS = curPerMethodQPS
-		totalQPS = curTotalQPS
 		if len(perMethodQPS) == 0 {
 			errors = append(errors, fmt.Errorf("failed to check qps for service %q", serviceName))
 			continue
@@ -187,4 +168,28 @@ func checkSingleServiceQPS(v23ctx *context.T, ctx *tool.Context, serviceName str
 	}
 
 	return qps, nil
+}
+
+func getQPS(v23ctx *context.T, ctx *tool.Context, me *naming.MountEntry) (map[string]float64, float64, error) {
+	qpsResults, err := monitoring.GetStat(v23ctx, ctx, *me, qpsSuffix)
+	if err != nil {
+		return nil, -1, err
+	}
+	perMethodQPS := map[string]float64{}
+	totalQPS := 0.0
+	for _, r := range qpsResults {
+		data, ok := r.Value.(stats.HistogramValue)
+		if !ok {
+			return nil, -1, fmt.Errorf("invalid qps data: %v", r)
+		}
+		matches := qpsRE.FindStringSubmatch(r.Name)
+		if matches == nil {
+			continue
+		}
+		method := matches[1]
+		qps := (float64)(data.Count) / 60.0
+		perMethodQPS[method] += qps
+		totalQPS += qps
+	}
+	return perMethodQPS, totalQPS, nil
 }

@@ -82,8 +82,10 @@ func (sv *StatValue) GetFloat64Value() (float64, error) {
 		return i, nil
 	case int64:
 		return float64(i), nil
+	case uint64:
+		return float64(i), nil
 	default:
-		return 0, fmt.Errorf("invalid value: %v", sv.Value)
+		return 0, fmt.Errorf("invalid value: %v, %T", sv.Value, sv.Value)
 	}
 }
 
@@ -107,6 +109,15 @@ var aggLabelData = []labelData{
 // customMetricDescriptors is a map from metric's short names to their
 // MetricDescriptor definitions.
 var customMetricDescriptors = map[string]*cloudmonitoring.MetricDescriptor{
+	// Custom metrics for recording stats of cloud syncbase instances.
+	"cloud-syncbase": createMetric("cloud-syncbase", "Stats of cloud syncbase instances.", "double", false, []labelData{
+		labelData{
+			key:         "mounted_name",
+			description: "The relative mounted name of the instance",
+		},
+	}),
+	"cloud-syncbase-agg": createMetric("cloud-syncbase-agg", "The aggregated stats of cloud syncbase instances.", "double", false, aggLabelData),
+
 	// Custom metrics for recording check latency and its aggregation
 	// of vanadium production services.
 	"service-latency":     createMetric("service/latency", "The check latency (ms) of vanadium production services.", "double", true, nil),

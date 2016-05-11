@@ -112,7 +112,7 @@ func sendDataToGCM(s *cloudmonitoring.Service, md *cloudmonitoring.MetricDescrip
 				},
 			},
 		}}).Do(); err != nil {
-		return fmt.Errorf("Timeseries Write failed for metric %q with value %f: %v", md.Name, value, err)
+		return fmt.Errorf("Timeseries Write failed for metric %q with value %f and labels %v: %v", md.Name, value, labels, err)
 	}
 	return nil
 }

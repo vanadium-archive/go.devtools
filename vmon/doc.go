@@ -115,11 +115,12 @@ Create the given metric descriptor in GCM.
 Usage:
    vmon md create [flags] <names>
 
-<names> is a list of metric descriptor names to create. Available: gce-instance,
-jenkins, nginx, rpc-load-test, service-counters, service-counters-agg,
-service-latency, service-latency-agg, service-metadata, service-metadata-agg,
-service-permethod-latency, service-permethod-latency-agg, service-qps-method,
-service-qps-method-agg, service-qps-total, service-qps-total-agg
+<names> is a list of metric descriptor names to create. Available:
+cloud-syncbase, cloud-syncbase-agg, gce-instance, jenkins, nginx, rpc-load-test,
+service-counters, service-counters-agg, service-latency, service-latency-agg,
+service-metadata, service-metadata-agg, service-permethod-latency,
+service-permethod-latency-agg, service-qps-method, service-qps-method-agg,
+service-qps-total, service-qps-total-agg
 
 The vmon md create flags are:
  -color=true
@@ -138,11 +139,12 @@ Delete the given metric descriptor from GCM.
 Usage:
    vmon md delete [flags] <names>
 
-<names> is a list of metric descriptor names to delete. Available: gce-instance,
-jenkins, nginx, rpc-load-test, service-counters, service-counters-agg,
-service-latency, service-latency-agg, service-metadata, service-metadata-agg,
-service-permethod-latency, service-permethod-latency-agg, service-qps-method,
-service-qps-method-agg, service-qps-total, service-qps-total-agg
+<names> is a list of metric descriptor names to delete. Available:
+cloud-syncbase, cloud-syncbase-agg, gce-instance, jenkins, nginx, rpc-load-test,
+service-counters, service-counters-agg, service-latency, service-latency-agg,
+service-metadata, service-metadata-agg, service-permethod-latency,
+service-permethod-latency-agg, service-qps-method, service-qps-method-agg,
+service-qps-total, service-qps-total-agg
 
 The vmon md delete flags are:
  -color=true
@@ -254,8 +256,8 @@ Usage:
    vmon check run [flags] <names>
 
 <names> is a list of names identifying the checks to run. Available:
-gce-instance, jenkins, rpc-load-test, service-counters, service-latency,
-service-metadata, service-permethod-latency, service-qps
+cloud-syncbase, gce-instance, jenkins, rpc-load-test, service-counters,
+service-latency, service-metadata, service-permethod-latency, service-qps
 
 The vmon check run flags are:
  -bin-dir=
