@@ -76,17 +76,25 @@ func checkCloudSyncbaseInstances(v23ctx *context.T, ctx *tool.Context, s *cloudm
 		}
 	}
 
-	// Query stats from each instance.
-	taskTypes := []cloudSyncbaseStatsTaskType{taskTypeCpu, taskTypeMem, taskTypeDisk, taskTypeLatency, taskTypeQPS}
-	numTasks := len(sbInstances) * len(taskTypes)
-	tasks := make(chan cloudSyncbaseStatsTask, numTasks)
-	taskResults := make(chan cloudSyncbaseStatsResult, numTasks)
-	aggs := map[string]*aggregator{}
+	// Send number of instances to GCM.
 	md, err := monitoring.GetMetric("cloud-syncbase", projectFlag)
 	if err != nil {
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	numInstances := len(sbInstances)
+	if err := sendDataToGCM(s, md, float64(numInstances), now, "", "", "count", "_"); err != nil {
+		fmt.Fprintf(ctx.Stderr(), "%v\n", err)
+	} else {
+		test.Pass(ctx, "number of instances: %v\n", numInstances)
+	}
+
+	// Query stats from each instance.
+	taskTypes := []cloudSyncbaseStatsTaskType{taskTypeCpu, taskTypeMem, taskTypeDisk, taskTypeLatency, taskTypeQPS}
+	numTasks := numInstances * len(taskTypes)
+	tasks := make(chan cloudSyncbaseStatsTask, numTasks)
+	taskResults := make(chan cloudSyncbaseStatsResult, numTasks)
+	aggs := map[string]*aggregator{}
 	// Start workers and distribute work to them.
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go statsWorker(v23ctx, ctx, s, now, aggs, md, tasks, taskResults)
