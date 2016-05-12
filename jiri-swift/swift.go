@@ -56,6 +56,7 @@ var (
 			exportedHeadersPackageRoot: "v.io/x",
 			frameworkName:              "SyncbaseCore.framework",
 			frameworkBinaryName:        "SyncbaseCore",
+			jiriProfiles:               []string{"v23:syncbase"},
 			libraryBinaryName:          "sbcore",
 			mainPackage:                "v.io/x/ref/services/syncbase/bridge/cgo",
 			testCheckExportedSymbols:   []string{"v23_syncbase_Init", "v23_syncbase_DbLeaveSyncgroup", "v23_syncbase_RowDelete"},
@@ -72,6 +73,7 @@ type project struct {
 	exportedHeadersPackageRoot string
 	frameworkName              string
 	frameworkBinaryName        string
+	jiriProfiles               []string
 	libraryBinaryName          string
 	mainPackage                string
 	testCheckExportedSymbols   []string

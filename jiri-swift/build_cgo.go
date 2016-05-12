@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"v.io/jiri"
+	"v.io/jiri/profiles"
 )
 
 const singleHeaderTmpl = `/* Created by jiri-swift - DO NOT EDIT. */
@@ -46,6 +47,7 @@ extern "C"
 `
 
 func runBuildCgo(jirix *jiri.X) error {
+	// Copy over dependent libraries.
 	if flagBuildDirCgo == "" {
 		flagBuildDirCgo = sh.MakeTempDir()
 	}
@@ -55,6 +57,9 @@ func runBuildCgo(jirix *jiri.X) error {
 		cleanOldCompiledFiles(jirix, targetArch)
 		compileCgo(jirix, targetArch)
 		installCgoBinary(jirix, targetArch)
+		if err := copyLinkedLibraries(jirix, targetArch); err != nil {
+			return err
+		}
 	}
 
 	copyCommonHeaders(jirix)
@@ -125,6 +130,114 @@ func installCgoBinary(jirix *jiri.X, targetArch string) {
 	}
 	verbose(jirix, "Installed binary at %v\n", destLibPath)
 	verifyCgoBinaryArchOrPanic(destLibPath, targetArch)
+}
+
+// copyLinkedLibraries will look at the project-specific profile requirements (like v23:syncbase) to find
+// any static libraries in the profile that Go might have linked to via CGO_LDFLAGS, and then copy these
+// static archives to the target directory. This allows Xcode to be able to directly link to a local copy
+// of these files as CGO doesn't statically link the libraries. While it might seem like a bug, it's
+// actually a feature: it allows us to distribute a version of a framework without potentially-conflicting
+// dependencies like LevelDB should the end-user wish to provide their own copy (or already has another
+// library that has statically-linked it).
+func copyLinkedLibraries(jirix *jiri.X, targetArch string) error {
+	if len(selectedProject.jiriProfiles) == 0 {
+		// No files to copy over
+		verbose(jirix, "No jiri profiles associated with project; not copying any linked static libs\n")
+		return nil
+	}
+	// Load jiri profiles database
+	db := profiles.NewDB()
+	if err := db.Read(jirix, jirix.ProfilesDBDir()); err != nil {
+		return fmt.Errorf("failed to read profiles db at path %v: %v", jirix.ProfilesDBDir(), err)
+	}
+	// Copy any profile's static libraries over
+	for _, pn := range selectedProject.jiriProfiles {
+		// Get profile
+		splitPn := strings.Split(pn, ":")
+		if len(splitPn) != 2 {
+			return fmt.Errorf("did not understand jiri profile %v -- expected format is <installer>:<name>", pn)
+		}
+		p := db.LookupProfile(splitPn[0], splitPn[1])
+		if p == nil {
+			return fmt.Errorf("unable to find profile %v", pn)
+		}
+		// Find target for this architecture & os
+		var target *profiles.Target
+		for _, t := range p.Targets() {
+			if t.Arch() != targetArch {
+				continue
+			}
+			if t.OS() != "ios" {
+				continue
+			}
+			target = t
+		}
+		if target == nil {
+			return fmt.Errorf("couldn't find target arch %v in targets %v for profile %v", targetArch, p.Targets(), pn)
+		}
+		copyLinkedLibrariesForTarget(jirix, target)
+	}
+	return nil
+}
+
+// copyLinkedLibrariesForTarget copies any static libraries included on the
+// CGO_LDFLAGS to our target directory to make it easy to link to (or
+// distribute as its own library) in Xcode.
+func copyLinkedLibrariesForTarget(jirix *jiri.X, target *profiles.Target) {
+	libs := findStaticLibsInDirs(findLibDirsInTargetEnv(jirix, target))
+	for _, l := range libs {
+		// Convert path to dst/libname_arch.a
+		bn := filepath.Base(l)
+		bn = strings.Trim(bn, filepath.Ext(bn))
+		dst := filepath.Join(getSwiftTargetDir(jirix), fmt.Sprintf("%v_%v.a", bn, target.Arch()))
+		verbose(jirix, "Copying %v to %v\n", l, dst)
+		sh.Cmd("cp", l, dst).Run()
+	}
+}
+
+// findLibDirsInTargetEnv parses a profile target's CGO_LDFLAGS for any included
+// library dirs, intersects them with the target's installation dir (to make sure
+// we only get our own locally-built and not system-wide libraries), and returns
+// these absolute paths. For example it will return the directories associated
+// with target architecture's compiled static archives of LevelDB and Snappy
+// when searching the v23:syncbase profile target.
+func findLibDirsInTargetEnv(jirix *jiri.X, t *profiles.Target) []string {
+	var dirs []string
+	for _, v := range t.Env.Vars {
+		if !strings.HasPrefix(v, "CGO_LDFLAGS") {
+			continue
+		}
+		dirs = strings.Split(v, "-L")
+		break
+	}
+	if len(dirs) == 0 {
+		return dirs
+	}
+	var paths []string
+	for _, d := range dirs {
+		i := strings.Index(d, t.InstallationDir)
+		if i == -1 {
+			continue
+		}
+		d = filepath.Join(jirix.Root, strings.TrimSpace(d[i:]))
+		paths = append(paths, d)
+	}
+	return paths
+}
+
+// findStaticLibsInDirs walks a slice of directories searching for static archives
+// (files that end with .a), and returns those as a string slice.
+func findStaticLibsInDirs(dirs []string) []string {
+	var libs []string
+	for _, d := range dirs {
+		filepath.Walk(d, func(path string, f os.FileInfo, err error) error {
+			if strings.HasSuffix(path, ".a") {
+				libs = append(libs, path)
+			}
+			return nil
+		})
+	}
+	return libs
 }
 
 func copyCommonHeaders(jirix *jiri.X) {
