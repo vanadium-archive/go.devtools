@@ -13,8 +13,8 @@ import (
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
-	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/gcm"
 	"v.io/x/ref/lib/v23cmd"
 )
 
@@ -85,7 +85,7 @@ func runCheckRun(v23ctx *context.T, env *cmdline.Env, args []string) error {
 	ctx := tool.NewContextFromEnv(env)
 
 	// Authenticate monitoring APIs.
-	s, err := monitoring.Authenticate(keyFileFlag)
+	s, err := gcm.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}

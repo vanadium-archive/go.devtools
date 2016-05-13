@@ -18,6 +18,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 var (
@@ -46,7 +47,7 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 	}
 
 	hasError := false
-	mdLat, err := monitoring.GetMetric("service-latency", projectFlag)
+	mdLat, err := gcm.GetMetric("service-latency", projectFlag)
 	if err != nil {
 		return err
 	}
@@ -80,7 +81,7 @@ func checkServiceLatency(v23ctx *context.T, ctx *tool.Context, s *cloudmonitorin
 		}
 
 		// Send aggregated data to GCM.
-		mdAgg, err := monitoring.GetMetric("service-latency-agg", projectFlag)
+		mdAgg, err := gcm.GetMetric("service-latency-agg", projectFlag)
 		if err != nil {
 			return err
 		}

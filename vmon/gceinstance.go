@@ -23,8 +23,8 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/tool"
 	"v.io/v23/context"
-	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 const localCheckScript = `#!/bin/bash
@@ -382,7 +382,7 @@ func checkNginxHealth(ctx *tool.Context, instances []*gceInstanceData) error {
 
 // sendToGCM sends instance stats data to GCM.
 func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
-	s, err := monitoring.Authenticate(keyFileFlag)
+	s, err := gcm.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
@@ -453,7 +453,7 @@ func sendToGCM(ctx *tool.Context, instances []*gceInstanceData) error {
 
 // sendInstanceDataToGCM sends a single instance's stat to GCM.
 func sendInstanceDataToGCM(s *cloudmonitoring.Service, metricType, metricName, timeStr string, instance *gceInstanceData, value float64) error {
-	md, err := monitoring.GetMetric(metricType, projectFlag)
+	md, err := gcm.GetMetric(metricType, projectFlag)
 	if err != nil {
 		return err
 	}

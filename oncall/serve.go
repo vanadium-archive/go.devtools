@@ -25,6 +25,7 @@ import (
 	"v.io/x/devtools/internal/cache"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/gcm"
 )
 
 const (
@@ -213,7 +214,7 @@ func runServe(env *cmdline.Env, _ []string) (e error) {
 }
 
 func dataHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Request) {
-	s, err := monitoring.Authenticate(keyFileFlag)
+	s, err := gcm.Authenticate(keyFileFlag)
 	if err != nil {
 		respondWithError(jirix, err, w)
 		return
@@ -255,22 +256,22 @@ func dataHandler(jirix *jiri.X, root string, w http.ResponseWriter, r *http.Requ
 
 	// Create tasks of getting metrics from GCM.
 	allTasks := []getMetricTask{}
-	mdServiceLatency, err := monitoring.GetMetric("service-latency", "vanadium-production")
+	mdServiceLatency, err := gcm.GetMetric("service-latency", "vanadium-production")
 	if err != nil {
 		respondWithError(jirix, err, w)
 		return
 	}
-	mdServiceQPS, err := monitoring.GetMetric("service-qps-total", "vanadium-production")
+	mdServiceQPS, err := gcm.GetMetric("service-qps-total", "vanadium-production")
 	if err != nil {
 		respondWithError(jirix, err, w)
 		return
 	}
-	mdServiceCounters, err := monitoring.GetMetric("service-counters", "vanadium-production")
+	mdServiceCounters, err := gcm.GetMetric("service-counters", "vanadium-production")
 	if err != nil {
 		respondWithError(jirix, err, w)
 		return
 	}
-	mdServiceMetadata, err := monitoring.GetMetric("service-metadata", "vanadium-production")
+	mdServiceMetadata, err := gcm.GetMetric("service-metadata", "vanadium-production")
 	if err != nil {
 		respondWithError(jirix, err, w)
 		return

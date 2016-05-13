@@ -11,8 +11,8 @@ import (
 	cloudmonitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/v23/context"
-	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/gcm"
 	"v.io/x/ref/lib/v23cmd"
 )
 
@@ -40,7 +40,7 @@ var cmdMetricDescriptorCreate = &cmdline.Command{
 	Short:    "Create the given metric descriptor in GCM",
 	Long:     "Create the given metric descriptor in GCM.",
 	ArgsName: "<names>",
-	ArgsLong: "<names> is a list of metric descriptor names to create. Available: " + strings.Join(monitoring.GetSortedMetricNames(), ", "),
+	ArgsLong: "<names> is a list of metric descriptor names to create. Available: " + strings.Join(gcm.GetSortedMetricNames(), ", "),
 }
 
 func runMetricDescriptorCreate(_ *context.T, env *cmdline.Env, args []string) error {
@@ -48,12 +48,12 @@ func runMetricDescriptorCreate(_ *context.T, env *cmdline.Env, args []string) er
 		return err
 	}
 
-	s, err := monitoring.Authenticate(keyFileFlag)
+	s, err := gcm.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
 	for _, arg := range args {
-		md, err := monitoring.GetMetric(arg, projectFlag)
+		md, err := gcm.GetMetric(arg, projectFlag)
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ var cmdMetricDescriptorDelete = &cmdline.Command{
 	Short:    "Delete the given metric descriptor from GCM",
 	Long:     "Delete the given metric descriptor from GCM.",
 	ArgsName: "<names>",
-	ArgsLong: "<names> is a list of metric descriptor names to delete. Available: " + strings.Join(monitoring.GetSortedMetricNames(), ", "),
+	ArgsLong: "<names> is a list of metric descriptor names to delete. Available: " + strings.Join(gcm.GetSortedMetricNames(), ", "),
 }
 
 func runMetricDescriptorDelete(_ *context.T, env *cmdline.Env, args []string) error {
@@ -81,12 +81,12 @@ func runMetricDescriptorDelete(_ *context.T, env *cmdline.Env, args []string) er
 		return err
 	}
 
-	s, err := monitoring.Authenticate(keyFileFlag)
+	s, err := gcm.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
 	for _, arg := range args {
-		md, err := monitoring.GetMetric(arg, projectFlag)
+		md, err := gcm.GetMetric(arg, projectFlag)
 		if err != nil {
 			return err
 		}
@@ -108,7 +108,7 @@ var cmdMetricDescriptorList = &cmdline.Command{
 }
 
 func runMetricDescriptorList(_ *context.T, env *cmdline.Env, _ []string) error {
-	for _, n := range monitoring.GetSortedMetricNames() {
+	for _, n := range gcm.GetSortedMetricNames() {
 		fmt.Fprintf(env.Stdout, "%s\n", n)
 	}
 	return nil
@@ -123,7 +123,7 @@ var cmdMetricDescriptorQuery = &cmdline.Command{
 }
 
 func runMetricDescriptorQuery(_ *context.T, env *cmdline.Env, _ []string) error {
-	s, err := monitoring.Authenticate(keyFileFlag)
+	s, err := gcm.Authenticate(keyFileFlag)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func runMetricDescriptorQuery(_ *context.T, env *cmdline.Env, _ []string) error 
 
 func checkArgs(env *cmdline.Env, args []string) error {
 	for _, arg := range args {
-		if _, err := monitoring.GetMetric(arg, projectFlag); err != nil {
+		if _, err := gcm.GetMetric(arg, projectFlag); err != nil {
 			return err
 		}
 	}

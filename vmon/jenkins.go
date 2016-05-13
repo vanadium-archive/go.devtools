@@ -11,8 +11,8 @@ import (
 	cloudmonitoring "google.golang.org/api/monitoring/v3"
 	"v.io/jiri/tool"
 	"v.io/v23/context"
-	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 const (
@@ -35,7 +35,7 @@ func checkJenkins(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Servi
 	msg := fmt.Sprintf("vanadium-go-build age: %f hours.\n", ageInHours)
 
 	// Send data to GCM.
-	md, err := monitoring.GetMetric("jenkins", projectFlag)
+	md, err := gcm.GetMetric("jenkins", projectFlag)
 	if err != nil {
 		return err
 	}

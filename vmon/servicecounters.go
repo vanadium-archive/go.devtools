@@ -14,6 +14,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 type prodServiceCounter struct {
@@ -42,7 +43,7 @@ func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 	}
 
 	hasError := false
-	mdCounter, err := monitoring.GetMetric("service-counters", projectFlag)
+	mdCounter, err := gcm.GetMetric("service-counters", projectFlag)
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,7 @@ func checkServiceCounters(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 			}
 
 			// Send aggregated data to GCM.
-			mdAgg, err := monitoring.GetMetric("service-counters-agg", projectFlag)
+			mdAgg, err := gcm.GetMetric("service-counters-agg", projectFlag)
 			if err != nil {
 				return err
 			}

@@ -17,6 +17,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 	"v.io/x/ref/services/stats"
 )
 
@@ -47,11 +48,11 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 	}
 
 	hasError := false
-	mdPerMethodQPS, err := monitoring.GetMetric("service-qps-method", projectFlag)
+	mdPerMethodQPS, err := gcm.GetMetric("service-qps-method", projectFlag)
 	if err != nil {
 		return err
 	}
-	mdTotalQPS, err := monitoring.GetMetric("service-qps-total", projectFlag)
+	mdTotalQPS, err := gcm.GetMetric("service-qps-total", projectFlag)
 	if err != nil {
 		return err
 	}
@@ -103,7 +104,7 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 		}
 
 		// Send aggregated data to GCM.
-		mdTotalAgg, err := monitoring.GetMetric("service-qps-total-agg", projectFlag)
+		mdTotalAgg, err := gcm.GetMetric("service-qps-total-agg", projectFlag)
 		if err != nil {
 			return err
 		}
@@ -111,7 +112,7 @@ func checkServiceQPS(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Se
 			return err
 		}
 		for method, agg := range aggByMethod {
-			mdMethodAgg, err := monitoring.GetMetric("service-qps-method-agg", projectFlag)
+			mdMethodAgg, err := gcm.GetMetric("service-qps-method-agg", projectFlag)
 			if err != nil {
 				return err
 			}

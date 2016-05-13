@@ -17,6 +17,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 const (
@@ -77,7 +78,7 @@ func checkCloudSyncbaseInstances(v23ctx *context.T, ctx *tool.Context, s *cloudm
 	}
 
 	// Send number of instances to GCM.
-	md, err := monitoring.GetMetric("cloud-syncbase", projectFlag)
+	md, err := gcm.GetMetric("cloud-syncbase", projectFlag)
 	if err != nil {
 		return err
 	}
@@ -118,7 +119,7 @@ func checkCloudSyncbaseInstances(v23ctx *context.T, ctx *tool.Context, s *cloudm
 			continue
 		}
 	}
-	mdAgg, err := monitoring.GetMetric("cloud-syncbase-agg", projectFlag)
+	mdAgg, err := gcm.GetMetric("cloud-syncbase-agg", projectFlag)
 	if err != nil {
 		return err
 	}

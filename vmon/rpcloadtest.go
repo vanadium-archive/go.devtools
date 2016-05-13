@@ -15,8 +15,8 @@ import (
 
 	"v.io/jiri/tool"
 	"v.io/v23/context"
-	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 // checkRPCLoadTest checks the result of RPC load test and sends the result to GCM.
@@ -41,7 +41,7 @@ func checkRPCLoadTest(v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.S
 		"latency": results.MsecPerRpc,
 		"qps":     results.Qps,
 	}
-	mdRpcLoadTest, err := monitoring.GetMetric("rpc-load-test", projectFlag)
+	mdRpcLoadTest, err := gcm.GetMetric("rpc-load-test", projectFlag)
 	if err != nil {
 		return err
 	}

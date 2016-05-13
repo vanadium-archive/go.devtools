@@ -14,6 +14,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 )
 
 const (
@@ -37,7 +38,7 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 	}
 
 	hasError := false
-	mdMetadata, err := monitoring.GetMetric("service-metadata", projectFlag)
+	mdMetadata, err := gcm.GetMetric("service-metadata", projectFlag)
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func checkServiceMetadata(v23ctx *context.T, ctx *tool.Context, s *cloudmonitori
 		}
 
 		// Send aggregated data to GCM.
-		mdMetadataAgg, err := monitoring.GetMetric("service-metadata-agg", projectFlag)
+		mdMetadataAgg, err := gcm.GetMetric("service-metadata-agg", projectFlag)
 		if err != nil {
 			return err
 		}

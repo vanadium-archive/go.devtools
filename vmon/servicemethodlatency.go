@@ -17,6 +17,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/devtools/internal/monitoring"
 	"v.io/x/devtools/internal/test"
+	"v.io/x/lib/gcm"
 	"v.io/x/ref/services/stats"
 )
 
@@ -43,7 +44,7 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 	}
 
 	hasError := false
-	mdLatPerMethod, err := monitoring.GetMetric("service-permethod-latency", projectFlag)
+	mdLatPerMethod, err := gcm.GetMetric("service-permethod-latency", projectFlag)
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,7 @@ func checkServicePerMethodLatency(v23ctx *context.T, ctx *tool.Context, s *cloud
 
 		// Send aggregated data to GCM.
 		for method, agg := range aggByMethod {
-			mdAgg, err := monitoring.GetMetric("service-permethod-latency-agg", projectFlag)
+			mdAgg, err := gcm.GetMetric("service-permethod-latency-agg", projectFlag)
 			if err != nil {
 				return err
 			}
