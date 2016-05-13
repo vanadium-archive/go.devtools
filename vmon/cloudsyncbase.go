@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	cloudSyncbasePattern    = "home/*/syncbased"
+	cloudSyncbasePattern    = "sb/syncbased-*"
 	sysStatCPUUsagePercent  = "__debug/stats/system/syscpu/Percent"
 	sysStatMemUsagePercent  = "__debug/stats/system/sysmem/UsedPercent"
 	sysStatMemUsageBytes    = "__debug/stats/system/sysmem/Used"
