@@ -191,19 +191,7 @@ func TestParseBuildArgs(t *testing.T) {
 	}
 }
 
-func TestCgoBuildForSimulator64(t *testing.T) {
-	for _, p := range projects {
-		jirix := initForTest(t)
-		if err := testCgoBuildForArch(jirix, p, targetArchAmd64, buildModeArchive); err != nil {
-			t.Error(err)
-		}
-		if err := testCgoBuildForArch(jirix, p, targetArchAmd64, buildModeShared); err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestCgoBuildForArm(t *testing.T) {
+func TestAllCgoBuildForArmFails(t *testing.T) {
 	for _, p := range projects {
 		jirix := initForTest(t)
 		// Expect error for ARM currently as of Go 1.5
@@ -213,25 +201,34 @@ func TestCgoBuildForArm(t *testing.T) {
 	}
 }
 
-func TestCgoBuildForArm64(t *testing.T) {
-	for _, p := range projects {
-		jirix := initForTest(t)
-		if err := testCgoBuildForArch(jirix, p, targetArchArm64, buildModeArchive); err != nil {
-			t.Error(err)
-		}
+func TestVanadiumCoreCgoBuildForArm64(t *testing.T) {
+	jirix := initForTest(t)
+	if err := testCgoBuildForArch(jirix, projectVanadiumCore, targetArchArm64, buildModeArchive); err != nil {
+		t.Error(err)
 	}
+	// Currently disabled as we're not using shared libraries and the unit test can take a while.
+	// Turn back on if we move to shared libraries to get around bitcode restrictions.
+	//if err := testCgoBuildForArch(jirix, projectVanadiumCore, targetArchArm64, buildModeShared); err != nil {
+	//	t.Error(err)
+	//}
 }
 
-func TestCgoBuildForAll(t *testing.T) {
-	for _, p := range projects {
-		jirix := initForTest(t)
-		if err := testCgoBuildForArch(jirix, p, targetArchAll, buildModeArchive); err != nil {
-			t.Error(err)
-		}
+// We don't test amd64 as that gets tested in the universal builds below (which also tests the arm64 build but
+// doesn't inspect the results as closely).
+
+func TestSyncbaseCoreCgoBuildForArm64(t *testing.T) {
+	jirix := initForTest(t)
+	if err := testCgoBuildForArch(jirix, projectSyncbaseCore, targetArchArm64, buildModeArchive); err != nil {
+		t.Error(err)
 	}
+	// Currently disabled as we're not using shared libraries and the unit test can take a while.
+	// Turn back on if we move to shared libraries to get around bitcode restrictions.
+	//if err := testCgoBuildForArch(jirix, projectSyncbaseCore, targetArchArm64, buildModeShared); err != nil {
+	//	t.Error(err)
+	//}
 }
 
-func testCgoBuildForArch(jirix *jiri.X, p project, arch string, buildMode string) error {
+func testCgoBuildForArch(jirix *jiri.X, p *project, arch string, buildMode string) error {
 	resetVars()
 	buildCgo = true
 	flagBuildMode = buildMode
@@ -378,42 +375,48 @@ func verifyCgoGeneratedHeader(jirix *jiri.X) error {
 	return nil
 }
 
-func TestUniversalFrameworkBuilds(t *testing.T) {
-	for _, p := range projects {
-		jirix := initForTest(t)
-		flagTargetArch = targetArchAll
-		flagProject = p.name
-		if err := parseProjectFlag(); err != nil {
-			t.Error(err)
-			return
+func TestVanadiumCoreUniversalFrameworkBuilds(t *testing.T) {
+	testUniversalFrameworkBuild(t, projectVanadiumCore)
+}
+
+func TestSyncbaseCoreUniversalFrameworkBuilds(t *testing.T) {
+	testUniversalFrameworkBuild(t, projectSyncbaseCore)
+}
+
+func testUniversalFrameworkBuild(t *testing.T, p *project) {
+	jirix := initForTest(t)
+	flagTargetArch = targetArchAll
+	flagProject = p.name
+	if err := parseProjectFlag(); err != nil {
+		t.Error(err)
+		return
+	}
+	if err := parseBuildFlags(); err != nil {
+		t.Error(err)
+		return
+	}
+	// Make sure VanadiumCore exports exist
+	if err := runBuildCgo(jirix); err != nil {
+		t.Error(err)
+		return
+	}
+	if err := runBuildFramework(jirix); err != nil {
+		t.Error(err)
+		return
+	}
+	binaryPath := filepath.Join(flagOutDirSwift, selectedProject.frameworkName, selectedProject.frameworkBinaryName)
+	if err := verifyCgoBinaryForIOS(binaryPath); err != nil {
+		t.Error(err)
+		return
+	}
+	for _, targetArch := range targetArchs {
+		appleArch, _ := appleArchFromGoArch(targetArch)
+		sh.Cmd("lipo", binaryPath, "-verify_arch", appleArch).Run()
+		if !pathExists(filepath.Join(flagOutDirSwift, selectedProject.frameworkName, "Modules", selectedProject.frameworkBinaryName+".swiftmodule", appleArch+".swiftdoc")) {
+			t.Errorf("Missing swift moduledoc for architecture %v", targetArch)
 		}
-		if err := parseBuildFlags(); err != nil {
-			t.Error(err)
-			return
-		}
-		// Make sure VanadiumCore exports exist
-		if err := runBuildCgo(jirix); err != nil {
-			t.Error(err)
-			return
-		}
-		if err := runBuildFramework(jirix); err != nil {
-			t.Error(err)
-			return
-		}
-		binaryPath := filepath.Join(flagOutDirSwift, selectedProject.frameworkName, selectedProject.frameworkBinaryName)
-		if err := verifyCgoBinaryForIOS(binaryPath); err != nil {
-			t.Error(err)
-			return
-		}
-		for _, targetArch := range targetArchs {
-			appleArch, _ := appleArchFromGoArch(targetArch)
-			sh.Cmd("lipo", binaryPath, "-verify_arch", appleArch).Run()
-			if !pathExists(filepath.Join(flagOutDirSwift, selectedProject.frameworkName, "Modules", selectedProject.frameworkBinaryName+".swiftmodule", appleArch+".swiftdoc")) {
-				t.Errorf("Missing swift moduledoc for architecture %v", targetArch)
-			}
-			if !pathExists(filepath.Join(flagOutDirSwift, selectedProject.frameworkName, "Modules", selectedProject.frameworkBinaryName+".swiftmodule", appleArch+".swiftmodule")) {
-				t.Errorf("Missing swift module for architecture %v", targetArch)
-			}
+		if !pathExists(filepath.Join(flagOutDirSwift, selectedProject.frameworkName, "Modules", selectedProject.frameworkBinaryName+".swiftmodule", appleArch+".swiftmodule")) {
+			t.Errorf("Missing swift module for architecture %v", targetArch)
 		}
 	}
 }

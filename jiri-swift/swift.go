@@ -33,36 +33,35 @@ var (
 
 	targetArchs []string
 
-	selectedProject *project
-	projects        = []project{
-		{
-			name:                       "VanadiumCore",
-			commonHeaderPath:           "release/go/src/v.io/x/swift/types.h",
-			description:                "Core bindings from Swift to Vanadium; incompatible with SyncbaseCore",
-			directoryName:              "VanadiumCore",
-			exportedHeadersPackageRoot: "v.io/x",
-			frameworkName:              "VanadiumCore.framework",
-			frameworkBinaryName:        "VanadiumCore",
-			libraryBinaryName:          "v23",
-			mainPackage:                "v.io/x/swift/main",
-			testCheckExportedSymbols:   []string{"swift_io_v_v23_V_nativeInitGlobal", "swift_io_v_v23_context_VContext_nativeWithCancel"},
-			testCheckSharedTypes:       []string{"SwiftByteArray", "SwiftByteArrayArray", "GoContextHandle"},
-		},
-		{
-			name:                       "SyncbaseCore",
-			commonHeaderPath:           "release/go/src/v.io/x/ref/services/syncbase/bridge/cgo/lib.h",
-			description:                "Core bindings from Swift to Syncbase; incompatible with VanadiumCore",
-			directoryName:              "SyncbaseCore",
-			exportedHeadersPackageRoot: "v.io/x",
-			frameworkName:              "SyncbaseCore.framework",
-			frameworkBinaryName:        "SyncbaseCore",
-			jiriProfiles:               []string{"v23:syncbase"},
-			libraryBinaryName:          "sbcore",
-			mainPackage:                "v.io/x/ref/services/syncbase/bridge/cgo",
-			testCheckExportedSymbols:   []string{"v23_syncbase_Init", "v23_syncbase_DbLeaveSyncgroup", "v23_syncbase_RowDelete"},
-			testCheckSharedTypes:       []string{"v23_syncbase_String", "v23_syncbase_Bytes", "v23_syncbase_Strings", "v23_syncbase_VError"},
-		},
+	selectedProject     *project
+	projectSyncbaseCore = &project{
+		name:                       "SyncbaseCore",
+		commonHeaderPath:           "release/go/src/v.io/x/ref/services/syncbase/bridge/cgo/lib.h",
+		description:                "Core bindings from Swift to Syncbase; incompatible with VanadiumCore",
+		directoryName:              "SyncbaseCore",
+		exportedHeadersPackageRoot: "v.io/x",
+		frameworkName:              "SyncbaseCore.framework",
+		frameworkBinaryName:        "SyncbaseCore",
+		libraryBinaryName:          "sbcore",
+		mainPackage:                "v.io/x/ref/services/syncbase/bridge/cgo",
+		jiriProfiles:               []string{"v23:syncbase"},
+		testCheckExportedSymbols:   []string{"v23_syncbase_Init", "v23_syncbase_DbLeaveSyncgroup", "v23_syncbase_RowDelete"},
+		testCheckSharedTypes:       []string{"v23_syncbase_String", "v23_syncbase_Bytes", "v23_syncbase_Strings", "v23_syncbase_VError"},
 	}
+	projectVanadiumCore = &project{
+		name:                       "VanadiumCore",
+		commonHeaderPath:           "release/go/src/v.io/x/swift/types.h",
+		description:                "Core bindings from Swift to Vanadium; incompatible with SyncbaseCore",
+		directoryName:              "VanadiumCore",
+		exportedHeadersPackageRoot: "v.io/x",
+		frameworkName:              "VanadiumCore.framework",
+		frameworkBinaryName:        "VanadiumCore",
+		libraryBinaryName:          "v23",
+		mainPackage:                "v.io/x/swift/main",
+		testCheckExportedSymbols:   []string{"swift_io_v_v23_V_nativeInitGlobal", "swift_io_v_v23_context_VContext_nativeWithCancel"},
+		testCheckSharedTypes:       []string{"SwiftByteArray", "SwiftByteArrayArray", "GoContextHandle"},
+	}
+	projects = []*project{projectVanadiumCore, projectSyncbaseCore}
 )
 
 type project struct {
@@ -155,7 +154,7 @@ var cmdClean = &cmdline.Command{
 func parseProjectFlag() error {
 	for _, p := range projects {
 		if strings.ToLower(flagProject) == strings.ToLower(p.name) {
-			selectedProject = &p
+			selectedProject = p
 			return nil
 		}
 	}
