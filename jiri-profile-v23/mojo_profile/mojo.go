@@ -360,7 +360,33 @@ func Register(installer, profile string) {
 				sdkVersion:                  "4b3296629ebda2a32520351c92adf75aceb75f2c",
 				androidPlatformToolsVersion: "2219198",
 			},
-		}, "12"),
+			"13": &versionSpec{
+				serviceNames: []string{
+					"authenticating_url_loader_interceptor.mojo",
+					"compositor_service.mojo",
+					"dart_content_handler.mojo",
+					"debugger.mojo",
+					"files.mojo",
+					"input_manager_service.mojo",
+					"launcher.mojo",
+					"view_manager_service.mojo",
+					"tracing.mojo",
+				},
+				serviceNamesAndroid: []string{
+					"java_handler.mojo",
+					"shortcut.mojo",
+				},
+				serviceNamesLinux: []string{
+					"authentication.mojo",
+				},
+				buildVersionAndroid:         "65138ce8c234734966a4e299d8feba01d8c9ce07",
+				buildVersionLinux:           "65138ce8c234734966a4e299d8feba01d8c9ce07",
+				devtoolsVersion:             "d498890dc825363948a5852a2328b8ef937f5af4",
+				networkServiceVersion:       "0a814ed5512598e595c0ae7975a09d90a7a54e90",
+				sdkVersion:                  "3ea16d966ac12fe076996becd3412a19762e66ac",
+				androidPlatformToolsVersion: "2219198",
+			},
+		}, "13"),
 	}
 	profilesmanager.Register(m)
 }
