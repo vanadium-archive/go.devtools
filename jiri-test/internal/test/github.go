@@ -80,6 +80,11 @@ var (
 			github:       "git@github.com:vanadium/java.git",
 		},
 		Mirror{
+			name:         "java.syncbase",
+			googlesource: "https://vanadium.googlesource.com/release.java.syncbase",
+			github:       "git@github.com:vanadium/java.syncbase.git",
+		},
+		Mirror{
 			name:         "js",
 			googlesource: "https://vanadium.googlesource.com/release.js.core",
 			github:       "git@github.com:vanadium/js.git",
