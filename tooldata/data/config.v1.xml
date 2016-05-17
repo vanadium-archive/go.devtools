@@ -19,7 +19,6 @@
     <project>release.go.x.lib</project>
     <project>release.go.x.ref</project>
     <project>release.java</project>
-    <project>release.java.syncbase</project>
     <project>release.mojo.discovery</project>
     <project>release.mojo.shared</project>
     <project>release.mojo.syncbase</project>
