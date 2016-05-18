@@ -154,6 +154,10 @@ var locations = []clusterLocation{
 		zone:    "us-central1-c",
 	},
 	{
+		project: "vanadium-production",
+		zone:    "us-east1-c",
+	},
+	{
 		project: "vanadium-auth-production",
 		zone:    "us-central1-c",
 	},

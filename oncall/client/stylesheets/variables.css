@@ -63,7 +63,8 @@
   --section-shadow: rgba(0, 0, 0, 0.30) 0px 0px 4px 0px;
 
   /* Heights */
-  --col-metric-height: 50px;
+  --col-metric-height: 36px;
+  --col-metric-content-height: 28px;
   --header-height: 60px;
   --zone-title-height: 40px;
   --full-graph-height: 240px;

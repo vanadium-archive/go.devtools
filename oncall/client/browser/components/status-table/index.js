@@ -201,7 +201,7 @@ function render(globalState, state) {
         // Handle current value over threshold.
         var overThreshold = (
             colData.threshold && metricData.CurrentValue >= colData.threshold);
-        var thresholdValue = -1;
+        var thresholdValue = -100;
         if (overThreshold) {
           extraColMetricClass = '.unhealthy';
           thresholdValue = (colData.threshold-metricData.MinValue)/

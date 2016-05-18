@@ -67,8 +67,8 @@ div.status-table .col-metric .cur-value {
   top: 6px;
   color: white;
   font-size: 14px;
-  height: 38px;
-  line-height: 38px;
+  height: var(--col-metric-content-height);
+  line-height: var(--col-metric-content-height);
 }
 
 div.status-table .col-metric div.cur-value.history {
@@ -85,10 +85,10 @@ div.status-table .col-metric.err .cur-value {
 
 div.status-table .col-metric div.sparkline {
   position: absolute;
-  top: 6px;
+  top: 4px;
   left: 6px;
   width: 156px;
-  height: 40px;
+  height: var(--col-metric-content-height);
 }
 
 div.status-table .col-metric svg {
@@ -96,7 +96,7 @@ div.status-table .col-metric svg {
   top: 0px;
   left: 0px;
   width: 156px;
-  height: 40px;
+  height: var(--col-metric-content-height);
 }
 
 div.status-table .col-metric svg.mouse-line {
@@ -104,7 +104,7 @@ div.status-table .col-metric svg.mouse-line {
   top: 0px;
   left: 6px;
   width: 156px;
-  height: 50px;
+  height: var(--col-metric-height);
 }
 
 div.status-table .col-metric svg.content {
