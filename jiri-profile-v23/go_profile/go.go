@@ -106,9 +106,6 @@ func newGoRelease(version string) *goRelease {
 }
 
 func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
-	t := osPackages[xspec{"foo", "bar"}][xspec{"baz", "boo"}]
-	t = osPackages[xspec{runtime.GOARCH, runtime.GOOS}][xspec{"baz", "boo"}]
-	_ = t
 	return osPackages[xspec{runtime.GOARCH, runtime.GOOS}][xspec{target.Arch(), target.OS()}], nil
 }
 

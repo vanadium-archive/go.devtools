@@ -83,11 +83,28 @@ func (m *Manager) AddFlags(flags *flag.FlagSet, action profiles.Action) {
 }
 
 func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) ([]string, error) {
+	if err := m.versionInfo.Lookup(target.Version(), &m.spec); err != nil {
+		return nil, err
+	}
+	var packages []string
 	if !target.CrossCompiling() && target.OS() == "linux" && (target.Version() == "1" || target.Version() == "2" || target.Version() == "3" || target.Version() == "4") {
 		// Version 5 onwards uses go 1.6+, where there is no need for "libssl-dev".
-		return []string{"libssl-dev"}, nil
+		packages = []string{"libssl-dev"}
 	}
-	return nil, nil
+	// Get packages from dependent profiles.
+	for _, profile := range m.spec.dependencies {
+		qname := profiles.QualifiedProfileName(m.profileInstaller, profile.name)
+		depManager := profilesmanager.LookupManager(qname)
+		if depManager == nil {
+			return nil, fmt.Errorf("no manager found for dependent profile %v", profile.name)
+		}
+		depPackages, err := depManager.OSPackages(jirix, pdb, root, target)
+		if err != nil {
+			return nil, err
+		}
+		packages = append(packages, depPackages...)
+	}
+	return packages, nil
 }
 
 func (m *Manager) Install(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath, target profiles.Target) error {
