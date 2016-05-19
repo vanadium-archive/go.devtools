@@ -92,6 +92,9 @@ func (m *Manager) OSPackages(jirix *jiri.X, pdb *profiles.DB, root jiri.RelPath,
 		packages = []string{"libssl-dev"}
 	}
 	// Get packages from dependent profiles.
+	// TODO(nlacasse): Consider making the notion of "dependent profiles"
+	// something that jiri understands, and move this logic (and the similar
+	// logic in Install) into jiri.
 	for _, profile := range m.spec.dependencies {
 		qname := profiles.QualifiedProfileName(m.profileInstaller, profile.name)
 		depManager := profilesmanager.LookupManager(qname)
