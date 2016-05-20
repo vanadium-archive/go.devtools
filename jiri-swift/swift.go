@@ -39,7 +39,7 @@ var (
 		commonHeaderPath:           "release/go/src/v.io/x/ref/services/syncbase/bridge/cgo/lib.h",
 		description:                "Core bindings from Swift to Syncbase; incompatible with VanadiumCore",
 		directoryName:              "SyncbaseCore",
-		exportedHeadersPackageRoot: "v.io/x",
+		exportedHeadersPackageRoot: "v.io/x/ref/services/syncbase",
 		frameworkName:              "SyncbaseCore.framework",
 		frameworkBinaryName:        "SyncbaseCore",
 		libraryBinaryName:          "sbcore",
