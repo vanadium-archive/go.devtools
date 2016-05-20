@@ -221,11 +221,14 @@
       <!-- TODO(sadovsky,nlacasse): Re-enable this test once the syncbase API change is done.
         <test>vanadium-mojo-syncbase-test</test>
       -->
+      <!-- TODO(bprosnitz) re-enable these tests once an encoder/decoder interface
+      implementation is written.
       <test>vanadium-mojo-v23proxy-unit-test</test>
+      <test>vanadium-mojo-v23proxy-go-only-integration-test</test>
+      -->
       <!-- NOTE(caprita): this is flaky.  See v.io/i/1226
       <test>vanadium-mojo-v23proxy-integration-test</test>
       -->
-      <test>vanadium-mojo-v23proxy-go-only-integration-test</test>
     </group>
     <group name="projects">
     </group>
