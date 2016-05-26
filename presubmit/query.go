@@ -5,9 +5,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"reflect"
@@ -19,7 +17,6 @@ import (
 	"v.io/jiri/collect"
 	"v.io/jiri/gerrit"
 	"v.io/jiri/project"
-	"v.io/jiri/runutil"
 	"v.io/jiri/tool"
 	"v.io/x/devtools/tooldata"
 	"v.io/x/lib/cmdline"
@@ -47,73 +44,8 @@ func init() {
 	tool.InitializeProjectFlags(&cmdQuery.Flags)
 }
 
-type clList []gerrit.Change
-
-// clRefMap indexes cls by their ref strings.
-type clRefMap map[string]gerrit.Change
-
 // clNumberToPatchsetMap is a map from CL numbers to the latest patchset of the CL.
 type clNumberToPatchsetMap map[int]int
-
-// multiPartCLSet represents a set of CLs that spans multiple projects.
-type multiPartCLSet struct {
-	parts         map[int]gerrit.Change // Indexed by cl's part index.
-	expectedTotal int
-	expectedTopic string
-}
-
-// NewMultiPartCLSet creates a new instance of multiPartCLSet.
-func NewMultiPartCLSet() *multiPartCLSet {
-	return &multiPartCLSet{
-		parts:         map[int]gerrit.Change{},
-		expectedTotal: -1,
-		expectedTopic: "",
-	}
-}
-
-// addCL adds a CL to the set after it passes a series of checks.
-func (s *multiPartCLSet) addCL(cl gerrit.Change) error {
-	if cl.MultiPart == nil {
-		return fmt.Errorf("no multi part info found: %#v", cl)
-	}
-	multiPartInfo := cl.MultiPart
-	if s.expectedTotal < 0 {
-		s.expectedTotal = multiPartInfo.Total
-	}
-	if s.expectedTopic == "" {
-		s.expectedTopic = multiPartInfo.Topic
-	}
-	if s.expectedTotal != multiPartInfo.Total {
-		return fmt.Errorf("inconsistent total number of cls in this set: want %d, got %d", s.expectedTotal, multiPartInfo.Total)
-	}
-	if s.expectedTopic != multiPartInfo.Topic {
-		return fmt.Errorf("inconsistent cl topics in this set: want %s, got %s", s.expectedTopic, multiPartInfo.Topic)
-	}
-	if existingCL, ok := s.parts[multiPartInfo.Index]; ok {
-		return fmt.Errorf("duplicated cl part %d found:\ncl to add: %v\nexisting cl:%v", multiPartInfo.Index, cl, existingCL)
-	}
-	s.parts[multiPartInfo.Index] = cl
-	return nil
-}
-
-// complete returns whether the current set has all the cl parts it needs.
-func (s *multiPartCLSet) complete() bool {
-	return len(s.parts) == s.expectedTotal
-}
-
-// cls returns a list of CLs in this set sorted by their part number.
-func (s *multiPartCLSet) cls() clList {
-	ret := clList{}
-	sortedKeys := []int{}
-	for part := range s.parts {
-		sortedKeys = append(sortedKeys, part)
-	}
-	sort.Ints(sortedKeys)
-	for _, part := range sortedKeys {
-		ret = append(ret, s.parts[part])
-	}
-	return ret
-}
 
 // cmdQuery represents the 'query' command of the presubmit tool.
 var cmdQuery = &cmdline.Command{
@@ -154,7 +86,7 @@ func runQuery(jirix *jiri.X, args []string) error {
 	}
 
 	// Read previous CLs from the log file.
-	prevCLsMap, err := readLog()
+	prevCLsMap, err := gerrit.ReadLog(logFilePathFlag)
 	if err != nil {
 		return err
 	}
@@ -170,7 +102,7 @@ func runQuery(jirix *jiri.X, args []string) error {
 	}
 
 	// Write current CLs to the log file.
-	err = writeLog(jirix, curCLs)
+	err = gerrit.WriteLog(logFilePathFlag, curCLs)
 	if err != nil {
 		return err
 	}
@@ -188,7 +120,19 @@ func runQuery(jirix *jiri.X, args []string) error {
 	}
 
 	// Get new clLists.
-	newCLLists := newOpenCLs(jirix, prevCLsMap, curCLs)
+	newCLLists, multiPartErrs := gerrit.NewOpenCLs(prevCLsMap, curCLs)
+	for _, e := range multiPartErrs {
+		printf(jirix.Stderr(), "%v\n", e)
+
+		// Post multi-part errors to gerrit.
+		if mpErr, ok := e.(*gerrit.ChangeError); ok {
+			clRef := mpErr.CL.Reference()
+			msg := fmt.Sprintf("failed to process multi-part CL %s:\n%v\n", clRef, mpErr.Err)
+			if postErr := postMessage(jirix, msg, []string{clRef}, false); postErr != nil {
+				printf(jirix.Stderr(), "%v\n", postErr)
+			}
+		}
+	}
 
 	// Send the new open CLs one by one to the given Jenkins
 	// project to run presubmit-test builds.
@@ -223,134 +167,12 @@ func runQuery(jirix *jiri.X, args []string) error {
 	return nil
 }
 
-// readLog returns CLs indexed by thier refs stored in the log file.
-func readLog() (clRefMap, error) {
-	results := clRefMap{}
-	path := logFilePathFlag
-	bytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		if runutil.IsNotExist(err) {
-			return results, nil
-		}
-		return nil, fmt.Errorf("ReadFile(%q) failed: %v", path, err)
-	}
-
-	if err := json.Unmarshal(bytes, &results); err != nil {
-		return nil, fmt.Errorf("Unmarshal failed: %v\n%v", err, string(bytes))
-	}
-	return results, nil
-}
-
-// writeLog writes the refs of the given CLs to the log file.
-func writeLog(jirix *jiri.X, cls clList) (e error) {
-	// Index CLs with their refs.
-	results := clRefMap{}
-	for _, cl := range cls {
-		results[cl.Reference()] = cl
-	}
-	path := logFilePathFlag
-	fd, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil {
-		return fmt.Errorf("OpenFile(%q) failed: %v", path, err)
-	}
-	defer collect.Error(func() error { return fd.Close() }, &e)
-
-	bytes, err := json.MarshalIndent(results, "", "  ")
-	if err != nil {
-		return fmt.Errorf("MarshalIndent(%v) failed: %v", results, err)
-	}
-	if err := jirix.NewSeq().WriteFile(path, bytes, os.FileMode(0644)).Done(); err != nil {
-		return fmt.Errorf("WriteFile(%q) failed: %v", path, err)
-	}
-	return nil
-}
-
-// newOpenCLs returns a slice of clLists that are "newer" relative to the
-// previous query. A clList is newer if one of the following condition holds:
-// - If a clList has only one cl, then it is newer if:
-//   * Its ref string cannot be found among the CLs from the previous query.
-//
-//   For example: from the previous query, we got cl 1000/1 (cl number 1000 and
-//   patchset 1). Then clLists [1000/2] and [2000/1] are both newer.
-//
-// - If a clList has multiple CLs, then it is newer if:
-//   * It forms a "consistent" (its CLs have the same topic) and "complete"
-//     (it contains all the parts) multi-part CL set.
-//   * At least one of their ref strings cannot be found in the CLs from the
-//     previous query.
-//
-//   For example: from the previous query, we got cl 3001/1 which is the first
-//   part of a multi part cl set with topic "T1". Suppose the current query
-//   returns cl 3002/1 which is the second part of the same set. In this case,
-//   a clList [3001/1 3002/1] will be returned. Then suppose in the next query,
-//   we got cl 3002/2 which is newer then 3002/1. In this case, a clList
-//   [3001/1 3002/2] will be returned.
-func newOpenCLs(jirix *jiri.X, prevCLsMap clRefMap, curCLs clList) []clList {
-	newCLs := []clList{}
-	topicsInNewCLs := map[string]struct{}{}
-	multiPartCLs := clList{}
-	for _, curCL := range curCLs {
-		// Ref could be empty in cases where a patchset is causing conflicts.
-		if curCL.Reference() == "" {
-			continue
-		}
-		if _, ok := prevCLsMap[curCL.Reference()]; !ok {
-			// This individual cl is newer.
-			if curCL.MultiPart == nil {
-				// This cl is not a multi part cl.
-				// Add it to the return slice.
-				newCLs = append(newCLs, clList{curCL})
-			} else {
-				// This cl is a multi part cl.
-				// Record its topic.
-				topicsInNewCLs[curCL.MultiPart.Topic] = struct{}{}
-			}
-		}
-		// Record all multi part CLs.
-		if curCL.MultiPart != nil {
-			multiPartCLs = append(multiPartCLs, curCL)
-		}
-	}
-
-	// Find complete multi part cl sets.
-	setMap := map[string]*multiPartCLSet{}
-	for _, curCL := range multiPartCLs {
-		multiPartInfo := curCL.MultiPart
-
-		// Skip topics that contain no new CLs.
-		topic := multiPartInfo.Topic
-		if _, ok := topicsInNewCLs[topic]; !ok {
-			continue
-		}
-
-		if _, ok := setMap[topic]; !ok {
-			setMap[topic] = NewMultiPartCLSet()
-		}
-		curSet := setMap[topic]
-		if err := curSet.addCL(curCL); err != nil {
-			curCLRef := curCL.Reference()
-			message := fmt.Sprintf("failed to process multi-part CL %s:\n%v\n", curCLRef, err.Error())
-			if err := postMessage(jirix, message, []string{curCLRef}, false); err != nil {
-				printf(jirix.Stderr(), "%v\n", err)
-			}
-			printf(jirix.Stderr(), "%v\n", err)
-		}
-	}
-	for _, set := range setMap {
-		if set.complete() {
-			newCLs = append(newCLs, set.cls())
-		}
-	}
-
-	return newCLs
-}
-
 type clsSender struct {
-	clLists          []clList
+	clLists          []gerrit.CLList
 	projects         project.Projects
 	clsSent          int
 	removeOutdatedFn func(*jiri.X, clNumberToPatchsetMap) []error
-	addPresubmitFn   func(*jiri.X, clList, []string) error
+	addPresubmitFn   func(*jiri.X, gerrit.CLList, []string) error
 	postMessageFn    func(*jiri.X, string, []string, bool) error
 }
 
@@ -430,17 +252,17 @@ type clListInfo struct {
 	hasNonGoogleOwner bool
 	projects          []string
 	refs              []string
-	filteredCLList    clList
+	filteredCLList    gerrit.CLList
 }
 
-func (s *clsSender) processCLList(jirix *jiri.X, curCLList clList) *clListInfo {
+func (s *clsSender) processCLList(jirix *jiri.X, curCLList gerrit.CLList) *clListInfo {
 	curCLMap := clNumberToPatchsetMap{}
 	clStrings := []string{}
 	skipPresubmitTest := false
 	hasNonGoogleOwner := false
 	projects := []string{}
 	refs := []string{}
-	filteredCLList := clList{}
+	filteredCLList := gerrit.CLList{}
 	for _, curCL := range curCLList {
 		// Ignore all CLs that are not in projects identified by the manifestFlag.
 		// TODO(jingjin): find a better way so we can remove this check.
@@ -666,7 +488,7 @@ func parseRefString(ref string) (int, int, error) {
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
 // a set of open CLs to run presubmit tests.
-func addPresubmitTestBuild(jirix *jiri.X, cls clList, tests []string) error {
+func addPresubmitTestBuild(jirix *jiri.X, cls gerrit.CLList, tests []string) error {
 	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err

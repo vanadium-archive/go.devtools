@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"v.io/jiri"
+	"v.io/jiri/gerrit"
 	"v.io/x/devtools/internal/test"
 )
 
@@ -82,10 +83,10 @@ func getRefsUsingVerifiedLabel(jirix *jiri.X) (map[string]struct{}, error) {
 // getSubmittableCLs extracts CLs that have the AutoSubmit label in the commit
 // message and satisfy all the submit rules. If a CL is part of a multi-part CLs
 // set, all the CLs in that set need to be submittable. It returns a list of
-// clLists each of which is either a single CL or a multi-part CLs set.
-func getSubmittableCLs(jirix *jiri.X, cls clList) []clList {
-	submittableCLs := []clList{}
-	multiPartCLs := map[string]*multiPartCLSet{}
+// CLLists each of which is either a single CL or a multi-part CLs set.
+func getSubmittableCLs(jirix *jiri.X, cls gerrit.CLList) []gerrit.CLList {
+	submittableCLs := []gerrit.CLList{}
+	multiPartCLs := map[string]*gerrit.MultiPartCLSet{}
 	for _, cl := range cls {
 		// Check whether a CL satisfies all the submit rules. We do this by checking
 		// the states of all its labels.
@@ -124,11 +125,11 @@ func getSubmittableCLs(jirix *jiri.X, cls clList) []clList {
 			if cl.MultiPart != nil {
 				topic := cl.MultiPart.Topic
 				if _, ok := multiPartCLs[topic]; !ok {
-					multiPartCLs[topic] = NewMultiPartCLSet()
+					multiPartCLs[topic] = gerrit.NewMultiPartCLSet()
 				}
-				multiPartCLs[topic].addCL(cl)
+				multiPartCLs[topic].AddCL(cl)
 			} else {
-				submittableCLs = append(submittableCLs, clList{cl})
+				submittableCLs = append(submittableCLs, gerrit.CLList{cl})
 			}
 		}
 	}
@@ -143,8 +144,8 @@ func getSubmittableCLs(jirix *jiri.X, cls clList) []clList {
 	// Find complete multi part cl sets.
 	for _, topic := range sortedTopics {
 		set := multiPartCLs[topic]
-		if set.complete() {
-			submittableCLs = append(submittableCLs, set.cls())
+		if set.Complete() {
+			submittableCLs = append(submittableCLs, set.CLs())
 		}
 	}
 
@@ -152,7 +153,7 @@ func getSubmittableCLs(jirix *jiri.X, cls clList) []clList {
 }
 
 // submitCLs submits the given CLs.
-func submitCLs(jirix *jiri.X, cls clList) error {
+func submitCLs(jirix *jiri.X, cls gerrit.CLList) error {
 	for _, cl := range cls {
 		curRef := cl.Reference()
 		msg := fmt.Sprintf("submit CL: %s\n", curRef)

@@ -28,7 +28,7 @@ func TestGetSubmittableCLs(t *testing.T) {
 	jirix, cleanup := jiritest.NewX(t)
 	defer cleanup()
 
-	cls := clList{
+	cls := gerrit.CLList{
 		// cls[0]:
 		// CL without AutoSubmit label.
 		gerrit.Change{},
@@ -196,37 +196,37 @@ func TestGetSubmittableCLs(t *testing.T) {
 		},
 	}
 	testCases := []struct {
-		cls                    clList
-		expectedSubmittableCLs []clList
+		cls                    gerrit.CLList
+		expectedSubmittableCLs []gerrit.CLList
 	}{
 		// Test non-multipart CLs.
 		{
-			cls: clList{cls[0], cls[1], cls[2], cls[3], cls[4], cls[5]},
-			expectedSubmittableCLs: []clList{clList{cls[4]}, clList{cls[5]}},
+			cls: gerrit.CLList{cls[0], cls[1], cls[2], cls[3], cls[4], cls[5]},
+			expectedSubmittableCLs: []gerrit.CLList{gerrit.CLList{cls[4]}, gerrit.CLList{cls[5]}},
 		},
 		// Test multi-part CLs with one of them being unsubmittable.
 		{
-			cls: clList{cls[6], cls[7]},
-			expectedSubmittableCLs: []clList{},
+			cls: gerrit.CLList{cls[6], cls[7]},
+			expectedSubmittableCLs: []gerrit.CLList{},
 		},
 		// Test multi-part CLs where all CLs are submittable.
 		{
-			cls: clList{cls[6], cls[8]},
-			expectedSubmittableCLs: []clList{clList{cls[6], cls[8]}},
+			cls: gerrit.CLList{cls[6], cls[8]},
+			expectedSubmittableCLs: []gerrit.CLList{gerrit.CLList{cls[6], cls[8]}},
 		},
 		// Test multiple submittable multi-part CLs.
 		{
-			cls: clList{cls[6], cls[8], cls[9], cls[10]},
-			expectedSubmittableCLs: []clList{clList{cls[6], cls[8]}, clList{cls[9], cls[10]}},
+			cls: gerrit.CLList{cls[6], cls[8], cls[9], cls[10]},
+			expectedSubmittableCLs: []gerrit.CLList{gerrit.CLList{cls[6], cls[8]}, gerrit.CLList{cls[9], cls[10]}},
 		},
 		// Mixed CLs.
 		{
-			cls: clList{cls[0], cls[4], cls[5], cls[6], cls[7]},
-			expectedSubmittableCLs: []clList{clList{cls[4]}, clList{cls[5]}},
+			cls: gerrit.CLList{cls[0], cls[4], cls[5], cls[6], cls[7]},
+			expectedSubmittableCLs: []gerrit.CLList{gerrit.CLList{cls[4]}, gerrit.CLList{cls[5]}},
 		},
 		{
-			cls: clList{cls[0], cls[4], cls[5], cls[6], cls[8], cls[9], cls[10]},
-			expectedSubmittableCLs: []clList{clList{cls[4]}, clList{cls[5]}, clList{cls[6], cls[8]}, clList{cls[9], cls[10]}},
+			cls: gerrit.CLList{cls[0], cls[4], cls[5], cls[6], cls[8], cls[9], cls[10]},
+			expectedSubmittableCLs: []gerrit.CLList{gerrit.CLList{cls[4]}, gerrit.CLList{cls[5]}, gerrit.CLList{cls[6], cls[8]}, gerrit.CLList{cls[9], cls[10]}},
 		},
 	}
 	for index, test := range testCases {
