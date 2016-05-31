@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"v.io/jiri"
 	"v.io/jiri/profiles"
@@ -46,7 +47,19 @@ extern "C"
 #endif
 `
 
+// installSuffix is passed to "go build" to keep different package files from
+// concurrent builds from stomping on one another.
+var installSuffix = fmt.Sprintf("swift_cgo_%d", time.Now().UnixNano())
+
 func runBuildCgo(jirix *jiri.X) error {
+	// Delete all artifacts after building, since the installSuffix prevents
+	// them from being used as a cache anyways.
+	defer func() {
+		for _, targetArch := range targetArchs {
+			cleanOldCompiledFiles(jirix, targetArch)
+		}
+	}()
+
 	// Copy over dependent libraries.
 	if flagBuildDirCgo == "" {
 		flagBuildDirCgo = sh.MakeTempDir()
@@ -54,7 +67,6 @@ func runBuildCgo(jirix *jiri.X) error {
 	sh.Pushd(flagBuildDirCgo)
 
 	for _, targetArch := range targetArchs {
-		cleanOldCompiledFiles(jirix, targetArch)
 		compileCgo(jirix, targetArch)
 		installCgoBinary(jirix, targetArch)
 		if err := copyLinkedLibraries(jirix, targetArch); err != nil {
@@ -70,15 +82,17 @@ func runBuildCgo(jirix *jiri.X) error {
 }
 
 func cleanOldCompiledFiles(jirix *jiri.X, targetArch string) {
-	d := filepath.Join(jirix.Root, "release/go/pkg", "darwin_"+targetArch, "v.io")
-	if !pathExists(d) {
-		verbose(jirix, "Previously built go binaries & headers directory doesn't exist, nothing to remove: %v\n", d)
-		return
+	pattern := filepath.Join(jirix.Root, "release", "go", "pkg", fmt.Sprintf("darwin_%s_swift_cgo_*", targetArch))
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		panic(fmt.Errorf("filepath.Glob(%s) failed: %v", pattern, err))
 	}
-	sanityCheckDir(d)
-	verbose(jirix, "Removing compiled go files and headers in path %v\n", d)
-	if err := os.RemoveAll(d); err != nil {
-		panic(fmt.Sprint("Unable to remove old compiled files:", err))
+	for _, d := range dirs {
+		sanityCheckDir(d)
+		verbose(jirix, "Removing compiled go files and headers in path %v\n", d)
+		if err := os.RemoveAll(d); err != nil {
+			panic(fmt.Sprint("Unable to remove old compiled files:", err))
+		}
 	}
 }
 
@@ -87,16 +101,18 @@ func compileCgo(jirix *jiri.X, targetArch string) {
 	verbose(jirix, "Building for project %v target %v with build mode %v in dir %v\n", selectedProject.name, targetFlag, flagBuildMode, flagBuildDirCgo)
 	// Create the binary
 	bp := buildBinaryPath(targetArch)
-	verbose(jirix, "Running jiri go -target %v build -buildmode=%v -tags ios -o %v %v\n", targetFlag, flagBuildMode, bp, selectedProject.mainPackage)
-	sh.Cmd("jiri", "go", "-target", targetFlag, "build", "-buildmode="+flagBuildMode, "-tags", "ios", "-o", bp, selectedProject.mainPackage).Run()
+	binArgs := []string{"go", "-target", targetFlag, "build", "-installsuffix", installSuffix, "-buildmode", flagBuildMode, "-tags", "ios", "-o", bp, selectedProject.mainPackage}
+	verbose(jirix, "Running jiri %s\n", strings.Join(binArgs, " "))
+	sh.Cmd("jiri", binArgs...).Run()
 	// If the package is simple enough it'll also generate a header -- we'll use the installed
 	// headers instead (as its more universal), so we can delete this generated header now if
 	// it exists.
 	b := strings.TrimSuffix(bp, filepath.Ext(bp))
 	os.RemoveAll(b + ".h")
 	// Now make sure the headers are created/generated in our go/pkg directory for a later step.
-	verbose(jirix, "Running jiri go -target %v install -buildmode=%v -tags ios %v\n", targetFlag, flagBuildMode, selectedProject.mainPackage)
-	sh.Cmd("jiri", "go", "-target", targetFlag, "install", "-buildmode="+flagBuildMode, "-tags", "ios", selectedProject.mainPackage).Run()
+	headerArgs := []string{"go", "-target", targetFlag, "install", "-installsuffix", installSuffix, "-buildmode", flagBuildMode, "-tags", "ios", selectedProject.mainPackage}
+	verbose(jirix, "Running jiri %s\n", strings.Join(headerArgs, " "))
+	sh.Cmd("jiri", headerArgs...).Run()
 }
 
 func buildBinaryPath(targetArch string) string {
@@ -249,7 +265,7 @@ func copyCommonHeaders(jirix *jiri.X) {
 func generateSingleHeader(jirix *jiri.X, targetArch string) error {
 	verbose(jirix, "Generating header for Swift\n")
 	// Load and parse all the headers
-	generatedHeadersDir := fmt.Sprintf("%v/release/go/pkg/darwin_%v/%v", jirix.Root, targetArch, selectedProject.exportedHeadersPackageRoot)
+	generatedHeadersDir := fmt.Sprintf("%v/release/go/pkg/darwin_%v_%v/%v", jirix.Root, targetArch, installSuffix, selectedProject.exportedHeadersPackageRoot)
 	generatedHeadersPaths := findHeadersUnderPath(generatedHeadersDir)
 	hdrs := cgoHeaders{}
 	for _, file := range generatedHeadersPaths {
