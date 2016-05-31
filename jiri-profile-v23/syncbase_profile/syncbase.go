@@ -36,7 +36,8 @@ func Register(installer, profile string) {
 		versionInfo: profiles.NewVersionInfo(profile, map[string]interface{}{
 			"1": "1",
 			"2": "2",
-		}, "2"),
+			"3": "3",
+		}, "3"),
 	}
 	profilesmanager.Register(m)
 }
