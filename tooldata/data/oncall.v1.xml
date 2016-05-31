@@ -5,17 +5,12 @@
 <rotation>
   <shift>
     <primary>ashankar</primary>
-    <secondary>alexfandrianto</secondary>
-    <startDate>May 23, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
-    <primary>bprosnitz</primary>
     <secondary>caprita</secondary>
     <startDate>May 30, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
     <primary>caprita</primary>
-    <secondary>bprosnitz</secondary>
+    <secondary>ashankar</secondary>
     <startDate>Jun 06, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
@@ -89,13 +84,18 @@
     <startDate>Sep 12, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>suharshs</primary>
-    <secondary>toddw</secondary>
+    <primary>sarahallen</primary>
+    <secondary>suharshs</secondary>
     <startDate>Sep 19, 2016 08:00:00 AM</startDate>
   </shift>
   <shift>
-    <primary>toddw</primary>
-    <secondary>suharshs</secondary>
+    <primary>suharshs</primary>
+    <secondary>toddw</secondary>
     <startDate>Sep 26, 2016 08:00:00 AM</startDate>
+  </shift>
+  <shift>
+    <primary>toddw</primary>
+    <secondary>sarahallen</secondary>
+    <startDate>Oct 03, 2016 08:00:00 AM</startDate>
   </shift>
 </rotation>
