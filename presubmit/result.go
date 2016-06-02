@@ -112,36 +112,18 @@ type axisValuesInfo struct {
 	PartIndex int
 }
 
-// genBuildSpec returns a spec string for the given Jenkins build.
-//
-// If the main job is a multi-configuration job, the spec is in the form of:
-// <jobName>/axis1Label=axis1Value,axis2Label=axis2Value,.../<suffix>
-// The axis values are taken from the given axisValuesInfo object, and only
-// the axes set in the job's axisInfo object will appear in the spec.
-//
-// If the main job is not a multi-configuration job, the spec will be:
-// <jobName>/<suffix>.
-func genBuildSpec(jobName string, axisValues axisValuesInfo, suffix string, matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo) string {
-	axis, ok := matrixJobsConf[jobName]
-
-	// Not a multi-configuration job.
-	if !ok {
-		return fmt.Sprintf("%s/%s", jobName, suffix)
+func (avi *axisValuesInfo) AsMap(jobInfo tooldata.JenkinsMatrixJobInfo) map[string]string {
+	jobArgs := map[string]string{}
+	if jobInfo.HasArch {
+		jobArgs["ARCH"] = avi.Arch
 	}
-
-	// Multi-configuration job.
-	// The axis order doesn't matter.
-	parts := []string{}
-	if axis.HasArch {
-		parts = append(parts, fmt.Sprintf("ARCH=%s", axisValues.Arch))
+	if jobInfo.HasOS {
+		jobArgs["OS"] = avi.OS
 	}
-	if axis.HasOS {
-		parts = append(parts, fmt.Sprintf("OS=%s", axisValues.OS))
+	if jobInfo.HasParts {
+		jobArgs["P"] = fmt.Sprintf("%d", avi.PartIndex)
 	}
-	if axis.HasParts {
-		parts = append(parts, fmt.Sprintf("P=%d", axisValues.PartIndex))
-	}
-	return fmt.Sprintf("%s/%s/%s", jobName, strings.Join(parts, ","), suffix)
+	return jobArgs
 }
 
 // genSubJobLabel returns a descriptive label for given Jenkins job's sub-job.
@@ -271,10 +253,13 @@ outer:
 	for _, resultInfo := range testResults {
 		name := resultInfo.TestName
 		timestamp := resultInfo.Timestamp
-		axisValues := resultInfo.AxisValues
 		fmt.Fprintf(jirix.Stdout(), "Getting postsubmit build info for %q before timestamp %d...\n", resultInfo.key(), timestamp)
 
-		buildInfo, err := lastCompletedBuildStatus(jirix, name, axisValues, matrixJobsConf)
+		var axisValuesMap map[string]string
+		if jobInfo, ok := matrixJobsConf[name]; ok {
+			axisValuesMap = resultInfo.AxisValues.AsMap(jobInfo)
+		}
+		buildInfo, err := jenkinsObj.LastCompletedBuildStatus(name, axisValuesMap)
 		if err != nil {
 			test.Fail(jirix.Context, "%v\n", err)
 			continue
@@ -287,7 +272,7 @@ outer:
 		}
 		for i := curId; i >= 0; i-- {
 			fmt.Fprintf(jirix.Stdout(), "Checking build %d...\n", i)
-			buildSpec := genBuildSpec(name, resultInfo.AxisValues, fmt.Sprintf("%d", i), matrixJobsConf)
+			buildSpec := jenkins.GenBuildSpec(name, axisValuesMap, fmt.Sprintf("%d", i))
 			curBuildInfo, err := jenkinsObj.BuildInfoForSpec(buildSpec)
 			if err != nil {
 				test.Fail(jirix.Context, "%v\n", err)
@@ -539,22 +524,6 @@ func (r *testReporter) mergeTestResults(resultInfo testResultInfo, summary *test
 	}
 
 	return testFailed
-}
-
-// lastCompletedBuildStatus gets the status of the last completed
-// build for a given Jenkins job.
-func lastCompletedBuildStatus(jirix *jiri.X, jobName string, axisValues axisValuesInfo, matrixJobsConf map[string]tooldata.JenkinsMatrixJobInfo) (*jenkins.BuildInfo, error) {
-	jenkins, err := jirix.Jenkins(jenkinsHostFlag)
-	if err != nil {
-		return nil, err
-	}
-
-	buildSpec := genBuildSpec(jobName, axisValues, "lastCompletedBuild", matrixJobsConf)
-	buildInfo, err := jenkins.BuildInfoForSpec(buildSpec)
-	if err != nil {
-		return nil, err
-	}
-	return buildInfo, nil
 }
 
 type failureType int

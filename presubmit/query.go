@@ -67,15 +67,13 @@ func runQuery(jirix *jiri.X, args []string) error {
 		printf(jirix.Stdout(), "%d sent.\n", numSentCLs)
 	}()
 
-	// Load Jenkins matrix jobs config.
-	config, err := tooldata.LoadConfig(jirix)
+	jenkinsObj, err := jirix.Jenkins(jenkinsHostFlag)
 	if err != nil {
 		return err
 	}
-	matrixJobsConf := config.JenkinsMatrixJobs()
 
 	// Don't query anything if the last "presubmit-test" build failed.
-	lastBuildInfo, err := lastCompletedBuildStatus(jirix, presubmitTestJobFlag, axisValuesInfo{}, matrixJobsConf)
+	lastBuildInfo, err := jenkinsObj.LastCompletedBuildStatus(presubmitTestJobFlag, nil)
 	if err != nil {
 		fmt.Fprintf(jirix.Stderr(), "%v\n", err)
 	} else {
