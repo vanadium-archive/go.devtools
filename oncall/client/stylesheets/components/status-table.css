@@ -21,8 +21,31 @@ div.status-table .row {
 div.status-table .row-header {
   width: 120px;
   text-align: right;
-  padding-top: 15px;
+  padding-top: 19px;
   padding-right: 10px;
+  line-height: 18px;
+}
+
+div.status-table .row-header.warning div {
+  color: var(--warning) !important;
+}
+
+div.status-table .row-header.fatal div {
+  color: var(--fatal) !important;
+}
+
+div.status-table .header-label {
+  font-weight: 500;
+}
+
+div.status-table .header-numhealthy {
+  margin-top: 2px;
+  font-size: 18px;
+  color: var(--cyan-800);
+}
+
+.darkTheme div.status-table .header-numhealthy {
+  color: LightGreen;
 }
 
 div.status-table .col {
@@ -34,121 +57,10 @@ div.status-table .col-header {
   height: 21px;
 }
 
-div.status-table .col-metric {
-  position: relative;
-  padding: 6px 4px 6px 4px;
-  display: flex;
-  width: var(--col-metric-width);
-  height: var(--col-metric-height);
-  background: var(--cyan-800);
-  flex-direction: row;
-  cursor: pointer;
-}
-
-div.status-table .col-metric.err {
-  background-color: #ffbb55 !important;
-}
-
-div.status-table .col-metric.unhealthy {
-  background-color: #AA0000 !important;
-}
-
-div.status-table .col-metric.stale {
-  background-color: #ffbb55 !important;
-}
-
-.darkTheme div.status-table .col-metric {
-  background: DarkGreen;
-}
-
-div.status-table .col-metric .cur-value {
+div.status-table div.mouseover-time {
   position: absolute;
-  left: 166px;
-  top: 6px;
-  color: white;
-  font-size: 14px;
-  height: var(--col-metric-content-height);
-  line-height: var(--col-metric-content-height);
-}
-
-div.status-table .col-metric div.cur-value.history {
-  color: #B2DADD !important;
-}
-
-.darkTheme div.status-table .col-metric div.cur-value.history {
-  color: #AAA !important;
-}
-
-div.status-table .col-metric.err .cur-value {
-  color: red !important;
-}
-
-div.status-table .col-metric div.sparkline {
-  position: absolute;
-  top: 4px;
-  left: 6px;
-  width: 156px;
-  height: var(--col-metric-content-height);
-}
-
-div.status-table .col-metric svg {
-  position: absolute;
-  top: 0px;
+  top: var(--col-metric-height);
   left: 0px;
-  width: 156px;
-  height: var(--col-metric-content-height);
-}
-
-div.status-table .col-metric svg.mouse-line {
-  position: absolute;
-  top: 0px;
-  left: 6px;
-  width: 156px;
-  height: var(--col-metric-height);
-}
-
-div.status-table .col-metric svg.content {
-}
-
-div.status-table .col-metric svg.content polyline {
-  vector-effect: non-scaling-stroke;
-  fill: none;
-  stroke: white;
-  stroke-width: 0.8;
-}
-
-div.status-table .col-metric svg.threshold path {
-  vector-effect: non-scaling-stroke;
-  fill: none;
-  stroke: white;
-  stroke-width: 0.8;
-}
-
-div.status-table .col-metric svg.mouse-line {
-  shape-rendering: crispedges;
-}
-
-div.status-table .col-metric svg.mouse-line polyline {
-  vector-effect: non-scaling-stroke;
-  fill: none;
-  stroke: #339CA5;
-  stroke-width: 1;
-}
-
-.darkTheme div.status-table .col-metric svg.mouse-line polyline {
-  stroke: #338333;
-}
-
-div.status-table .col-metric div.highlight-overlay {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0px;
-  left: 0px;
-  background-color: white;
-  opacity: 0;
-}
-
-div.status-table .col-metric:hover div.highlight-overlay {
-  opacity: 0.1;
+  color: #999;
+  font-size: 11px;
 }

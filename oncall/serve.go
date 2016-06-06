@@ -541,6 +541,8 @@ func getKubeData(jirix *jiri.X) (map[string][]*podSpec, map[string]string, error
 			retPods[monitoring.SNProxy] = append(retPods[monitoring.SNProxy], pod)
 		case "role":
 			retPods[monitoring.SNRole] = append(retPods[monitoring.SNRole], pod)
+		case "sb-allocator":
+			retPods[monitoring.SNAllocator] = append(retPods[monitoring.SNAllocator], pod)
 		}
 	}
 	// Index nodes names by ids.

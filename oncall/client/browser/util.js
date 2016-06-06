@@ -14,7 +14,9 @@ module.exports = {
   genPolylinePoints: genPolylinePoints,
   getOffsetForValue: getOffsetForValue,
   formatValue: formatValue,
-  isEmptyObj: isEmptyObj
+  isEmptyObj: isEmptyObj,
+  renderSparkline: renderSparkline,
+  renderMouseLine: renderMouseLine
 };
 
 /**
@@ -165,6 +167,9 @@ function getOffsetForValue(value, minValue, maxValue) {
  * @return {string}
  */
 function formatValue(value) {
+  if (isNaN(value)) {
+    return '?';
+  }
   if (value < 1) {
     value = value.toFixed(2);
   } else if (value < 10) {
@@ -185,4 +190,34 @@ function formatValue(value) {
  */
 function isEmptyObj(obj) {
   return Object.keys(obj).length === 0;
+}
+
+/**
+ * Renders sparkline for the given points.
+ * @param {string} points - A string in the form of "x1,y1 x2,y2 ...".
+ */
+function renderSparkline(points) {
+  return svg('svg', {
+    'class': 'content',
+    'viewBox': '0 0 100 100',
+    'preserveAspectRatio': 'none'
+  }, [
+    svg('polyline', {'points': points}),
+  ]);
+}
+
+/**
+ * Renders mouse line at the given offset.
+ * @param {Number} mouseOffset - The logical offset for the mouse line.
+ */
+function renderMouseLine(mouseOffset) {
+  return svg('svg', {
+    'class': 'mouse-line',
+    'viewBox': '0 0 100 100',
+    'preserveAspectRatio': 'none'
+  }, [
+    svg('polyline', {
+      'points': mouseOffset + ',0 ' + mouseOffset + ',100'
+    })
+  ]);
 }

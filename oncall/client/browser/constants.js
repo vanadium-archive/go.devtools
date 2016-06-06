@@ -25,6 +25,7 @@ var metricNames = Object.freeze({
   MN_MOUNTTABLE: 'mounttable',
   MN_PROXY: 'proxy service',
   MN_ROLE: 'role service',
+  MN_SB_ALLOCATOR: 'syncbase allocator',
   MN_MT_MOUNTED_SERVERS: 'mounttable mounted servers',
   MN_MT_NODES: 'mounttable nodes'
 });
@@ -74,6 +75,7 @@ var displayNames = Object.freeze({
   'role service': 'ROLES',
   'role service latency': 'ROLES',
   'roled': 'ROLED',
+  'syncbase allocator': 'SB ALLOCATOR',
   'tcpconn': 'TCP CONN',
   'waiting-connections': 'WAITING CONN',
   'writing-connections': 'WRITING CONN'
@@ -175,6 +177,8 @@ var nginxGCEMetrics = [
 /** All available metric objects. */
 var mainMetrics = cloudServiceMetrics.concat(nginxMetrics);
 
+var stableDataThresholdInSeconds = 600;
+
 /**
  * Creates a metric.
  *
@@ -238,5 +242,6 @@ module.exports = {
   cloudServiceGCEMetrics: cloudServiceGCEMetrics,
   nginxMetrics: nginxMetrics,
   nginxGCEMetrics: nginxGCEMetrics,
-  mainMetrics: mainMetrics
+  mainMetrics: mainMetrics,
+  stableDataThresholdInSeconds: stableDataThresholdInSeconds
 };

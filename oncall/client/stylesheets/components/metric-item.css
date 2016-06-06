@@ -1,139 +1,117 @@
 /* Copyright 2015 The Vanadium Authors. All rights reserved. */
 /* Use of this source code is governed by a BSD-style */
 /* license that can be found in the LICENSE file. */
-
-div.metric-item {
-  width: var(--metric-item-width);
-  color: var(--dark-green-grey);
-  cursor: pointer;
-  margin-right: 4px;
+.col-metric {
   position: relative;
-}
-
-.darkTheme div.metric-item {
-  color: var(--light-green-grey);
-}
-
-div.metric-item.unhealthy {
-  background: var(--red-stripes-background-dimmed);
-}
-
-div.metric-item:nth-child(1):before {
-  width: 0px !important;
-}
-
-div.metric-item:hover .metric-item-title {
-  background-color: var(--light-grey);
-}
-
-.darkTheme div.metric-item:hover .metric-item-title {
-  background-color: var(--dark-highlight);
-}
-
-div.metric-item div.metric-item-title {
-  padding-top: 4px;
-  padding-bottom: 2px;
-  font-size: 12px;
-  line-height: var(--metric-item-title-height);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-div.metric-item div.metric-item-graph-container {
+  padding: 6px 4px 6px 4px;
   display: flex;
-  justify-content: space-between;
-  padding-left: 4px;
-  padding-right: 2px;
-}
-
-div.metric-item div.metric-item-value {
-  font-size: 16px;
-  font-weight: var(--font-weight-medium);
-  color: var(--cyan-800);
-  height: var(--metric-item-value-height);
-  line-height: var(--metric-item-value-height);
-  margin-bottom: 4px;
-}
-
-.darkTheme div.metric-item div.metric-item-value {
-  color: var(--light-green);
-}
-
-div.metric-item div.metric-item-value.unhealthy {
-  color: var(--dark-red);
-}
-
-.darkTheme div.metric-item div.metric-item-value.unhealthy {
-  color: var(--light-red);
-}
-
-div.metric-item div.metric-item-graph {
-}
-
-div.metric-item-filler {
-  flex-grow: 1;
-  height: var(--metric-item-height);
-  width: var(--metric-item-width);
-}
-
-div.metric-item div.sparkline {
-  position: relative;
+  width: var(--col-metric-width);
+  height: var(--col-metric-height);
+  background: var(--cyan-800);
+  flex-direction: row;
   cursor: pointer;
-  height: var(--sparkline-height);
 }
 
-div.metric-item div.sparkline svg {
-  width: 100%;
-  height: 100%;
+.col-metric.warning {
+  background-color: var(--warning) !important;
+}
+
+.col-metric.fatal {
+  background-color: var(--fatal) !important;
+}
+
+.darkTheme .col-metric {
+  background: DarkGreen;
+}
+
+.col-metric .cur-value {
+  position: absolute;
+  left: 166px;
+  top: 6px;
+  color: white;
+  font-size: 14px;
+  height: var(--col-metric-content-height);
+  line-height: var(--col-metric-content-height);
+}
+
+.col-metric div.cur-value.history {
+  color: #B2DADD !important;
+}
+
+.darkTheme .col-metric div.cur-value.history {
+  color: #AAA !important;
+}
+
+.col-metric.err .cur-value {
+  color: red !important;
+}
+
+.col-metric div.sparkline {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  width: 156px;
+  height: var(--col-metric-content-height);
+}
+
+.col-metric svg {
   position: absolute;
   top: 0px;
   left: 0px;
+  width: 156px;
+  height: var(--col-metric-content-height);
 }
 
-div.metric-item div.sparkline svg.content polyline {
+.col-metric svg.mouse-line {
+  position: absolute;
+  top: 0px;
+  left: 6px;
+  width: 156px;
+  height: var(--col-metric-height);
+}
+
+.col-metric svg.content {
+}
+
+.col-metric svg.content polyline {
   vector-effect: non-scaling-stroke;
   fill: none;
-  stroke: var(--dark-green-grey);
-  stroke-width: 2;
+  stroke: white;
+  stroke-width: 0.8;
 }
 
-.darkTheme div.metric-item div.sparkline svg.content polyline {
-  stroke: var(--light-green-grey);
+.col-metric svg.threshold path {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  stroke: white;
+  stroke-width: 0.8;
 }
 
-div.metric-item div.sparkline svg.content polygon {
-  fill: WhiteSmoke;
-  stroke: none;
-}
-
-.darkTheme div.metric-item div.sparkline svg.content polygon {
-  fill: #333;
-}
-
-div.metric-item svg.mouse-line {
+.col-metric svg.mouse-line {
   shape-rendering: crispedges;
 }
 
-div.metric-item div.sparkline svg.mouse-line polyline {
+.col-metric svg.mouse-line polyline {
   vector-effect: non-scaling-stroke;
   fill: none;
-  stroke: #BBB;
+  stroke: rgba(255, 255, 255, 0.2);
   stroke-width: 1;
 }
 
-div.metric-item div.sparkline svg.mouse-line polygon {
-  vector-effect: non-scaling-stroke;
-  fill: var(--dark-red);
-  stroke: none;
+.col-metric div.highlight-overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0px;
+  left: 0px;
+  background-color: white;
+  opacity: 0;
 }
 
-div.metric-item svg.threshold-line {
-  shape-rendering: crispedges;
+.col-metric:hover div.highlight-overlay {
+  opacity: 0.1;
 }
 
-div.metric-item div.sparkline svg.threshold-line path {
-  vector-effect: non-scaling-stroke;
-  fill: none;
-  stroke: var(--dark-red);
-  stroke-width: 1;
+.col-metric.selected div.highlight-overlay {
+  opacity: 0.2;
 }

@@ -19,12 +19,6 @@ var metricActionsPanelComponent = require('./components/metric-actions-panel');
  */
 var curData;
 
-/**
- * A variable to keep track of current metric data shown in the
- * metric actions panel.
- */
-var selectedMetricData;
-
 // Ask mercury to listen to mousemove/mouseout/mouseover events.
 hg.Delegator().listenTo('mousemove');
 hg.Delegator().listenTo('mouseout');
@@ -48,14 +42,12 @@ var state = hg.state({
     // The status table showing service status.
     statusTable: statusTableComponent(null),
 
-    // The view showing data on the "instance" level.
-    // instanceView: instanceViewComponent(null),
+    // The metric actions panel.
+    metricActionsPanel: metricActionsPanelComponent(null)
   }),
 
   // Whether to show settings panel.
   showSettingsPanel: hg.value(false),
-
-  showMetricActionsPanel: hg.value(false),
 
   // Settings stored in cookies.
   settings: hg.varhash({
@@ -67,18 +59,17 @@ var state = hg.state({
     changeTheme: changeTheme,
     clickOnSettingsGear: clickOnSettingsGear,
     closeSettingsPanel: closeSettingsPanel,
-    closeMetricActionsPanel: closeMetricActionsPanel
   }
 });
 
 /** Callback for clicking on a metric. */
 function mouseClickOnMetric(state, data) {
-  selectedMetricData = data;
-  state.showMetricActionsPanel.set(true);
-}
-
-function closeMetricActionsPanel(state) {
-  state.showMetricActionsPanel.set(false);
+  var metricActionPanelData = metricActionsPanelComponent({
+    selectedMetric: data,
+    selectedMetricIndex: 0,
+    visible: true
+  });
+  state.components.put('metricActionsPanel', metricActionPanelData);
 }
 
 /** Callback when user clicks on the settings gear. */
@@ -119,9 +110,11 @@ var render = function(state) {
     mainContent.push(hg.partial(settingsPanelComponent.render, state));
   }
 
-  if (state.showMetricActionsPanel) {
-    mainContent.push(hg.partial(metricActionsPanelComponent.render, state,
-          selectedMetricData, curData));
+  if (state.components.metricActionsPanel &&
+      state.components.metricActionsPanel.visible) {
+    mainContent.push(
+        metricActionsPanelComponent.render(state.components.metricActionsPanel,
+          curData));
   }
 
   var className = state.settings.darkTheme ? 'main.darkTheme' : 'main';
@@ -183,8 +176,8 @@ document.onkeydown = function(evt) {
     if (state.showSettingsPanel()) {
       state.showSettingsPanel.set(false);
     }
-    if (state.showMetricActionsPanel()) {
-      state.showMetricActionsPanel.set(false);
+    if (state.components.metricActionsPanel) {
+      state.components.metricActionsPanel.visible.set(false);
     }
   }
 };
