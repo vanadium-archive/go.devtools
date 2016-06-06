@@ -23,6 +23,7 @@ import (
 
 	"v.io/jiri"
 	"v.io/jiri/collect"
+	"v.io/jiri/gerrit"
 	"v.io/jiri/gitutil"
 	"v.io/jiri/project"
 	"v.io/jiri/runutil"
@@ -409,7 +410,7 @@ func parseCLs() ([]cl, error) {
 	cls := []cl{}
 	for i, ref := range refs {
 		project := projects[i]
-		clNumber, patchset, err := parseRefString(ref)
+		clNumber, patchset, err := gerrit.ParseRefString(ref)
 		if err != nil {
 			return nil, err
 		}

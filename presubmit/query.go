@@ -10,7 +10,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 
 	"v.io/jiri"
@@ -243,7 +242,7 @@ func (s *clsSender) sendCLListsToPresubmitTest(jirix *jiri.X) error {
 
 }
 
-type clListInfo struct {
+type processCLListResult struct {
 	clMap             clNumberToPatchsetMap
 	clString          string
 	skipPresubmitTest bool
@@ -253,7 +252,7 @@ type clListInfo struct {
 	filteredCLList    gerrit.CLList
 }
 
-func (s *clsSender) processCLList(jirix *jiri.X, curCLList gerrit.CLList) *clListInfo {
+func (s *clsSender) processCLList(jirix *jiri.X, curCLList gerrit.CLList) *processCLListResult {
 	curCLMap := clNumberToPatchsetMap{}
 	clStrings := []string{}
 	skipPresubmitTest := false
@@ -269,7 +268,7 @@ func (s *clsSender) processCLList(jirix *jiri.X, curCLList gerrit.CLList) *clLis
 		}
 		filteredCLList = append(filteredCLList, curCL)
 
-		cl, patchset, err := parseRefString(curCL.Reference())
+		cl, patchset, err := gerrit.ParseRefString(curCL.Reference())
 		if err != nil {
 			printf(jirix.Stderr(), "%v\n", err)
 			return nil
@@ -286,7 +285,7 @@ func (s *clsSender) processCLList(jirix *jiri.X, curCLList gerrit.CLList) *clLis
 		projects = append(projects, curCL.Project)
 		refs = append(refs, curCL.Reference())
 	}
-	return &clListInfo{
+	return &processCLListResult{
 		clMap:             curCLMap,
 		clString:          strings.Join(clStrings, ", "),
 		skipPresubmitTest: skipPresubmitTest,
@@ -423,7 +422,7 @@ func isBuildOutdated(curRefs string, newCLs clNumberToPatchsetMap) (bool, error)
 	curCLs := clNumberToPatchsetMap{}
 	refs := strings.Split(curRefs, ":")
 	for _, ref := range refs {
-		cl, patchset, err := parseRefString(ref)
+		cl, patchset, err := gerrit.ParseRefString(ref)
 		if err != nil {
 			return false, err
 		}
@@ -465,23 +464,6 @@ func sortedKeys(cls clNumberToPatchsetMap) []int {
 	}
 	sort.Ints(keys)
 	return keys
-}
-
-// parseRefString parses the cl and patchset number from the given ref string.
-func parseRefString(ref string) (int, int, error) {
-	parts := strings.Split(ref, "/")
-	if expected, got := 5, len(parts); expected != got {
-		return -1, -1, fmt.Errorf("unexpected number of %q parts: expected %v, got %v", ref, expected, got)
-	}
-	cl, err := strconv.Atoi(parts[3])
-	if err != nil {
-		return -1, -1, fmt.Errorf("Atoi(%q) failed: %v", parts[3], err)
-	}
-	patchset, err := strconv.Atoi(parts[4])
-	if err != nil {
-		return -1, -1, fmt.Errorf("Atoi(%q) failed: %v", parts[4], err)
-	}
-	return cl, patchset, nil
 }
 
 // addPresubmitTestBuild uses Jenkins' remote access API to add a build for
