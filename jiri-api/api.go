@@ -212,11 +212,7 @@ func getPackageChanges(jirix *jiri.X, apiCheckProjects map[string]struct{}, args
 	}
 	for _, project := range projects {
 		path := project.Path
-		branch, err := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(path)).CurrentBranchName()
-		if err != nil {
-			return nil, err
-		}
-		files, err := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(path)).ModifiedFiles("master", branch)
+		files, err := gitutil.New(jirix.NewSeq(), gitutil.RootDirOpt(path)).TrackedFiles()
 		if err != nil {
 			return nil, err
 		}
