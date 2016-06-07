@@ -160,6 +160,7 @@ var testFunctions = map[string]func(*jiri.X, string, ...Opt) (*test.Result, erro
 	"vanadium-website-tutorials-core":                 vanadiumWebsiteTutorialsCore,
 	"vanadium-website-tutorials-external":             vanadiumWebsiteTutorialsExternal,
 	"vanadium-website-tutorials-java":                 vanadiumWebsiteTutorialsJava,
+	"vanadium-website-tutorials-syncbase-android":     vanadiumWebsiteTutorialsSyncbaseAndroid,
 }
 
 func newTestContext(jirix *jiri.X, env map[string]string) *jiri.X {

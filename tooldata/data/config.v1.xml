@@ -169,6 +169,7 @@
       <test>vanadium-copyright</test>
       <test>vanadium-website-site</test>
       <test>vanadium-website-tutorials-core</test>
+      <test>vanadium-website-tutorials-syncbase-android</test>
     </project>
   </projectTests>
   <testDependencies>

@@ -56,6 +56,10 @@ func vanadiumWebsiteTutorialsCore(jirix *jiri.X, testName string, _ ...Opt) (*te
 	return commonVanadiumWebsite(jirix, testName, "test-tutorials-core", defaultWebsiteTestTimeout, nil)
 }
 
+func vanadiumWebsiteTutorialsSyncbaseAndroid(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
+	return commonVanadiumWebsite(jirix, testName, "test-syncbase-android", defaultWebsiteTestTimeout, nil)
+}
+
 func vanadiumWebsiteTutorialsExternal(jirix *jiri.X, testName string, _ ...Opt) (*test.Result, error) {
 	// The external tutorial test installs both the jiri CLI tool and Vanadium
 	// from scratch. This simulates a new user walking through the install and
