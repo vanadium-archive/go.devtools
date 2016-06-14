@@ -54,7 +54,7 @@ const (
 // serviceMountedNames is a map from human-readable service names to their
 // relative mounted names in the global mounttable.
 var serviceMountedNames = map[string]string{
-	SNMounttable:       "",
+	SNMounttable:       "mt",
 	SNIdentity:         "identity/dev.v.io:u",
 	SNMacaroon:         "identity/dev.v.io:u/macaroon",
 	SNBinaryDischarger: "identity/dev.v.io:u/discharger",
@@ -121,30 +121,22 @@ func ResolveAndProcessServiceName(v23ctx *context.T, ctx *tool.Context, serviceN
 
 	// Group resolved names by their routing ids.
 	groups := map[string]naming.MountEntry{}
-	if serviceName == SNMounttable {
-		// Mounttable resolves to itself, so we just use a dummy routing id with
-		// its original mounted name.
-		groups["-"] = naming.MountEntry{
-			Servers: []naming.MountedServer{naming.MountedServer{Server: serviceMountedName}},
+	for _, resolvedName := range resolvedNames {
+		serverName, relativeName := naming.SplitAddressName(resolvedName)
+		ep, err := naming.ParseEndpoint(serverName)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		for _, resolvedName := range resolvedNames {
-			serverName, relativeName := naming.SplitAddressName(resolvedName)
-			ep, err := naming.ParseEndpoint(serverName)
-			if err != nil {
-				return nil, err
-			}
-			routingId := ep.RoutingID.String()
-			if _, ok := groups[routingId]; !ok {
-				groups[routingId] = naming.MountEntry{}
-			}
-			curMountEntry := groups[routingId]
-			curMountEntry.Servers = append(curMountEntry.Servers, naming.MountedServer{Server: serverName})
-			// resolvedNames are resolved from the same service so they should have
-			// the same relative name.
-			curMountEntry.Name = relativeName
-			groups[routingId] = curMountEntry
+		routingId := ep.RoutingID.String()
+		if _, ok := groups[routingId]; !ok {
+			groups[routingId] = naming.MountEntry{}
 		}
+		curMountEntry := groups[routingId]
+		curMountEntry.Servers = append(curMountEntry.Servers, naming.MountedServer{Server: serverName})
+		// resolvedNames are resolved from the same service so they should have
+		// the same relative name.
+		curMountEntry.Name = relativeName
+		groups[routingId] = curMountEntry
 	}
 
 	return groups, nil
