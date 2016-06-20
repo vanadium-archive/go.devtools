@@ -90,6 +90,11 @@ var (
 			github:       "git@github.com:vanadium/js.syncbase.git",
 		},
 		Mirror{
+			name:         "luma",
+			googlesource: "https://vanadium.googlesource.com/release.projects.luma",
+			github:       "git@github.com:vanadium/luma.git",
+		},
+		Mirror{
 			name:         "luma.third_party",
 			googlesource: "https://vanadium.googlesource.com/release.projects.luma_third_party",
 			github:       "git@github.com:vanadium/luma.third_party.git",

@@ -26,6 +26,7 @@
     <project>release.projects.baku</project>
     <project>release.projects.browser</project>
     <project>release.projects.croupier</project>
+    <project>release.projects.luma</project>
     <project>release.projects.madb</project>
     <project>release.projects.physical-lock</project>
     <project>release.projects.reader</project>
@@ -134,6 +135,9 @@
     <project name="release.projects.croupier">
       <test>vanadium-copyright</test>
       <test>vanadium-croupier-unit</test>
+    </project>
+    <project name="release.projects.luma">
+      <test>vanadium-copyright</test>
     </project>
     <project name="release.projects.madb">
       <test>madb-go-format</test>
