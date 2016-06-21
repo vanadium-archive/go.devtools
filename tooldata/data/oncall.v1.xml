@@ -4,11 +4,6 @@
 -->
 <rotation>
   <shift>
-    <primary>eobrain</primary>
-    <secondary>fredq</secondary>
-    <startDate>Jun 13, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
     <primary>fredq</primary>
     <secondary>eobrain</secondary>
     <startDate>Jun 20, 2016 08:00:00 AM</startDate>
