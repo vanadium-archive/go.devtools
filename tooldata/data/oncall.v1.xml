@@ -4,11 +4,6 @@
 -->
 <rotation>
   <shift>
-    <primary>hpucha</primary>
-    <secondary>ivanpi</secondary>
-    <startDate>Jun 27, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
     <primary>ivanpi</primary>
     <secondary>hpucha</secondary>
     <startDate>Jul 04, 2016 08:00:00 AM</startDate>
