@@ -116,6 +116,11 @@ var (
 			github:       "git@github.com:vanadium/media-sharing.git",
 		},
 		Mirror{
+			name:         "messenger",
+			googlesource: "https://vanadium.googlesource.com/release.projects.messenger",
+			github:       "git@github.com:vanadium/messenger.git",
+		},
+		Mirror{
 			name:         "mojo.discovery",
 			googlesource: "https://vanadium.googlesource.com/release.mojo.discovery",
 			github:       "git@github.com:vanadium/mojo.discovery.git",
