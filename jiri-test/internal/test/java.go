@@ -49,3 +49,8 @@ func runJavaTest(jirix *jiri.X, testName string, cwd []string, tasks []string) (
 func vanadiumJavaTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	return runJavaTest(jirix, testName, []string{"release", "java"}, []string{":lib:clean", ":lib:check"})
 }
+
+// vanadiumJavaSyncbaseTest runs all Java Syncbase high-level API unit tests.
+func vanadiumJavaSyncbaseTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
+	return runJavaTest(jirix, testName, []string{"release", "java", "syncbase"}, []string{"clean", "test"})
+}

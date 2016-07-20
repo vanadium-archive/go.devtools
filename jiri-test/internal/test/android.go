@@ -17,3 +17,8 @@ func vanadiumAndroidBuild(jirix *jiri.X, testName string, opts ...Opt) (_ *test.
 func vanadiumMomentsTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
 	return runJavaTest(jirix, testName, []string{"release", "java", "projects", "moments"}, []string{"assembleDebug", "test"})
 }
+
+// vanadiumDicerollerAndroidTest tests the diceroller android app.
+func vanadiumDicerollerAndroidTest(jirix *jiri.X, testName string, opts ...Opt) (_ *test.Result, e error) {
+	return runJavaTest(jirix, testName, []string{"release", "java", "projects", "dice_roller"}, []string{"assembleDebug", "test"})
+}

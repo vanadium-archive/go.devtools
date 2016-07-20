@@ -219,6 +219,8 @@
       <test>baku-android-build</test>
       <test>baku-java-test</test>
       <test>vanadium-android-build</test>
+      <test>vanadium-diceroller-android-test</test>
+      <test>vanadium-java-syncbase-test</test>
       <test>vanadium-java-test</test>
     </group>
     <group name="mojo">
