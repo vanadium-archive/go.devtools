@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	cloudmonitoring "google.golang.org/api/monitoring/v3"
@@ -95,10 +96,11 @@ func checkCloudSyncbaseInstances(v23ctx *context.T, ctx *tool.Context, s *cloudm
 	numTasks := numInstances * len(taskTypes)
 	tasks := make(chan cloudSyncbaseStatsTask, numTasks)
 	taskResults := make(chan cloudSyncbaseStatsResult, numTasks)
+	var aggsMu sync.Mutex // protects aggs
 	aggs := map[string]*aggregator{}
 	// Start workers and distribute work to them.
 	for i := 0; i < runtime.NumCPU(); i++ {
-		go statsWorker(v23ctx, ctx, s, now, aggs, md, tasks, taskResults)
+		go statsWorker(v23ctx, ctx, s, now, &aggsMu, aggs, md, tasks, taskResults)
 	}
 	for _, sb := range sbInstances {
 		for _, t := range taskTypes {
@@ -136,7 +138,7 @@ func checkCloudSyncbaseInstances(v23ctx *context.T, ctx *tool.Context, s *cloudm
 // and updates the corresponding aggregator.
 func statsWorker(
 	v23ctx *context.T, ctx *tool.Context, s *cloudmonitoring.Service,
-	now string, aggs map[string]*aggregator, md *cloudmonitoring.MetricDescriptor,
+	now string, aggsMu *sync.Mutex, aggs map[string]*aggregator, md *cloudmonitoring.MetricDescriptor,
 	tasks <-chan cloudSyncbaseStatsTask, results chan<- cloudSyncbaseStatsResult) {
 	for t := range tasks {
 		result := cloudSyncbaseStatsResult{}
@@ -209,7 +211,7 @@ func statsWorker(
 			}
 		}
 		for _, metric := range metrics {
-			getAggregator(aggs, metric.metricLabel).add(metric.value)
+			getAggregator(aggsMu, aggs, metric.metricLabel).add(metric.value)
 			if err := sendDataToGCM(s, md, metric.value, now, "", "", metric.metricLabel, t.mountedName); err != nil {
 				fmt.Fprintf(ctx.Stderr(), "%v\n", err)
 			} else {
@@ -220,7 +222,9 @@ func statsWorker(
 	}
 }
 
-func getAggregator(aggs map[string]*aggregator, metricLabel string) *aggregator {
+func getAggregator(aggsMu *sync.Mutex, aggs map[string]*aggregator, metricLabel string) *aggregator {
+	aggsMu.Lock()
+	defer aggsMu.Unlock()
 	_, ok := aggs[metricLabel]
 	if !ok {
 		aggs[metricLabel] = newAggregator()
