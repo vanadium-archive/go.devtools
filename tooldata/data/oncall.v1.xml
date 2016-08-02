@@ -4,11 +4,6 @@
 -->
 <rotation>
   <shift>
-    <primary>jyh</primary>
-    <secondary>m3b</secondary>
-    <startDate>Jul 25, 2016 08:00:00 AM</startDate>
-  </shift>
-  <shift>
     <primary>m3b</primary>
     <secondary>jyh</secondary>
     <startDate>Aug 01, 2016 08:00:00 AM</startDate>
