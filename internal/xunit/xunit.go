@@ -116,8 +116,11 @@ func TestSuitesFromGoTestOutput(jirix *jiri.X, testOutput io.Reader) ([]*TestSui
 	if err != nil {
 		return nil, err
 	}
-	var out bytes.Buffer
-	if err := jirix.NewSeq().Read(testOutput).Capture(&out, nil).Last(bin); err != nil {
+	var out, errout bytes.Buffer
+	if err := jirix.NewSeq().Read(testOutput).Capture(&out, &errout).Last(bin); err != nil {
+		fmt.Fprintf(os.Stderr, "XX: %v\n", string(out.Bytes()))
+		fmt.Fprintf(os.Stderr, "YY: %v\n", string(errout.Bytes()))
+
 		return nil, err
 	}
 	var suite TestSuite

@@ -89,14 +89,13 @@ func newGoRelease(version string) *goRelease {
 	file := fmt.Sprintf("go%s.%s-%s.tar.gz", version, runtime.GOOS, arch)
 	// From: https://golang.org/dl/
 	shamap := map[string]string{
-		"go1.6.darwin-amd64.tar.gz":  "8b686ace24c0166738fd9f6003503f9d55ce03b7f24c963b043ba7bb56f43000",
-		"go1.6.freebsd-386.tar.gz":   "67f0278e0650b303156adbfe012317b9ce75396e3a28cbc0a8210284bb07ab85",
-		"go1.6.freebsd-amd64.tar.gz": "3763015cdc7971e10f90fb5bec80d885e9956f836277dcb35a2166ffbd7af9b5",
-		"go1.6.linux-386.tar.gz":     "7a240a0f45e559d47ea07319d9faf838225eb9e18174f56a76ccaf9860dbb9b1",
-		"go1.6.linux-amd64.tar.gz":   "5470eac05d273c74ff8bac7bef5bad0b5abbd1c4052efbdbc8db45332e836b0b",
-		"go1.6.linux-armv6l.tar.gz":  "c6c1859acd3727f23f900bde855b5fd0f74d36b1d10f6dd7beddebfb57513d0b",
-		"go1.6.windows-386.zip":      "ac41a46f44d0ea5b83ad7e6a55ee1d58c6a01b7ab7342e243f232510342f16f0",
-		"go1.6.windows-amd64.zip":    "1be06afa469666d636a00928755c4bcd6403a01f5761946b2b13b8a664f86bac",
+		"go1.8.3.darwin-amd64.tar.gz":  "f20b92bc7d4ab22aa18270087c478a74463bd64a893a94264434a38a4b167c05",
+		"go1.8.3.linux-386.tar.gz":     "ff4895eb68fb1daaec41c540602e8bb4c1e8bb2f0e7017367171913fc9995ed2",
+		"go1.8.3.linux-amd64.tar.gz":   "1862f4c3d3907e59b04a757cfda0ea7aa9ef39274af99a784f5be843c80c6772",
+		"go1.8.3.linux-armv6l.tar.gz":  "3c30a3e24736ca776fc6314e5092fb8584bd3a4a2c2fa7307ae779ba2735e668",
+		"go1.8.3.windows-amd64.zip":    "de026caef4c5b4a74f359737dcb2d14c67ca45c45093755d3b0d2e0ee3aafd96",
+		"go1.8.3.freebsd-386.tar.gz":   "d301cc7c2b8b0ccb384ac564531beee8220727fd27ca190b92031a2e3e230224",
+		"go1.8.3.freebsd-amd64.tar.gz": "1bf5f076d48609012fe01b95e2a58e71e56719a04d576fe3484a216ad4b9c495",
 	}
 	sha256, ok := shamap[file]
 	if !ok {
@@ -170,7 +169,9 @@ func Register(installer, profile string) {
 				"560937434d5f2857bb69e0a6881a38201a197a8d", nil},
 			"1.6": &versionSpec{
 				"e805bf39458915365924228dc53969ce04e32813", nil},
-		}, "1.6"),
+			"1.8.3": &versionSpec{
+				"f3e6216450866f761cc22c042798c88062319867", nil},
+		}, "1.8.3"),
 	}
 	profilesmanager.Register(m)
 }
