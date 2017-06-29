@@ -271,7 +271,7 @@ func goCoverage(jirix *jiri.X, testName string, opts ...goCoverageOpt) (_ *test.
 	// Install required tools.
 	goInstall := []string{"go"}
 	goInstall = append(goInstall, goFlags...)
-	goInstall = append(goInstall, "install", "golang.org/x/tools/cmd/cover", "github.com/t-yuki/gocover-cobertura", "bitbucket.org/tebeka/go2xunit")
+	goInstall = append(goInstall, "install", "golang.org/x/tools/cmd/cover", "github.com/t-yuki/gocover-cobertura", "github.com/tebeka/go2xunit")
 	if err := s.Last("jiri", goInstall...); err != nil {
 		return nil, newInternalError(err, "install coverage tools")
 	}
@@ -645,7 +645,7 @@ func goTest(jirix *jiri.X, testName string, opts ...goTestOpt) (_ *test.Result, 
 	// Install required tools.
 	goInstall := []string{"go"}
 	goInstall = append(goInstall, goFlags...)
-	goInstall = append(goInstall, "install", "bitbucket.org/tebeka/go2xunit")
+	goInstall = append(goInstall, "install", "github.com/tebeka/go2xunit")
 	if err := jirix.NewSeq().Last("jiri", goInstall...); err != nil {
 		return nil, nil, newInternalError(err, "install-go2xunit")
 	}

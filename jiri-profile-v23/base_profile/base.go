@@ -46,7 +46,11 @@ func Register(installer, profile string) {
 					{"go", "1.6"},
 					{"syncbase", ""}},
 				},
-			}, "5"),
+				"6": &versionSpec{[]struct{ name, version string }{
+					{"go", "1.8.3"},
+					{"syncbase", ""}},
+				},
+			}, "6"),
 	}
 	profilesmanager.Register(m)
 }
